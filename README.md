@@ -1,0 +1,2 @@
+# connections
+Galois connections
