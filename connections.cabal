@@ -1,5 +1,5 @@
 name:                connections
-version:             0.0.1
+version:             0.0.2
 synopsis:            Partial orders & Galois connections.
 description:         A library for precision rounding using Galois connections.
 homepage:            https://github.com/cmk/connections
@@ -27,7 +27,7 @@ library
     , Data.Float
 
   build-depends:       
-      base           >= 4.8   && < 5.0
+      base           >= 4.10  && < 5.0
     , containers     >= 0.4.0 && < 0.7
     , semigroupoids  == 5.*
     , property       >= 0.0.1 && < 1.0

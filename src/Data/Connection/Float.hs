@@ -12,7 +12,7 @@ import Data.Connection.Int
 import Data.Connection.Word
 import GHC.Num (subtract)
 import qualified Data.Bits as B
---import qualified GHC.Float as F
+import qualified GHC.Float as F
 
 import Prelude
 
@@ -134,9 +134,11 @@ int32Float = word32Float . unsigned32
 floatInt32 :: Float -> Int32
 floatInt32 = signed32 . floatWord32 
 
+-- Bit-for-bit conversion.
 word32Float :: Word32 -> Float
-word32Float = error "find new implementation" --F.castWord32ToFloat
+word32Float = F.castWord32ToFloat
 
--- force to positive representation?
+-- TODO force to positive representation?
+-- Bit-for-bit conversion.
 floatWord32 :: Float -> Word32
-floatWord32 = error "find new implementation" --(+0) .  F.castFloatToWord32
+floatWord32 = (+0) .  F.castFloatToWord32
