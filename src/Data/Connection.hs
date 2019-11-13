@@ -3,7 +3,6 @@
 {-# Language AllowAmbiguousTypes #-}
 
 module Data.Connection (
-
   -- * Connection
     Conn(..)
   , connl
@@ -12,16 +11,16 @@ module Data.Connection (
   , counit
   , pcomparing
   , dual
-  , (***)
-  , (+++)
   , (&&&)
   , (|||)
-  , _1
-  , _2
-  , _L
-  , _R
   , just
   , list
+  , first
+  , second
+  , left
+  , right
+  , strong
+  , choice
   , binord
   , ordbin
 
@@ -33,21 +32,19 @@ module Data.Connection (
   , unitr
   , counitl
   , counitr
-  , ceiling'
-  , floor'
-  , (****)
-  , (++++)
-  , (&&&&)
-  , (||||)
-  , _1'
-  , _2'
-  , _L'
-  , _R'
-  , diag
-  , codiag
+  , forked
+  , joined
   , bound
   , maybel
   , mayber
+  , first'
+  , second'
+  , left'
+  , right'
+  , strong'
+  , choice'
+  , ceiling'
+  , floor'
 ) where
 
 import Control.Category (Category, (>>>))
@@ -63,8 +60,8 @@ import qualified Data.Ord as O
 import qualified Control.Category as C
 
 
-infixr 3 ***, ****, &&&, &&&&
-infixr 2 +++, ++++, |||, ||||
+--infixr 3 ***, ****, &&&, &&&&
+--infixr 2 +++, ++++, |||, ||||
 
 -- | A Galois connection between two monotone functions: \(connl \dashv connr \)
 --
@@ -130,47 +127,31 @@ instance Category Conn where
 dual :: Prd a => Prd b => Conn a b -> Conn (Down b) (Down a)
 dual (Conn f g) = Conn (\(Down b) -> Down $ g b) (\(Down a) -> Down $ f a)
 
-(***) :: Prd a => Prd b => Prd c => Prd d => Conn a b -> Conn c d -> Conn (a, c) (b, d)
-(***) (Conn ab ba) (Conn cd dc) = Conn f g where
-  f = bimap ab cd 
-  g = bimap ba dc
-
-(+++) :: Prd a => Prd b => Prd c => Prd d => Conn a b -> Conn c d -> Conn (Either a c) (Either b d)
-(+++) (Conn ab ba) (Conn cd dc) = Conn f g where
-  f = either (Left . ab) (Right . cd)
-  g = either (Left . ba) (Right . dc)
-
-(&&&) :: Prd a => Prd b => Lattice c => Conn c a -> Conn c b -> Conn c (a, b)
-f &&& g = tripr diag >>> f *** g
-
-(|||) :: Prd a => Prd b => Prd c => Conn a c -> Conn b c -> Conn (Either a b) c
-f ||| g = f +++ g >>> tripr codiag
-
--- | Lens into first part of a product.
---
--- @'_1' (ab >>> cd) = '_1' ab >>> '_1' cd@
---
-_1 :: Prd a => Prd b => Prd c => Conn a b -> Conn (a, c) (b, c)
-_1 = (*** C.id)
-
-_2 :: Prd a => Prd b => Prd c => Conn a b -> Conn (c, a) (c, b)
-_2 = (C.id ***)
-
--- | Prism into left part of a sum.
---
--- @'_L' (ab >>> cd) = '_L' ab >>> '_L' cd@
---
-_L :: Prd a => Prd b => Prd c => Conn a b -> Conn (Either a c) (Either b c)
-_L = (+++ C.id)
-
-_R :: Prd a => Prd b => Prd c => Conn a b -> Conn (Either c a) (Either c b)
-_R = (C.id +++)
-
 just :: Prd a => Prd b => Conn a b -> Conn (Maybe a) (Maybe b)
 just (Conn f g) = Conn (fmap f) (fmap g)
 
 list :: Prd a => Prd b => Conn a b -> Conn [a] [b]
 list (Conn f g) = Conn (fmap f) (fmap g)
+
+-- | Lens into first part of a product.
+--
+-- @'first' (ab >>> cd) = 'first' ab >>> 'first' cd@
+--
+first :: Prd a => Prd b => Prd c => Conn a b -> Conn (a, c) (b, c)
+first = flip strong C.id
+
+second :: Prd a => Prd b => Prd c => Conn a b -> Conn (c, a) (c, b)
+second = strong C.id
+
+-- | Prism into left part of a sum.
+--
+-- @'left' (ab >>> cd) = 'left' ab >>> 'left' cd@
+--
+left :: Prd a => Prd b => Prd c => Conn a b -> Conn (Either a c) (Either b c)
+left = flip choice C.id
+
+right :: Prd a => Prd b => Prd c => Conn a b -> Conn (Either c a) (Either c b)
+right = choice C.id 
 
 ordbin :: Conn Ordering Bool
 ordbin = Conn f g where
@@ -188,11 +169,27 @@ binord = Conn f g where
   g LT = False
   g _  = True
 
+(&&&) :: Prd a => Prd b => Lattice c => Conn c a -> Conn c b -> Conn c (a, b)
+f &&& g = tripr forked >>> f `strong` g
+
+(|||) :: Prd a => Prd b => Prd c => Conn a c -> Conn b c -> Conn (Either a b) c
+f ||| g = f `choice` g >>> tripr joined
+
+strong :: Prd a => Prd b => Prd c => Prd d => Conn a b -> Conn c d -> Conn (a, c) (b, d)
+strong (Conn ab ba) (Conn cd dc) = Conn f g where
+  f = bimap ab cd 
+  g = bimap ba dc
+
+choice :: Prd a => Prd b => Prd c => Prd d => Conn a b -> Conn c d -> Conn (Either a c) (Either b d)
+choice (Conn ab ba) (Conn cd dc) = Conn f g where
+  f = either (Left . ab) (Right . cd)
+  g = either (Left . ba) (Right . dc)
+
 ---------------------------------------------------------------------
 --  'Trip'
 ---------------------------------------------------------------------
 
--- | An adjoint triple.
+-- | An adforkedt triple.
 --
 -- @'Trip' f g h@ satisfies:
 --
@@ -200,7 +197,7 @@ binord = Conn f g where
 -- ⊥   ⊥
 -- g ⊣ h
 --
--- See <https://ncatlab.org/nlab/show/adjoint+triple>
+-- See <https://ncatlab.org/nlab/show/adforkedt+triple>
 --
 data Trip a b = Trip (a -> b) (b -> a) (a -> b)
 
@@ -236,44 +233,14 @@ instance Category Trip where
 --  Instances
 ---------------------------------------------------------------------
 
-(****) :: Prd a => Prd b => Prd c => Prd d => Trip a b -> Trip c d -> Trip (a, c) (b, d)
-(****) (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
-  f = bimap ab cd 
-  g = bimap ba dc
-  h = bimap ab' cd'
-
-(++++) :: Prd a => Prd b => Prd c => Prd d => Trip a b -> Trip c d -> Trip (Either a c) (Either b d)
-(++++) (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
-  f = either (Left . ab) (Right . cd)
-  g = either (Left . ba) (Right . dc)
-  h = either (Left . ab') (Right . cd')
-
-(&&&&) :: Prd a => Prd b => Lattice c => Trip a c -> Trip b c -> Trip (a, b) c
-f &&&& g = f **** g >>> diag
-
-(||||) :: Prd a => Prd b => Prd c => Trip c a -> Trip c b -> Trip c (Either a b)
-(||||) f g = codiag >>> f ++++ g
-
-_1' :: Prd a => Prd b => Prd c => Trip a b -> Trip (a, c) (b, c)
-_1' = (**** C.id)
-
-_2' :: Prd a => Prd b => Prd c => Trip a b -> Trip (c, a) (c, b)
-_2' = (C.id ****)
-
-_L' :: Prd a => Prd b => Prd c => Trip a b -> Trip (Either a c) (Either b c)
-_L' = (++++ C.id)
-
-_R' :: Prd a => Prd b => Prd c => Trip a b -> Trip (Either c a) (Either c b)
-_R' = (C.id ++++)
-
-diag :: Lattice a => Trip (a, a) a
-diag = Trip (uncurry (\/)) (\x -> (x,x)) (uncurry (/\))
-
-codiag :: Prd a => Trip a (Either a a)
-codiag = Trip Left (either id id) Right
-
 bound :: Prd a => Bound a => Trip () a
 bound = Trip (const minimal) (const ()) (const maximal)
+
+forked :: Lattice a => Trip (a, a) a
+forked = Trip (uncurry (\/)) (\x -> (x,x)) (uncurry (/\))
+
+joined :: Prd a => Trip a (Either a a)
+joined = Trip Left (either id id) Right
 
 maybel :: Prd a => Bound b => Trip (Maybe a) (Either a b)
 maybel = Trip f g h where
@@ -286,3 +253,27 @@ mayber = Trip f g h where
   f = maybe (Left minimal) Right
   g = either (const Nothing) Just
   h = maybe (Left maximal) Right
+
+first' :: Prd a => Prd b => Prd c => Trip a b -> Trip (a, c) (b, c)
+first' = flip strong' C.id
+
+second' :: Prd a => Prd b => Prd c => Trip a b -> Trip (c, a) (c, b)
+second' = strong' C.id
+
+left' :: Prd a => Prd b => Prd c => Trip a b -> Trip (Either a c) (Either b c)
+left' = flip choice' C.id
+
+right' :: Prd a => Prd b => Prd c => Trip a b -> Trip (Either c a) (Either c b)
+right' = choice' C.id
+
+strong' :: Prd a => Prd b => Prd c => Prd d => Trip a b -> Trip c d -> Trip (a, c) (b, d)
+strong' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
+  f = bimap ab cd 
+  g = bimap ba dc
+  h = bimap ab' cd'
+
+choice' :: Prd a => Prd b => Prd c => Prd d => Trip a b -> Trip c d -> Trip (Either a c) (Either b d)
+choice' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
+  f = either (Left . ab) (Right . cd)
+  g = either (Left . ba) (Right . dc)
+  h = either (Left . ab') (Right . cd')

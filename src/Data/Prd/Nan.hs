@@ -18,45 +18,45 @@ import GHC.Generics (Generic, Generic1)
 
 -- A type with an additional element allowing for the possibility of undefined values.
 -- Isomorphic to /Maybe a/ but with a different 'Prd' instance.
-data Nan a = NaN | Def a
+data Nan a = Nan | Def a
   deriving ( Eq, Ord, Show, Data, Typeable, Generic, Generic1, Functor, Foldable, Traversable)
 
 nan :: b -> (a -> b) -> Nan a -> b
 nan _ f (Def y) = f y
-nan x _  NaN    = x 
+nan x _  Nan    = x 
 
 defined :: Nan a -> Bool
-defined NaN = False
+defined Nan = False
 defined _   = True
 
 mapNan :: (a -> b) -> Nan a -> Nan b
-mapNan f = nan NaN $ Def . f
+mapNan f = nan Nan $ Def . f
 
 maybeNan :: (forall a. a -> a) -> Maybe a -> Nan a
-maybeNan _ Nothing = NaN
+maybeNan _ Nothing = Nan
 maybeNan f (Just x) = Def $ f x
 
 nanMaybe :: (forall a. a -> a) -> Nan a -> Maybe a
-nanMaybe _ NaN = Nothing
+nanMaybe _ Nan = Nothing
 nanMaybe f (Def x) = Just $ f x
 
 eitherNan :: Either a b -> Nan b
-eitherNan = either (const NaN) Def
+eitherNan = either (const Nan) Def
 
 nanEither :: a -> Nan b -> Either a b
 nanEither x = nan (Left x) Right
 
 liftNan :: (Prd a, Fractional a) => (a -> b) -> a -> Nan b
-liftNan f x | x =~ (0/0) = NaN
+liftNan f x | x =~ (0/0) = Nan
             | otherwise = Def (f x)
 
 liftNan' :: RealFloat a => (a -> b) -> a -> Nan b
-liftNan' f x | isNaN x = NaN
+liftNan' f x | isNaN x = Nan
              | otherwise = Def (f x)
 
 -- Lift all exceptional values
 liftAll :: (RealFloat a, Prd a, Bound b) => (a -> b) -> a -> Nan b
-liftAll f x | isNaN x = NaN
+liftAll f x | isNaN x = Nan
             | isInf x = Def maximal
             | isInf (-x) = Def minimal
             | otherwise = Def (f x)
@@ -70,27 +70,27 @@ floatOrdering = Trip f g h where
   g (Def GT) = 1/0
   g (Def LT) = - 1/0
   g (Def EQ) = 0
-  g NaN = 0/0
+  g Nan = 0/0
   
-  f x | isNaN x    = NaN
+  f x | isNaN x    = Nan
   f x | isInf (-x) = Def LT
   f x | x <~ 0     = Def EQ
   f x | otherwise  = Def GT
 
-  h x | isNaN x    = NaN
+  h x | isNaN x    = Nan
   h x | isInf x    = Def GT
   h x | x >~ 0     = Def EQ
   h x | otherwise  = Def LT
 
 instance Prd a => Prd (Nan a) where
-    NaN <~ NaN = True
-    _   <~ NaN = False
-    NaN <~ _   = False
+    Nan <~ Nan = True
+    _   <~ Nan = False
+    Nan <~ _   = False
     Def a <~ Def b = a <~ b
 
 instance Applicative Nan where
     pure = Def
-    NaN <*> _ = NaN
+    Nan <*> _ = Nan
     Def f <*> x = f <$> x
 
 instance Num a => Num (Nan a) where
@@ -102,18 +102,18 @@ instance Num a => Num (Nan a) where
     signum      = fmap signum
 
 nanflt :: Prd a => Fractional a => Conn (Nan a) a
-nanflt = Conn (nan (0/0) id) $ \y -> if y =~ (0/0) then NaN else Def y 
+nanflt = Conn (nan (0/0) id) $ \y -> if y =~ (0/0) then Nan else Def y 
 
 def :: Prd a => Prd b => Conn a b -> Conn (Nan a) (Nan b)
 def conn = Conn f g where 
-  Conn f' g' = _R conn
+  Conn f' g' = right conn
   f = eitherNan . f' . nanEither ()
   g = eitherNan . g' . nanEither ()
 
 {-
 floatOrdering :: Trip Float (Nan Ordering)
 floatOrdering = Trip f g h where
-  h x | isNan x = NaN
+  h x | isNaN x = Nan
   h x | posinf x = Def GT
   h x | finite x && x >~ 0 = Def EQ
   h x | otherwise = Def LT
@@ -121,9 +121,9 @@ floatOrdering = Trip f g h where
   g (Def GT) = maxBound
   g (Def LT) = minBound
   g (Def EQ) = 0
-  g NaN = aNan
+  g Nan = aNan
   
-  f x | isNan x = NaN
+  f x | isNaN x = Nan
   f x | neginf x = Def LT
   f x | finite x && x <~ 0 = Def EQ
   f x | otherwise = Def GT
@@ -146,8 +146,8 @@ instance Ring a => Ring (Nan a) where
 
 instance Field a => Field (Nan a) where
 
-u + NaN = NaN + u = NaN − NaN = NaN
-u · NaN = NaN · u = NaN NaN−1 = NaN
-NaN  u ⇔ u = NaN u  NaN ⇔ u = NaN
+u + Nan = Nan + u = Nan − Nan = Nan
+u · Nan = Nan · u = Nan Nan−1 = Nan
+Nan  u ⇔ u = Nan u  Nan ⇔ u = Nan
 -}
 

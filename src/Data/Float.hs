@@ -170,7 +170,7 @@ relativeError a b
   | otherwise        = abs (a - b) / fmax (abs a) (abs b) -- TODO need /
 
 -- | Check that relative error between two numbers @a@ and @b@. If
--- 'relativeError' returns NaN it returns @False@.
+-- 'relativeError' returns Nan it returns @False@.
 eqRelErr :: Float -- ^ /eps/ relative error should be in [0,1) range
          -> Float -- ^ /a/
          -> Float -- ^ /b/
@@ -182,8 +182,6 @@ eqRelErr eps a b = relativeError a b < eps
 ----------------------------------------------------------------
 -- Ulps-based comparison
 ----------------------------------------------------------------
-
-
 
 ulps :: Float -> Float -> (Bool, Word32)
 ulps x y = o
@@ -407,8 +405,6 @@ asinh = liftFloat F.asinh
 --
 acosh :: Float -> Float
 acosh = liftFloat F.acosh
-
-
 
 liftFloat :: (F.Float -> F.Float) -> Float -> Float
 liftFloat f x = Float $ f x

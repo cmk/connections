@@ -38,8 +38,8 @@ import Data.Word
 import Numeric.Natural
 
 unsigned :: (Bounded a, Integral a, Integral b) => Conn a b
-unsigned = 
-  Conn (\y -> fromIntegral (y + maxBound + 1)) (\x -> fromIntegral x - minBound) 
+unsigned = Conn (\y -> fromIntegral (y + maxBound + 1))
+                (\x -> fromIntegral x - minBound) 
 
 i08w08 :: Conn Int8 Word8
 i08w08 = unsigned

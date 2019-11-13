@@ -28,8 +28,8 @@ import Data.Word
 import Numeric.Natural
 
 signed :: (Bounded b, Integral a, Integral b) => Conn a b
-signed = 
-  Conn (\x -> fromIntegral x - minBound) (\y -> fromIntegral (y + maxBound + 1))
+signed = Conn (\x -> fromIntegral x - minBound)
+              (\y -> fromIntegral (y + maxBound + 1))
 
 w08i08 :: Conn Word8 Int8
 w08i08 = signed

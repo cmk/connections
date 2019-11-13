@@ -56,13 +56,13 @@ u32w64 = Conn f g where
   offset  = 2139095041 :: Word64
   offset' = 2139095041 :: Int32
 
-  f x@(Ulp32 y) | ulp32Nan x = NaN
+  f x@(Ulp32 y) | ulp32Nan x = Nan
                 | negative y = Def $ fromIntegral (y + offset')
                 | otherwise = Def $ (fromIntegral y) + offset
                where fromIntegral = connl conn
 
   g x = case x of
-          NaN -> Ulp32 offset'
+          Nan -> Ulp32 offset'
           Def y | y < offset -> Ulp32 $ (fromIntegral y) - offset'
                 | otherwise  -> Ulp32 $ fromIntegral ((min 4278190081 y) - offset)
                where fromIntegral = connr conn
