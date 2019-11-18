@@ -60,9 +60,6 @@ import qualified Data.Ord as O
 import qualified Control.Category as C
 
 
---infixr 3 ***, ****, &&&, &&&&
---infixr 2 +++, ++++, |||, ||||
-
 -- | A Galois connection between two monotone functions: \(connl \dashv connr \)
 --
 -- Each side of the adjunction may be defined in terms of the other:
@@ -133,8 +130,6 @@ just (Conn f g) = Conn (fmap f) (fmap g)
 list :: Prd a => Prd b => Conn a b -> Conn [a] [b]
 list (Conn f g) = Conn (fmap f) (fmap g)
 
--- | Lens into first part of a product.
---
 -- @'first' (ab >>> cd) = 'first' ab >>> 'first' cd@
 --
 first :: Prd a => Prd b => Prd c => Conn a b -> Conn (a, c) (b, c)
@@ -143,8 +138,6 @@ first = flip strong C.id
 second :: Prd a => Prd b => Prd c => Conn a b -> Conn (c, a) (c, b)
 second = strong C.id
 
--- | Prism into left part of a sum.
---
 -- @'left' (ab >>> cd) = 'left' ab >>> 'left' cd@
 --
 left :: Prd a => Prd b => Prd c => Conn a b -> Conn (Either a c) (Either b c)
