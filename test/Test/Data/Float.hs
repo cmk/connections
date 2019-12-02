@@ -6,14 +6,11 @@ import Data.Int
 import Data.Word
 import Data.Float
 import Data.Prd
-import Data.Semiring
 import Data.Connection
-import Data.Connection.Filter
+--import Data.Connection.Filter
 import Data.Connection.Float
-import Data.Semigroup.Quantale
 
 import qualified Data.Prd.Property as Prop
-import qualified Data.Semiring.Property as Prop
 import qualified Data.Connection.Property as Prop
 
 import Hedgehog
@@ -33,7 +30,7 @@ gen_flt32 :: Gen Float
 gen_flt32 = G.float rf
 
 gen_nan :: Gen a -> Gen (Nan a)
-gen_nan gen = G.frequency [(9, Def <$> gen), (1, pure NaN)]
+gen_nan gen = G.frequency [(9, Def <$> gen), (1, pure Nan)]
 
 prop_prd_ulp32 :: Property
 prop_prd_ulp32 = withTests 1000 . property $ do
@@ -51,7 +48,7 @@ prop_prd_ulp32 = withTests 1000 . property $ do
   assert $ Prop.transitive_eq x y z
 
 prop_prd_flt32 :: Property
-prop_prd_flt32 = withTests 100000 . property $ do
+prop_prd_flt32 = withTests 1000 . property $ do
   x <- forAll gen_flt32'
   y <- forAll gen_flt32'
   z <- forAll gen_flt32'
@@ -77,7 +74,6 @@ prop_semigroup_float = withTests 20000 $ property $ do
 
   assert $ Prop.neutral_addition' x
   assert $ Prop.associative_addition (abs x) (abs y) (abs z)
--}
 
 prop_connections_flt32_wrd64 :: Property
 prop_connections_flt32_wrd64 = withTests 1000 . property $ do
@@ -94,7 +90,7 @@ prop_connections_flt32_wrd64 = withTests 1000 . property $ do
   ezw <- forAll $ G.element [Left z, Right w]
   ezw' <- forAll $ G.element [Left z', Right w']
 
-  assert $ Prop.closed (idx @Float) x
+  assert $ Prop.closed (idx @Float) x --TODO in Index.hs
   assert $ Prop.kernel (idx @Float) z
   assert $ Prop.monotone' (idx @Float) x x'
   assert $ Prop.monotone (idx @Float) z z'
@@ -111,6 +107,7 @@ prop_connections_flt32_wrd64 = withTests 1000 . property $ do
   assert $ Prop.monotone' (idx @(Either Float Float)) exy exy'
   assert $ Prop.monotone (idx @(Either Float Float)) ezw ezw'
   assert $ Prop.connection (idx @(Either Float Float)) exy ezw
+-}
 
 prop_connections_flt32_ulp32 :: Property
 prop_connections_flt32_ulp32 = withTests 1000 . property $ do
@@ -141,44 +138,20 @@ prop_connections_flt32_int64 = withTests 1000 . property $ do
   x' <- forAll gen_flt32'
   y' <- forAll (gen_nan $ G.integral ri)
  
-  assert $ Prop.connection f32i64 x y
-  assert $ Prop.connection i64f32 y x
+  assert $ Prop.connection f32i32 x y
+  assert $ Prop.connection i32f32 y x
 
-  assert $ Prop.monotone' f32i64 x x'
-  assert $ Prop.monotone' i64f32 y y'
+  assert $ Prop.monotone' f32i32 x x'
+  assert $ Prop.monotone' i32f32 y y'
 
-  assert $ Prop.monotone f32i64 y y'
-  assert $ Prop.monotone i64f32 x x'
+  assert $ Prop.monotone f32i32 y y'
+  assert $ Prop.monotone i32f32 x x'
 
-  assert $ Prop.closed f32i64 x
-  assert $ Prop.closed i64f32 y
+  assert $ Prop.closed f32i32 x
+  assert $ Prop.closed i32f32 y
 
-  assert $ Prop.kernel i64f32 x
-  assert $ Prop.kernel f32i64 y
-
-
-prop_quantale_flt32 :: Property
-prop_quantale_flt32 = withTests 1000 . withShrinks 0 $ property $ do
-  x <- forAll gen_flt32 -- we do not require `residr pInf` etc
-  y <- forAll gen_flt32'
-  z <- forAll gen_flt32'
-
-  assert $ Prop.connection (residl x) y z
-  assert $ Prop.connection (residr x) y z
-
-  assert $ Prop.monotone' (residl x) y z
-  assert $ Prop.monotone' (residr x) y z
-
-  assert $ Prop.monotone (residl x) y z
-  assert $ Prop.monotone (residr x) y z
-
-  assert $ Prop.closed (residl x) y
-  assert $ Prop.closed (residr x) y
-
-  assert $ Prop.kernel (residl x) y
-  assert $ Prop.kernel (residr x) y
-
-  assert $ residuated x y z
+  assert $ Prop.kernel i32f32 x
+  assert $ Prop.kernel f32i32 y
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

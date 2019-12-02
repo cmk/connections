@@ -98,7 +98,7 @@ class Prd a where
   --
   -- If /a/ implements 'Eq' then (ideally) @x =~ y = x == y@.
   --
-  (=~) :: Prd a => a -> a -> Bool
+  (=~) :: a -> a -> Bool
   x =~ y = x <~ y && x >~ y
 
   -- | Comparability relation on /a/. 
@@ -109,7 +109,7 @@ class Prd a where
   --
   -- If /a/ implements 'Ord' then (ideally) @x ?~ y = True@.
   --
-  (?~) :: Prd a => a -> a -> Bool
+  (?~) :: a -> a -> Bool
   x ?~ y = x <~ y || x >~ y
 
   -- | Partial version of 'Data.Ord.compare'.
@@ -136,11 +136,10 @@ x ~~ y = not (x `lt` y) && not (x `gt` y)
 (/~) :: Eq a => Prd a => a -> a -> Bool
 x /~ y = not $ x ~~ y
 
-
 -- | Version of 'pcompare' that uses the derived equivalence relation.
 --
 -- This can be useful if there is no 'Eq' instance or if it is
--- compromised, for example when /a/ is a floating point number.
+-- suspect, for example when /a/ is a floating point number.
 --
 pcomparePrd :: Prd a => a -> a -> Maybe Ordering
 pcomparePrd x y 
@@ -281,7 +280,7 @@ pmax x y = do
     EQ -> Just y
     LT -> Just y
 
-pjoin :: Eq a => Min a => Foldable f => f a -> Maybe a
+pjoin :: Eq a => Minimal a => Foldable f => f a -> Maybe a
 pjoin = foldM pmax minimal
 
 -- | A partial version of 'Data.Ord.min'. 
@@ -296,7 +295,7 @@ pmin x y = do
     EQ -> Just x
     LT -> Just x
 
-pmeet :: Eq a => Max a => Foldable f => f a -> Maybe a
+pmeet :: Eq a => Maximal a => Foldable f => f a -> Maybe a
 pmeet = foldM pmin maximal
 
 sign :: Eq a => Num a => Prd a => a -> Maybe Ordering
@@ -416,11 +415,11 @@ instance Prd All where
 instance (Eq a, Semigroup a) => Prd (S.First a) where 
     (<~) = (==)
 
-instance Ord a => Prd (S.Max a) where 
-    pcompare (S.Max x) (S.Max y) = Just $ compare x y
+instance Ord a => Prd (S.Maximal a) where 
+    pcompare (S.Maximal x) (S.Maximal y) = Just $ compare x y
 
-instance Ord a => Prd (S.Min a) where 
-    pcompare (S.Min x) (S.Min y) = Just $ compare y x
+instance Ord a => Prd (S.Minimal a) where 
+    pcompare (S.Minimal x) (S.Minimal y) = Just $ compare y x
 
 -}
 
@@ -496,7 +495,6 @@ instance Prd a => Prd (IntMap.IntMap a) where
 instance Prd IntSet.IntSet where
     (<~) = IntSet.isSubsetOf
 
-
 -- Helper type for 'DerivingVia'
 newtype Ordered a = Ordered { getOrdered :: a }
   deriving ( Eq, Ord, Show, Data, Typeable, Generic, Generic1, Functor, Foldable, Traversable)
@@ -504,123 +502,124 @@ newtype Ordered a = Ordered { getOrdered :: a }
 instance Ord a => Prd (Ordered a) where
     (<~) = (<=)
 
-type Bound a = (Min a, Max a) 
+-------------------------------------------------------------------------------
+-- Minimal
+-------------------------------------------------------------------------------
 
--- | Min element of a partially ordered set.
+type Bound a = (Minimal a, Maximal a) 
+
+-- | Minimal element of a partially ordered set.
 -- 
 -- \( \forall x: x \ge minimal \)
 --
 -- This means that 'minimal' must be comparable to all values in /a/.
 --
-class Prd a => Min a where
+class Prd a => Minimal a where
     minimal :: a
 
-instance Min () where minimal = ()
+instance Minimal () where minimal = ()
 
-instance Min Natural where minimal = 0
+instance Minimal Natural where minimal = 0
 
-instance Min Bool where minimal = minBound
+instance Minimal Bool where minimal = minBound
 
-instance Min Ordering where minimal = minBound
+instance Minimal Ordering where minimal = minBound
 
-instance Min Int where minimal = minBound
+instance Minimal Int where minimal = minBound
 
-instance Min Int8 where minimal = minBound
+instance Minimal Int8 where minimal = minBound
 
-instance Min Int16 where minimal = minBound
+instance Minimal Int16 where minimal = minBound
 
-instance Min Int32 where minimal = minBound
+instance Minimal Int32 where minimal = minBound
 
-instance Min Int64 where minimal = minBound
+instance Minimal Int64 where minimal = minBound
 
-instance Min Word where minimal = minBound
+instance Minimal Word where minimal = minBound
 
-instance Min Word8 where minimal = minBound
+instance Minimal Word8 where minimal = minBound
 
-instance Min Word16 where minimal = minBound
+instance Minimal Word16 where minimal = minBound
 
-instance Min Word32 where minimal = minBound
+instance Minimal Word32 where minimal = minBound
 
-instance Min Word64 where minimal = minBound 
+instance Minimal Word64 where minimal = minBound 
 
-instance Prd a => Min (IntMap.IntMap a) where
+instance Prd a => Minimal (IntMap.IntMap a) where
     minimal = IntMap.empty
 
-instance Ord a => Min (Set.Set a) where
+instance Ord a => Minimal (Set.Set a) where
     minimal = Set.empty
 
-instance (Ord k, Prd a) => Min (Map.Map k a) where
+instance (Ord k, Prd a) => Minimal (Map.Map k a) where
     minimal = Map.empty
 
-instance (Min a, Min b) => Min (a, b) where
+instance (Minimal a, Minimal b) => Minimal (a, b) where
     minimal = (minimal, minimal)
 
-instance (Min a, Prd b) => Min (Either a b) where
+instance (Minimal a, Prd b) => Minimal (Either a b) where
     minimal = Left minimal
 
-instance Prd a => Min (Maybe a) where
+instance Prd a => Minimal (Maybe a) where
     minimal = Nothing 
 
-instance Max a => Min (Down a) where
+instance Maximal a => Minimal (Down a) where
     minimal = Down maximal
 
--- | Max element of a partially ordered set.
+-------------------------------------------------------------------------------
+-- Maximal
+-------------------------------------------------------------------------------
+
+-- | Maximal element of a partially ordered set.
 --
 -- \( \forall x: x \le maximal \)
 --
 -- This means that 'maximal' must be comparable to all values in /a/.
 --
-class Prd a => Max a where
+class Prd a => Maximal a where
     maximal :: a
 
-instance Max () where maximal = ()
+instance Maximal () where maximal = ()
 
-instance Max Bool where maximal = maxBound
+instance Maximal Bool where maximal = maxBound
 
-instance Max Ordering where maximal = maxBound
+instance Maximal Ordering where maximal = maxBound
 
-instance Max Int where maximal = maxBound
+instance Maximal Int where maximal = maxBound
 
-instance Max Int8 where maximal = maxBound
+instance Maximal Int8 where maximal = maxBound
 
-instance Max Int16 where maximal = maxBound
+instance Maximal Int16 where maximal = maxBound
 
-instance Max Int32 where maximal = maxBound
+instance Maximal Int32 where maximal = maxBound
 
-instance Max Int64 where maximal = maxBound
+instance Maximal Int64 where maximal = maxBound
 
-instance Max Word where maximal = maxBound
+instance Maximal Word where maximal = maxBound
 
-instance Max Word8 where maximal = maxBound
+instance Maximal Word8 where maximal = maxBound
 
-instance Max Word16 where maximal = maxBound
+instance Maximal Word16 where maximal = maxBound
 
-instance Max Word32 where maximal = maxBound
+instance Maximal Word32 where maximal = maxBound
 
-instance Max Word64 where maximal = maxBound
+instance Maximal Word64 where maximal = maxBound
 
-instance (Max a, Max b) => Max (a, b) where
+instance (Maximal a, Maximal b) => Maximal (a, b) where
     maximal = (maximal, maximal)
 
-instance (Prd a, Max b) => Max (Either a b) where
+instance (Prd a, Maximal b) => Maximal (Either a b) where
     maximal = Right maximal
 
-instance Max a => Max (Maybe a) where
+instance Maximal a => Maximal (Maybe a) where
     maximal = Just maximal
 
-instance Min a => Max (Down a) where
+instance Minimal a => Maximal (Down a) where
     maximal = Down minimal
 
-{-
-instance (Universe a, Prd a) => Prd (k -> a) where
-
-instance Min a => Min (k -> a) where
-    minimal = const minimal
-
-instance Max a => Max (k -> a) where
-    maximal = const maximal
--}
- 
+-------------------------------------------------------------------------------
+-- Iterators
+-------------------------------------------------------------------------------
 
 {-# INLINE until #-}
 until :: (a -> Bool) -> (a -> a -> Bool) -> (a -> a) -> a -> a

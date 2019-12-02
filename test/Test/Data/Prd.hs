@@ -16,8 +16,8 @@ import qualified Hedgehog.Range as R
 rw :: Range Word
 rw = R.constant 0 100
 
-gen_min :: MonadGen m => m r -> m (Min r)
-gen_min g = maybe2Min id <$> G.maybe g
+gen_min :: MonadGen m => m r -> m (Minimal r)
+gen_min g = maybe2Minimal id <$> G.maybe g
 
 gen_min_plus :: Gen (MinPlus Word)
 gen_min_plus = gen_min $ Sum <$> G.word rw

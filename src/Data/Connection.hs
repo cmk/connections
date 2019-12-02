@@ -182,7 +182,7 @@ choice (Conn ab ba) (Conn cd dc) = Conn f g where
 --  'Trip'
 ---------------------------------------------------------------------
 
--- | An adforkedt triple.
+-- | An adjoint triple.
 --
 -- @'Trip' f g h@ satisfies:
 --
@@ -190,7 +190,7 @@ choice (Conn ab ba) (Conn cd dc) = Conn f g where
 -- ⊥   ⊥
 -- g ⊣ h
 --
--- See <https://ncatlab.org/nlab/show/adforkedt+triple>
+-- See <https://ncatlab.org/nlab/show/adjoint+triple>
 --
 data Trip a b = Trip (a -> b) (b -> a) (a -> b)
 
