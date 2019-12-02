@@ -143,7 +143,7 @@ class Prd a => Lattice a where
   (/\) :: a -> a -> a
 
   -- | Lattice morphism.
-  fromSubset :: Min a => Set a -> a
+  fromSubset :: Minimal a => Set a -> a
   fromSubset = join
 
 -- | The partial ordering induced by the join-semilattice structure
@@ -153,10 +153,10 @@ joinLeq x y = x \/ y =~ y
 meetLeq :: Lattice a => a -> a -> Bool
 meetLeq x y = x /\ y =~ x
 
-join :: (Min a, Lattice a, Foldable f) => f a -> a
+join :: (Minimal a, Lattice a, Foldable f) => f a -> a
 join = foldr' (\/) minimal
 
-meet :: (Max a, Lattice a, Foldable f) => f a -> a
+meet :: (Maximal a, Lattice a, Foldable f) => f a -> a
 meet = foldr' (/\) maximal
 
 -- | The join of at a list of join-semilattice elements (of length at least one)
@@ -170,8 +170,6 @@ meet1 = unMeet . foldMap1 Meet
 
 -- | Birkhoff's self-dual ternary median operation.
 --
--- TODO: require a /Dioid/ instance.
---
 -- @ median x x y ≡ x @
 --
 -- @ median x y z ≡ median z x y @
@@ -182,7 +180,6 @@ meet1 = unMeet . foldMap1 Meet
 --
 median :: Lattice a => a -> a -> a -> a
 median x y z = (x \/ y) /\ (y \/ z) /\ (z \/ x)
-
 
 ---------------------------------------------------------------------
 --  Instances
@@ -225,20 +222,20 @@ instance Lattice All where
   All a \/ All b = All $ a \/ b
   All a /\ All b = All $ a /\ b
 
-instance Min All where
+instance Minimal All where
   minimal = All False
 
-instance Max All where
+instance Maximal All where
   maximal = All True
 
 instance Lattice Any where
   Any a \/ Any b = Any $ a \/ b
   Any a /\ Any b = Any $ a /\ b
 
-instance Min Any where
+instance Minimal Any where
   minimal = Any False
 
-instance Max Any where
+instance Maximal Any where
   maximal = Any True
 
 instance Lattice a => Lattice (Down a) where
@@ -275,7 +272,7 @@ newtype Join a = Join { unJoin :: a }
 instance Lattice a => Semigroup (Join a) where
   Join a <> Join b = Join (a \/ b)
 
-instance (Lattice a, Min a) => Monoid (Join a) where
+instance (Lattice a, Minimal a) => Monoid (Join a) where
   mempty = Join minimal
   Join a `mappend` Join b = Join (a \/ b)
 
@@ -288,6 +285,6 @@ newtype Meet a = Meet { unMeet :: a }
 instance Lattice a => Semigroup (Meet a) where
   Meet a <> Meet b = Meet (a /\ b)
 
-instance (Lattice a, Max a) => Monoid (Meet a) where
+instance (Lattice a, Maximal a) => Monoid (Meet a) where
   mempty = Meet maximal
   Meet a `mappend` Meet b = Meet (a /\ b)

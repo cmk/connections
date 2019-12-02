@@ -31,10 +31,10 @@ instance Prd Ulp32 where
            | ulp32Nan x || ulp32Nan y = False
            | otherwise                = on (<~) unUlp32 x y
 
-instance Min Ulp32 where
+instance Minimal Ulp32 where
     minimal = Ulp32 $ -2139095041
 
-instance Max Ulp32 where
+instance Maximal Ulp32 where
     maximal = Ulp32 $ 2139095040
 
 instance Bounded Ulp32 where

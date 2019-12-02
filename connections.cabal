@@ -1,5 +1,5 @@
 name:                connections
-version:             0.0.2
+version:             0.0.2.1
 synopsis:            Partial orders & Galois connections.
 description:         A library for precision rounding using Galois connections.
 homepage:            https://github.com/cmk/connections
@@ -7,7 +7,8 @@ license:             BSD3
 license-file:        LICENSE
 author:              Chris McKinlay
 maintainer:          chris.mckinlay@gmail.com
-category:            Math
+category:            Math, Numerical
+stability:           Experimental
 build-type:          Simple
 extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
