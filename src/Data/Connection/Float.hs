@@ -74,16 +74,17 @@ u32w64 = Conn f g where
 abs' :: (Eq a, Bound a, Num a) => a -> a
 abs' x = if x == minimal then abs (x+1) else abs x
 
-f32i64 :: Conn Float (Nan Int64)
-f32i64 = Conn (liftNan f) (nan (0/0) g) where
+--TODO f32i64?
+f32i32 :: Conn Float (Nan Int32)
+f32i32 = Conn (liftNan f) (nan (0/0) g) where
   f x | abs x <~ 2**24-1 = ceiling x
       | otherwise = if x >~ 0 then 2^24 else minimal
 
   g i | abs' i <~ 2^24-1 = fromIntegral i
       | otherwise = if i >~ 0 then 1/0 else -2**24
   
-i64f32 :: Conn (Nan Int64) Float
-i64f32 = Conn (nan (0/0) f) (liftNan g) where
+i32f32 :: Conn (Nan Int32) Float
+i32f32 = Conn (nan (0/0) f) (liftNan g) where
   f i | abs i <~ 2^24-1 = fromIntegral i
       | otherwise = if i >~ 0 then 2**24 else -1/0
 

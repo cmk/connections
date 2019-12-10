@@ -98,7 +98,7 @@ class Prd a where
   --
   -- If /a/ implements 'Eq' then (ideally) @x =~ y = x == y@.
   --
-  (=~) :: Prd a => a -> a -> Bool
+  (=~) :: a -> a -> Bool
   x =~ y = x <~ y && x >~ y
 
   -- | Comparability relation on /a/. 
@@ -109,7 +109,7 @@ class Prd a where
   --
   -- If /a/ implements 'Ord' then (ideally) @x ?~ y = True@.
   --
-  (?~) :: Prd a => a -> a -> Bool
+  (?~) :: a -> a -> Bool
   x ?~ y = x <~ y || x >~ y
 
   -- | Partial version of 'Data.Ord.compare'.
@@ -136,11 +136,10 @@ x ~~ y = not (x `lt` y) && not (x `gt` y)
 (/~) :: Eq a => Prd a => a -> a -> Bool
 x /~ y = not $ x ~~ y
 
-
 -- | Version of 'pcompare' that uses the derived equivalence relation.
 --
 -- This can be useful if there is no 'Eq' instance or if it is
--- compromised, for example when /a/ is a floating point number.
+-- suspect, for example when /a/ is a floating point number.
 --
 pcomparePrd :: Prd a => a -> a -> Maybe Ordering
 pcomparePrd x y 
