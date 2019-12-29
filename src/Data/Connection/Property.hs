@@ -6,11 +6,11 @@ import Data.Proxy
 import Data.Prd
 import Data.Connection
 
-import qualified Test.Property.Function.Idempotent as Prop
-import qualified Test.Property.Function.Invertible as Prop
-import qualified Test.Property.Function.Monotone   as Prop
+import qualified Test.Function.Idempotent as Prop
+import qualified Test.Function.Invertible as Prop
+import qualified Test.Function.Monotone   as Prop
 
-import Test.Property.Util
+import Test.Util
 import Prelude hiding (Ord(..))
 
 
