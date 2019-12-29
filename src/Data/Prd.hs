@@ -270,7 +270,7 @@ pgt x y = case x `pcompare` y of
 
 -- | A partial version of 'Data.Ord.max'. 
 --
--- Default instance returns the connr argument in the case of equality.
+-- Returns the right argument in the case of equality.
 --
 pmax :: Eq a => Prd a => a -> a -> Maybe a
 pmax x y = do
@@ -285,7 +285,7 @@ pjoin = foldM pmax minimal
 
 -- | A partial version of 'Data.Ord.min'. 
 --
--- Default instance returns the connr argument in the case of equality.
+-- Returns the right argument in the case of equality.
 --
 pmin :: Eq a => Prd a => a -> a -> Maybe a
 pmin x y = do

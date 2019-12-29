@@ -27,11 +27,11 @@ module Data.Prd.Property (
 
 import Data.Prd
 import Data.Prd.Lattice
-import Test.Property.Util
+import Test.Util
 import Prelude hiding (Ord(..))
 
 import qualified Prelude as P
-import qualified Test.Property.Relation as R
+import qualified Test.Relation as R
 
 -- | \( \forall a, b: (a \eq b) \Leftrightarrow (b \eq a) \)
 --
