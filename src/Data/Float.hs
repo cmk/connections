@@ -47,7 +47,7 @@ sigMask :: Float -> Word32
 sigMask x = 0x007FFFFF .&. floatWord32 x
 
 signBit :: Float -> Bool
-signBit x = if isNan x then False else msbMask x /= 0
+signBit x = if isNanf x then False else msbMask x /= 0
 
 evenBit :: Float -> Bool
 evenBit x = lsbMask x == 0
@@ -98,19 +98,7 @@ eq' :: Float -> Float -> Bool
 eq' = (==) `on` floatWord32
 
 {-
-instance Num Float where
-  Float x + Float y = Float $ F.plusFloat x y
-  Float x * Float y = Float $ F.timesFloat x y
-  Float x - Float y = Float $ F.minusFloat x y
-  negate x  = Float $ F.negateFloat x
-  abs x = Float $ F.fabsFloat x
-  signum x  = Float $ signum x
-  fromInteger = Float . fromInteger -- TODO dont use fromInteger
-
-f32i64 :: Conn Float Int
-f32i64 = Conn (liftFloat' F.float2Int) (Float . F.int2Float)
-
-λ> unit f32i64 nan
+λ> unit f32i64 aNan
 Float (-9.223372e18)
 λ> F.float2Int (3.0252336e+35)
 -9223372036854775808
@@ -127,8 +115,8 @@ versus middle / higher
 --
 -- @nan x == indeterminate x@
 --
-isNan :: Float -> Bool
-isNan x = F.isFloatNaN x == 1
+isNanf :: Float -> Bool
+isNanf x = F.isFloatNaN x == 1
 
 pinf :: Float -> Bool
 pinf x = infinite x && positive x 
@@ -213,6 +201,7 @@ within :: Word32 -> Float -> Float -> Bool
 within tol a b = ulpDistance a b <~ tol
 
 {-
+foreign import ccall unsafe "fdim" fdim :: Double -> Double -> Double
 
 foreign import ccall unsafe "fdimf" fdim :: Float -> Float -> Float
 

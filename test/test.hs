@@ -3,13 +3,13 @@ import System.Exit (exitFailure)
 import System.IO (BufferMode(..), hSetBuffering, stdout, stderr)
 
 
-import qualified Test.Data.Float as F
+import qualified Test.Data.Connection.Float as CF
 import qualified Test.Data.Connection.Int as CI
 import qualified Test.Data.Connection.Word as CW
 
 
 tests :: IO [Bool]
-tests = sequence [CI.tests, CW.tests, F.tests] 
+tests = sequence [CI.tests, CW.tests, CF.tests] 
 
 main :: IO ()
 main = do

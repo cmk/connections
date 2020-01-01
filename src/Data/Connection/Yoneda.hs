@@ -4,7 +4,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE Rank2Types #-}
 
-module Data.Connection.Yoneda where
+module Data.Lattice.Yoneda where
 
 import Data.Int
 import Data.Word
@@ -14,8 +14,8 @@ import Data.Prd.Lattice
 import Data.Bifunctor
 import Data.Function
 import Data.Functor.Identity
-import Data.Functor.Product
-import Data.Functor.Sum
+import Data.Functor.Multiplicative
+import Data.Functor.Additive
 import Data.Connection
 import Data.Connection.Int
 import Data.Connection.Word

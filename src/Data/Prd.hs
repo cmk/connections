@@ -6,6 +6,8 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE DeriveTraversable   #-}
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE CPP       #-}
 module Data.Prd (
     module Data.Prd
   , Down(..)
@@ -23,15 +25,21 @@ import Data.Ord (Down(..))
 import Data.Ratio
 import Data.Word (Word, Word8, Word16, Word32, Word64)
 import GHC.Generics (Generic, Generic1)
-import GHC.Real
+import GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
 import Numeric.Natural
+import Data.Semigroup (Min(..), Max(..))
+import Data.Semigroup.Additive
+import Data.Semigroup.Multiplicative
 
+import Data.Fixed
 import qualified Data.Semigroup as S
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.Sequence as Seq
+
+import Prelude hiding (Fractional(..),Num(..))
 
 infix 4 <~, >~, /~, ~~, =~, ?~, `pgt`, `pge`, `peq`, `pne`, `ple`, `plt`
 
@@ -112,14 +120,13 @@ class Prd a where
   (?~) :: a -> a -> Bool
   x ?~ y = x <~ y || x >~ y
 
-  -- | Partial version of 'Data.Ord.compare'.
-  --
-  pcompare :: Eq a => a -> a -> Maybe Ordering
-  pcompare x y
-    | x `lt` y  = Just LT
-    | x  ==  y  = Just EQ
-    | x `gt` y  = Just GT
+  pcompare :: a -> a -> Maybe Ordering
+  pcompare x y 
+    | x <~ y = Just $ if y <~ x then EQ else LT
+    | y <~ x = Just GT
     | otherwise = Nothing
+
+
 
 
 -- | Similarity relation on /a/. 
@@ -136,21 +143,22 @@ x ~~ y = not (x `lt` y) && not (x `gt` y)
 (/~) :: Eq a => Prd a => a -> a -> Bool
 x /~ y = not $ x ~~ y
 
--- | Version of 'pcompare' that uses the derived equivalence relation.
+-- | Version of 'pcompare' that uses '=='.
 --
--- This can be useful if there is no 'Eq' instance or if it is
--- suspect, for example when /a/ is a floating point number.
---
-pcomparePrd :: Prd a => a -> a -> Maybe Ordering
-pcomparePrd x y 
-  | x <~ y = Just $ if y <~ x then EQ else LT
-  | y <~ x = Just GT
+pcompareEq :: Eq a => Prd a => a -> a -> Maybe Ordering
+pcompareEq x y
+  | x `lt` y  = Just LT
+  | x  ==  y  = Just EQ
+  | x `gt` y  = Just GT
   | otherwise = Nothing
 
 -- | Version of 'pcompare' that uses 'compare'.
 --
 pcompareOrd :: Ord a => a -> a -> Maybe Ordering
 pcompareOrd x y = Just $ x `compare` y
+
+
+
 
 -- | Prefix version of '=~'.
 --
@@ -298,26 +306,157 @@ pmin x y = do
 pmeet :: Eq a => Maximal a => Foldable f => f a -> Maybe a
 pmeet = foldM pmin maximal
 
-sign :: Eq a => Num a => Prd a => a -> Maybe Ordering
-sign x = pcompare x 0
+sign :: Eq a => (Additive-Monoid) a => Prd a => a -> Maybe Ordering
+sign x = pcompare x zero
 
-zero :: Eq a => Num a => Prd a => a -> Bool
-zero x = sign x == Just EQ
-
-positive :: Eq a => Num a => Prd a => a -> Bool
+positive :: Eq a => (Additive-Monoid) a => Prd a => a -> Bool
 positive x = sign x == Just GT
 
-negative :: Eq a => Num a => Prd a => a -> Bool
+negative :: Eq a => (Additive-Monoid) a => Prd a => a -> Bool
 negative x = sign x == Just LT
 
-indeterminate :: Eq a => Num a => Prd a => a -> Bool
+indeterminate :: Eq a => (Additive-Monoid) a => Prd a => a -> Bool
 indeterminate x = sign x == Nothing
-
 
 ---------------------------------------------------------------------
 --  Instances
 ---------------------------------------------------------------------
 
+instance Prd a => Prd [a] where
+    {-# SPECIALISE instance Prd [Char] #-}
+    [] <~ _     = True
+    (_:_) <~ [] = False
+    (x:xs) <~ (y:ys) = x <~ y && xs <~ ys
+
+{-
+    pcompare []     []     = Just EQ
+    pcompare []     (_:_)  = Just LT
+    pcompare (_:_)  []     = Just GT
+    pcompare (x:xs) (y:ys) = case pcompare x y of
+                                Just EQ -> pcompare xs ys
+                                other   -> other
+-}
+
+instance Prd a => Prd (NonEmpty a) where
+    (x :| xs) <~ (y :| ys) = x <~ y && xs <~ ys
+
+instance Prd a => Prd (Down a) where
+    (Down x) <~ (Down y) = y <~ x
+    pcompare (Down x) (Down y) = pcompare y x
+
+-- Canonically ordered.
+instance Prd a => Prd (Dual a) where
+    (Dual x) <~ (Dual y) = y <~ x
+    pcompare (Dual x) (Dual y) = pcompare y x
+
+instance Prd a => Prd (S.Max a) where S.Max a <~ S.Max b = a <~ b --TODO push upstream
+instance Prd a => Prd (S.Min a) where S.Min a <~ S.Min b = a <~ b --TODO push upstream
+
+instance Prd Any where
+    Any x <~ Any y = x <~ y
+
+instance Prd All where
+    All x <~ All y = y <~ x
+
+{-
+
+-- | 'First a' forms a pre-dioid for any semigroup @a@.
+instance (Eq a, Semigroup a) => Prd (S.First a) where 
+    (<~) = (==)
+
+instance Ord a => Prd (S.Maximal a) where 
+    pcompare (S.Maximal x) (S.Maximal y) = Just $ compare x y
+
+instance Ord a => Prd (S.Minimal a) where 
+    pcompare (S.Minimal x) (S.Minimal y) = Just $ compare y x
+
+-}
+
+instance Prd Float where
+    x <~ y | x /= x && y /= y = True 
+           | x /= x || y /= y = False
+           | otherwise        = x <= y
+{-
+    pcompare x y | x /= x && y /= y = Just EQ 
+                 | x /= x || y /= y = Nothing
+                 | otherwise        = pcompareOrd x y
+
+    x `eq` y | x /= x && y /= y = True
+             | x /= x || y /= y = False
+             | otherwise = x == y
+
+    x `lt` y | x /= x || y /= y = False
+             | otherwise = shift 2 x P.< y
+-}
+
+
+
+instance Prd Double where
+    x <~ y | x /= x && y /= y = True 
+           | x /= x || y /= y = False
+           | otherwise        = x <= y
+
+instance Prd (Ratio Integer)  where
+    (x:%y) <~ (x':%y') | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
+                       | otherwise = x * y' <~ x' * y
+
+instance Prd (Ratio Natural)  where
+    (x:%y) <~ (x':%y') | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
+                       | otherwise = x * y' <~ x' * y
+
+-- Canonical semigroup ordering
+instance Prd a => Prd (Maybe a) where
+    Just a <~ Just b = a <~ b
+    x@Just{} <~ Nothing = False
+    Nothing <~ _ = True
+
+-- Canonical semigroup ordering
+instance (Prd a, Prd b) => Prd (Either a b) where
+    Right a <~ Right b  = a <~ b
+    Right _ <~ _        = False
+    
+    Left e <~ Left f   = e <~ f
+    Left _ <~ _        = True
+ 
+-- Canonical semigroup ordering
+instance (Prd a, Prd b) => Prd (a, b) where 
+  (a,b) <~ (i,j) = a <~ i && b <~ j
+
+instance (Prd a, Prd b, Prd c) => Prd (a, b, c) where 
+  (a,b,c) <~ (i,j,k) = a <~ i && b <~ j && c <~ k
+
+instance (Prd a, Prd b, Prd c, Prd d) => Prd (a, b, c, d) where 
+  (a,b,c,d) <~ (i,j,k,l) = a <~ i && b <~ j && c <~ k && d <~ l
+
+instance (Prd a, Prd b, Prd c, Prd d, Prd e) => Prd (a, b, c, d, e) where 
+  (a,b,c,d,e) <~ (i,j,k,l,m) = a <~ i && b <~ j && c <~ k && d <~ l && e <~ m
+
+instance Ord a => Prd (Set.Set a) where
+    (<~) = Set.isSubsetOf
+
+instance (Ord k, Prd a) => Prd (Map.Map k a) where
+    (<~) = Map.isSubmapOfBy (<~)
+
+instance Prd a => Prd (IntMap.IntMap a) where
+    (<~) = IntMap.isSubmapOfBy (<~)
+
+instance Prd IntSet.IntSet where
+    (<~) = IntSet.isSubsetOf
+
+
+#define derivePrd(ty)         \
+instance Prd ty where {       \
+   (<~) = (<=)                \
+;  {-# INLINE (<~) #-}        \
+;  pcompare = pcompareOrd     \
+;  {-# INLINE pcompare #-}    \
+}
+
+
+
+
+
+{-
 instance Prd Bool where
     (<~) = (<=)
     pcompare = pcompareOrd
@@ -377,130 +516,36 @@ instance Prd Word64 where
 instance Prd Ordering where
     (<~) = (<=)
     pcompare = pcompareOrd
-
-instance Prd a => Prd [a] where
-    {-# SPECIALISE instance Prd [Char] #-}
-    [] <~ _     = True
-    (_:_) <~ [] = False
-    (x:xs) <~ (y:ys) = x <~ y && xs <~ ys
-
-{-
-    pcompare []     []     = Just EQ
-    pcompare []     (_:_)  = Just LT
-    pcompare (_:_)  []     = Just GT
-    pcompare (x:xs) (y:ys) = case pcompare x y of
-                                Just EQ -> pcompare xs ys
-                                other   -> other
--}
-
-instance Prd a => Prd (NonEmpty a) where
-    (x :| xs) <~ (y :| ys) = x <~ y && xs <~ ys
-
-instance Prd a => Prd (Down a) where
-    x <~ y = y <~ x
-
--- Canonically ordered.
-instance Prd a => Prd (Dual a) where
-    x <~ y = y <~ x
-
-instance Prd Any where
-    Any x <~ Any y = x <~ y
-
-instance Prd All where
-    All x <~ All y = y <~ x
-
-{-
-
--- | 'First a' forms a pre-dioid for any semigroup @a@.
-instance (Eq a, Semigroup a) => Prd (S.First a) where 
-    (<~) = (==)
-
-instance Ord a => Prd (S.Maximal a) where 
-    pcompare (S.Maximal x) (S.Maximal y) = Just $ compare x y
-
-instance Ord a => Prd (S.Minimal a) where 
-    pcompare (S.Minimal x) (S.Minimal y) = Just $ compare y x
-
--}
-
-instance Prd Float where
-    x <~ y | x /= x && y /= y = True 
-           | x /= x || y /= y = False
-           | otherwise        = x <= y
-{-
-    pcompare x y | x /= x && y /= y = Just EQ 
-                 | x /= x || y /= y = Nothing
-                 | otherwise        = pcompareOrd x y
-
-    x `eq` y | x /= x && y /= y = True
-             | x /= x || y /= y = False
-             | otherwise = x == y
-
-    x `lt` y | x /= x || y /= y = False
-             | otherwise = shift 2 x P.< y
 -}
 
 
 
-instance Prd Double where
-    x <~ y | x /= x && y /= y = True 
-           | x /= x || y /= y = False
-           | otherwise        = x <= y
+derivePrd(())
+derivePrd(Bool)
+derivePrd(Char)
+derivePrd(Ordering)
 
-instance  (Prd a, Integral a)  => Prd (Ratio a)  where
-    {-# SPECIALIZE instance Prd Rational #-}
-    (x:%y) <~ (x':%y') | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
-                         | otherwise = x * y' <~ x' * y
+derivePrd(Int)
+derivePrd(Int8)
+derivePrd(Int16)
+derivePrd(Int32)
+derivePrd(Int64)
+derivePrd(Integer)
 
--- Canonical semigroup ordering
-instance Prd a => Prd (Maybe a) where
-    Just a <~ Just b = a <~ b
-    x@Just{} <~ Nothing = False
-    Nothing <~ _ = True
+derivePrd(Word)
+derivePrd(Word8)
+derivePrd(Word16)
+derivePrd(Word32)
+derivePrd(Word64)
+derivePrd(Natural)
 
--- Canonical semigroup ordering
-instance (Prd a, Prd b) => Prd (Either a b) where
-    Right a <~ Right b  = a <~ b
-    Right _ <~ _        = False
-    
-    Left e <~ Left f   = e <~ f
-    Left _ <~ _        = True
- 
-instance Prd () where 
-    pcompare _ _ = Just EQ
-    _ <~ _ = True
-
--- Canonical semigroup ordering
-instance (Prd a, Prd b) => Prd (a, b) where 
-  (a,b) <~ (i,j) = a <~ i && b <~ j
-
-instance (Prd a, Prd b, Prd c) => Prd (a, b, c) where 
-  (a,b,c) <~ (i,j,k) = a <~ i && b <~ j && c <~ k
-
-instance (Prd a, Prd b, Prd c, Prd d) => Prd (a, b, c, d) where 
-  (a,b,c,d) <~ (i,j,k,l) = a <~ i && b <~ j && c <~ k && d <~ l
-
-instance (Prd a, Prd b, Prd c, Prd d, Prd e) => Prd (a, b, c, d, e) where 
-  (a,b,c,d,e) <~ (i,j,k,l,m) = a <~ i && b <~ j && c <~ k && d <~ l && e <~ m
-
-instance Ord a => Prd (Set.Set a) where
-    (<~) = Set.isSubsetOf
-
-instance (Ord k, Prd a) => Prd (Map.Map k a) where
-    (<~) = Map.isSubmapOfBy (<~)
-
-instance Prd a => Prd (IntMap.IntMap a) where
-    (<~) = IntMap.isSubmapOfBy (<~)
-
-instance Prd IntSet.IntSet where
-    (<~) = IntSet.isSubsetOf
-
--- Helper type for 'DerivingVia'
-newtype Ordered a = Ordered { getOrdered :: a }
-  deriving ( Eq, Ord, Show, Data, Typeable, Generic, Generic1, Functor, Foldable, Traversable)
-
-instance Ord a => Prd (Ordered a) where
-    (<~) = (<=)
+derivePrd(Uni)
+derivePrd(Deci)
+derivePrd(Centi)
+derivePrd(Milli)
+derivePrd(Micro)
+derivePrd(Nano)
+derivePrd(Pico)
 
 -------------------------------------------------------------------------------
 -- Minimal
@@ -508,42 +553,25 @@ instance Ord a => Prd (Ordered a) where
 
 type Bound a = (Minimal a, Maximal a) 
 
--- | Minimal element of a partially ordered set.
+-- | A minimal element of a partially ordered set.
 -- 
--- \( \forall x: x \ge minimal \)
+-- @ 'minimal' '?~' a ==> 'minimal' '<~' a @
 --
--- This means that 'minimal' must be comparable to all values in /a/.
+-- 'minimal' needn't be comparable to all values in /a/.
 --
 class Prd a => Minimal a where
     minimal :: a
 
-instance Minimal () where minimal = ()
+instance Minimal Float where minimal = -1/0
+
+instance Minimal Double where minimal = -1/0
 
 instance Minimal Natural where minimal = 0
 
-instance Minimal Bool where minimal = minBound
+instance Minimal (Ratio Natural) where minimal = 0
 
-instance Minimal Ordering where minimal = minBound
-
-instance Minimal Int where minimal = minBound
-
-instance Minimal Int8 where minimal = minBound
-
-instance Minimal Int16 where minimal = minBound
-
-instance Minimal Int32 where minimal = minBound
-
-instance Minimal Int64 where minimal = minBound
-
-instance Minimal Word where minimal = minBound
-
-instance Minimal Word8 where minimal = minBound
-
-instance Minimal Word16 where minimal = minBound
-
-instance Minimal Word32 where minimal = minBound
-
-instance Minimal Word64 where minimal = minBound 
+instance Minimal IntSet.IntSet where
+    minimal = IntSet.empty
 
 instance Prd a => Minimal (IntMap.IntMap a) where
     minimal = IntMap.empty
@@ -566,19 +594,92 @@ instance Prd a => Minimal (Maybe a) where
 instance Maximal a => Minimal (Down a) where
     minimal = Down maximal
 
+instance Maximal a => Minimal (Dual a) where
+    minimal = Dual maximal
+
+#define deriveMinimal(ty)            \
+instance Minimal ty where {          \
+    minimal = minBound               \
+;   {-# INLINE minimal #-}           \
+}
+
+
+deriveMinimal(())
+deriveMinimal(Bool)
+deriveMinimal(Ordering)
+
+deriveMinimal(Int)
+deriveMinimal(Int8)
+deriveMinimal(Int16)
+deriveMinimal(Int32)
+deriveMinimal(Int64)
+
+deriveMinimal(Word)
+deriveMinimal(Word8)
+deriveMinimal(Word16)
+deriveMinimal(Word32)
+deriveMinimal(Word64)
+
 -------------------------------------------------------------------------------
 -- Maximal
 -------------------------------------------------------------------------------
 
--- | Maximal element of a partially ordered set.
+-- | A maximal element of a partially ordered set.
+-- 
+-- @ 'maximal' '?~' a ==> 'maximal' '>~' a @
 --
--- \( \forall x: x \le maximal \)
---
--- This means that 'maximal' must be comparable to all values in /a/.
+-- 'maximal' needn't be comparable to all values in /a/.
 --
 class Prd a => Maximal a where
     maximal :: a
 
+#define deriveMaximal(ty)            \
+instance Maximal ty where {           \
+   maximal = maxBound                \
+;  {-# INLINE maximal #-}            \
+}
+
+
+deriveMaximal(())
+deriveMaximal(Bool)
+deriveMaximal(Ordering)
+
+deriveMaximal(Int)
+deriveMaximal(Int8)
+deriveMaximal(Int16)
+deriveMaximal(Int32)
+deriveMaximal(Int64)
+
+deriveMaximal(Word)
+deriveMaximal(Word8)
+deriveMaximal(Word16)
+deriveMaximal(Word32)
+deriveMaximal(Word64)
+
+instance Maximal Float where maximal = 1/0
+
+instance Maximal Double where maximal = 1/0
+
+instance (Maximal a, Maximal b) => Maximal (a, b) where
+    maximal = (maximal, maximal)
+
+instance (Prd a, Maximal b) => Maximal (Either a b) where
+    maximal = Right maximal
+
+instance Maximal a => Maximal (Maybe a) where
+    maximal = Just maximal
+
+instance Minimal a => Maximal (Dual a) where
+    maximal = Dual minimal
+
+instance Minimal a => Maximal (Down a) where
+    maximal = Down minimal
+
+
+
+
+
+{-
 instance Maximal () where maximal = ()
 
 instance Maximal Bool where maximal = maxBound
@@ -605,18 +706,49 @@ instance Maximal Word32 where maximal = maxBound
 
 instance Maximal Word64 where maximal = maxBound
 
-instance (Maximal a, Maximal b) => Maximal (a, b) where
-    maximal = (maximal, maximal)
+-- works but probably want more explicit instances
+instance (Prd a, (Additive-Semigroup) a) => Semigroup (Ordered a) where
+  (<>) = liftA2 add
 
-instance (Prd a, Maximal b) => Maximal (Either a b) where
-    maximal = Right maximal
+instance (Prd a, (Additive-Monoid) a) => Monoid (Ordered a) where
+  mempty = pure zero
+-}
 
-instance Maximal a => Maximal (Maybe a) where
-    maximal = Just maximal
+{-
+instance Semigroup (Max a) => Semigroup (Additive (Max a)) where
+  (<>) = liftA2 (<>)
 
-instance Minimal a => Maximal (Down a) where
-    maximal = Down minimal
+instance Monoid (Max a) => Monoid (Additive (Max a)) where
+  mempty = pure mempty
 
+instance (Ord a, Prd a, Minimal a) => Monoid (Additive (Max a)) where
+  mempty = pure . pure $ minimal
+
+
+instance (Additive-Semigroup) a => Semigroup (Multiplicative (Min a)) where
+  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 add a b
+
+instance (Additive-Monoid) a => Monoid (Multiplicative (Min a)) where
+  mempty = pure . pure $ zero
+-}
+
+{-
+-- workaround for poorly specified entailment: instance (Ord a, Bounded a) => Monoid (Min a)
+-- >>> zero :: Min Natural
+-- Min {getMin = 0}
+instance (Maximal a, Semigroup (Min a)) => Monoid (Additive (Min a)) where
+  mempty = pure $ Min maximal
+
+-- workaround for poorly specified entailment: instance (Ord a, Bounded a) => Monoid (Max a)
+instance (Minimal a, Semigroup (Max a)) => Monoid (Additive (Max a)) where
+  mempty = pure $ Max minimal
+-}
+{-
+--TODO push upstream
+instance Bounded a => Bounded (Down a) where
+  maxBound = minBound
+  minBound = maxBound
+-}
 -------------------------------------------------------------------------------
 -- Iterators
 -------------------------------------------------------------------------------
