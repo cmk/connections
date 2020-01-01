@@ -508,16 +508,20 @@ instance Ord a => Prd (Ordered a) where
 
 type Bound a = (Minimal a, Maximal a) 
 
--- | Minimal element of a partially ordered set.
+-- | A minimal element of a partially ordered set.
 -- 
--- \( \forall x: x \ge minimal \)
+-- @ 'minimal' '?~' a ==> 'minimal' '<~' a @
 --
--- This means that 'minimal' must be comparable to all values in /a/.
+-- 'minimal' needn't be comparable to all values in /a/.
 --
 class Prd a => Minimal a where
     minimal :: a
 
 instance Minimal () where minimal = ()
+
+instance Minimal Float where maximal = -1/0
+
+instance Minimal Double where maximal = -1/0
 
 instance Minimal Natural where minimal = 0
 
@@ -570,16 +574,20 @@ instance Maximal a => Minimal (Down a) where
 -- Maximal
 -------------------------------------------------------------------------------
 
--- | Maximal element of a partially ordered set.
+-- | A maximal element of a partially ordered set.
+-- 
+-- @ 'maximal' '?~' a ==> 'maximal' '>~' a @
 --
--- \( \forall x: x \le maximal \)
---
--- This means that 'maximal' must be comparable to all values in /a/.
+-- 'maximal' needn't be comparable to all values in /a/.
 --
 class Prd a => Maximal a where
     maximal :: a
 
 instance Maximal () where maximal = ()
+
+instance Maximal Float where maximal = 1/0
+
+instance Maximal Double where maximal = 1/0
 
 instance Maximal Bool where maximal = maxBound
 
