@@ -6,6 +6,7 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE DeriveTraversable   #-}
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE TypeOperators       #-}
 module Data.Prd (
     module Data.Prd
   , Down(..)
@@ -25,6 +26,9 @@ import Data.Word (Word, Word8, Word16, Word32, Word64)
 import GHC.Generics (Generic, Generic1)
 import GHC.Real
 import Numeric.Natural
+import Data.Semigroup (Min(..), Max(..))
+import Data.Semigroup.Additive
+import Data.Semigroup.Multiplicative
 
 import qualified Data.Semigroup as S
 import qualified Data.Set as Set
@@ -112,14 +116,13 @@ class Prd a where
   (?~) :: a -> a -> Bool
   x ?~ y = x <~ y || x >~ y
 
-  -- | Partial version of 'Data.Ord.compare'.
-  --
-  pcompare :: Eq a => a -> a -> Maybe Ordering
-  pcompare x y
-    | x `lt` y  = Just LT
-    | x  ==  y  = Just EQ
-    | x `gt` y  = Just GT
+  pcompare :: a -> a -> Maybe Ordering
+  pcompare x y 
+    | x <~ y = Just $ if y <~ x then EQ else LT
+    | y <~ x = Just GT
     | otherwise = Nothing
+
+
 
 
 -- | Similarity relation on /a/. 
@@ -136,21 +139,22 @@ x ~~ y = not (x `lt` y) && not (x `gt` y)
 (/~) :: Eq a => Prd a => a -> a -> Bool
 x /~ y = not $ x ~~ y
 
--- | Version of 'pcompare' that uses the derived equivalence relation.
+-- | Version of 'pcompare' that uses '=='.
 --
--- This can be useful if there is no 'Eq' instance or if it is
--- suspect, for example when /a/ is a floating point number.
---
-pcomparePrd :: Prd a => a -> a -> Maybe Ordering
-pcomparePrd x y 
-  | x <~ y = Just $ if y <~ x then EQ else LT
-  | y <~ x = Just GT
+pcompareEq :: Eq a => Prd a => a -> a -> Maybe Ordering
+pcompareEq x y
+  | x `lt` y  = Just LT
+  | x  ==  y  = Just EQ
+  | x `gt` y  = Just GT
   | otherwise = Nothing
 
 -- | Version of 'pcompare' that uses 'compare'.
 --
 pcompareOrd :: Ord a => a -> a -> Maybe Ordering
 pcompareOrd x y = Just $ x `compare` y
+
+
+
 
 -- | Prefix version of '=~'.
 --
@@ -298,21 +302,17 @@ pmin x y = do
 pmeet :: Eq a => Maximal a => Foldable f => f a -> Maybe a
 pmeet = foldM pmin maximal
 
-sign :: Eq a => Num a => Prd a => a -> Maybe Ordering
-sign x = pcompare x 0
+sign :: Eq a => (Additive-Monoid) a => Prd a => a -> Maybe Ordering
+sign x = pcompare x zero
 
-zero :: Eq a => Num a => Prd a => a -> Bool
-zero x = sign x == Just EQ
-
-positive :: Eq a => Num a => Prd a => a -> Bool
+positive :: Eq a => (Additive-Monoid) a => Prd a => a -> Bool
 positive x = sign x == Just GT
 
-negative :: Eq a => Num a => Prd a => a -> Bool
+negative :: Eq a => (Additive-Monoid) a => Prd a => a -> Bool
 negative x = sign x == Just LT
 
-indeterminate :: Eq a => Num a => Prd a => a -> Bool
+indeterminate :: Eq a => (Additive-Monoid) a => Prd a => a -> Bool
 indeterminate x = sign x == Nothing
-
 
 ---------------------------------------------------------------------
 --  Instances
@@ -397,11 +397,16 @@ instance Prd a => Prd (NonEmpty a) where
     (x :| xs) <~ (y :| ys) = x <~ y && xs <~ ys
 
 instance Prd a => Prd (Down a) where
-    x <~ y = y <~ x
+    (Down x) <~ (Down y) = y <~ x
+    pcompare (Down x) (Down y) = pcompare y x
 
 -- Canonically ordered.
 instance Prd a => Prd (Dual a) where
-    x <~ y = y <~ x
+    (Dual x) <~ (Dual y) = y <~ x
+    pcompare (Dual x) (Dual y) = pcompare y x
+
+instance Prd a => Prd (S.Max a) where S.Max a <~ S.Max b = a <~ b --TODO push upstream
+instance Prd a => Prd (S.Min a) where S.Min a <~ S.Min b = a <~ b --TODO push upstream
 
 instance Prd Any where
     Any x <~ Any y = x <~ y
@@ -447,10 +452,13 @@ instance Prd Double where
            | x /= x || y /= y = False
            | otherwise        = x <= y
 
-instance  (Prd a, Integral a)  => Prd (Ratio a)  where
-    {-# SPECIALIZE instance Prd Rational #-}
+instance Prd (Ratio Integer)  where
     (x:%y) <~ (x':%y') | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
-                         | otherwise = x * y' <~ x' * y
+                       | otherwise = x * y' <~ x' * y
+
+instance Prd (Ratio Natural)  where
+    (x:%y) <~ (x':%y') | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
+                       | otherwise = x * y' <~ x' * y
 
 -- Canonical semigroup ordering
 instance Prd a => Prd (Maybe a) where
@@ -495,13 +503,14 @@ instance Prd a => Prd (IntMap.IntMap a) where
 instance Prd IntSet.IntSet where
     (<~) = IntSet.isSubsetOf
 
+{-
 -- Helper type for 'DerivingVia'
 newtype Ordered a = Ordered { getOrdered :: a }
   deriving ( Eq, Ord, Show, Data, Typeable, Generic, Generic1, Functor, Foldable, Traversable)
 
 instance Ord a => Prd (Ordered a) where
     (<~) = (<=)
-
+-}
 -------------------------------------------------------------------------------
 -- Minimal
 -------------------------------------------------------------------------------
@@ -519,9 +528,9 @@ class Prd a => Minimal a where
 
 instance Minimal () where minimal = ()
 
-instance Minimal Float where maximal = -1/0
+instance Minimal Float where minimal = -1/0
 
-instance Minimal Double where maximal = -1/0
+instance Minimal Double where minimal = -1/0
 
 instance Minimal Natural where minimal = 0
 
@@ -569,6 +578,9 @@ instance Prd a => Minimal (Maybe a) where
 
 instance Maximal a => Minimal (Down a) where
     minimal = Down maximal
+
+instance Maximal a => Minimal (Dual a) where
+  minimal = Dual maximal
 
 -------------------------------------------------------------------------------
 -- Maximal
@@ -622,9 +634,57 @@ instance (Prd a, Maximal b) => Maximal (Either a b) where
 instance Maximal a => Maximal (Maybe a) where
     maximal = Just maximal
 
+instance Minimal a => Maximal (Dual a) where
+    maximal = Dual minimal
+
 instance Minimal a => Maximal (Down a) where
     maximal = Down minimal
 
+
+
+{-
+-- works but probably want more explicit instances
+instance (Prd a, (Additive-Semigroup) a) => Semigroup (Ordered a) where
+  (<>) = liftA2 add
+
+instance (Prd a, (Additive-Monoid) a) => Monoid (Ordered a) where
+  mempty = pure zero
+-}
+
+{-
+instance Semigroup (Max a) => Semigroup (Additive (Max a)) where
+  (<>) = liftA2 (<>)
+
+instance Monoid (Max a) => Monoid (Additive (Max a)) where
+  mempty = pure mempty
+
+instance (Ord a, Prd a, Minimal a) => Monoid (Additive (Max a)) where
+  mempty = pure . pure $ minimal
+
+
+instance (Additive-Semigroup) a => Semigroup (Multiplicative (Min a)) where
+  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 add a b
+
+instance (Additive-Monoid) a => Monoid (Multiplicative (Min a)) where
+  mempty = pure . pure $ zero
+-}
+
+-- workaround for poorly specified entailment: instance (Ord a, Bounded a) => Monoid (Min a)
+-- >>> zero :: Min Natural
+-- Min {getMin = 0}
+instance (Maximal a, Semigroup (Min a)) => Monoid (Additive (Min a)) where
+  mempty = pure $ Min maximal
+
+-- workaround for poorly specified entailment: instance (Ord a, Bounded a) => Monoid (Max a)
+instance (Minimal a, Semigroup (Max a)) => Monoid (Additive (Max a)) where
+  mempty = pure $ Max minimal
+
+{-
+--TODO push upstream
+instance Bounded a => Bounded (Down a) where
+  maxBound = minBound
+  minBound = maxBound
+-}
 -------------------------------------------------------------------------------
 -- Iterators
 -------------------------------------------------------------------------------

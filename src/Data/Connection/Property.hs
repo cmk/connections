@@ -11,7 +11,7 @@ import qualified Test.Function.Invertible as Prop
 import qualified Test.Function.Monotone   as Prop
 
 import Test.Util
-import Prelude hiding (Ord(..))
+import Prelude hiding (Num(..),Ord(..))
 
 
 -- | \( \forall x, y : f \dashv g \Rightarrow f (x) \leq y \Leftrightarrow x \leq g (y) \)
@@ -86,4 +86,3 @@ projective_l conn@(Conn f _) = Prop.projective_on (=~) f $ counit conn
 --
 projective_r :: Prd a => Prd b => Conn a b -> b -> Bool
 projective_r conn@(Conn _ g) = Prop.projective_on (=~) g $ unit conn
-

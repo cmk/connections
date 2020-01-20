@@ -18,8 +18,8 @@ ri = R.linearFrom 0 minBound maxBound
 rnat :: Range Natural
 rnat = R.linear 0 (2^128)
 
-prop_connections_wrd_int :: Property
-prop_connections_wrd_int = withTests 1000 . property $ do
+prop_connections_word :: Property
+prop_connections_word = withTests 1000 . property $ do
 
   i08 <- forAll $ G.integral (ri @Int8)
   w08 <- forAll $ G.integral (ri @Word8)

@@ -6,7 +6,6 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE Safe                #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE Rank2Types       #-}
 
 module Data.Prd.Nan where
 
@@ -14,37 +13,75 @@ import Control.Applicative
 import Data.Data (Data, Typeable)
 import Data.Prd
 import Data.Connection
+import Data.Semiring
+import Data.Semigroup.Additive
+import Data.Semigroup.Multiplicative
 import GHC.Generics (Generic, Generic1)
 
--- A type with an additional element allowing for the possibility of undefined values.
+-- A type with an additional element allowing for the possibility of unisDef values.
 -- Isomorphic to /Maybe a/ but with a different 'Prd' instance.
 data Nan a = Nan | Def a
   deriving ( Eq, Ord, Show, Data, Typeable, Generic, Generic1, Functor, Foldable, Traversable)
+
+
+instance Prd a => Prd (Nan a) where
+    Nan <~ Nan = True
+    _   <~ Nan = False
+    Nan <~ _   = False
+    Def a <~ Def b = a <~ b
+
+instance Applicative Nan where
+    pure = Def
+    Nan <*> _ = Nan
+    Def f <*> x = f <$> x
+
+instance (Additive-Semigroup) a => Semigroup (Additive (Nan a)) where
+  Additive a <> Additive b = Additive $ liftA2 add a b
+
+-- MinPlus Dioid
+instance (Additive-Monoid) a => Monoid (Additive (Nan a)) where
+  mempty = Additive $ pure zero
+
+instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Nan a)) where
+  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 mul a b
+
+-- MinPlus Dioid
+instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Nan a)) where
+  mempty = Multiplicative $ pure one
+
+-- Presemiring with a absorbing element.
+instance Presemiring a => Presemiring (Nan a)
+
+
+{-
+
+instance Field a => Field (Nan a) where
+
+u + Nan = Nan + u = Nan − Nan = Nan
+u · Nan = Nan · u = Nan Nan−1 = Nan
+Nan  u ⇔ u = Nan u  Nan ⇔ u = Nan
+-}
 
 nan :: b -> (a -> b) -> Nan a -> b
 nan _ f (Def y) = f y
 nan x _  Nan    = x 
 
-defined :: Nan a -> Bool
-defined Nan = False
-defined _   = True
+isDef :: Nan a -> Bool
+isDef Nan = False
+isDef _   = True
+
+isNan :: Nan a -> Bool
+isNan Nan = True
+isNan _   = False
 
 mapNan :: (a -> b) -> Nan a -> Nan b
 mapNan f = nan Nan $ Def . f
 
-maybeNan :: (forall a. a -> a) -> Maybe a -> Nan a
-maybeNan _ Nothing = Nan
-maybeNan f (Just x) = Def $ f x
-
-nanMaybe :: (forall a. a -> a) -> Nan a -> Maybe a
-nanMaybe _ Nan = Nothing
-nanMaybe f (Def x) = Just $ f x
-
-eitherNan :: Either a b -> Nan b
-eitherNan = either (const Nan) Def
-
-nanEither :: a -> Nan b -> Either a b
-nanEither x = nan (Left x) Right
+joinNan :: Nan (Nan a) -> Nan a
+joinNan Nan = Nan
+joinNan (Def Nan) = Nan
+joinNan (Def (Def a)) = Def a
+-- collectNan = joinNan . liftNan id
 
 liftNan :: (Prd a, Fractional a) => (a -> b) -> a -> Nan b
 liftNan f x | x =~ (0/0) = Nan
@@ -64,90 +101,17 @@ liftAll f x | isNaN x = Nan
 isInf :: (RealFloat a, Prd a) => a -> Bool
 isInf x = isInfinite x && gt x 0
 
-floatOrdering :: (RealFloat a, Prd a) => Trip a (Nan Ordering)
-floatOrdering = Trip f g h where
 
-  g (Def GT) = 1/0
-  g (Def LT) = - 1/0
-  g (Def EQ) = 0
-  g Nan = 0/0
-  
-  f x | isNaN x    = Nan
-  f x | isInf (-x) = Def LT
-  f x | x <~ 0     = Def EQ
-  f x | otherwise  = Def GT
+defnan :: Prd a => Prd b => Conn a b -> Conn (Nan a) (Nan b)
+defnan (Conn f g) = Conn (fmap f) (fmap g) 
 
-  h x | isNaN x    = Nan
-  h x | isInf x    = Def GT
-  h x | x >~ 0     = Def EQ
-  h x | otherwise  = Def LT
+defnan' :: Prd a => Prd b => Trip a b -> Trip (Nan a) (Nan b)
+defnan' (Trip f g h) = Trip (fmap f) (fmap g) (fmap h)
 
-instance Prd a => Prd (Nan a) where
-    Nan <~ Nan = True
-    _   <~ Nan = False
-    Nan <~ _   = False
-    Def a <~ Def b = a <~ b
-
-instance Applicative Nan where
-    pure = Def
-    Nan <*> _ = Nan
-    Def f <*> x = f <$> x
-
-instance Num a => Num (Nan a) where
-    negate      = fmap negate
-    (+)         = liftA2 (+)
-    (*)         = liftA2 (*)
-    fromInteger = pure . fromInteger
-    abs         = fmap abs
-    signum      = fmap signum
-
-nanflt :: Prd a => Fractional a => Conn (Nan a) a
-nanflt = Conn (nan (0/0) id) $ \y -> if y =~ (0/0) then Nan else Def y 
-
-def :: Prd a => Prd b => Conn a b -> Conn (Nan a) (Nan b)
-def conn = Conn f g where 
-  Conn f' g' = right conn
-  f = eitherNan . f' . nanEither ()
-  g = eitherNan . g' . nanEither ()
-
-{-
-floatOrdering :: Trip Float (Nan Ordering)
-floatOrdering = Trip f g h where
-  h x | isNaN x = Nan
-  h x | posinf x = Def GT
-  h x | finite x && x >~ 0 = Def EQ
-  h x | otherwise = Def LT
-
-  g (Def GT) = maxBound
-  g (Def LT) = minBound
-  g (Def EQ) = 0
-  g Nan = aNan
-  
-  f x | isNaN x = Nan
-  f x | neginf x = Def LT
-  f x | finite x && x <~ 0 = Def EQ
-  f x | otherwise = Def GT
-
-
-_Def' :: Prd a => Prd b => Trip a b -> Trip (Nan a) (Nan b)
-_Def' trip = Trip f g h where 
-  Trip f' g' h' = _R' trip
-  f = eitherNan . f' . nanEither ()
-  g = eitherNan . g' . nanEither () 
-  h = eitherNan . h' . nanEither () 
-
-
-instance Semigroup a => Semigroup (Nan a) where
-instance Semiring a => Semiring (Nan a) where
-instance Semifield a => Semifield (Nan a) where
-
-instance Group a => Group (Nan a) where
-instance Ring a => Ring (Nan a) where
-
-instance Field a => Field (Nan a) where
-
-u + Nan = Nan + u = Nan − Nan = Nan
-u · Nan = Nan · u = Nan Nan−1 = Nan
-Nan  u ⇔ u = Nan u  Nan ⇔ u = Nan
--}
-
+--nanfld :: Prd a => Field a => Trip (Nan a) a
+-- Field a => Field (Nan a)
+-- /Caution/ this is only legal if (Nan a) has no nans.
+fldnan :: Prd a => Fractional a => Trip a (Nan a)
+fldnan = Trip f g f where
+  f a = if a =~ (0/0) then Nan else Def a 
+  g = nan (0/0) id

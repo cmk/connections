@@ -11,7 +11,6 @@ module Data.Connection (
   , counit
   , pcomparing
   , dual
-  , (&&&)
   , (|||)
   , just
   , list
@@ -32,7 +31,6 @@ module Data.Connection (
   , unitr
   , counitl
   , counitr
-  , forked
   , joined
   , bound
   , maybel
@@ -52,7 +50,6 @@ import Data.Bifunctor (bimap)
 import Data.Word
 import Data.Int
 import Data.Prd
-import Data.Prd.Lattice
 import Data.Ord (Down(..))
 import Prelude 
 
@@ -92,6 +89,10 @@ import qualified Control.Category as C
 --
 data Conn a b = Conn (a -> b) (b -> a)
 
+instance Category Conn where
+  id = Conn id id
+  Conn f' g' . Conn f g = Conn (f' . f) (g . g')
+
 connl :: Prd a => Prd b => Conn a b -> a -> b
 connl (Conn f _) = f
 
@@ -112,10 +113,6 @@ counit (Conn f g) = f . g
 --
 pcomparing :: Eq b => Prd a => Prd b => Conn a b -> a -> a -> Maybe Ordering
 pcomparing (Conn f _) x y = f x `pcompare` f y
-
-instance Category Conn where
-  id = Conn id id
-  Conn f' g' . Conn f g = Conn (f' . f) (g . g')
 
 ---------------------------------------------------------------------
 --  Instances
@@ -162,8 +159,8 @@ binord = Conn f g where
   g LT = False
   g _  = True
 
-(&&&) :: Prd a => Prd b => Lattice c => Conn c a -> Conn c b -> Conn c (a, b)
-f &&& g = tripr forked >>> f `strong` g
+--(&&&) :: Prd a => Prd b => Lattice c => Conn c a -> Conn c b -> Conn c (a, b)
+--f &&& g = tripr forked >>> f `strong` g
 
 (|||) :: Prd a => Prd b => Prd c => Conn a c -> Conn b c -> Conn (Either a b) c
 f ||| g = f `choice` g >>> tripr joined
@@ -194,6 +191,10 @@ choice (Conn ab ba) (Conn cd dc) = Conn f g where
 --
 data Trip a b = Trip (a -> b) (b -> a) (a -> b)
 
+instance Category Trip where
+  id = Trip id id id
+  Trip f' g' h' . Trip f g h = Trip (f' . f) (g . g') (h' . h)
+
 tripl :: Prd a => Prd b => Trip a b -> Conn a b
 tripl (Trip f g _) = Conn f g
 
@@ -218,10 +219,6 @@ ceiling' = connl . tripl
 floor' :: Prd a => Prd b => Trip a b -> a -> b
 floor' = connr . tripr
 
-instance Category Trip where
-  id = Trip id id id
-  Trip f' g' h' . Trip f g h = Trip (f' . f) (g . g') (h' . h)
-
 ---------------------------------------------------------------------
 --  Instances
 ---------------------------------------------------------------------
@@ -229,8 +226,8 @@ instance Category Trip where
 bound :: Prd a => Bound a => Trip () a
 bound = Trip (const minimal) (const ()) (const maximal)
 
-forked :: Lattice a => Trip (a, a) a
-forked = Trip (uncurry (\/)) (\x -> (x,x)) (uncurry (/\))
+--forked :: Lattice a => Trip (a, a) a
+--forked = Trip (uncurry (∨)) (\x -> (x,x)) (uncurry (∧))
 
 joined :: Prd a => Trip a (Either a a)
 joined = Trip Left (either id id) Right

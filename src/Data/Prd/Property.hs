@@ -26,7 +26,6 @@ module Data.Prd.Property (
 ) where
 
 import Data.Prd
-import Data.Prd.Lattice
 import Test.Util
 import Prelude hiding (Ord(..))
 
