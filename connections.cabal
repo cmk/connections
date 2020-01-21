@@ -24,19 +24,23 @@ library
     , Data.Dioid.Unsigned
     , Data.Dioid.Property
     --, Data.Dioid.Tropical
+    , Data.Semilattice
+    , Data.Semilattice.Property
+    --, Data.Lattice.MaxMin
     , Data.Connection
     , Data.Connection.Property
     , Data.Connection.Word
     , Data.Connection.Int
     , Data.Connection.Float
     , Data.Float
-
+    --, Data.Semigroup.Join
+    --, Data.Semigroup.Meet
   build-depends:       
       base              >= 4.10  && < 5.0
-    , lawz              >= 0.0.1 && < 1.0
+    , lawz              >= 0.1   && < 1.0
     , containers        >= 0.4.0 && < 0.7
-    , semigroupoids     == 5.*
-    , rings
+    , semigroupoids     >= 5.0   && < 6.0
+    , rings             >= 0.0.3 && < 0.1
 
   default-extensions:
       ScopedTypeVariables

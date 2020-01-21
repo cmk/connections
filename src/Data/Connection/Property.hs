@@ -10,7 +10,7 @@ import qualified Test.Function.Idempotent as Prop
 import qualified Test.Function.Invertible as Prop
 import qualified Test.Function.Monotone   as Prop
 
-import Test.Util
+import Test.Logic
 import Prelude hiding (Num(..),Ord(..))
 
 

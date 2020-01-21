@@ -18,6 +18,29 @@ import Data.Semigroup.Multiplicative
 import Data.Semiring
 import Prelude hiding (Num(..))
 
+
+{-
+--p. 340
+Semiring of Signed Numbers
+With every real number a, we associate four signed numbers a+,a−,a◦anda? corresponding respectively to: 
+a obtained as the limit
+of a sequence of numbers > a (a+); 
+of a sequence of numbers < a (a−); 
+of a sequence of numbers all equal to a (a◦); 
+of a sequence of numbers only convergent towards a (a?).
+We define the addition⊕of two signed numbers (s, a) and (σ, b) as: (s, a)+(σ, b)=(s+σ, a+b)
+and the multiplication by: (s, a) * (σ, b)= (signOf a * σ ̇+ signOf b * s ̇+ s*σ, a*b)
+
+where ̇+and ̇×are addition and the multiplication of qualitative algebra (Sect. 4.5.3) 
+
+One verifies that(R×S,⊕,⊗)is a semiring. 
+It is not a dioid however, becausethe setR×S is not canonically ordered by⊕.
+
+data Signed a = Signed Sign a
+type RealField a = (Field a, Ord a)
+instance RealField a => Semiring (Signed a)
+-}
+
 -- | 'Sign' is similar to 'Maybe Ordering', but has a distinct poset ordering:
 --
 -- @ 'Indeterminate' >= 'Positive' >= 'Zero'@ and
@@ -61,6 +84,18 @@ instance Monoid Sign where
     mempty = Zero
 
 {-
+⊕+−0?
+++?+?
+−?−−?
+0+−0?
+?????
+
+⊗+−0?
+++−0?
+−−+0?
+00000
+???0?
+
 instance Semiring Sign where
     Positive >< a = a
 

@@ -14,9 +14,12 @@ import Data.Data (Data, Typeable)
 import Data.Prd
 import Data.Connection
 import Data.Semiring
+import Data.Semifield
 import Data.Semigroup.Additive
 import Data.Semigroup.Multiplicative
 import GHC.Generics (Generic, Generic1)
+
+import Prelude hiding (Num(..), Fractional(..))
 
 -- A type with an additional element allowing for the possibility of unisDef values.
 -- Isomorphic to /Maybe a/ but with a different 'Prd' instance.
@@ -36,14 +39,14 @@ instance Applicative Nan where
     Def f <*> x = f <$> x
 
 instance (Additive-Semigroup) a => Semigroup (Additive (Nan a)) where
-  Additive a <> Additive b = Additive $ liftA2 add a b
+  Additive a <> Additive b = Additive $ liftA2 (+) a b
 
 -- MinPlus Dioid
 instance (Additive-Monoid) a => Monoid (Additive (Nan a)) where
   mempty = Additive $ pure zero
 
 instance (Multiplicative-Semigroup) a => Semigroup (Multiplicative (Nan a)) where
-  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 mul a b
+  Multiplicative a <> Multiplicative b = Multiplicative $ liftA2 (*) a b
 
 -- MinPlus Dioid
 instance (Multiplicative-Monoid) a => Monoid (Multiplicative (Nan a)) where
@@ -83,8 +86,8 @@ joinNan (Def Nan) = Nan
 joinNan (Def (Def a)) = Def a
 -- collectNan = joinNan . liftNan id
 
-liftNan :: (Prd a, Fractional a) => (a -> b) -> a -> Nan b
-liftNan f x | x =~ (0/0) = Nan
+liftNan :: (Prd a, Field a) => (a -> b) -> a -> Nan b
+liftNan f x | x =~ zero / zero = Nan
             | otherwise = Def (f x)
 
 liftNan' :: RealFloat a => (a -> b) -> a -> Nan b
@@ -111,7 +114,7 @@ defnan' (Trip f g h) = Trip (fmap f) (fmap g) (fmap h)
 --nanfld :: Prd a => Field a => Trip (Nan a) a
 -- Field a => Field (Nan a)
 -- /Caution/ this is only legal if (Nan a) has no nans.
-fldnan :: Prd a => Fractional a => Trip a (Nan a)
+fldnan :: Prd a => Field a => Trip a (Nan a)
 fldnan = Trip f g f where
-  f a = if a =~ (0/0) then Nan else Def a 
-  g = nan (0/0) id
+  f a = if a =~ zero / zero then Nan else Def a 
+  g = nan (zero / zero) id

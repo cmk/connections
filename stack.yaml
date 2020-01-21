@@ -3,6 +3,6 @@ flags: {}
 
 extra-deps:
   - github: cmk/lawz
-    commit: cb8d80e9e266ec2d8bc4773712f044d831a6331d
+    commit: 621edad65acc344578ebdcdb0f9800e7d4f9e895
   - github: cmk/rings
-    commit: d69941c777d713a016e273b54e2c539f5be42369
+    commit: 82753c1f7e82bceae26d7bfd873b1fc889401e7a

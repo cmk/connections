@@ -7,6 +7,7 @@
 {-# LANGUAGE DeriveTraversable   #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE CPP       #-}
 module Data.Prd (
     module Data.Prd
   , Down(..)
@@ -24,18 +25,21 @@ import Data.Ord (Down(..))
 import Data.Ratio
 import Data.Word (Word, Word8, Word16, Word32, Word64)
 import GHC.Generics (Generic, Generic1)
-import GHC.Real
+import GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
 import Numeric.Natural
 import Data.Semigroup (Min(..), Max(..))
 import Data.Semigroup.Additive
 import Data.Semigroup.Multiplicative
 
+import Data.Fixed
 import qualified Data.Semigroup as S
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Data.Sequence as Seq
+
+import Prelude hiding (Fractional(..),Num(..))
 
 infix 4 <~, >~, /~, ~~, =~, ?~, `pgt`, `pge`, `peq`, `pne`, `ple`, `plt`
 
@@ -318,66 +322,6 @@ indeterminate x = sign x == Nothing
 --  Instances
 ---------------------------------------------------------------------
 
-instance Prd Bool where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Char where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Integer where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Int where 
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Int8 where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Int16 where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Int32 where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Int64 where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Natural where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Word where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Word8 where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Word16 where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Word32 where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Word64 where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
-instance Prd Ordering where
-    (<~) = (<=)
-    pcompare = pcompareOrd
-
 instance Prd a => Prd [a] where
     {-# SPECIALISE instance Prd [Char] #-}
     [] <~ _     = True
@@ -474,10 +418,6 @@ instance (Prd a, Prd b) => Prd (Either a b) where
     Left e <~ Left f   = e <~ f
     Left _ <~ _        = True
  
-instance Prd () where 
-    pcompare _ _ = Just EQ
-    _ <~ _ = True
-
 -- Canonical semigroup ordering
 instance (Prd a, Prd b) => Prd (a, b) where 
   (a,b) <~ (i,j) = a <~ i && b <~ j
@@ -503,14 +443,110 @@ instance Prd a => Prd (IntMap.IntMap a) where
 instance Prd IntSet.IntSet where
     (<~) = IntSet.isSubsetOf
 
-{-
--- Helper type for 'DerivingVia'
-newtype Ordered a = Ordered { getOrdered :: a }
-  deriving ( Eq, Ord, Show, Data, Typeable, Generic, Generic1, Functor, Foldable, Traversable)
 
-instance Ord a => Prd (Ordered a) where
+#define derivePrd(ty)         \
+instance Prd ty where {       \
+   (<~) = (<=)                \
+;  {-# INLINE (<~) #-}        \
+;  pcompare = pcompareOrd     \
+;  {-# INLINE pcompare #-}    \
+}
+
+
+
+
+
+{-
+instance Prd Bool where
     (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Char where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Integer where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Int where 
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Int8 where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Int16 where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Int32 where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Int64 where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Natural where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Word where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Word8 where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Word16 where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Word32 where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Word64 where
+    (<~) = (<=)
+    pcompare = pcompareOrd
+
+instance Prd Ordering where
+    (<~) = (<=)
+    pcompare = pcompareOrd
 -}
+
+
+
+derivePrd(())
+derivePrd(Bool)
+derivePrd(Char)
+derivePrd(Ordering)
+
+derivePrd(Int)
+derivePrd(Int8)
+derivePrd(Int16)
+derivePrd(Int32)
+derivePrd(Int64)
+derivePrd(Integer)
+
+derivePrd(Word)
+derivePrd(Word8)
+derivePrd(Word16)
+derivePrd(Word32)
+derivePrd(Word64)
+derivePrd(Natural)
+
+derivePrd(Uni)
+derivePrd(Deci)
+derivePrd(Centi)
+derivePrd(Milli)
+derivePrd(Micro)
+derivePrd(Nano)
+derivePrd(Pico)
+
 -------------------------------------------------------------------------------
 -- Minimal
 -------------------------------------------------------------------------------
@@ -526,37 +562,16 @@ type Bound a = (Minimal a, Maximal a)
 class Prd a => Minimal a where
     minimal :: a
 
-instance Minimal () where minimal = ()
-
 instance Minimal Float where minimal = -1/0
 
 instance Minimal Double where minimal = -1/0
 
 instance Minimal Natural where minimal = 0
 
-instance Minimal Bool where minimal = minBound
+instance Minimal (Ratio Natural) where minimal = 0
 
-instance Minimal Ordering where minimal = minBound
-
-instance Minimal Int where minimal = minBound
-
-instance Minimal Int8 where minimal = minBound
-
-instance Minimal Int16 where minimal = minBound
-
-instance Minimal Int32 where minimal = minBound
-
-instance Minimal Int64 where minimal = minBound
-
-instance Minimal Word where minimal = minBound
-
-instance Minimal Word8 where minimal = minBound
-
-instance Minimal Word16 where minimal = minBound
-
-instance Minimal Word32 where minimal = minBound
-
-instance Minimal Word64 where minimal = minBound 
+instance Minimal IntSet.IntSet where
+    minimal = IntSet.empty
 
 instance Prd a => Minimal (IntMap.IntMap a) where
     minimal = IntMap.empty
@@ -580,7 +595,30 @@ instance Maximal a => Minimal (Down a) where
     minimal = Down maximal
 
 instance Maximal a => Minimal (Dual a) where
-  minimal = Dual maximal
+    minimal = Dual maximal
+
+#define deriveMinimal(ty)            \
+instance Minimal ty where {          \
+    minimal = minBound               \
+;   {-# INLINE minimal #-}           \
+}
+
+
+deriveMinimal(())
+deriveMinimal(Bool)
+deriveMinimal(Ordering)
+
+deriveMinimal(Int)
+deriveMinimal(Int8)
+deriveMinimal(Int16)
+deriveMinimal(Int32)
+deriveMinimal(Int64)
+
+deriveMinimal(Word)
+deriveMinimal(Word8)
+deriveMinimal(Word16)
+deriveMinimal(Word32)
+deriveMinimal(Word64)
 
 -------------------------------------------------------------------------------
 -- Maximal
@@ -595,11 +633,54 @@ instance Maximal a => Minimal (Dual a) where
 class Prd a => Maximal a where
     maximal :: a
 
-instance Maximal () where maximal = ()
+#define deriveMaximal(ty)            \
+instance Maximal ty where {           \
+   maximal = maxBound                \
+;  {-# INLINE maximal #-}            \
+}
+
+
+deriveMaximal(())
+deriveMaximal(Bool)
+deriveMaximal(Ordering)
+
+deriveMaximal(Int)
+deriveMaximal(Int8)
+deriveMaximal(Int16)
+deriveMaximal(Int32)
+deriveMaximal(Int64)
+
+deriveMaximal(Word)
+deriveMaximal(Word8)
+deriveMaximal(Word16)
+deriveMaximal(Word32)
+deriveMaximal(Word64)
 
 instance Maximal Float where maximal = 1/0
 
 instance Maximal Double where maximal = 1/0
+
+instance (Maximal a, Maximal b) => Maximal (a, b) where
+    maximal = (maximal, maximal)
+
+instance (Prd a, Maximal b) => Maximal (Either a b) where
+    maximal = Right maximal
+
+instance Maximal a => Maximal (Maybe a) where
+    maximal = Just maximal
+
+instance Minimal a => Maximal (Dual a) where
+    maximal = Dual minimal
+
+instance Minimal a => Maximal (Down a) where
+    maximal = Down minimal
+
+
+
+
+
+{-
+instance Maximal () where maximal = ()
 
 instance Maximal Bool where maximal = maxBound
 
@@ -625,24 +706,6 @@ instance Maximal Word32 where maximal = maxBound
 
 instance Maximal Word64 where maximal = maxBound
 
-instance (Maximal a, Maximal b) => Maximal (a, b) where
-    maximal = (maximal, maximal)
-
-instance (Prd a, Maximal b) => Maximal (Either a b) where
-    maximal = Right maximal
-
-instance Maximal a => Maximal (Maybe a) where
-    maximal = Just maximal
-
-instance Minimal a => Maximal (Dual a) where
-    maximal = Dual minimal
-
-instance Minimal a => Maximal (Down a) where
-    maximal = Down minimal
-
-
-
-{-
 -- works but probably want more explicit instances
 instance (Prd a, (Additive-Semigroup) a) => Semigroup (Ordered a) where
   (<>) = liftA2 add
@@ -669,6 +732,7 @@ instance (Additive-Monoid) a => Monoid (Multiplicative (Min a)) where
   mempty = pure . pure $ zero
 -}
 
+{-
 -- workaround for poorly specified entailment: instance (Ord a, Bounded a) => Monoid (Min a)
 -- >>> zero :: Min Natural
 -- Min {getMin = 0}
@@ -678,7 +742,7 @@ instance (Maximal a, Semigroup (Min a)) => Monoid (Additive (Min a)) where
 -- workaround for poorly specified entailment: instance (Ord a, Bounded a) => Monoid (Max a)
 instance (Minimal a, Semigroup (Max a)) => Monoid (Additive (Max a)) where
   mempty = pure $ Max minimal
-
+-}
 {-
 --TODO push upstream
 instance Bounded a => Bounded (Down a) where
