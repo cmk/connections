@@ -16,19 +16,20 @@ cabal-version:       >=1.10
 library
   exposed-modules:
       Data.Prd
-    , Data.Prd.Property
     , Data.Prd.Nan
+    , Data.Prd.Property
+    , Data.Float
     , Data.Dioid
     , Data.Dioid.Property
+    , Data.Semigroup.Join
+    , Data.Semigroup.Meet
     , Data.Connection
     , Data.Connection.Word
     , Data.Connection.Int
     , Data.Connection.Float
     , Data.Connection.Ratio
+    , Data.Connection.Yoneda
     , Data.Connection.Property
-    , Data.Float
-    , Data.Semigroup.Join
-    , Data.Semigroup.Meet
     , Data.Semilattice
     , Data.Semilattice.Bounded
     , Data.Semilattice.Signed
