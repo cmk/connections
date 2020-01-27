@@ -10,27 +10,37 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-module Data.Semilattice where
+module Data.Semilattice (
+    bottom
+  , top
+  , (∧)
+  , (∨)
+  , Join(..)
+  , Meet(..)
+  , module Data.Semilattice 
+) where
 
 import safe Control.Applicative
 import safe Data.Bool
 import safe Data.Complex
+import safe Data.Connection
 import safe Data.Maybe
 import safe Data.Either
 import safe Data.Fixed
+import safe Data.Float
 import safe Data.Foldable hiding (join, meet)
 import safe Data.Group
 import safe Data.Int
---import safe Data.List
-import safe Data.List.NonEmpty
+import safe Data.List (unfoldr)
+import safe Data.List.NonEmpty hiding (filter, unfoldr)
 import safe Data.Magma
 import safe Data.Prd
 import safe Data.Ord
 import safe Data.Semiring
 import safe Data.Dioid
 import safe Data.Semigroup
+import safe Data.Semigroup
 import safe Data.Semigroup.Join
-import safe Data.Semigroup.Meet
 import safe Data.Semigroup.Foldable
 import safe Data.Semigroup.Meet
 import safe Data.Tuple
@@ -44,6 +54,7 @@ import safe Data.Ratio
 import safe Prelude ( Eq(..), Ord(..), Show, Ordering(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), id, (.), ($), flip, (<$>), Integer, Float, Double)
 import safe qualified Prelude as P
 
+import qualified Control.Category as C 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
@@ -79,24 +90,57 @@ Then E is a distributive lattice.
 -}
 
 
--- Lattice types
-type Semilattice = Semigroup
+{-
+< https://en.wikipedia.org/wiki/Graded_poset >
+class Prd a => Graded a where
+  rank :: a -> Natural
 
-type BoundedSemilattice = Monoid
+instance Graded Set, IntSet, Natural
+-}
+
+-- Lattice types
+
+
+
+
+
+
+type BoundedJoinSemilattice a = (Prd a, (Join-Monoid) a)
+
+
+
+type BoundedMeetSemilattice a = (Prd a, (Meet-Monoid) a)
+
+type LatticeLaw a = (JoinSemilattice a, MeetSemilattice a)
+
+type BoundedLatticeLaw a = (BoundedJoinSemilattice a, BoundedMeetSemilattice a)
+
+type LowerBoundedLattice a = (Lattice a, (Join-Monoid) a)
+
+type UpperBoundedLattice a = (Lattice a, (Meet-Monoid) a)
+
+type BoundedLattice a = (Lattice a, BoundedLatticeLaw a)
 
 type Distributive a = (Presemiring a, Lattice a)
 
-type LatticeLaw a = (Prd a, (Join-Semilattice) a, (Meet-Semilattice) a)
+{-
+class (Lattice a, BoundedLatticeLaw a) => BoundedLattice a
 
-type LowerBounded a = (Lattice a, (Join-Monoid) a)
 
-type UpperBounded a = (Lattice a, (Meet-Monoid) a)
+instance BoundedLattice ()
+instance BoundedLattice Bool
+instance (Prd a, UpperBounded a) => BoundedLattice (Maybe a)
+--instance (Prd a, UpperBounded a) => BoundedLattice (IntMap.IntMap a)
+--instance (Ord k, (Meet-Monoid) k, Prd a, UpperBounded a) => BoundedLattice (Map.Map k a)
+-}
 
-type BoundedLatticeLaw a = (Prd a, (Join-BoundedSemilattice) a, (Meet-BoundedSemilattice) a)
+--type Bounded
 
-type MinimalLatticeLaw a = (Prd a, (Join-BoundedSemilattice) a, (Meet-Semilattice) a)
 
-type MaximalLatticeLaw a = (Prd a, (Join-Semilattice) a, (Meet-BoundedSemilattice) a)
+
+--type MinimalLatticeLaw a = (Prd a, (Join-BoundedSemilattice) a, (Meet-Semilattice) a)
+
+--type MaximalLatticeLaw a = (Prd a, (Join-Semilattice) a, (Meet-BoundedSemilattice) a)
 
 -- | Lattices.
 --
@@ -146,32 +190,35 @@ type MaximalLatticeLaw a = (Prd a, (Join-Semilattice) a, (Meet-BoundedSemilattic
 class LatticeLaw a => Lattice a
 
 
-class (Lattice a, BoundedLatticeLaw a) => BoundedLattice a
+
 
 -- | Birkhoff's self-dual < https://en.wikipedia.org/wiki/Median_algebra ternary median > operation.
 --
+-- If the lattice is distributive then 'glb' has the following properties.
+--
 -- @ 
--- 'median' x y y '==' y
--- 'median' x y z '==' 'median' z x y
--- 'median' x y z '==' 'median' x z y
--- 'median' ('median' x w y) w z '==' 'median' x w ('median' y w z)
+-- 'glb' x y y '==' y
+-- 'glb' x y z '==' 'glb' z x y
+-- 'glb' x y z '==' 'glb' x z y
+-- 'glb' ('glb' x w y) w z '==' 'glb' x w ('glb' y w z)
 -- @
 --
--- >>> median 1 2 3 :: Int
+-- >>> glb 1 2 3 :: Int
 -- 2
--- >>> median (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
+-- >>> glb (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
 -- fromList [3,5]
---
--- This operation requires a distributive lattice.
 --
 -- See 'Data.Dioid.Property'.
 -- 
-median :: Distributive a => a -> a -> a -> a
-median x y z = (x ∨ y) ∧ (y ∨ z) ∧ (z ∨ x)
+glb :: Lattice a => a -> a -> a -> a
+glb x y z = (x ∨ y) ∧ (y ∨ z) ∧ (z ∨ x)
+
+lub :: Lattice a => a -> a -> a -> a
+lub x y z = (x ∧ y) ∨ (y ∧ z) ∨ (z ∧ x)
 
 -- @ 'join' :: 'Lattice' a => 'Minimal' a => 'Set' a -> a @
 --
-join :: (Join-BoundedSemilattice) a => Lattice a => Foldable f => f a -> a
+join :: (Join-Monoid) a => Lattice a => Foldable f => f a -> a
 join = joinWith id
 
 -- >>> joinWith MaxMin $ [IntSet.fromList [1..5], IntSet.fromList [2..4]]
@@ -180,7 +227,7 @@ joinWith :: (Join-Monoid) a => Foldable t => (b -> a) -> t b -> a
 joinWith f = foldr' ((∨) . f) bottom
 {-# INLINE joinWith #-}
 
-meet :: (Meet-BoundedSemilattice) a => Lattice a => Foldable f => f a -> a
+meet :: (Meet-Monoid) a => Lattice a => Foldable f => f a -> a
 meet = meetWith id
 
 -- | Fold over a collection using the multiplicative operation of an arbitrary semiring.
@@ -325,39 +372,7 @@ evalWith1 f = join1 . fmap meet1 . (fmap . fmap) f
 
 -}
 
--- | The partial ordering induced by the join-semilattice structure
-joinLeq :: Eq a => (Join-Semilattice) a => a -> a -> Bool
-joinLeq x y = x ∨ y == y
 
--- | The partial ordering induced by the meet-semilattice structure
-meetLeq :: Eq a => (Meet-Semilattice) a => a -> a -> Bool
-meetLeq x y = x ∧ y == x
-
--- | The partial ordering induced by the join-semilattice structure
-joinGeq :: Eq a => (Join-Semilattice) a => a -> a -> Bool
-joinGeq x y = x ∨ y == x
-
--- | The partial ordering induced by the meet-semilattice structure
-meetGeq :: Eq a => (Meet-Semilattice) a => a -> a -> Bool
-meetGeq x y = x ∧ y == y
-
--- | Partial version of 'Data.Ord.compare'.
---
-pcompareJoin :: Eq a => (Join-Semilattice) a => a -> a -> Maybe Ordering
-pcompareJoin x y
-  | x == y = Just EQ
-  | x ∨ y == y && x /= y = Just LT
-  | x ∨ y == x && x /= y = Just GT
-  | otherwise = Nothing
-
--- | Partial version of 'Data.Ord.compare'.
---
-pcompareMeet :: Eq a => (Meet-Semilattice) a => a -> a -> Maybe Ordering
-pcompareMeet x y
-  | x == y = Just EQ
-  | x ∧ y == x && x /= y = Just LT
-  | x ∧ y == y && x /= y = Just GT
-  | otherwise = Nothing
 
 
 {-
@@ -408,6 +423,7 @@ instance Lattice Micro
 instance Lattice Nano
 instance Lattice Pico
 
+instance Lattice a => Lattice (Down a)
 instance (Prd a, Prd b, Lattice a, Lattice b) => Lattice (Either a b)
 instance (Prd a, Lattice a) => Lattice (Maybe a)
 instance (Prd a, Lattice a) => Lattice (IntMap.IntMap a)
@@ -441,19 +457,368 @@ instance (Ord a, Maximal a) => Monoid (Meet (MaxMin a)) where
 instance (Ord a, Bound a) => Lattice (MaxMin a)
 
 
+
+
+
+
+type family Idx a :: *
+
+type instance Idx (Down a) = Down (Idx a)
+type instance Idx Bool = Bool
+type instance Idx Int8 = Int8
+type instance Idx Int16 = Int16
+type instance Idx Int32 = Int32
+type instance Idx Int64 = Int64
+type instance Idx Integer = Integer
+
+type instance Idx Word8 = Word8
+type instance Idx Word16 = Word16
+type instance Idx Word32 = Word32
+type instance Idx Word64 = Word64
+type instance Idx Natural = Natural
+
+type instance Idx Float = Ulp32
+
+
 {-
-instance (Ord a, Minimal a, (Additive-Monoid) (Max a), (Multiplicative-Monoid) a) => Semiring (Max a)
-instance (Ord a, Maximal a, (Additive-Monoid) (Min a), (Additive-Monoid) a) => Semiring (Min a)
-
-instance (Prd a, Ord a, (Multiplicative-Semigroup) a) => Predioid (Max a)
-instance (Prd a, Ord a, (Additive-Semigroup) a) => Predioid (Min a)
-
-instance (Ord a, Minimal a, (Additive-Monoid) (Max a), (Multiplicative-Monoid) a) => Dioid (Max a)
-instance (Ord a, Maximal a, (Additive-Monoid) (Min a), (Additive-Monoid) a) => Dioid (Min a)
+https://en.wikipedia.org/wiki/Total_order#Chains
+https://en.wikipedia.org/wiki/Completeness_(order_theory)
+https://en.wikipedia.org/wiki/Chain-complete_partial_order
+https://en.wikipedia.org/wiki/Linear_extension
 -}
 
-instance BoundedLattice ()
-instance BoundedLattice Bool
-instance (Prd a, UpperBounded a) => BoundedLattice (Maybe a)
---instance (Prd a, UpperBounded a) => BoundedLattice (IntMap.IntMap a)
---instance (Ord k, (Meet-Monoid) k, Prd a, UpperBounded a) => BoundedLattice (Map.Map k a)
+type Yoneda a = (Ideal a, Filter a)
+
+-- Linear extension to an /a/-compatible poset?
+--
+-- See < >.
+-- 
+type Up a = (Ideal a, Semiring (Idx a))
+type Dn a = (Filter a, Ring (Idx a))
+
+type Index a = (Up a, Dn a)
+
+-- | Yoneda representation for lattice ideals.
+--
+-- A subset /I/ of a lattice is an ideal if and only if it is a lower set 
+-- that is closed under finite joins, i.e., it is nonempty and for all 
+-- /x/, /y/ in /I/, the element /x ∨ y/ is also in /I/.
+--
+-- /Idx a/ is downward-closed:
+--
+-- * @'lower' x s && x '>~' y ==> 'lower' y s@
+--
+-- * @'lower' x s && 'lower' y s ==> 'connl' 'ideal' x '∨' 'connl' 'ideal' y '~<' s@
+--
+-- Finally /filter >>> ideal/ and /ideal >>> filter/ are both connections
+-- on /a/ and /Idx a/ respectively.
+--
+-- See <https://en.wikipedia.org/wiki/Ideal_(order_theory)>
+--
+class (Prd a, JoinSemilattice (Idx a)) => Ideal a where
+
+  -- | Principal ideal generated by an element of /a/.
+  ideal :: Conn (Idx a) a
+
+  -- | Lower set in /a/ generated by an element in /Idx a/.
+  lower :: Idx a -> a -> Bool
+  lower i a = connr ideal a <~ i
+
+-- | Yoneda representation for lattice filters.
+--
+-- A subset /I/ of a lattice is an filter if and only if it is an upper set 
+-- that is closed under finite meets, i.e., it is nonempty and for all 
+-- /x/, /y/ in /I/, the element /x ∧ y/ is also in /I/.
+--
+-- /upper/ and /lower/ commute with /Down/:
+--
+-- * @lower x y == upper (Down x) (Down y)@
+--
+-- * @lower (Down x) (Down y) == upper x y@
+--
+-- /Idx a/ is upward-closed:
+--
+-- * @'upper' x s && x '<~' y ==> 'upper' y s@
+--
+-- * @'upper' x s && 'upper' y s ==> 'connl' 'filter' x '∧' 'connl' 'filter' y '>~' s@
+--
+-- See <https://en.wikipedia.org/wiki/Filter_(mathematics)>
+--
+class (Prd a, MeetSemilattice (Idx a)) => Filter a where
+
+  -- | Principal filter generated by an element of /a/.
+  filter :: Conn a (Idx a)
+
+  -- | Upper set in /a/ generated by an element in /Idx a/.
+  upper :: Idx a -> a -> Bool
+  upper i a = connl filter a >~ i
+
+
+
+
+yoneda :: Yoneda a => Conn a a
+yoneda = filter C.>>> ideal
+
+
+
+--inc is (strictly?) monotone, dec is (strictly?) antitone, 
+contains :: Prd a => a -> a -> a -> Bool
+contains x y z = x <~ z && z <~ y
+
+
+
+fromIndex :: Ideal a => Idx a -> a
+fromIndex = connl ideal
+
+toIndex :: Ideal a => a -> Idx a
+toIndex = connr ideal
+
+incBy :: Up a => Idx a -> a -> a
+incBy x = fromIndex . (+x) . toIndex 
+
+-- @ 'inc' '.' 'dec' = 'id' @
+-- @ 'dec' '.' 'inc' = 'id' @
+inc :: Up a => a -> a
+inc = incBy one
+
+-- | Covering relation on a partial order.
+--
+-- @ x '<.' y @ if and only if @ x `lt` y @ and there is no element /z/
+-- such that @ x `lt` z '&&' z `lt` y @. 
+--
+-- See < https://en.wikipedia.org/wiki/Covering_relation >.
+--
+class Prd a => Covered a where
+    (<.) :: a -> a -> Bool
+    default (<.) :: Up a => a -> a -> Bool
+    (<.) = covers
+
+-- | A grading function on a partial order.
+--
+-- * @ 'lt' x y '==>' 'rank' x <~ 'rank' y @
+-- * @ x '<.' y '==>' 'rank' x == 'rank' y '+' 1@
+--
+-- See < https://en.wikipedia.org/wiki/Graded_poset >.
+class Covered a => Graded a where
+    rank :: a -> Natural
+
+-- interval :: Graded a => a -> a -> [a]
+
+-- | Covering relation on /a/.
+--
+-- < https://en.wikipedia.org/wiki/Covering_relation >
+--
+covers :: Up a => a -> a -> Bool
+covers x y = x `lt` y && all (not . lt x) (indexFrom x y)
+
+-- | Constrained version of 'arr' from 'Control.Arrow'.
+--
+-- Essentially the same properties hold:
+--
+--  * @'arrow' id = 'Control.Category.id'@
+--
+--  * @'arrow' (f . g) = 'arrow' f >>> 'arrow' g@
+--
+--
+--  * @'_1' ab >>> 'arrow' 'fst' = 'arrow' 'fst' >>> ab@
+--
+--  * @'_1' ('_1' ab) >>> 'arrow' 'assoc' = 'arrow' 'assoc' >>> '_1' ab@
+--
+--
+--  * @ab >>> 'arrow' 'Left' = 'arrow' 'Left' >>> '_L' ab@
+--
+--  * @'_L' ('_L' ab) >>> 'arrow' 'assocsum' = 'arrow' 'assocsum' >>> '_L' ab@
+--
+-- where
+--
+-- > assoc ((a,b),c) = (a,(b,c))
+-- > assocsum (Left (Left x)) = Left x
+-- > assocsum (Left (Right y)) = Right (Left y)
+-- > assocsum (Right z) = Right (Right z)
+--
+--
+-- >>> conn = arrow (+1) :: Conn Int8 Int8
+-- >>> connr conn minimal
+-- -128
+-- >>> connr conn 1
+-- 0
+--
+-- >>> conn = arrow (+minSubf) :: Conn Float Float
+-- >>> connr conn minimal
+-- -Infinity
+-- >>> connr conn (inc minimal)
+-- -3.4028235e38
+-- 
+arrow :: (Up a, Minimal a, Prd b) => (a -> b) -> Conn a b
+arrow f = Conn f (ascend' minimal f)
+
+
+
+
+--TODO check closure
+
+-- | 
+--
+-- @'ascend' y@ is the greatest element /x/ in the ascending
+-- chain such that @g x '<~' y@.
+--
+ascend :: (Up a, Prd b) => a -> (a -> b) -> b -> a
+ascend z g y = while (\x -> g x <~ y) le inc z
+
+-- | 
+--
+-- @'ascend'' y@ is the greatest element /x/ in the ascending
+-- chain such that @not $ g z '>~' y@.
+--
+ascend' :: (Up a, Prd b) => a -> (a -> b) -> b -> a
+ascend' z g y = until (\x -> g x >~ y) le inc z
+
+-- | 
+--
+-- @'descend' x@ is the least element /y/ in the descending
+-- chain such that @f y '>~' x@.
+--
+descend :: (Dn a, Prd b) => a -> (a -> b) -> b -> a
+descend z f x = while (\y -> f y >~ x) ge dec z
+-- left
+
+
+incdec :: Index a => Conn a (Down a)
+incdec = Conn f g where
+  f = Down . inc
+  g x = dec x' where Down x' = x
+
+decBy :: Dn a => Idx a -> a -> a
+decBy x = connr filter . (+ (negate x)) . connl filter 
+
+dec :: Dn a => a -> a
+dec = decBy one
+
+coarrow :: (Dn a, Maximal a, Prd b) => (a -> b) -> Conn b a
+coarrow g = Conn (descend' maximal g) g
+
+-- | 
+--
+-- @'descend'' x@ is the least element /y/ in the descending
+-- chain such that @not $ f y '<~' x@.
+--
+descend' :: (Dn a, Prd b) => a -> (a -> b) -> b -> a
+descend' z f x = until (\y -> f y <~ x) ge dec z
+
+--mapWithIdx :: (Idx a -> a -> a) -> a -> a -> a
+
+foldWithIdx :: (Eq a, Up a) => (Idx a -> a -> a) -> a -> a -> a
+foldWithIdx f x y = foldr' f x $ toIndex <$> indexFromTo x y 
+
+{-
+indexTo' :: (Eq a, Index a) => Interval a -> [a]
+indexTo' = maybe [] (\(x,y) -> indexFrom (inc x) y) . endpts
+
+enumerate :: Index a => a -> a -> [a]
+enumerate x y = flip evalState x $
+  whileM (get >>= \z -> return (z <~ y)) (modify inc >> get) 
+-}
+-- | Generate a half-open interval /[x, y)/.
+--
+-- >>> indexFrom @Float 1 (inc 1)
+-- [1.0]
+--
+indexFrom :: Up a => a -> a -> [a]
+indexFrom x y = x : unfoldr f x where
+  f x = let x' = inc x in if x' `gt` x && x' `lt` y
+                             then Just (x, x') 
+                             else Nothing
+
+-- | Generate a half-open interval /(x, y]/.
+--
+-- >>> indexTo @Float 1 (inc 1)
+-- [1.0000001]
+--
+indexTo :: (Eq a, Up a) => a -> a -> [a]
+indexTo x y = indexFromTo (inc x) y
+
+-- | Generate a closed interval /[x, y]/.
+--
+-- Returns the list of values in the interval defined by a bounding pair.
+--
+-- Lawful variant of 'enumFromTo'.
+--
+-- >>> indexFromTo @Float 1 (inc 1)
+-- [1.0,1.0000001]
+--
+indexFromTo :: (Eq a, Up a) => a -> a -> [a]
+indexFromTo x y = unfoldr f x where
+  f x = let x' = inc x in if x' `gt` x && x <~ y
+                             then Just (x, x') 
+                             else Nothing
+
+
+-- | Lawful variant of 'enumFromThenTo'.
+indexFromToBy :: (Eq a, Up a) => Idx a -> a -> a -> [a]
+indexFromToBy i x y = unfoldr f x where
+  f x = let x' = incBy i x in if x' `gt` x && x' <~ y
+                             then Just (x, x') 
+                             else Nothing
+
+instance Filter a => Ideal (Down a) where
+  ideal = dual filter
+  lower (Down r) (Down a) = upper @a r a
+
+instance Ideal a => Filter (Down a) where
+  filter = dual ideal
+  upper (Down r) (Down a) = lower @a r a
+
+#define deriveIdeal(ty)       \
+instance Ideal ty where {     \
+   ideal = C.id               \
+;  {-# INLINE ideal #-}       \
+;  lower = (>~)               \
+;  {-# INLINE lower #-}       \
+}
+
+#define deriveFilter(ty)       \
+instance Filter ty where {     \
+   filter = C.id               \
+;  {-# INLINE filter #-}       \
+;  upper = (<~)               \
+;  {-# INLINE upper #-}       \
+}
+
+
+
+deriveIdeal(Bool)
+deriveIdeal(Int8)
+deriveIdeal(Int16)
+deriveIdeal(Int32)
+deriveIdeal(Int64)
+deriveIdeal(Integer)
+deriveIdeal(Word8)
+deriveIdeal(Word16)
+deriveIdeal(Word32)
+deriveIdeal(Word64)
+deriveIdeal(Natural)
+
+--deriveIdeal(Int)
+--deriveIdeal(Word)
+
+instance Ideal Float where
+  ideal = u32f32
+
+
+
+deriveFilter(Bool)
+deriveFilter(Int8)
+deriveFilter(Int16)
+deriveFilter(Int32)
+deriveFilter(Int64)
+deriveFilter(Integer)
+deriveFilter(Word8)
+deriveFilter(Word16)
+deriveFilter(Word32)
+deriveFilter(Word64)
+deriveFilter(Natural)
+
+
+
+
+

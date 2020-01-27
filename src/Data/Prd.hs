@@ -30,7 +30,8 @@ import Numeric.Natural
 import Data.Semigroup (Min(..), Max(..))
 import Data.Semigroup.Additive
 import Data.Semigroup.Multiplicative
-
+import Data.Semiring
+import Data.Semifield (Field, Semifield, anan, pinf, ninf)
 import Data.Fixed
 import qualified Data.Semigroup as S
 import qualified Data.Set as Set
@@ -127,6 +128,33 @@ class Prd a where
     | otherwise = Nothing
 
 
+type Bound a = (Minimal a, Maximal a) 
+
+-- | A minimal element of a partially ordered set.
+-- 
+-- @ 'minimal' '?~' a ==> 'minimal' '<~' a @
+--
+-- Note that 'minimal' needn't be comparable to all values in /a/.
+--
+-- When /a/ is a 'Field' @ 'minimal' = 'ninf' @
+--
+-- See < https://en.wikipedia.org/wiki/Maximal_and_minimal_elements >.
+--
+class Prd a => Minimal a where
+    minimal :: a
+
+-- | A maximal element of a partially ordered set.
+-- 
+-- @ 'maximal' '?~' a ==> 'maximal' '>~' a @
+--
+-- Note that 'maximal' needn't be comparable to all values in /a/.
+--
+-- When /a/ is a 'Semifield' @ 'maximal' = 'pinf' @
+--
+-- See < https://en.wikipedia.org/wiki/Maximal_and_minimal_elements >.
+--
+class Prd a => Maximal a where
+    maximal :: a
 
 
 -- | Similarity relation on /a/. 
@@ -135,12 +163,12 @@ class Prd a where
 --
 -- Note this is only equivalent to '==' in a total (i.e. linear) order.
 --
-(~~) :: Eq a => Prd a => a -> a -> Bool
+(~~) :: Prd a => a -> a -> Bool
 x ~~ y = not (x `lt` y) && not (x `gt` y)
 
 -- | Negation of '~~'.
 --
-(/~) :: Eq a => Prd a => a -> a -> Bool
+(/~) :: Prd a => a -> a -> Bool
 x /~ y = not $ x ~~ y
 
 -- | Version of 'pcompare' that uses '=='.
@@ -157,8 +185,24 @@ pcompareEq x y
 pcompareOrd :: Ord a => a -> a -> Maybe Ordering
 pcompareOrd x y = Just $ x `compare` y
 
+-- | Strict partial order relation on /a/.
+--
+-- 'lt' is irreflexive, asymmetric, and transitive.
+--
+-- @ lt x y = maybe False (< EQ) (pcompare x y) @
+--
+-- If /a/ implements 'Ord' then (ideally) @x `lt` y = x < y@.
+--
+lt :: Prd a => a -> a -> Bool
+x `lt` y | x ?~ y = x <~ y && x `ne` y
+         | otherwise = False
 
-
+-- | Prefix version of '<~'.
+--
+-- @ le x y = maybe False (<= EQ) (pcomparePrd x y)
+--
+le :: Prd a => a -> a -> Bool
+x `le` y = x <~ y
 
 -- | Prefix version of '=~'.
 --
@@ -174,31 +218,12 @@ x `eq` y = x <~ y && x >~ y
 ne :: Prd a => a -> a -> Bool
 x `ne` y = not $ x `eq` y
 
--- | Prefix version of '<~'.
---
--- @ le x y = maybe False (<= EQ) (pcomparePrd x y)
---
-le :: Prd a => a -> a -> Bool
-x `le` y = x <~ y
-
 -- | Prefix version of '>~'.
 --
 -- @ ge x y = maybe False (>= EQ) (pcomparePrd x y)
 --
 ge :: Prd a => a -> a -> Bool
 x `ge` y = x >~ y
-
--- | Strict partial order relation on /a/.
---
--- 'lt' is irreflexive, asymmetric, and transitive.
---
--- @ lt x y = maybe False (< EQ) (pcompare x y) @
---
--- If /a/ implements 'Ord' then (ideally) @x `lt` y = x < y@.
---
-lt :: Eq a => Prd a => a -> a -> Bool
-x `lt` y | x /= x || y /= y = False -- guard on lawless 0/0 cases
-         | otherwise        = x <~ y && x /= y
 
 -- | Converse strict partial order relation on /a/.
 --
@@ -208,15 +233,15 @@ x `lt` y | x /= x || y /= y = False -- guard on lawless 0/0 cases
 --
 -- If /a/ implements 'Ord' then (ideally) @x `gt` y = x > y@.
 --
-gt :: Eq a => Prd a => a -> a -> Bool
-x `gt` y | x /= x || y /= y = False 
-         | otherwise        = x >~ y && x /= y
+gt :: Prd a => a -> a -> Bool
+x `gt` y | x ?~ y = x >~ y && x `ne` y
+         | otherwise = False
 
 -- | A partial version of ('=~')
 --
 -- Returns 'Nothing' instead of 'False' when the two values are not comparable.
 --
-peq  :: Eq a => Prd a => a -> a -> Maybe Bool
+peq  :: Prd a => a -> a -> Maybe Bool
 peq x y = case x `pcompare` y of
      Just EQ -> Just True
      Just _  -> Just False
@@ -226,7 +251,7 @@ peq x y = case x `pcompare` y of
 --
 -- Returns 'Nothing' instead of 'False' when the two values are not comparable.
 --
-pne :: Eq a => Prd a => a -> a -> Maybe Bool
+pne :: Prd a => a -> a -> Maybe Bool
 pne x y = case x `pcompare` y of
      Just EQ -> Just False
      Just _  -> Just True
@@ -236,7 +261,7 @@ pne x y = case x `pcompare` y of
 --
 -- Returns 'Nothing' instead of 'False' when the two values are not comparable.
 --
-ple :: Eq a => Prd a => a -> a -> Maybe Bool
+ple :: Prd a => a -> a -> Maybe Bool
 ple x y = case x `pcompare` y of
      Just GT -> Just False
      Just _  -> Just True
@@ -246,7 +271,7 @@ ple x y = case x `pcompare` y of
 --
 -- Returns 'Nothing' instead of 'False' when the two values are not comparable.
 --
-pge :: Eq a => Prd a => a -> a -> Maybe Bool
+pge :: Prd a => a -> a -> Maybe Bool
 pge x y = case x `pcompare` y of
      Just LT -> Just False
      Just _  -> Just True
@@ -258,7 +283,7 @@ pge x y = case x `pcompare` y of
 --
 -- @lt x y == maybe False id $ plt x y@
 --
-plt :: Eq a => Prd a => a -> a -> Maybe Bool
+plt :: Prd a => a -> a -> Maybe Bool
 plt x y = case x `pcompare` y of
      Just LT -> Just True
      Just _  -> Just False
@@ -270,7 +295,7 @@ plt x y = case x `pcompare` y of
 --
 -- @gt x y == maybe False id $ pgt x y@
 --
-pgt :: Eq a => Prd a => a -> a -> Maybe Bool
+pgt :: Prd a => a -> a -> Maybe Bool
 pgt x y = case x `pcompare` y of
      Just GT -> Just True
      Just _  -> Just False
@@ -280,7 +305,7 @@ pgt x y = case x `pcompare` y of
 --
 -- Returns the right argument in the case of equality.
 --
-pmax :: Eq a => Prd a => a -> a -> Maybe a
+pmax :: Prd a => a -> a -> Maybe a
 pmax x y = do
   o <- pcompare x y
   case o of
@@ -288,14 +313,14 @@ pmax x y = do
     EQ -> Just y
     LT -> Just y
 
-pjoin :: Eq a => Minimal a => Foldable f => f a -> Maybe a
+pjoin :: Minimal a => Foldable f => f a -> Maybe a
 pjoin = foldM pmax minimal
 
 -- | A partial version of 'Data.Ord.min'. 
 --
 -- Returns the right argument in the case of equality.
 --
-pmin :: Eq a => Prd a => a -> a -> Maybe a
+pmin :: Prd a => a -> a -> Maybe a
 pmin x y = do
   o <- pcompare x y
   case o of
@@ -303,20 +328,41 @@ pmin x y = do
     EQ -> Just x
     LT -> Just x
 
-pmeet :: Eq a => Maximal a => Foldable f => f a -> Maybe a
+pmeet :: Maximal a => Foldable f => f a -> Maybe a
 pmeet = foldM pmin maximal
 
-sign :: Eq a => (Additive-Monoid) a => Prd a => a -> Maybe Ordering
+
+--TODO remove Eq reqs
+sign :: (Additive-Monoid) a => Prd a => a -> Maybe Ordering
 sign x = pcompare x zero
 
-positive :: Eq a => (Additive-Monoid) a => Prd a => a -> Bool
+positive :: (Additive-Monoid) a => Prd a => a -> Bool
 positive x = sign x == Just GT
 
-negative :: Eq a => (Additive-Monoid) a => Prd a => a -> Bool
+negative :: (Additive-Monoid) a => Prd a => a -> Bool
 negative x = sign x == Just LT
 
-indeterminate :: Eq a => (Additive-Monoid) a => Prd a => a -> Bool
+indeterminate :: (Additive-Monoid) a => Prd a => a -> Bool
 indeterminate x = sign x == Nothing
+
+
+isAnan :: Prd a => Semifield a => a -> Bool
+isAnan a = a =~ anan
+
+-- /Caution/ 'Eq' instance for some 'Semifield' types is either 
+-- unlawful (e.g. 'Float), or exceptional (e.g. 'Rational').
+isPinf :: Prd a => Semifield a => a -> Bool
+isPinf a = a =~ pinf
+
+isNinf :: Prd a => Field a => a -> Bool
+isNinf a = a =~ ninf
+
+finite' :: Prd a => Field a => a -> Bool
+finite' = finite * not . isNinf
+
+finite :: Prd a => Semifield a => a -> Bool
+finite = not . isAnan * not . isPinf
+
 
 ---------------------------------------------------------------------
 --  Instances
@@ -397,12 +443,29 @@ instance Prd Double where
            | otherwise        = x <= y
 
 instance Prd (Ratio Integer)  where
-    (x:%y) <~ (x':%y') | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
-                       | otherwise = x * y' <~ x' * y
+{-
+    (x:%y) <~ (x':%y') | (x `eq` 0 && y `eq` 0) && (x' `eq` 0 && y' `eq` 0) = True
+                       | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
+                       | y `eq` 0 = if x > 0 then False else True
+                       | y' `eq` 0 = if x' > 0 then True else False
+                       | otherwise = x * signum y * y' >~ x' * signum y' * y
+-}
+-- | isNan r && isNan r'
+    r@(x:%y) <~ r'@(x':%y') | (x `eq` 0 && y `eq` 0) && (x' `eq` 0 && y' `eq` 0) = True
+                            | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
+                            | (x `eq` x' && y `eq` y') || (x * y' `eq` y * x') = True
+                            | y `eq` 0 = if x > 0 then False else True
+                            | y' `eq` 0 = if x' > 0 then True else False
+                            | x `eq` 0 || x' `eq` 0 = x <= x'
+                            | otherwise = r <= r' --x * signum y * y' >~ x' * signum y' * y
 
 instance Prd (Ratio Natural)  where
-    (x:%y) <~ (x':%y') | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
-                       | otherwise = x * y' <~ x' * y
+    (x:%y) <~ (x':%y') | (x `eq` 0 && y `eq` 0) && (x' `eq` 0 && y' `eq` 0) = True
+                       | (x `eq` x' && y `eq` y') || x * y' `eq` y * x' = True
+                       | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
+                       | y `eq` 0 = False
+                       | y' `eq` 0 = True
+                       | otherwise = x * y' >~ x' * y
 
 -- Canonical semigroup ordering
 instance Prd a => Prd (Maybe a) where
@@ -551,20 +614,9 @@ derivePrd(Pico)
 -- Minimal
 -------------------------------------------------------------------------------
 
-type Bound a = (Minimal a, Maximal a) 
+instance Minimal Float where minimal = ninf
 
--- | A minimal element of a partially ordered set.
--- 
--- @ 'minimal' '?~' a ==> 'minimal' '<~' a @
---
--- 'minimal' needn't be comparable to all values in /a/.
---
-class Prd a => Minimal a where
-    minimal :: a
-
-instance Minimal Float where minimal = -1/0
-
-instance Minimal Double where minimal = -1/0
+instance Minimal Double where minimal = ninf
 
 instance Minimal Natural where minimal = 0
 
@@ -624,15 +676,6 @@ deriveMinimal(Word64)
 -- Maximal
 -------------------------------------------------------------------------------
 
--- | A maximal element of a partially ordered set.
--- 
--- @ 'maximal' '?~' a ==> 'maximal' '>~' a @
---
--- 'maximal' needn't be comparable to all values in /a/.
---
-class Prd a => Maximal a where
-    maximal :: a
-
 #define deriveMaximal(ty)            \
 instance Maximal ty where {           \
    maximal = maxBound                \
@@ -656,9 +699,11 @@ deriveMaximal(Word16)
 deriveMaximal(Word32)
 deriveMaximal(Word64)
 
-instance Maximal Float where maximal = 1/0
+--instance (Prd a, Semifield a) => Maximal a where maximal = pinf
 
-instance Maximal Double where maximal = 1/0
+instance Maximal Float where maximal = pinf
+
+instance Maximal Double where maximal = pinf
 
 instance (Maximal a, Maximal b) => Maximal (a, b) where
     maximal = (maximal, maximal)

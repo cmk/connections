@@ -20,8 +20,8 @@ module Data.Connection (
   , right
   , strong
   , choice
-  , binord
   , ordbin
+  , binord
 
   -- * Triple
   , Trip(..)
@@ -50,6 +50,8 @@ import Data.Bifunctor (bimap)
 import Data.Word
 import Data.Int
 import Data.Prd
+import Data.Semigroup.Join
+import Data.Semigroup.Meet
 import Data.Ord (Down(..))
 import Prelude 
 
@@ -159,8 +161,14 @@ binord = Conn f g where
   g LT = False
   g _  = True
 
---(&&&) :: Prd a => Prd b => Lattice c => Conn c a -> Conn c b -> Conn c (a, b)
---f &&& g = tripr forked >>> f `strong` g
+forked :: JoinSemilattice a => MeetSemilattice a => Trip (a, a) a
+forked = Trip (uncurry (∨)) (\x -> (x,x)) (uncurry (∧))
+
+joined :: Prd a => Trip a (Either a a)
+joined = Trip Left (either id id) Right
+
+(&&&) :: Prd a => Prd b => JoinSemilattice c => MeetSemilattice c => Conn c a -> Conn c b -> Conn c (a, b)
+f &&& g = tripr forked >>> f `strong` g
 
 (|||) :: Prd a => Prd b => Prd c => Conn a c -> Conn b c -> Conn (Either a b) c
 f ||| g = f `choice` g >>> tripr joined
@@ -225,12 +233,6 @@ floor' = connr . tripr
 
 bound :: Prd a => Bound a => Trip () a
 bound = Trip (const minimal) (const ()) (const maximal)
-
---forked :: Lattice a => Trip (a, a) a
---forked = Trip (uncurry (∨)) (\x -> (x,x)) (uncurry (∧))
-
-joined :: Prd a => Trip a (Either a a)
-joined = Trip Left (either id id) Right
 
 maybel :: Prd a => Bound b => Trip (Maybe a) (Either a b)
 maybel = Trip f g h where

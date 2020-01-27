@@ -63,6 +63,25 @@ top :: (Meet-Monoid) a => a
 top = unMeet mempty
 {-# INLINE top #-}
 
+-- | The partial ordering induced by the meet-semilattice structure
+meetLeq :: Eq a => (Meet-Semigroup) a => a -> a -> Bool
+meetLeq x y = x ∧ y == x
+
+-- | The partial ordering induced by the meet-semilattice structure
+meetGeq :: Eq a => (Meet-Semigroup) a => a -> a -> Bool
+meetGeq x y = x ∧ y == y
+
+-- | Partial version of 'Data.Ord.compare'.
+--
+pcompareMeet :: Eq a => (Meet-Semigroup) a => a -> a -> Maybe Ordering
+pcompareMeet x y
+  | x == y = Just EQ
+  | x ∧ y == x && x /= y = Just LT
+  | x ∧ y == y && x /= y = Just GT
+  | otherwise = Nothing
+
+type MeetSemilattice a = (Prd a, (Meet-Semigroup) a)
+
 newtype Meet a = Meet { unMeet :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
 instance Applicative Meet where
