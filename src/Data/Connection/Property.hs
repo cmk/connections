@@ -16,7 +16,7 @@ import Prelude hiding (Num(..),Ord(..))
 
 -- | \( \forall x, y : f \dashv g \Rightarrow f (x) \leq y \Leftrightarrow x \leq g (y) \)
 --
--- A monotone Galois connection.
+-- A monotoner Galois connection.
 --
 connection :: Prd a => Prd b => Conn a b -> a -> b -> Bool
 connection (Conn f g) = Prop.adjoint_on (<~) (<~) f g
@@ -53,15 +53,15 @@ kernel' t x = closed (tripr t) x && kernel (tripl t) x
 --
 -- This is a required property.
 --
-monotone :: Prd a => Prd b => Conn a b -> b -> b -> Bool
-monotone (Conn _ g) = Prop.monotone_on (<~) (<~) g
+monotoner :: Prd a => Prd b => Conn a b -> b -> b -> Bool
+monotoner (Conn _ g) = Prop.monotone_on (<~) (<~) g
 
 -- | \( \forall x, y : x \leq y \Rightarrow f (x) \leq f (y) \)
 --
 -- This is a required property.
 --
-monotone' :: Prd a => Prd b => Conn a b -> a -> a -> Bool
-monotone' (Conn f _) = Prop.monotone_on (<~) (<~) f
+monotonel :: Prd a => Prd b => Conn a b -> a -> a -> Bool
+monotonel (Conn f _) = Prop.monotone_on (<~) (<~) f
 
 -- | \( \forall x : f \dashv g \Rightarrow unit \circ unit (x) \sim unit (x) \)
 --
@@ -77,12 +77,12 @@ idempotent_counit conn = Prop.idempotent_on (=~) $ counit conn
 --
 -- See <https://ncatlab.org/nlab/show/idempotent+adjunction>
 --
-projective_l :: Prd a => Prd b => Conn a b -> a -> Bool
-projective_l conn@(Conn f _) = Prop.projective_on (=~) f $ counit conn
+projectivel :: Prd a => Prd b => Conn a b -> a -> Bool
+projectivel conn@(Conn f _) = Prop.projective_on (=~) f $ counit conn
 
 -- | \( \forall x: f \dashv g \Rightarrow unit \circ g (x) \sim g (x) \)
 --
 -- See <https://ncatlab.org/nlab/show/idempotent+adjunction>
 --
-projective_r :: Prd a => Prd b => Conn a b -> b -> Bool
-projective_r conn@(Conn _ g) = Prop.projective_on (=~) g $ unit conn
+projectiver :: Prd a => Prd b => Conn a b -> b -> Bool
+projectiver conn@(Conn _ g) = Prop.projective_on (=~) g $ unit conn

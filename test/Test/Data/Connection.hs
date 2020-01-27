@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Test.Data.Connection.Float where
+module Test.Data.Connection where
 
 import Control.Applicative
 import Data.Prd.Nan
@@ -15,7 +15,6 @@ import Numeric.Natural
 import Data.Ratio
 import qualified Data.Prd.Property as Prop
 import qualified Data.Connection.Property as Prop
-import Test.Data.Connection
 
 import Hedgehog
 import qualified Hedgehog.Gen as G
@@ -26,44 +25,56 @@ import Prelude hiding (Bounded)
 
 import GHC.Real hiding (Fractional(..), (^^), (^), div)
 
---TODO move to Test.Data.Connection
-prop_connections_f32nan :: Property
-prop_connections_f32nan = withTests 1000 . property $ do
-  x <- forAll gen_f32
-  x' <- forAll gen_f32
-  y <- forAll $ gen_nan (G.float rf) 
-  y' <- forAll $ gen_nan (G.float rf)
+rint :: Range Integer
+rint = R.linearFrom 0 (- 2^127) (2^127)
 
-  assert $ Prop.connection (tripl fldnan) x y
-  assert $ Prop.connection (tripr fldnan) y x
-  assert $ Prop.monotonel (tripl fldnan) x x'
-  assert $ Prop.monotonel (tripr fldnan) y y'
-  assert $ Prop.monotoner (tripl fldnan) y y'
-  assert $ Prop.monotoner (tripr fldnan) x x'
-  assert $ Prop.closed (tripl fldnan) x
-  assert $ Prop.closed (tripr fldnan) y -- would fail on y = Def NaN
-  assert $ Prop.kernel (tripl fldnan) y
-  assert $ Prop.kernel (tripr fldnan) x
 
-prop_connections_f32ord :: Property
-prop_connections_f32ord = withTests 1000 . property $ do
-  x <- forAll gen_f32
-  x' <- forAll gen_f32
-  y <- forAll $ gen_nan gen_ord
-  y' <- forAll $ gen_nan gen_ord
 
-  let f32ord = fldord :: Trip Float (Nan Ordering)
+gen_may :: Gen a -> Gen (Maybe a)
+gen_may gen = G.frequency [(19, Just <$> gen), (1, pure Nothing)]
 
-  assert $ Prop.connection (tripl f32ord) x y
-  assert $ Prop.connection (tripr f32ord) y x
-  assert $ Prop.monotonel (tripl f32ord) x x'
-  assert $ Prop.monotonel (tripr f32ord) y y'
-  assert $ Prop.monotoner (tripl f32ord) y y'
-  assert $ Prop.monotoner (tripr f32ord) x x'
-  assert $ Prop.closed (tripl f32ord) x
-  assert $ Prop.closed (tripr f32ord) y
-  assert $ Prop.kernel (tripl f32ord) y
-  assert $ Prop.kernel (tripr f32ord) x
+gen_inf :: Gen a -> Gen (Bounded a)
+gen_inf gen = G.frequency [(18, Fin <$> gen), (1, pure Bot), (1, pure Top)]
+
+
+
+ri :: (Integral a, Bound a) => Range a
+ri = R.linearFrom 0 minimal maximal
+
+ri' :: Range Integer
+ri' = R.exponentialFrom 0 (-340282366920938463463374607431768211456) 340282366920938463463374607431768211456
+
+rn :: Range Natural
+rn = R.linear 0 (2^128)
+
+rf :: Range Float
+rf = R.exponentialFloatFrom 0 (-3.4028235e38) 3.4028235e38
+
+rd :: Range Double
+rd = R.exponentialFloatFrom 0 (-1.7976931348623157e308) 1.7976931348623157e308
+
+gen_f32 :: Gen Float
+gen_f32 = G.frequency [(99, G.float rf), (1, G.element [(-1/0), (1/0), (0/0)])] 
+
+gen_f64 :: Gen Double
+gen_f64 = G.frequency [(99, G.double rd), (1, G.element [(-1/0), (1/0), (0/0)])] 
+
+gen_ord :: Gen Ordering
+gen_ord = G.element [LT, EQ, GT]
+
+gen_dwn :: Gen (Down Float)
+gen_dwn = Down <$> gen_f32
+
+gen_nan :: Gen a -> Gen (Nan a)
+gen_nan gen = G.frequency [(9, Def <$> gen), (1, pure Nan)]
+
+gen_nan' :: Gen Rational
+gen_nan' = G.frequency [(99, gen_rat), (1, G.element [((-1) :% 0), (1 :% 0), (0 :% 0)])]
+
+gen_rat :: Gen Rational
+gen_rat = liftA2 (:%) (G.integral rint) (G.integral rint)
+
+
 
 
 
@@ -101,6 +112,8 @@ prop_prd_f32 = withTests 1000 . property $ do
   assert $ Prop.transitive_eq x y z
   assert $ Prop.chain_22 x y z w
   --assert $ Prop.chain_31 x y z w
+
+
 
 -}
 
@@ -200,6 +213,8 @@ prop_connections_f32w64 = withTests 1000 . property $ do
   assert $ Prop.monotoner (idx @(Either Float Float)) ezw ezw'
   assert $ Prop.connection (idx @(Either Float Float)) exy ezw
 -}
+
+
 
 
 

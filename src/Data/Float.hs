@@ -3,99 +3,35 @@
 module Data.Float (
     Float
   , module Data.Float
-  , module Data.Connection.Float
+  , module F
 ) where
 
-import Prelude hiding (Floating(..), RealFloat(..), Real(..), Enum(..))
+import Prelude hiding (Num(..), Fractional(..), Floating(..),  (^^), (^), RealFloat(..), Real(..), Enum(..))
 
+import Control.Category ((>>>))
 import Foreign.C
 import Data.Word
-import Data.Prd.Nan
-import Data.Connection.Float
-import Data.Int (Int32)
+import Data.Prd.Nan hiding (isNan)
+import Data.Int
 import Data.Prd
+import Data.Semifield
+import Data.Semiring
+import Data.Semigroup.Join
+import Data.Semigroup.Meet
 import Data.Function (on)
 import Data.Connection 
 
---import Data.Numbers.CrackNum (floatToFP)
 import Data.Bits ((.&.))
 
+
+import GHC.Real hiding (Fractional(..), (^^), (^), div)
+import Data.Ratio
+
 import qualified Prelude as P
+import qualified Control.Category as C
 import qualified Data.Bits as B
-import qualified GHC.Float as F
-
---disp x = floatToFP x
-
-
-split :: Float -> Either Float Float
-split x = case signBit x of
-  True -> Left x
-  _    -> Right x
-
-lsbMask :: Float -> Word32
-lsbMask x = 0x00000001 .&. floatWord32 x
-
-msbMask :: Float -> Word32
-msbMask x = 0x80000000 .&. floatWord32 x
-
--- floatWord32 maximal == exponent maximal
-expMask :: Float -> Word32
-expMask x = 0x7f800000 .&. floatWord32 x
-
--- chk f = f >= 0 ==> f == word32Float $ exponent f + significand f
-sigMask :: Float -> Word32
-sigMask x = 0x007FFFFF .&. floatWord32 x
-
-signBit :: Float -> Bool
-signBit x = if isNanf x then False else msbMask x /= 0
-
-evenBit :: Float -> Bool
-evenBit x = lsbMask x == 0
-
--- | maximal (positive) finite value.
-maxNorm :: Float
-maxNorm = shift (-1) pInf
-
--- | minimal (positive) normalized value.
-minNorm :: Float
-minNorm = word32Float 0x00800000
-
--- | maximal representable odd integer. 
---
--- @ maxOdd = 2**24 - 1@
---
-maxOdd :: Float
-maxOdd = 16777215
-
--- | minimal (positive) value.
-minSub :: Float
-minSub = shift 0 1
-
--- | difference between 1 and the smallest representable value greater than 1.
-epsilon :: Float
-epsilon = shift 1 1 - 1
-
--- | first /NaN/ value. 
-aNan :: Float
-aNan = 0/0 -- inc pInf 
-
--- | Positive infinity
---
--- @nInf = 1/0@
---
-pInf :: Float
-pInf = word32Float 0x7f800000
-
--- | Negative infinity
---
--- @nInf = -1/0@
---
-nInf :: Float
-nInf = word32Float 0xff800000 
-
--- Bitwise equality
-eq' :: Float -> Float -> Bool
-eq' = (==) `on` floatWord32
+import GHC.Float as F
+import qualified GHC.Float.RealFracMethods as R
 
 {-
 λ> unit f32i64 aNan
@@ -111,35 +47,277 @@ versus middle / higher
 
 -}
 
--- | 
+
+----------------------------------------------------------------
+-- Float utils
+----------------------------------------------------------------
+
+
+-- | Bitwise equality.
+eqf :: Float -> Float -> Bool
+eqf = (==) `on` floatWord32
+
+signBitf :: Float -> Bool
+signBitf x = if x =~ anan then False else msbMask x /= 0
+
+evenBitf :: Float -> Bool
+evenBitf x = lsbMask x == 0
+
+-- | maximal (positive) finite value.
+maxNormf :: Float
+maxNormf = shiftf (-1) maximal 
+
+-- | minimal (positive) normalized value.
+minNormf :: Float
+minNormf = word32Float 0x00800000
+
+-- | maximal representable odd integer. 
 --
--- @nan x == indeterminate x@
+-- @ maxOddf = 2**24 - 1@
 --
-isNanf :: Float -> Bool
-isNanf x = F.isFloatNaN x == 1
+maxOddf :: Float
+maxOddf = 16777215
 
-pinf :: Float -> Bool
-pinf x = infinite x && positive x 
+-- | minimal (positive) value.
+minSubf :: Float
+minSubf = shiftf 1 0
 
-ninf :: Float -> Bool
-ninf x = infinite x && negative x
+-- | difference between 1 and the smallest representable value greater than 1.
+epsilonf :: Float
+epsilonf = shiftf 1 1 - 1
 
-infinite :: Float -> Bool
-infinite x = F.isFloatInfinite x == 1
+splitf :: Float -> Either Float Float
+splitf x = case signBitf x of
+  True -> Left x
+  _    -> Right x
 
-denormalized :: Float -> Bool
-denormalized x = F.isFloatDenormalized x == 1
 
-finite :: Float -> Bool
-finite x = F.isFloatFinite x == 1
 
-nzero :: Float -> Bool
-nzero x = F.isFloatNegativeZero x == 1
+
+-- | Shift by /Int32/ units of least precision.
+
+-- TODO replace w/ Yoneda / Index / Graded
+shiftf :: Int32 -> Float -> Float
+shiftf n = int32Float . (+ n) . floatInt32
+
+-- | Compare two 'Float' values for approximate equality, using
+-- Dawson's method.
+--
+-- required accuracy is specified in ULPs (units of least
+-- precision).  If the two numbers differ by the given number of ULPs
+-- or less, this function returns @True@.
+withinf :: Word32 -> Float -> Float -> Bool
+withinf tol a b = ulpDistance a b <~ tol
+
+
+ulps :: Float -> Float -> (Bool, Word32)
+ulps x y = o
+  where  x' = floatInt32 x
+         y' = floatInt32 y
+         o  | x' >~ y' = (False, fromIntegral . abs $ x' - y')
+            | otherwise = (True, fromIntegral . abs $ y' - x')
+
+ulpDistance :: Float -> Float -> Word32
+ulpDistance x y = snd $ ulps x y
+
+ulpDelta :: Float -> Float -> Int
+ulpDelta x y = if lesser then d' else (-1) * d'
+  where (lesser, d) = ulps x y
+        d' = fromIntegral d
+
+ulpDelta' :: Float -> Float -> Int32
+ulpDelta' x y = if lesser then d' else (-1) * d'
+  where (lesser, d) = ulps x y
+        d' = fromIntegral d
 
 
 ----------------------------------------------------------------
--- Ulps-based comparison
+-- Float connections
 ----------------------------------------------------------------
+
+{-
+f32ord :: Trip Float (Nan Ordering)
+f32ord = fldord
+
+  g (Def GT) = 1/0
+  g (Def LT) = - 1/0
+  g (Def EQ) = 0
+  g Nan = 0/0
+  
+  f x | isNaN x    = Nan
+  f x | isInf (-x) = Def LT
+  f x | x <~ 0     = Def EQ
+  f x | otherwise  = Def GT
+
+  h x | isNaN x    = Nan
+  h x | isInf x    = Def GT
+  h x | x >~ 0     = Def EQ
+  h x | otherwise  = Def LT
+-}
+
+
+
+-- TODO: 
+-- * handle underflow / overflow / loss of precision
+-- * try using 'properFraction'
+ratf32 :: Trip Rational Float
+ratf32 = Trip f g h
+  where h (0 :% 0) = 0/0
+        h (x :% 0) = if x > 0 then 1/0 else (-1/0)
+        h x = P.fromRational x --F.fromRat' x
+
+        g x | F.isFloatNaN x == 1 = 0 :% 0
+            | F.isFloatInfinite x == 1 = if x > 0 then (1 :% 0) else (-1 :% 0)
+            | otherwise = toRational x
+
+        -- fix / remove
+        help x = case pcompare x 0 of
+                   Just LT -> shiftf (-1) x
+                   Just EQ -> x
+                   Just GT -> shiftf 1 x
+                   Nothing -> 0/0
+
+        f x = let y = h x in if g y `ne` x then help y else y
+
+{-
+
+--TODO check these 4 probably buggy
+f32ixx :: Trip Float (Nan (Inf Int))
+f32ixx = Trip
+  (liftNan f)
+  (nan (0/0) $ g)
+  (liftNan h)
+  where
+    f x | not (finite x) && signBit x = minimal
+        | not (finite x) && not (signBit x) = maximal
+        | otherwise = R.celingFloatInt x
+
+    g = F.int2Float
+
+    h x | not (finite x) && signBit x = minimal
+        | not (finite x) && not (signBit x) = maximal
+        | otherwise = R.floorFloatInt x
+
+f64ixx :: Trip Double (Nan Int)
+f64ixx = Trip
+  (liftNan R.ceilingDoubleInt)
+  (nan (0/0) $ F.int2Double)
+  (liftNan R.floorDoubleInt)
+
+-}
+
+
+-- >>> ceiling' f32int (0/0)
+-- Nan
+-- >>> ceiling' f32int 0.1
+-- Def 1
+-- >>> ceiling' f32int 0.9
+-- Def 1
+-- >>> ceiling' f32int 1.1
+-- Def 2
+-- >>> ceiling' f32int (-1.1)
+-- Def (-1)
+--
+{- slightly broken
+f32int :: Trip Float (Nan Integer)
+f32int = Trip
+  (liftNan R.ceilingFloatInteger)
+  (nan (0/0) $ flip F.rationalToFloat 1) -- TODO map large / small ints to Inf / NInf
+  (liftNan R.floorFloatInteger)
+
+f64int :: Trip Double (Nan Integer)
+f64int = Trip
+  (liftNan R.ceilingDoubleInteger)
+  (nan (0/0) $ flip F.rationalToDouble 1)
+  (liftNan R.floorDoubleInteger)
+
+f32w08 :: Trip Float (Nan Word8)
+f32w08 = Trip (liftNan f) (nan (0/0) g) (liftNan h) where
+  h x = if x > 0 then 0 else connr w08w32 $ B.shift (floatWord32 x) (-23)
+  g = word32Float . flip B.shift 23 . connl w08w32
+  f x = 1 + min 254 (h x)
+-}
+
+
+
+----------------------------------------------------------------
+-- Ulp32
+----------------------------------------------------------------
+
+-- | 32 bit unit of least precision type.
+--
+newtype Ulp32 = Ulp32 { unUlp32 :: Int32 } deriving Show
+
+ulp32Nan :: Ulp32 -> Bool
+ulp32Nan (Ulp32 x) = x /= (min 2139095040 . max (- 2139095041)) x
+
+instance Eq Ulp32 where
+    x == y | ulp32Nan x && ulp32Nan y = True
+           | ulp32Nan x || ulp32Nan y = False
+           | otherwise                = on (==) unUlp32 x y
+
+instance Prd Ulp32 where
+    x <~ y | ulp32Nan x && ulp32Nan y = True
+           | ulp32Nan x || ulp32Nan y = False
+           | otherwise                = on (<~) unUlp32 x y
+
+instance Minimal Ulp32 where
+    minimal = Ulp32 $ -2139095041
+
+instance Maximal Ulp32 where
+    maximal = Ulp32 $ 2139095040
+
+instance Semigroup (Additive Ulp32) where
+    Additive (Ulp32 x) <> Additive (Ulp32 y) = Additive . Ulp32 $ x + y
+
+instance Monoid (Additive Ulp32) where
+    mempty = Additive $ Ulp32 0
+
+instance Semigroup (Multiplicative Ulp32) where
+    Multiplicative (Ulp32 x) <> Multiplicative (Ulp32 y) = Multiplicative . Ulp32 $ x * y
+
+instance Monoid (Multiplicative Ulp32) where
+    mempty = Multiplicative $ Ulp32 1
+
+instance Presemiring Ulp32
+instance Semiring Ulp32
+
+instance Semigroup (Join Ulp32) where
+    Join (Ulp32 x) <> Join (Ulp32 y) = Join . Ulp32 $ max x y
+
+instance Semigroup (Meet Ulp32) where
+    Meet (Ulp32 x) <> Meet (Ulp32 y) = Meet . Ulp32 $ min x y
+
+f32u32 :: Conn Float Ulp32
+f32u32 = Conn (Ulp32 . floatInt32) (int32Float . unUlp32)
+
+u32f32 :: Conn Ulp32 Float
+u32f32 = Conn (int32Float . unUlp32) (Ulp32 . floatInt32)
+
+-- fromIntegral (maxBound :: Ulp32) + 1 , image of aNan
+
+
+--newtype Ulp a = Ulp { unUlp :: a }
+-- instance 
+{- correct but should replace w/ Graded / Yoneda / Indexed etc
+u32w64 :: Conn Ulp32 (Nan Word64)
+u32w64 = Conn f g where
+  conn = i32w32 >>> w32w64
+
+  offset  = 2139095041 :: Word64
+  offset' = 2139095041 :: Int32
+
+  f x@(Ulp32 y) | ulp32Nan x = Nan
+                | negative y = Def $ fromIntegral (y + offset')
+                | otherwise = Def $ (fromIntegral y) + offset
+               where fromIntegral = connl conn
+
+  g x = case x of
+          Nan -> Ulp32 offset'
+          Def y | y < offset -> Ulp32 $ (fromIntegral y) P.- offset'
+                | otherwise  -> Ulp32 $ fromIntegral ((min 4278190081 y) P.- offset)
+               where fromIntegral = connr conn
+-}
 
 {-
 
@@ -167,243 +345,77 @@ eqRelErr eps a b = relativeError a b < eps
 
 -}
 
-----------------------------------------------------------------
--- Ulps-based comparison
-----------------------------------------------------------------
 
-ulps :: Float -> Float -> (Bool, Word32)
-ulps x y = o
-  where  x' = floatInt32 x
-         y' = floatInt32 y
-         o  | x' >~ y' = (False, fromIntegral . abs $ x' - y')
-            | otherwise = (True, fromIntegral . abs $ y' - x')
 
-ulpDistance :: Float -> Float -> Word32
-ulpDistance x y = snd $ ulps x y
+-- internal
 
-ulpDelta :: Float -> Float -> Int
-ulpDelta x y = if lesser then d' else (-1) * d'
-  where (lesser, d) = ulps x y
-        d' = fromIntegral d
 
-ulpDelta' :: Float -> Float -> Int32
-ulpDelta' x y = if lesser then d' else (-1) * d'
-  where (lesser, d) = ulps x y
-        d' = fromIntegral d
-
--- | Compare two 'Float' values for approximate equality, using
--- Dawson's method.
 --
--- required accuracy is specified in ULPs (units of least
--- precision).  If the two numbers differ by the given number of ULPs
--- or less, this function returns @True@.
-within :: Word32 -> Float -> Float -> Bool
-within tol a b = ulpDistance a b <~ tol
+--TODO handle neg case, get # of nans/denormals, collect constants         
+
+abs' :: Eq a => Ord a => Bound a => Ring a => a -> a
+abs' x = if x == minimal then abs (x+one) else abs x
+
+
+lsbMask :: Float -> Word32
+lsbMask x = 0x00000001 .&. floatWord32 x
+
+msbMask :: Float -> Word32
+msbMask x = 0x80000000 .&. floatWord32 x
+
+-- floatWord32 maximal == exponent maximal
+expMask :: Float -> Word32
+expMask x = 0x7f800000 .&. floatWord32 x
+
+-- chk f = f >= 0 ==> f == word32Float $ exponent f + significand f
+sigMask :: Float -> Word32
+sigMask x = 0x007FFFFF .&. floatWord32 x
+
+
 
 {-
-foreign import ccall unsafe "fdim" fdim :: Double -> Double -> Double
+-- | first /NaN/ value. 
+--naN :: Float
+--naN = 0/0 -- inc pInf 
 
-foreign import ccall unsafe "fdimf" fdim :: Float -> Float -> Float
-
-foreign import ccall unsafe "fmaxf" fmax :: Float -> Float -> Float
-
-foreign import ccall unsafe "fminf" fmin :: Float -> Float -> Float
-
-
--- Arithmetic functions
-
-mul :: Float -> Float -> Float
-mul = liftFloat2 F.timesFloat 
-
--- | 'pow' returns the value of x to the exponent y.
+-- | Positive infinity
 --
-pow :: Float -> Float -> Float
-pow = liftFloat2 F.powerFloat
-
-add :: Float -> Float -> Float
-add = liftFloat2 F.plusFloat
-
-sub :: Float -> Float -> Float
-sub = liftFloat2 F.minusFloat
-
-neg :: Float -> Float
-neg = liftFloat F.negateFloat
-
-div :: Float -> Float -> Float
-div = liftFloat2 F.divideFloat
-
--- | 'sqrt' returns the non-negative square root of x.
+-- @nInf = 1/0@
 --
-sqrt :: Float -> Float
-sqrt = liftFloat F.sqrtFloat
+pInf :: Float
+pInf = word32Float 0x7f800000
 
--- | 'fabs' returns the absolute value of a floating-point number x.
+-- | Negative infinity
 --
-fabs :: Float -> Float
-fabs = liftFloat F.fabsFloat
-
--- | 'fma a x b' returns /a*x + b/
-foreign import ccall unsafe "fmaf" fma :: Float -> Float -> Float -> Float
-
--- | 'cbrt' returns the cube root of x.
+-- @nInf = -1/0@
 --
-foreign import ccall unsafe "cbrtf" cbrt :: Float -> Float
-
-
--- Exponential and logarithmic functions
-
--- | 'exp' returns /e/ raised to the value of the given argument /x/. 
---
-exp :: Float -> Float
-exp = liftFloat F.expFloat
-
--- | 'exp2' returns 2 raised to the value of the given argument /x/. 
---
-foreign import ccall unsafe "exp2f" exp2 :: Float -> Float
-
--- | 'exmp1' returns the exponential of /x-1/.
---
-expm1 :: Float -> Float
-expm1 = liftFloat F.expm1Float
-
--- | 'log' returns the value of the natural logarithm of argument x.
---
-log :: Float -> Float
-log = liftFloat F.logFloat
-
--- | 'log1pf' returns the log of 1+x.
---
-log1p :: Float -> Float
-log1p = liftFloat F.log1pFloat
-
--- | 'ilogb' returns x's exponent n, in integer format.
---    ilogb(+-Infinity) re- turns INT_MAX and ilogb(0) returns INT_MIN.
---
-foreign import ccall unsafe "ilogbf" ilogb :: Float -> CInt
-
--- | ldexp function multiplies a floating-point number by an integral power of 2.
--- ldexp is not defined in the Haskell 98 report.
---
-foreign import ccall unsafe "ldexpf" ldexp :: Float -> CInt -> Float
-
--- | 'log10' returns the value of the logarithm of argument x to base 10.
--- log10 is not defined in the Haskell 98 report.
---
-foreign import ccall unsafe "log10f" log10 :: Float -> Float
-
--- | 'log1pf' returns the log of 1+x.
---
---foreign import ccall unsafe "log1pf" log1p :: Float -> Float
-
-foreign import ccall unsafe "log2f" log2 :: Float -> Float
-
--- | 'logb' returns x's exponent n, a signed integer converted to floating-point.  
--- 
--- > logb(+-Infinity) = +Infinity;
--- > logb(0) = -Infinity with a division by zero exception.
---
-foreign import ccall unsafe "logbf" logb :: Float -> Float
-
--- | scalbn(x, n) returns x*(2**n) computed by exponent manipulation.
-foreign import ccall unsafe "scalbnf" scalbn :: Float -> CInt -> Float
-
--- | scalbln(x, n) returns x*(2**n) computed by exponent manipulation.
-foreign import ccall unsafe "scalblnf" scalbln :: Float -> CLong -> Float
-
-
-
--- Trigonometric functions
-
--- | 'hypot' returns the sqrt(x*x+y*y) in such a way that
--- underflow will not happen, and overflow occurs only if the final result
--- deserves it.  
--- 
--- > hypot(Infinity, v) = hypot(v, Infinity) = +Infinity for all v, including NaN.
---
-foreign import ccall unsafe "hypotf" hypot :: Float -> Float -> Float
-
--- | 'tan' returns the tangent of x (measured in radians). 
--- A large magnitude argument may yield a result with little or no
--- significance.
---
-tan :: Float -> Float
-tan = liftFloat F.tanFloat
-
--- | 'sin' returns the sine of x (measured in radians). 
--- A large magnitude argument may yield a result with little or no
--- significance.
---
-sin :: Float -> Float
-sin = liftFloat F.sinFloat
-
--- | 'cos' returns the cosine of x (measured in radians).
---
--- A large magnitude argument may yield a result with little or no significance.  
---
-cos :: Float -> Float
-cos = liftFloat F.cosFloat
-
--- | 'atan' returns the principal value of the arc tangent of x
--- in the range [-pi/2, +pi/2].
---
-atan :: Float -> Float
-atan = liftFloat F.atanFloat
-
--- | 'atan2' returns the principal value of the arc tangent of
--- y/x, using the signs of both arguments to determine the quadrant of the
--- return value.
---
-foreign import ccall unsafe "atan2f"  atan2 :: Float -> Float -> Float
-
--- | 'asin' returns the principal value of the arc sine of x in the range [-pi/2, +pi/2].
---
-asin :: Float -> Float
-asin = liftFloat F.asinFloat
-
--- | 'acos' returns the principal value of the arc cosine of x in the range [0, pi]
---
-acos :: Float -> Float
-acos = liftFloat F.acosFloat
-
--- | 'tanh' returns the hyperbolic tangent of x.
---
-tanh :: Float -> Float
-tanh = liftFloat F.tanhFloat
-
--- | 'sinh' returns the hyperbolic sine of x.
---
-sinh :: Float -> Float
-sinh = liftFloat F.sinhFloat
-
--- | 'cosh' returns the hyperbolic cosine of x.
---
-cosh :: Float -> Float
-cosh = liftFloat F.coshFloat
-
--- | 'atanh' returns the inverse hyperbolic tangent of x.
---
-atanh :: Float -> Float
-atanh = liftFloat F.atanh
-
--- | 'asinh' returns the inverse hyperbolic sine of x.
---
-asinh :: Float -> Float
-asinh = liftFloat F.asinh
-
--- | 'acosh' returns the inverse hyperbolic cosine of x.
---
-acosh :: Float -> Float
-acosh = liftFloat F.acosh
-
-liftFloat :: (F.Float -> F.Float) -> Float -> Float
-liftFloat f x = Float $ f x
-
-liftFloat' :: (F.Float -> a) -> Float -> a
-liftFloat' f x = f x
-
-liftFloat2 :: (F.Float -> F.Float -> F.Float) -> Float -> Float -> Float
-liftFloat2 f x (Float y) = Float $ f x y
-
-liftFloat2' :: (F.Float -> F.Float -> a) -> Float -> Float -> a
-liftFloat2' f x (Float y) = f x y
+nInf :: Float
+nInf = word32Float 0xff800000 
 -}
+
+
+-- Non-monotonic function 
+signed32 :: Word32 -> Int32
+signed32 x | x < 0x80000000 = fromIntegral x
+           | otherwise      = fromIntegral (maximal P.- (x P.- 0x80000000))
+
+-- Non-monotonic function converting from 2s-complement format.
+unsigned32 :: Int32 -> Word32
+unsigned32 x | x >= 0  = fromIntegral x
+             | otherwise = 0x80000000 + (maximal P.- (fromIntegral x))
+
+int32Float :: Int32 -> Float
+int32Float = word32Float . unsigned32
+
+floatInt32 :: Float -> Int32
+floatInt32 = signed32 . floatWord32 
+
+-- Bit-for-bit conversion.
+word32Float :: Word32 -> Float
+word32Float = F.castWord32ToFloat
+
+-- TODO force to positive representation?
+-- Bit-for-bit conversion.
+floatWord32 :: Float -> Word32
+floatWord32 = (+0) .  F.castFloatToWord32
+

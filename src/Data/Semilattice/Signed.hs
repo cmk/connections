@@ -1,6 +1,6 @@
 {-# Language ConstraintKinds #-}
 
-module Data.Dioid.Signed where
+module Data.Semilattice.Signed where
 
 import Control.Applicative
 import Control.Category ((>>>))
@@ -8,6 +8,7 @@ import Data.Bifunctor (first)
 import Data.Connection hiding (first)
 import Data.Connection.Float
 import Data.Float
+import Data.Semifield
 import Data.Ord (Down(..))
 import Data.Prd
 import Data.Prd.Nan
@@ -15,6 +16,8 @@ import Data.Prd.Nan
 --import Data.Semigroup.Quantale
 import Data.Semigroup.Additive
 import Data.Semigroup.Multiplicative
+import Data.Semigroup.Join
+import Data.Semigroup.Meet
 import Data.Semiring
 import Prelude hiding (Num(..))
 
@@ -139,66 +142,124 @@ instance Minimal Sign where
 instance Maximal Sign where
     maximal = Indeterminate
 
+-- Trip (Signed a) (Inf (Nan Ordering))
+newtype Signed a = Signed { unSigned :: a } deriving Show
 
--- Signed
--- Signed is a floating point value with a magnitude-based partial order
+instance (Semiring a, Prd a) => Eq (Signed a) where
+    (Signed x) == (Signed y) | indeterminate x && indeterminate y = True 
+                             | indeterminate x || indeterminate y = False
+                             | otherwise = x =~ y -- 0 /= -0
+
+{-
+s = Signed anan :: Signed Float
+p = Signed pinf :: Signed Float
+n = Signed ninf :: Signed Float
+x = Signed 4.3
+y = Signed (-4.3)
+
+λ> s =~ s
+True
+λ> n <~ p
+True
+λ> n <~ s
+True
+λ> s <~ p
+True
+λ> s <~ (Signed 4)
+False
+λ> s ~~ (Signed 4)
+True
+-}
+instance (Field a, Prd a) => Prd (Signed a) where
+    Signed x <~ Signed y | indeterminate x && indeterminate y = True
+                         | indeterminate x = y =~ pinf
+                         | x =~ ninf = indeterminate y || x <~ y
+                         | otherwise = x <~ y
+
+{-
+    pcompare (Signed x) (Signed y) | indeterminate x && indeterminate y = Just EQ 
+                                   | indeterminate x || indeterminate y = Nothing 
+                                   | otherwise = pcompare (first Down $ split x) (first Down $ split y)
+
+type FieldLaw a = ((Additive-Group) a, (Multiplicative-Group) a)
+-}
+
+--instance Semifield a => Semifield (Signed a)
+
+joinSigned :: (Semifield a, Prd a) => Signed a -> Signed a -> Signed a
+joinSigned (Signed a) (Signed b) = Signed $ maybe pinf id $ pmax a b
+
+
+
+{-
+meetSigned :: Field a => Prd a => a -> a -> a 
+meetSigned a b = maybe ninf id $ pmin a b
+
+instance Field a => Semigroup (Join (Signed a)) where
+  (<>) = liftA2 joinSigned
+
+instance Field a => Monoid (Join (Signed a)) where
+  mempty = Join (Signed ninf)
+
+-- Split
+-- Split is a floating point value with a magnitude-based partial order
 -- within each sign, but the traditional order between signs.
 
--- Conn Signed (Nan (Either (Down Unsigned) Unsigned))
+-- Conn Split (Nan (Either (Down Unsigned) Unsigned))
 
--- TODO rename to Split?
-newtype Signed = Signed { unSigned :: Float }
+newtype Split = Split { unSplit :: Float }
 
-f32sgn :: Conn Float Signed
-f32sgn = Conn f g where
-  f x | x == nInf = Signed $ -0
-      | otherwise = Signed $ either (const 0) id $ split x
+f32spl :: Conn Float Split
+f32spl = Conn f g where
+  f x | x == ninf = Split $ -0
+      | otherwise = Split $ either (const 0) id $ split x
 
-  g (Signed x) = either (const nInf) id $ split x
+  g (Split x) = either (const ninf) id $ split x
 
 
-instance Show Signed where
-    show (Signed x) = show x
+instance Show Split where
+    show (Split x) = show x
 
-instance Eq Signed where
-    (Signed x) == (Signed y) | isNanf x && isNanf y = True 
-                             | isNanf x || isNanf y = False
+instance Eq Split where
+    (Split x) == (Split y) | indeterminate x && indeterminate y = True 
+                             | indeterminate x || indeterminate y = False
                              | otherwise = split x == split y -- 0 /= -0
 
-instance Prd Signed where
-    Signed x <~ Signed y | isNanf x && isNanf y = True
-                         | isNanf x || isNanf y = False
+instance Prd Split where
+    Split x <~ Split y | indeterminate x && indeterminate y = True
+                         | indeterminate x || indeterminate y = False
                          | otherwise = (first Down $ split x) <~ (first Down $ split y)
 
-    pcompare (Signed x) (Signed y) | isNanf x && isNanf y = Just EQ 
-                                   | isNanf x || isNanf y = Nothing 
+    pcompare (Split x) (Split y) | indeterminate x && indeterminate y = Just EQ 
+                                   | indeterminate x || indeterminate y = Nothing 
                                    | otherwise = pcompare (first Down $ split x) (first Down $ split y)
 
 
 -- Canonical ordering semigroup
--- >>> Signed (-1) + Signed 3
+-- >>> Split (-1) + Split 3
 -- 3.0
--- >>> Signed (-1) + Signed (-3)
+-- >>> Split (-1) + Split (-3)
 -- -4.0
--- >>> Signed 1 + Signed 3
+-- >>> Split 1 + Split 3
 -- 4.0
-instance Semigroup (Additive Signed) where
-    (<>) = liftA2 $ \(Signed a) (Signed b) -> Signed . either id id $ split a + split b
+instance Semigroup (Additive Split) where
+    (<>) = liftA2 $ \(Split a) (Split b) -> Split . either id id $ split a + split b
 
-instance Semigroup (Multiplicative Signed) where
-    (<>) = liftA2 $ \(Signed a) (Signed b) -> Signed . either id id $ split a * split b
+instance Semigroup (Multiplicative Split) where
+    (<>) = liftA2 $ \(Split a) (Split b) -> Split . either id id $ split a * split b
 
--- λ>  Signed (-1) * Signed (-3) --TODO is this a lawful presemiring?
+-- λ>  Split (-1) * Split (-3) --TODO is this a lawful presemiring?
 -- 3.0
-instance Presemiring Signed
+instance Presemiring Split
 
+-}
 
 {-
-instance Index Signed where
-    type Idx Signed = Nan (Either Word64 Word64)
+instance Index Split where
+    type Idx Split = Nan (Either Word64 Word64)
 
 tripr af32sgn >>> idx @Float
 
 (tripr af32sgn >>> idx)
-  :: Conn Signed (Data.Prd.NanPrd.Nan GHC.Word.Word64)
+  :: Conn Split (Data.Prd.NanPrd.Nan GHC.Word.Word64)
 -}

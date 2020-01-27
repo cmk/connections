@@ -10,27 +10,37 @@
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
 
-module Data.Semilattice where
+module Data.Semilattice (
+    bottom
+  , top
+  , (∧)
+  , (∨)
+  , Join(..)
+  , Meet(..)
+  , module Data.Semilattice 
+) where
 
 import safe Control.Applicative
 import safe Data.Bool
 import safe Data.Complex
+import safe Data.Connection
 import safe Data.Maybe
 import safe Data.Either
 import safe Data.Fixed
+import safe Data.Float
 import safe Data.Foldable hiding (join, meet)
 import safe Data.Group
 import safe Data.Int
---import safe Data.List
-import safe Data.List.NonEmpty
+import safe Data.List (unfoldr)
+import safe Data.List.NonEmpty hiding (filter, unfoldr)
 import safe Data.Magma
 import safe Data.Prd
 import safe Data.Ord
 import safe Data.Semiring
 import safe Data.Dioid
 import safe Data.Semigroup
+import safe Data.Semigroup
 import safe Data.Semigroup.Join
-import safe Data.Semigroup.Meet
 import safe Data.Semigroup.Foldable
 import safe Data.Semigroup.Meet
 import safe Data.Tuple
@@ -44,6 +54,7 @@ import safe Data.Ratio
 import safe Prelude ( Eq(..), Ord(..), Show, Ordering(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), id, (.), ($), flip, (<$>), Integer, Float, Double)
 import safe qualified Prelude as P
 
+import qualified Control.Category as C 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
@@ -79,24 +90,57 @@ Then E is a distributive lattice.
 -}
 
 
--- Lattice types
-type Semilattice = Semigroup
+{-
+< https://en.wikipedia.org/wiki/Graded_poset >
+class Prd a => Graded a where
+  rank :: a -> Natural
 
-type BoundedSemilattice = Monoid
+instance Graded Set, IntSet, Natural
+-}
+
+-- Lattice types
+
+
+
+
+
+
+type BoundedJoinSemilattice a = (Prd a, (Join-Monoid) a)
+
+
+
+type BoundedMeetSemilattice a = (Prd a, (Meet-Monoid) a)
+
+type LatticeLaw a = (JoinSemilattice a, MeetSemilattice a)
+
+type BoundedLatticeLaw a = (BoundedJoinSemilattice a, BoundedMeetSemilattice a)
+
+type LowerBoundedLattice a = (Lattice a, (Join-Monoid) a)
+
+type UpperBoundedLattice a = (Lattice a, (Meet-Monoid) a)
+
+type BoundedLattice a = (Lattice a, BoundedLatticeLaw a)
 
 type Distributive a = (Presemiring a, Lattice a)
 
-type LatticeLaw a = (Prd a, (Join-Semilattice) a, (Meet-Semilattice) a)
+{-
+class (Lattice a, BoundedLatticeLaw a) => BoundedLattice a
 
-type LowerBounded a = (Lattice a, (Join-Monoid) a)
 
-type UpperBounded a = (Lattice a, (Meet-Monoid) a)
+instance BoundedLattice ()
+instance BoundedLattice Bool
+instance (Prd a, UpperBounded a) => BoundedLattice (Maybe a)
+--instance (Prd a, UpperBounded a) => BoundedLattice (IntMap.IntMap a)
+--instance (Ord k, (Meet-Monoid) k, Prd a, UpperBounded a) => BoundedLattice (Map.Map k a)
+-}
 
-type BoundedLatticeLaw a = (Prd a, (Join-BoundedSemilattice) a, (Meet-BoundedSemilattice) a)
+--type Bounded
 
-type MinimalLatticeLaw a = (Prd a, (Join-BoundedSemilattice) a, (Meet-Semilattice) a)
 
-type MaximalLatticeLaw a = (Prd a, (Join-Semilattice) a, (Meet-BoundedSemilattice) a)
+
+--type MinimalLatticeLaw a = (Prd a, (Join-BoundedSemilattice) a, (Meet-Semilattice) a)
+
+--type MaximalLatticeLaw a = (Prd a, (Join-Semilattice) a, (Meet-BoundedSemilattice) a)
 
 -- | Lattices.
 --
@@ -146,32 +190,35 @@ type MaximalLatticeLaw a = (Prd a, (Join-Semilattice) a, (Meet-BoundedSemilattic
 class LatticeLaw a => Lattice a
 
 
-class (Lattice a, BoundedLatticeLaw a) => BoundedLattice a
+
 
 -- | Birkhoff's self-dual < https://en.wikipedia.org/wiki/Median_algebra ternary median > operation.
 --
+-- If the lattice is distributive then 'glb' has the following properties.
+--
 -- @ 
--- 'median' x y y '==' y
--- 'median' x y z '==' 'median' z x y
--- 'median' x y z '==' 'median' x z y
--- 'median' ('median' x w y) w z '==' 'median' x w ('median' y w z)
+-- 'glb' x y y '==' y
+-- 'glb' x y z '==' 'glb' z x y
+-- 'glb' x y z '==' 'glb' x z y
+-- 'glb' ('glb' x w y) w z '==' 'glb' x w ('glb' y w z)
 -- @
 --
--- >>> median 1 2 3 :: Int
+-- >>> glb 1 2 3 :: Int
 -- 2
--- >>> median (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
+-- >>> glb (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
 -- fromList [3,5]
---
--- This operation requires a distributive lattice.
 --
 -- See 'Data.Dioid.Property'.
 -- 
-median :: Distributive a => a -> a -> a -> a
-median x y z = (x ∨ y) ∧ (y ∨ z) ∧ (z ∨ x)
+glb :: Lattice a => a -> a -> a -> a
+glb x y z = (x ∨ y) ∧ (y ∨ z) ∧ (z ∨ x)
+
+lub :: Lattice a => a -> a -> a -> a
+lub x y z = (x ∧ y) ∨ (y ∧ z) ∨ (z ∧ x)
 
 -- @ 'join' :: 'Lattice' a => 'Minimal' a => 'Set' a -> a @
 --
-join :: (Join-BoundedSemilattice) a => Lattice a => Foldable f => f a -> a
+join :: (Join-Monoid) a => Lattice a => Foldable f => f a -> a
 join = joinWith id
 
 -- >>> joinWith MaxMin $ [IntSet.fromList [1..5], IntSet.fromList [2..4]]
@@ -180,7 +227,7 @@ joinWith :: (Join-Monoid) a => Foldable t => (b -> a) -> t b -> a
 joinWith f = foldr' ((∨) . f) bottom
 {-# INLINE joinWith #-}
 
-meet :: (Meet-BoundedSemilattice) a => Lattice a => Foldable f => f a -> a
+meet :: (Meet-Monoid) a => Lattice a => Foldable f => f a -> a
 meet = meetWith id
 
 -- | Fold over a collection using the multiplicative operation of an arbitrary semiring.
@@ -325,39 +372,7 @@ evalWith1 f = join1 . fmap meet1 . (fmap . fmap) f
 
 -}
 
--- | The partial ordering induced by the join-semilattice structure
-joinLeq :: Eq a => (Join-Semilattice) a => a -> a -> Bool
-joinLeq x y = x ∨ y == y
 
--- | The partial ordering induced by the meet-semilattice structure
-meetLeq :: Eq a => (Meet-Semilattice) a => a -> a -> Bool
-meetLeq x y = x ∧ y == x
-
--- | The partial ordering induced by the join-semilattice structure
-joinGeq :: Eq a => (Join-Semilattice) a => a -> a -> Bool
-joinGeq x y = x ∨ y == x
-
--- | The partial ordering induced by the meet-semilattice structure
-meetGeq :: Eq a => (Meet-Semilattice) a => a -> a -> Bool
-meetGeq x y = x ∧ y == y
-
--- | Partial version of 'Data.Ord.compare'.
---
-pcompareJoin :: Eq a => (Join-Semilattice) a => a -> a -> Maybe Ordering
-pcompareJoin x y
-  | x == y = Just EQ
-  | x ∨ y == y && x /= y = Just LT
-  | x ∨ y == x && x /= y = Just GT
-  | otherwise = Nothing
-
--- | Partial version of 'Data.Ord.compare'.
---
-pcompareMeet :: Eq a => (Meet-Semilattice) a => a -> a -> Maybe Ordering
-pcompareMeet x y
-  | x == y = Just EQ
-  | x ∧ y == x && x /= y = Just LT
-  | x ∧ y == y && x /= y = Just GT
-  | otherwise = Nothing
 
 
 {-
@@ -408,6 +423,7 @@ instance Lattice Micro
 instance Lattice Nano
 instance Lattice Pico
 
+instance Lattice a => Lattice (Down a)
 instance (Prd a, Prd b, Lattice a, Lattice b) => Lattice (Either a b)
 instance (Prd a, Lattice a) => Lattice (Maybe a)
 instance (Prd a, Lattice a) => Lattice (IntMap.IntMap a)
@@ -439,21 +455,3 @@ instance (Ord a, Maximal a) => Monoid (Meet (MaxMin a)) where
 
 
 instance (Ord a, Bound a) => Lattice (MaxMin a)
-
-
-{-
-instance (Ord a, Minimal a, (Additive-Monoid) (Max a), (Multiplicative-Monoid) a) => Semiring (Max a)
-instance (Ord a, Maximal a, (Additive-Monoid) (Min a), (Additive-Monoid) a) => Semiring (Min a)
-
-instance (Prd a, Ord a, (Multiplicative-Semigroup) a) => Predioid (Max a)
-instance (Prd a, Ord a, (Additive-Semigroup) a) => Predioid (Min a)
-
-instance (Ord a, Minimal a, (Additive-Monoid) (Max a), (Multiplicative-Monoid) a) => Dioid (Max a)
-instance (Ord a, Maximal a, (Additive-Monoid) (Min a), (Additive-Monoid) a) => Dioid (Min a)
--}
-
-instance BoundedLattice ()
-instance BoundedLattice Bool
-instance (Prd a, UpperBounded a) => BoundedLattice (Maybe a)
---instance (Prd a, UpperBounded a) => BoundedLattice (IntMap.IntMap a)
---instance (Ord k, (Meet-Monoid) k, Prd a, UpperBounded a) => BoundedLattice (Map.Map k a)
