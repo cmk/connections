@@ -1,6 +1,7 @@
 {-# Language TypeFamilies #-}
 {-# Language TypeApplications #-}
 {-# Language AllowAmbiguousTypes #-}
+{-# Language ConstraintKinds #-}
 
 module Data.Connection (
   -- * Connection
@@ -20,9 +21,8 @@ module Data.Connection (
   , right
   , strong
   , choice
-  , binord
   , ordbin
-
+  , binord
   -- * Triple
   , Trip(..)
   , tripl
@@ -41,17 +41,37 @@ module Data.Connection (
   , right'
   , strong'
   , choice'
-  , ceiling'
-  , floor'
+  -- * Rounding
+  , Mode(..)
+  , half
+  , truncateWith
+  , ceilingWith
+  , floorWith
+  , roundWith
+  , addWith
+  , negWith
+  , subWith
+  , mulWith
+  , fmaWith
+  , remWith
+  , divWith
 ) where
+
 
 import Control.Category (Category, (>>>))
 import Data.Bifunctor (bimap)
+import Data.Bool
 import Data.Word
 import Data.Int
 import Data.Prd
-import Data.Ord (Down(..))
-import Prelude 
+import Data.Group
+import Data.Semiring
+import Data.Semifield
+import Data.Semigroup.Join
+import Data.Semigroup.Meet
+import Prelude hiding (Ord(..), Num(..), Fractional(..), RealFrac(..))
+
+import Test.Logic (xor, (<==>),(==>))
 
 import qualified Data.Ord as O
 import qualified Control.Category as C
@@ -99,11 +119,11 @@ connl (Conn f _) = f
 connr :: Prd a => Prd b => Conn a b -> b -> a
 connr (Conn _ g) = g
 
--- @x <~ unit x@
+-- @x <= unit x@
 unit :: Prd a => Prd b => Conn a b -> a -> a
 unit (Conn f g) = g . f
 
--- @counit x <~ x@
+-- @counit x <= x@
 counit :: Prd a => Prd b => Conn a b -> b -> b
 counit (Conn f g) = f . g
 
@@ -115,7 +135,7 @@ pcomparing :: Eq b => Prd a => Prd b => Conn a b -> a -> a -> Maybe Ordering
 pcomparing (Conn f _) x y = f x `pcompare` f y
 
 ---------------------------------------------------------------------
---  Instances
+-- Instances
 ---------------------------------------------------------------------
 
 dual :: Prd a => Prd b => Conn a b -> Conn (Down b) (Down a)
@@ -159,8 +179,14 @@ binord = Conn f g where
   g LT = False
   g _  = True
 
---(&&&) :: Prd a => Prd b => Lattice c => Conn c a -> Conn c b -> Conn c (a, b)
---f &&& g = tripr forked >>> f `strong` g
+forked :: JoinSemilattice a => MeetSemilattice a => Trip (a, a) a
+forked = Trip (uncurry (∨)) (\x -> (x,x)) (uncurry (∧))
+
+joined :: Prd a => Trip a (Either a a)
+joined = Trip Left (either id id) Right
+
+(&&&) :: Prd a => Prd b => JoinSemilattice c => MeetSemilattice c => Conn c a -> Conn c b -> Conn c (a, b)
+f &&& g = tripr forked >>> f `strong` g
 
 (|||) :: Prd a => Prd b => Prd c => Conn a c -> Conn b c -> Conn (Either a b) c
 f ||| g = f `choice` g >>> tripr joined
@@ -176,16 +202,18 @@ choice (Conn ab ba) (Conn cd dc) = Conn f g where
   g = either (Left . ba) (Right . dc)
 
 ---------------------------------------------------------------------
---  'Trip'
+-- Adjoint triples
 ---------------------------------------------------------------------
 
 -- | An adjoint triple.
 --
 -- @'Trip' f g h@ satisfies:
 --
+-- @
 -- f ⊣ g
 -- ⊥   ⊥
 -- g ⊣ h
+-- @
 --
 -- See <https://ncatlab.org/nlab/show/adjoint+triple>
 --
@@ -213,24 +241,12 @@ counitl = counit . tripl
 counitr :: Prd a => Prd b => Trip a b -> a -> a
 counitr = counit . tripr
 
-ceiling' :: Prd a => Prd b => Trip a b -> a -> b
-ceiling' = connl . tripl
-
-floor' :: Prd a => Prd b => Trip a b -> a -> b
-floor' = connr . tripr
-
 ---------------------------------------------------------------------
 --  Instances
 ---------------------------------------------------------------------
 
 bound :: Prd a => Bound a => Trip () a
 bound = Trip (const minimal) (const ()) (const maximal)
-
---forked :: Lattice a => Trip (a, a) a
---forked = Trip (uncurry (∨)) (\x -> (x,x)) (uncurry (∧))
-
-joined :: Prd a => Trip a (Either a a)
-joined = Trip Left (either id id) Right
 
 maybel :: Prd a => Bound b => Trip (Maybe a) (Either a b)
 maybel = Trip f g h where
@@ -267,3 +283,158 @@ choice' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
   f = either (Left . ab) (Right . cd)
   g = either (Left . ba) (Right . dc)
   h = either (Left . ab') (Right . cd')
+
+---------------------------------------------------------------------
+-- Rounding
+---------------------------------------------------------------------
+
+-- | The four primary IEEE rounding modes.
+--
+-- See <https://en.wikipedia.org/wiki/Rounding>.
+--
+data Mode = 
+    RNZ -- ^ round to nearest with ties towards zero
+  | RTP -- ^ round towards pos infinity
+  | RTN -- ^ round towards neg infinity
+  | RTZ -- ^ round towards zero
+  deriving (Eq, Show, Read, Enum, Bounded)
+
+-- | Determine which half of the interval between two representations of /a/ a particular value lies.
+-- 
+half :: Prd a => Prd b => (Additive-Group) a => Trip a b -> a -> Maybe Ordering
+half t x = pcompare (x - unitl t x) (counitr t x - x) 
+
+-- | Determine whether /x/ lies above the halfway point between two representations.
+-- 
+-- @ 'above' t x '==' (x '-' 'unitl' t x) '`gt`' ('counitr' t x '-' x) @
+--
+above :: Prd a => Prd b => (Additive-Group) a => Trip a b -> a -> Bool
+above t = maybe False (== GT) . half t
+
+-- | Determine whether /x/ lies below the halfway point between two representations.
+-- 
+-- @ 'below' t x '==' (x '-' 'unitl' t x) '`lt`' ('counitr' t x '-' x) @
+--
+below :: Prd a => Prd b => (Additive-Group) a => Trip a b -> a -> Bool
+below t = maybe False (== LT) . half t
+
+-- | Determine whether /x/ lies exactly halfway between two representations.
+-- 
+-- @ 'tied' t x '==' (x '-' 'unitl' t x) '=~' ('counitr' t x '-' x) @
+--
+tied :: Prd a => Prd b => (Additive-Group) a => Trip a b -> a -> Bool
+tied t = maybe False (== EQ) . half t
+
+-- @ truncateWith C.id == id @
+truncateWith :: (Prd a, Prd b, (Additive-Monoid) a) => Trip a b -> a -> b
+truncateWith t x = bool (ceilingWith t x) (floorWith t x) $ pos x
+
+-- @ ceilingWith C.id == id @
+ceilingWith :: Prd a => Prd b => Trip a b -> a -> b
+ceilingWith = connl . tripl
+
+-- @ floorWith C.id == id @
+floorWith :: Prd a => Prd b => Trip a b -> a -> b
+floorWith = connr . tripr
+
+-- @ roundWith C.id == id @
+roundWith :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> a -> b
+roundWith t x | above t x = ceilingWith t x -- upper half interval
+              | below t x = floorWith t x -- lower half interval
+              | otherwise = truncateWith t x
+
+{-
+
+rndWith :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b 
+rndWith t@(Trip f g h) rm x = rnd t rm (neg' t rm x) (g x)
+
+-}
+
+
+-- >>> addWith ratf32 RTN 1 2
+-- 3.0
+-- minSubf
+addWith :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b -> b 
+addWith t@(Trip _ f _) rm x y = rnd t rm (addSgn t rm x y) (f x + f y)
+
+negWith :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b 
+negWith t@(Trip _ f _) rm x = rnd t rm (neg' t rm x) (zero - f x)
+
+subWith :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b -> b 
+subWith t@(Trip _ f _) rm x y = rnd t rm (subSgn t rm x y) (f x - f y)
+
+mulWith :: (Prd a, Prd b, Ring a) => Trip a b -> Mode -> b -> b -> b 
+mulWith t@(Trip _ f _) rm x y = rnd t rm (xorSgn t rm x y) (f x * f y)
+
+{-
+big = shiftf (-1) maximal
+λ> fmaWith ratf32 RTN big 2 (-big)
+3.4028235e38
+λ> big * 2 - big
+Infinity
+-}
+fmaWith :: (Prd a, Prd b, Ring a) => Trip a b -> Mode -> b -> b -> b -> b
+fmaWith t@(Trip _ f _) rm x y z = rnd t rm (fmaSgn t rm x y z) $ f x * f y + f z
+
+{-
+λ> remWith @Int RTP 17 5
+-3
+λ> remWith @Int RNZ 17 5
+2
+-}
+remWith :: (Prd a, Prd b, Field a) => Trip a b -> Mode -> b -> b -> b
+remWith t rm x y = fmaWith t rm (negWith t rm $ divWith t rm x y) y x
+
+{-
+λ> divWith @Int RNZ 17 5
+3
+λ> divWith @Int RTP 17 5
+4
+-}
+-- when pos numbers are divided by −0 we return minus infinity rather than pos:
+-- >>> divWith C.id RNZ 1 (shiftf (-1) 0)
+-- -Infinity
+divWith :: (Prd a, Prd b, Field a) => Trip a b -> Mode -> b -> b -> b 
+divWith t@(Trip _ f _) rm x y = rnd t rm (xorSgn t rm x y) (f x / f y)
+
+
+-- requires that sign be flipped back in /a/.
+divWith' :: (Prd a, Prd b, Field a) => Trip a b -> Mode -> b -> b -> b 
+divWith' t@(Trip _ f _) rm x y | xorSgn t rm x y = rnd t rm True (negate $ f x / f y)
+                               | otherwise  = rnd t rm False (f x / f y)
+
+
+---------------------------------------------------------------------
+-- Internal
+---------------------------------------------------------------------
+
+-- Determine the sign of 0 when /a/ contains signed 0s
+rsz :: (Prd a, Prd b) => Trip a b -> Bool -> a -> b
+rsz t = bool (floorWith t) (ceilingWith t)
+
+rnd :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> Bool -> a -> b
+rnd t RNZ s x = bool (roundWith t x) (rsz t s x) $ zer x
+rnd t RTP s x = bool (ceilingWith t x) (rsz t s x) $ zer x
+rnd t RTN s x = bool (floorWith t x) (rsz t s x) $ zer x
+rnd t RTZ s x = bool (truncateWith t x) (rsz t s x) $ zer x
+
+neg' :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> Bool
+neg' t rm x = x < rnd t rm False zero
+
+pos'  :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> Bool 
+pos' t rm x = x > rnd t rm False zero
+
+-- | Determine signed-0 behavior under addition.
+addSgn :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b -> Bool
+addSgn t rm x y | rm == RTN = neg' t rm x || neg' t rm y
+                | otherwise = neg' t rm x && neg' t rm y
+
+subSgn :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b -> Bool
+subSgn t rm x y = not (addSgn t rm x y)
+
+-- | Determine signed-0 behavior under multiplication and division.
+xorSgn :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b -> Bool
+xorSgn t rm x y = neg' t rm x `xor` neg' t rm y
+
+fmaSgn :: (Prd a, Prd b, Ring a) => Trip a b -> Mode -> b -> b -> b -> Bool
+fmaSgn t rm x y z = addSgn t rm (mulWith t rm x y) z

@@ -33,8 +33,8 @@ module Data.Semilattice.Property where
   , annihilative_meet_on
   , monotone_bottom
   , annihilative_unit
-  , positive_addition
-  , positive_multiplication
+  , pos_addition
+  , pos_multiplication
   , annihilative_join 
   , annihilative_join' 
   -- * Distributive semilattices and lattices
@@ -53,12 +53,13 @@ module Data.Semilattice.Property where
 -}
 import Data.Dioid
 import Data.Dioid.Property as Prop
-import Data.Semilattice
+import Data.Semigroup
 import Data.List (unfoldr)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Prd
 import Data.Semigroup.Join
 import Data.Semigroup.Meet
+import Data.Semilattice
 --import Data.Semigroup.Property as Prop
 import Data.Semiring hiding (nonunital)
 import Data.Semiring.Property as Prop
@@ -67,7 +68,7 @@ import Test.Function  as Prop
 import Test.Logic (Rel, (<==>),(==>))
 import Test.Operation as Prop hiding (distributive_on)
 
-import Prelude hiding (Num(..), sum)
+import Prelude hiding (Ord(..), Num(..), sum)
 
 ------------------------------------------------------------------------------------
 -- Required properties of join semilattices
@@ -117,9 +118,9 @@ morphism_join_on' (~~) f = (f bottom) ~~ bottom
 -- of join-semilattices is a function that preserves binary joins and least elements, 
 -- if such there be. 
 --
-morphism_joinsemilattice :: Prd r => Prd s => (Join-Semilattice) r => (Join-Semilattice) s => (r -> s) -> r -> r -> Bool
+morphism_joinsemilattice :: Prd r => Prd s => (Join-Semigroup) r => (Join-Semigroup) s => (r -> s) -> r -> r -> Bool
 morphism_joinsemilattice f x y =
-  Prop.monotone_on (<~) (<~) f x y &&
+  Prop.monotone_on (<=) (<=) f x y &&
   morphism_join_on (=~) f x y
 
 ------------------------------------------------------------------------------------
@@ -163,9 +164,9 @@ idempotent_meet_on (~~) r = (∧) r r ~~ r
 -- Note that any semilattice homomorphism is necessarily monotone with respect to the 
 -- associated partial ordering relation.
 --
-morphism_meetsemilattice :: Prd r => Prd s => (Meet-Semilattice) r => (Meet-Semilattice) s => (r -> s) -> r -> r -> Bool
+morphism_meetsemilattice :: Prd r => Prd s => (Meet-Semigroup) r => (Meet-Semigroup) s => (r -> s) -> r -> r -> Bool
 morphism_meetsemilattice f x y =
-  Prop.monotone_on (>~) (>~) f x y &&
+  Prop.monotone_on (>=) (>=) f x y &&
   morphism_meet_on (=~) f x y
 
 morphism_meet_on :: (Meet-Semigroup) r => (Meet-Semigroup) s => Rel s b -> (r -> s) -> r -> r -> b
@@ -202,7 +203,7 @@ morphism_bounded f x y z =
   morphism_join_on' (=~) f &&
   morphism_meet_on' (=~) f
 -}
--- | Distributive lattice morphisms are compatible with 'median'.
+-- | Distributive lattice morphisms are compatible with 'glb'.
 --
 morphism_lattice :: Prd r => Prd s => Distributive r => Distributive s => (r -> s) -> r -> r -> r -> Bool
 morphism_lattice f x y z =
@@ -217,37 +218,37 @@ morphism_lattice f x y z =
 --
 -- See < https://en.wikipedia.org/wiki/Distributivity_(order_theory) >
 --
-distributive_join :: Prd r => (Join-Semilattice) r => r -> r -> r -> r -> r -> Bool
-distributive_join c a b a' b' = c <~ a ∨ b ==> a' <~ a && b' <~ b && c <~ a' ∨ b'
+distributive_join :: Prd r => (Join-Semigroup) r => r -> r -> r -> r -> r -> Bool
+distributive_join c a b a' b' = c <= a ∨ b ==> a' <= a && b' <= b && c <= a' ∨ b'
 
 -- |  \( \forall a, b, c: c \leq a ∨ b \Rightarrow \exists a',b': c = a' ∨ b' \)
 --
 -- See < https://en.wikipedia.org/wiki/Distributivity_(order_theory) >
 --
-distributive_meet :: Prd r => (Meet-Semilattice) r => r -> r -> r -> r -> r -> Bool
-distributive_meet c a b a' b' = c >~ a ∧ b ==> a' >~ a && b' >~ b && c >~ a' ∧ b'
+distributive_meet :: Prd r => (Meet-Semigroup) r => r -> r -> r -> r -> r -> Bool
+distributive_meet c a b a' b' = c >= a ∧ b ==> a' >= a && b' >= b && c >= a' ∧ b'
 
--- @ median x x y '==' x @
+-- @ glb x x y '==' x @
 --
 majority_median :: Eq r => Distributive r => r -> r -> Bool
-majority_median x y = median x y y == y
+majority_median x y = glb x y y == y
 
--- @ median x y z '==' median z x y @
+-- @ median x y z '==' glb z x y @
 --
 commutative_median :: Eq r => Distributive r => r -> r -> r -> Bool
-commutative_median x y z = median x y z == median z x y
+commutative_median x y z = glb x y z == glb z x y
 
 -- @ median x y z '==' median x z y @
 --
 commutative_median' :: Eq r => Distributive r => r -> r -> r -> Bool
-commutative_median' x y z = median x y z == median x z y
+commutative_median' x y z = glb x y z == glb x z y
 
 -- @ median (median x w y) w z '==' median x w (median y w z) @
 --
 associative_median :: Eq r => Distributive r => r -> r -> r -> r -> Bool
-associative_median x y z w = median (median x w y) w z == median x w (median y w z)
+associative_median x y z w = glb (glb x w y) w z == glb x w (glb y w z)
 
 -- | Distributive lattice morphisms are compatible with 'median'.
 --
 morphism_distributive :: Prd r => Prd s => Distributive r => Distributive s => (r -> s) -> r -> r -> r -> Bool
-morphism_distributive f x y z = f (median x y z) =~ median (f x) (f y) (f z)
+morphism_distributive f x y z = f (glb x y z) =~ glb (f x) (f y) (f z)

@@ -122,8 +122,8 @@ float_signed = Trip f g h where
 --plus_minus :: Signed -> Conn Signed Signed
 --plus_minus x = Conn (x<>) (x\\) 
 
--- x // y = max {z: z <> y <~ x}
--- x \\ y = max {z: x <> z <~ y}
+-- x // y = max {z: z <> y <= x}
+-- x \\ y = max {z: x <> z <= y}
 
 signBit' = not . signBit
 
@@ -139,8 +139,8 @@ Unsigned x \\ Unsigned y = Unsigned $ y - x
 (\\) :: Signed -> Signed -> Signed
 Signed x \\ Signed y = Signed $ y - x
 
- | signBit x && signBit y = Signed $ if y - x <~ (-0) then y - x else -0
-                     | signBit' x && signBit' y = Signed $ if y - x <~ 0 then y - x else 0
+ | signBit x && signBit y = Signed $ if y - x <= (-0) then y - x else -0
+                     | signBit' x && signBit' y = Signed $ if y - x <= 0 then y - x else 0
 -}
 
 newtype Unsigned = Unsigned Float
@@ -163,8 +163,8 @@ instance Prd Unsigned where
     u@(Unsigned x) `le` v@(Unsigned y) = u `lt` v || (abs x) `eqn` (abs y) 
 
 
-ltun (Unsigned x) (Unsigned y) | positive (abs x) && nan y = False
-                               | positive (abs y) && nan x = True
+ltun (Unsigned x) (Unsigned y) | pos (abs x) && nan y = False
+                               | pos (abs y) && nan x = True
                                | finite x && finite y = shift 2 (abs x) `lt` (abs y)
                                | finite x && infinite y = True
                                | otherwise = False
@@ -185,7 +185,7 @@ instance Semiring Unsigned where
 {-
 
 instance Lattice (Signed a) where
-  (Signed x) \/ (Signed y) | both positive = Signed $ min (abs x) (abs y)
+  (Signed x) \/ (Signed y) | both pos = Signed $ min (abs x) (abs y)
 
   (Signed x) \/ (Signed y) | mixed signs = Signed $ min (abs x) (abs y)
 

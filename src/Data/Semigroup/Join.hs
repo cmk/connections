@@ -60,6 +60,25 @@ bottom :: (Join-Monoid) a => a
 bottom = unJoin mempty
 {-# INLINE bottom #-}
 
+type JoinSemilattice a = (Prd a, (Join-Semigroup) a)
+
+-- | The partial ordering induced by the join-semilattice structure
+joinLeq :: Eq a => (Join-Semigroup) a => a -> a -> Bool
+joinLeq x y = x ∨ y == y
+
+-- | The partial ordering induced by the join-semilattice structure
+joinGeq :: Eq a => (Join-Semigroup) a => a -> a -> Bool
+joinGeq x y = x ∨ y == x
+
+-- | Partial version of 'Data.Ord.compare'.
+--
+pcompareJoin :: Eq a => (Join-Semigroup) a => a -> a -> Maybe Ordering
+pcompareJoin x y
+  | x == y = Just EQ
+  | x ∨ y == y && x /= y = Just LT
+  | x ∨ y == x && x /= y = Just GT
+  | otherwise = Nothing
+
 -- | A commutative 'Semigroup' under '∨'.
 newtype Join a = Join { unJoin :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
@@ -192,6 +211,7 @@ instance Ord a => Monoid (Join (Set.Set a)) where
 instance (Ord k, (Join-Semigroup) a) => Monoid (Join (Map.Map k a)) where
   mempty = Join Map.empty
 
+
 #define deriveJoinSemigroup(ty)             \
 instance Semigroup (Join ty) where {        \
    a <> b = (P.max) <$> a <*> b             \
@@ -223,8 +243,6 @@ deriveJoinSemigroup(Micro)
 deriveJoinSemigroup(Nano)
 deriveJoinSemigroup(Pico)
 
-deriveJoinSemigroup(Rational)
-deriveJoinSemigroup((Ratio Natural))
 
 #define deriveJoinMonoid(ty)                \
 instance Monoid (Join ty) where {           \
@@ -247,6 +265,3 @@ deriveJoinMonoid(Word16)
 deriveJoinMonoid(Word32)
 deriveJoinMonoid(Word64)
 deriveJoinMonoid(Natural)
-
-deriveJoinMonoid((Ratio Natural))
-
