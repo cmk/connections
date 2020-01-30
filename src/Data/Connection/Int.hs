@@ -177,7 +177,7 @@ abs' x = if x == minimal then abs (x+one) else abs x
 
 f32i32 :: Conn Float (Nan Int32)
 f32i32 = Conn (liftNan f) (nan' g) where
-  f x | abs x <~ 2**24-1 = ceiling x
+  f x | abs x <~ 2**24-1 = P.ceiling x
       | otherwise = if x >~ 0 then 2^24 else minimal
 
   g i | abs' i <~ 2^24-1 = fromIntegral i
@@ -188,12 +188,12 @@ i32f32 = Conn (nan' f) (liftNan g) where
   f i | abs i <~ 2^24-1 = fromIntegral i
       | otherwise = if i >~ 0 then 2**24 else -1/0
 
-  g x | abs x <~ 2**24-1 = floor x
+  g x | abs x <~ 2**24-1 = P.floor x
       | otherwise = if x >~ 0 then maximal else -2^24
 
 f64i64 :: Conn Double (Nan Int64)
 f64i64 = Conn (liftNan f) (nan' g) where
-  f x | abs x <~ 2**53-1 = ceiling x
+  f x | abs x <~ 2**53-1 = P.ceiling x
       | otherwise = if x >~ 0 then 2^53 else minimal
 
   g i | abs' i <~ 2^53-1 = fromIntegral i
@@ -204,5 +204,5 @@ i64f64 = Conn (nan' f) (liftNan g) where
   f i | abs i <~ 2^53-1 = fromIntegral i
       | otherwise = if i >~ 0 then 2**53 else -1/0
 
-  g x | abs x <~ 2**53-1 = floor x
+  g x | abs x <~ 2**53-1 = P.floor x
       | otherwise = if x >~ 0 then maximal else -2^53

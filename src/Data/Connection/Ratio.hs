@@ -1,3 +1,5 @@
+{-# Language AllowAmbiguousTypes #-}
+
 module Data.Connection.Ratio where
 
 import Control.Category ((>>>))
@@ -23,16 +25,16 @@ import Data.Ratio
 
 import GHC.Real
 
-class Prd a => ConnRational a where
-  connRational :: Conn Rational a
+class Prd a => TripRational a where
+  tripRational :: Trip Rational a
 
 -- | Lawful replacement for the version in base.
 --
-fromRational :: ConnRational a => Rational -> a
-fromRational = connl connRational
+fromRational :: TripRational a => Rational -> a
+fromRational = connl . tripl $ tripRational
 
-instance ConnRational Rational where
-  connRational = C.id
+instance TripRational Rational where
+  tripRational = C.id
 
-instance ConnRational Float where
-  connRational = tripl ratf32
+instance TripRational Float where
+  tripRational = ratf32

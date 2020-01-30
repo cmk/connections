@@ -28,6 +28,7 @@ library
     , Data.Connection.Int
     , Data.Connection.Float
     , Data.Connection.Ratio
+    --, Data.Connection.Round
     , Data.Connection.Yoneda
     , Data.Connection.Property
     , Data.Semilattice

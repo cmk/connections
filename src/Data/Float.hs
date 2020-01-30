@@ -17,10 +17,10 @@ import Data.Prd
 import Data.Semifield
 import Data.Semiring
 import Data.Semigroup.Join
+import Data.Semigroup.Meet
 import Data.Function (on)
 import Data.Connection 
 
---import Data.Numbers.CrackNum (floatToFP)
 import Data.Bits ((.&.))
 
 
@@ -65,7 +65,7 @@ evenBitf x = lsbMask x == 0
 
 -- | maximal (positive) finite value.
 maxNormf :: Float
-maxNormf = shiftf (-1) (1/0)
+maxNormf = shiftf (-1) maximal 
 
 -- | minimal (positive) normalized value.
 minNormf :: Float
@@ -284,6 +284,9 @@ instance Semiring Ulp32
 
 instance Semigroup (Join Ulp32) where
     Join (Ulp32 x) <> Join (Ulp32 y) = Join . Ulp32 $ max x y
+
+instance Semigroup (Meet Ulp32) where
+    Meet (Ulp32 x) <> Meet (Ulp32 y) = Meet . Ulp32 $ min x y
 
 f32u32 :: Conn Float Ulp32
 f32u32 = Conn (Ulp32 . floatInt32) (int32Float . unUlp32)

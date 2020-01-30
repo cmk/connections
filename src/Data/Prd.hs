@@ -336,6 +336,9 @@ pmeet = foldM pmin maximal
 sign :: (Additive-Monoid) a => Prd a => a -> Maybe Ordering
 sign x = pcompare x zero
 
+isZero :: (Additive-Monoid) a => Prd a => a -> Bool
+isZero x = sign x == Just EQ
+
 positive :: (Additive-Monoid) a => Prd a => a -> Bool
 positive x = sign x == Just GT
 
@@ -344,7 +347,6 @@ negative x = sign x == Just LT
 
 indeterminate :: (Additive-Monoid) a => Prd a => a -> Bool
 indeterminate x = sign x == Nothing
-
 
 isAnan :: Prd a => Semifield a => a -> Bool
 isAnan a = a =~ anan

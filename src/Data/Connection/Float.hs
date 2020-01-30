@@ -57,6 +57,3 @@ instance ConnDouble Double where
 instance ConnDouble (Nan Int64) where
   connDouble = f64i64
 
-
-
-
