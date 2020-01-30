@@ -1,24 +1,29 @@
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeApplications           #-}
-module Data.Dioid.Unsigned where
+module Data.Semilattice.Unsigned where
 
 import Control.Category ((>>>))
 import Data.Bifunctor (first)
 import Data.Connection hiding (first)
 import Data.Connection.Float
 import Data.Float
-import Data.Dioid.Signed
+import Data.Semilattice.Signed
 import Data.Prd
 import Data.Prd.Nan
-import Prelude
+import Data.Semifield hiding (finite') --TODO remove
+import Data.Semiring
+import Prelude hiding (Num(..), Fractional(..), Floating(..),  (^^), (^), RealFloat(..), Real(..), Enum(..))
+
+import qualified Data.Prd.Nan as Nan
 
 --import Language.Haskell.TH.Syntax (Q, Exp(..), lift, liftData, dataToExpQ)
 --import Language.Haskell.TH.Quote (QuasiQuoter (..))
 
+{-
 sgnugn :: Conn Signed (Nan Unsigned)
 sgnugn = Conn f g where
   f (Signed x) = Unsigned <$> liftNan (max 0) x 
-  g (Def (Unsigned x)) = Signed $ if isNanf x then pInf else abs x
+  g (Def (Unsigned x)) = Signed $ if isNan x then pinf else abs x
   g Nan = Signed (0/0)
 
 -- @ 'f32ugn' == 'f32sgn' '>>>' 'sgnugn' @
@@ -26,9 +31,9 @@ sgnugn = Conn f g where
 f32ugn :: Conn Float (Nan Unsigned)
 f32ugn = Conn f g where
   f x = Unsigned <$> liftNan (max 0) x
-  g (Def (Unsigned x)) = if isNanf x then pInf else abs x
+  g (Def (Unsigned x)) = if isNan x then pinf else abs x
   g Nan = 0/0
-
+-}
 --TODO 
 --export qquoter rather than constructor
 
@@ -44,8 +49,8 @@ instance Show Unsigned where
     show (Unsigned x) = show x
 
 instance Eq Unsigned where
-    (Unsigned x) == (Unsigned y) | finite x && finite y = (abs x) == (abs y) 
-                                 | not (finite x) && not (finite y) = True  --NaNs are equiv to Inf
+    (Unsigned x) == (Unsigned y) | finite' x && finite' y = (abs x) == (abs y) 
+                                 | not (finite' x) && not (finite' y) = True  --NaNs are equiv to Inf
                                  | otherwise = False
 
 -- Unsigned has a 2-Ulp interval semiorder containing all joins and meets.
@@ -55,21 +60,21 @@ instance Prd Unsigned where
 
 ltugn :: Unsigned -> Unsigned -> Bool
 ltugn (Unsigned x) (Unsigned y) 
-  | finite x && finite y = (abs x) < shift (-2) (abs y) 
-  | finite x && not (finite y) = True
+  | finite' x && finite' y = (abs x) < shiftf (-2) (abs y) 
+  | finite' x && not (finite' y) = True
   | otherwise = False
 
 {-
-ltun (Unsigned x) (Unsigned y) | finite x && indeterminate y = True
-                               | finite y && indeterminate x = False
-                               | finite x && finite y = shift 1 (abs x) `lt` (abs y)
-                               | finite x && infinite y = True
+ltun (Unsigned x) (Unsigned y) | finite' x && indeterminate y = True
+                               | finite' y && indeterminate x = False
+                               | finite' x && finite' y = shiftf 1 (abs x) `lt` (abs y)
+                               | finite' x && infinite' y = True
                                | otherwise = False
 
 ltun (Unsigned x) (Unsigned y) | positive (abs x) && indeterminate y = True
                                | positive (abs y) && indeterminate x = False
-                               | finite x && finite y = shift 2 (abs x) `lt` (abs y)
-                               | finite x && infinite y = True
+                               | finite' x && finite' y = shiftf 2 (abs x) `lt` (abs y)
+                               | finite' x && infinite' y = True
                                | otherwise = False
 
 eqn :: Float -> Float -> Bool
@@ -77,17 +82,17 @@ eqn x y = within 2 x y || zero x && indeterminate y || zero y && indeterminate x
 
 -}
 instance Minimal Unsigned where
-    minimal = Unsigned 0
+    minimal = Unsigned zero
 
 instance Maximal Unsigned where
-    maximal = Unsigned pInf
+    maximal = Unsigned pinf
 
-joinugn (Unsigned x) (Unsigned y) | finite x && finite y = Unsigned $ max (abs x) (abs y)
-                                  | finite x && not (finite y) = Unsigned y
+joinUgn (Unsigned x) (Unsigned y) | finite' x && finite' y = Unsigned $ max (abs x) (abs y)
+                                  | finite' x && not (finite' y) = Unsigned y
                                   | otherwise = Unsigned x
 
-meetugn (Unsigned x) (Unsigned y) | finite x && finite y = Unsigned $ min (abs x) (abs y)
-                                  | not (finite x) && finite y = Unsigned y
+meetUgn (Unsigned x) (Unsigned y) | finite' x && finite' y = Unsigned $ min (abs x) (abs y)
+                                  | not (finite' x) && finite' y = Unsigned y
                                   | otherwise = Unsigned x
 {-
 

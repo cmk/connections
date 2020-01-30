@@ -1,6 +1,6 @@
 name:                connections
 version:             0.0.2.2
-synopsis:            Partial orders, Galois connections, dioids, & lattices.
+synopsis:            Partial orders, Galois connections, dioids, and lattices.
 description:         A library for precision numerical computation using Galois connections.
 homepage:            https://github.com/cmk/connections
 license:             BSD3
@@ -16,25 +16,24 @@ cabal-version:       >=1.10
 library
   exposed-modules:
       Data.Prd
-    , Data.Prd.Property
     , Data.Prd.Nan
-    , Data.Prd.Inf
+    , Data.Prd.Property
+    , Data.Float
     , Data.Dioid
-    , Data.Dioid.Signed
-    , Data.Dioid.Unsigned
     , Data.Dioid.Property
-    --, Data.Dioid.Tropical
-    , Data.Semilattice
-    , Data.Semilattice.Property
-    --, Data.Lattice.MaxMin
+    , Data.Semigroup.Join
+    , Data.Semigroup.Meet
     , Data.Connection
-    , Data.Connection.Property
     , Data.Connection.Word
     , Data.Connection.Int
     , Data.Connection.Float
-    , Data.Float
-    --, Data.Semigroup.Join
-    --, Data.Semigroup.Meet
+    , Data.Connection.Ratio
+    , Data.Connection.Property
+    , Data.Semilattice
+    , Data.Semilattice.Bounded
+    , Data.Semilattice.Signed
+    , Data.Semilattice.Unsigned
+    , Data.Semilattice.Property
   build-depends:       
       base              >= 4.10  && < 5.0
     , lawz              >= 0.1   && < 1.0
@@ -56,13 +55,18 @@ library
 test-suite test
   type: exitcode-stdio-1.0
   other-modules:
-      Test.Data.Connection.Float
+      Test.Data.Connection
     , Test.Data.Connection.Int
     , Test.Data.Connection.Word
+    , Test.Data.Connection.Float
+    , Test.Data.Connection.Ratio
+    , Test.Data.Semilattice.Unsigned
   build-depends:       
       base == 4.*
     , connections -any 
     , hedgehog
+    , rings
+    , lawz
   default-extensions:
       ScopedTypeVariables,
       TypeApplications
