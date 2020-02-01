@@ -33,8 +33,8 @@ module Data.Semilattice.Property where
   , annihilative_meet_on
   , monotone_bottom
   , annihilative_unit
-  , positive_addition
-  , positive_multiplication
+  , pos_addition
+  , pos_multiplication
   , annihilative_join 
   , annihilative_join' 
   -- * Distributive semilattices and lattices
@@ -68,7 +68,7 @@ import Test.Function  as Prop
 import Test.Logic (Rel, (<==>),(==>))
 import Test.Operation as Prop hiding (distributive_on)
 
-import Prelude hiding (Num(..), sum)
+import Prelude hiding (Ord(..), Num(..), sum)
 
 ------------------------------------------------------------------------------------
 -- Required properties of join semilattices
@@ -120,7 +120,7 @@ morphism_join_on' (~~) f = (f bottom) ~~ bottom
 --
 morphism_joinsemilattice :: Prd r => Prd s => (Join-Semigroup) r => (Join-Semigroup) s => (r -> s) -> r -> r -> Bool
 morphism_joinsemilattice f x y =
-  Prop.monotone_on (<~) (<~) f x y &&
+  Prop.monotone_on (<=) (<=) f x y &&
   morphism_join_on (=~) f x y
 
 ------------------------------------------------------------------------------------
@@ -166,7 +166,7 @@ idempotent_meet_on (~~) r = (∧) r r ~~ r
 --
 morphism_meetsemilattice :: Prd r => Prd s => (Meet-Semigroup) r => (Meet-Semigroup) s => (r -> s) -> r -> r -> Bool
 morphism_meetsemilattice f x y =
-  Prop.monotone_on (>~) (>~) f x y &&
+  Prop.monotone_on (>=) (>=) f x y &&
   morphism_meet_on (=~) f x y
 
 morphism_meet_on :: (Meet-Semigroup) r => (Meet-Semigroup) s => Rel s b -> (r -> s) -> r -> r -> b
@@ -219,14 +219,14 @@ morphism_lattice f x y z =
 -- See < https://en.wikipedia.org/wiki/Distributivity_(order_theory) >
 --
 distributive_join :: Prd r => (Join-Semigroup) r => r -> r -> r -> r -> r -> Bool
-distributive_join c a b a' b' = c <~ a ∨ b ==> a' <~ a && b' <~ b && c <~ a' ∨ b'
+distributive_join c a b a' b' = c <= a ∨ b ==> a' <= a && b' <= b && c <= a' ∨ b'
 
 -- |  \( \forall a, b, c: c \leq a ∨ b \Rightarrow \exists a',b': c = a' ∨ b' \)
 --
 -- See < https://en.wikipedia.org/wiki/Distributivity_(order_theory) >
 --
 distributive_meet :: Prd r => (Meet-Semigroup) r => r -> r -> r -> r -> r -> Bool
-distributive_meet c a b a' b' = c >~ a ∧ b ==> a' >~ a && b' >~ b && c >~ a' ∧ b'
+distributive_meet c a b a' b' = c >= a ∧ b ==> a' >= a && b' >= b && c >= a' ∧ b'
 
 -- @ glb x x y '==' x @
 --

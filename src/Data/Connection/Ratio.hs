@@ -1,4 +1,5 @@
 {-# Language AllowAmbiguousTypes #-}
+{-# Language FunctionalDependencies #-}
 
 module Data.Connection.Ratio where
 
@@ -10,178 +11,288 @@ import Data.Connection.Int
 import Data.Prd
 import Data.Prd.Nan
 import Data.Int
+import Data.Word
 import Data.Ratio
 import Data.Float
+import Data.Group
 import qualified Control.Category as C
 import qualified GHC.Float as F
 import Data.Semilattice
 import Data.Semilattice.Bounded
 import Data.Semiring
-import Data.Semifield
-import Prelude hiding (Num(..), Fractional(..), (^), Bounded)
+import Data.Semifield hiding (finite)
+import Prelude hiding (until, Ord(..), Num(..), Fractional(..), (^), Bounded)
 import qualified Prelude as P
 import GHC.Real hiding ((/), (^))
+import Numeric.Natural
+
+reduce :: Integral a => a -> a -> Ratio a
+reduce x 0 = x :% 0
+reduce x y = (x `quot` d) :% (y `quot` d) where d = gcd x y
+
+-- x % y = reduce (x * signum y) (abs y)
+cancel :: Prd a => (Additive-Group) a => Ratio a -> Ratio a
+cancel (x :% y) = if x < zero && y < zero then (pabs x) :% (pabs y) else x :% y
 
 -- | Lawful replacement for the version in base.
 --
-fromRational :: TripRational a => Rational -> a
-fromRational = connl . tripl $ tripRational
+-- >>> fromRational @Float 1.3
+-- 1.3000001
+-- >>> fromRational @Float (1/0)
+-- Infinity
+-- >>> fromRational @Float (0/0)
+-- NaN
+--
+-- >>> fromRational @(Extended Int8) 4.9
+-- Def (finite 5)
+-- >>> fromRational @(Extended Int8) (-1.2)
+-- Def (finite (-1))
+-- >>> fromRational @(Extended Int8) (1/0)
+-- Def Just Top
+-- >>> fromRational @(Extended Int8) (0/0)
+-- Nan
+-- >>> fromRational @(Extended Int8) (-1/0)
+-- Def Nothing
+--
+fromRational :: TripRatio a b => Ratio a -> b
+fromRational = connl . tripl $ tripRatio
 
-class Prd a => TripRational a where
-  tripRational :: Trip Rational a
+class (Prd (Ratio a), Prd b) => TripRatio a b | b -> a where
+  tripRatio :: Trip (Ratio a) b
 
-instance TripRational Rational where
-  tripRational = C.id
+-- TODO replace w/ Yoneda / Index / Graded
+-- shift by n 'units of least precision' where the ULP is
+-- determined by the denominator
+shiftd :: (Additive-Semigroup) a => a -> Ratio a -> Ratio a
+shiftd n (x :% y) = (n + x) :% y
 
-instance TripRational Float where
-  tripRational = ratf32
+ratf32 :: Trip (Ratio Integer) Float
+ratf32 = Trip (extend' f) (extend' g) (extend' h) where
+  f x = let est = P.fromRational x in --F.fromRat'
+          if extend' g est >= x
+          then est
+          else ascendf est (extend' g) x
+    
+  g = flip approxRational 0 
 
-instance TripRational Double where
-  tripRational = ratf64
+  h x = let est = P.fromRational x in
+          if extend' g est <= x
+          then est
+          else descendf est (extend' g) x
 
-instance TripRational (Extended Int8) where
-  tripRational = rati08
+  ascendf z g y = until (\x -> g x >= y) (<=) (shiftf 1) z
 
-instance TripRational (Extended Int16) where
-  tripRational = rati16
+  descendf z f x = until (\y -> f y <= x) (>=) (shiftf (-1)) z
 
-instance TripRational (Extended Int32) where
-  tripRational = rati32
+ratf64 :: Trip (Ratio Integer) Double
+ratf64 = Trip (extend' f) (extend' g) (extend' h) where
+  f x = let est = P.fromRational x in
+          if extend' g est >= x
+          then est
+          else ascendf est (extend' g) x
+    
+  g = flip approxRational 0 
 
-instance TripRational (Extended Int64) where
-  tripRational = rati64
+  h x = let est = P.fromRational x in
+          if extend' g est <= x
+          then est
+          else descendf est (extend' g) x
 
-instance TripRational (Extended Integer) where
-  tripRational = ratint
+  ascendf z g y = until (\x -> g x >= y) (<=) (shift 1) z
 
-cancel (x :% y) = if x < 0 && y < 0 then (abs x) :% (abs y) else x :% y
+  descendf z f x = until (\y -> f y <= x) (>=) (shift (-1)) z
 
-rati08 :: Trip Rational (Extended Int8) 
+rati08 :: Trip (Ratio Integer) (Extended Int8) 
 rati08 = Trip (liftNan f) (nan' g) (liftNan h) where
-  f x | x `gt` imax = Top
-      | x =~ ninf = Bot
-      | x `lt` imin = Fin minimal
-      | otherwise = Fin $ P.ceiling $ cancel x
+  f x | x > imax = Just Top
+      | x =~ ninf = Nothing
+      | x < imin = finite bottom
+      | otherwise = finite $ P.ceiling $ cancel x
 
   g = bounded ninf P.fromIntegral pinf
 
-  h x | x =~ pinf = Top
-      | x `gt` imax = Fin maximal
-      | x `lt` imin = Bot
-      | otherwise = Fin $ P.floor $ cancel x
+  h x | x =~ pinf = Just Top
+      | x > imax = finite top
+      | x < imin = Nothing
+      | otherwise = finite $ P.floor $ cancel x
 
   imax = 127
 
   imin = -128
 
-rati16 :: Trip Rational (Extended Int16) 
+rati16 :: Trip (Ratio Integer) (Extended Int16) 
 rati16 = Trip (liftNan f) (nan' g) (liftNan h) where
-  f x | x `gt` imax = Top
-      | x =~ ninf = Bot
-      | x `lt` imin = Fin minimal
-      | otherwise = Fin $ P.ceiling $ cancel x
+  f x | x > imax = Just Top
+      | x =~ ninf = Nothing
+      | x < imin = finite bottom
+      | otherwise = finite $ P.ceiling $ cancel x
 
   g = bounded ninf P.fromIntegral pinf
 
-  h x | x =~ pinf = Top
-      | x `gt` imax = Fin maximal
-      | x `lt` imin = Bot
-      | otherwise = Fin $ P.floor $ cancel x
+  h x | x =~ pinf = Just Top
+      | x > imax = finite top
+      | x < imin = Nothing
+      | otherwise = finite $ P.floor $ cancel x
 
   imax = 32767
 
   imin = -32768
 
-rati32 :: Trip Rational (Extended Int32) 
+rati32 :: Trip (Ratio Integer) (Extended Int32) 
 rati32 = Trip (liftNan f) (nan' g) (liftNan h) where
-  f x | x `gt` imax = Top
-      | x =~ ninf = Bot
-      | x `lt` imin = Fin minimal
-      | otherwise = Fin $ P.ceiling $ cancel x
+  f x | x > imax = Just Top
+      | x =~ ninf = Nothing
+      | x < imin = finite bottom
+      | otherwise = finite $ P.ceiling $ cancel x
 
   g = bounded ninf P.fromIntegral pinf
 
-  h x | x =~ pinf = Top
-      | x `gt` imax = Fin maximal
-      | x `lt` imin = Bot
-      | otherwise = Fin $ P.floor $ cancel x
+  h x | x =~ pinf = Just Top
+      | x > imax = finite top
+      | x < imin = Nothing
+      | otherwise = finite $ P.floor $ cancel x
 
   imax = 2147483647 
 
   imin = -2147483648
 
-rati64 :: Trip Rational (Extended Int64) 
+rati64 :: Trip (Ratio Integer) (Extended Int64) 
 rati64 = Trip (liftNan f) (nan' g) (liftNan h) where
-  f x | x `gt` imax = Top
-      | x =~ ninf = Bot
-      | x `lt` imin = Fin minimal
-      | otherwise = Fin $ P.ceiling $ cancel x
+  f x | x > imax = Just Top
+      | x =~ ninf = Nothing
+      | x < imin = finite bottom
+      | otherwise = finite $ P.ceiling $ cancel x
 
   g = bounded ninf P.fromIntegral pinf
 
-  h x | x =~ pinf = Top
-      | x `gt` imax = Fin maximal
-      | x `lt` imin = Bot
-      | otherwise = Fin $ P.floor $ cancel x
+  h x | x =~ pinf = Just Top
+      | x > imax = finite top
+      | x < imin = Nothing
+      | otherwise = finite $ P.floor $ cancel x
  
   imax = 9223372036854775807
 
   imin = -9223372036854775808
 
-ratint :: Trip Rational (Extended Integer)
+ratint :: Trip (Ratio Integer) (Extended Integer)
 ratint = Trip (liftNan f) (nan' g) (liftNan h) where
-  f x | x =~ pinf = Top
-      | x =~ ninf = Bot
-      | otherwise = Fin $ P.ceiling $ cancel x
+  f x | x =~ pinf = Just Top
+      | x =~ ninf = Nothing
+      | otherwise = finite $ P.ceiling $ cancel x
 
   g = bounded ninf P.fromIntegral pinf
 
+  h x | x =~ pinf = Just Top
+      | x =~ ninf = Nothing
+      | otherwise = finite $ P.floor $ cancel x
+
+ratw08 :: Trip (Ratio Natural) (Lifted Word8) 
+ratw08 = Trip (liftNan f) (nan' g) (liftNan h) where
+  f x | x > imax = Top
+      | otherwise = Finite $ P.ceiling x
+
+  g = topped P.fromIntegral pinf
+
   h x | x =~ pinf = Top
-      | x =~ ninf = Bot
-      | otherwise = Fin $ P.floor $ cancel x
+      | x > imax = Finite top
+      | otherwise = Finite $ P.floor x
 
---maybe (127 :% 1) id . pmin (127 :% 1) . maybe (-128 :% 1) id . pmax (-128 :% 1)
+  imax = 255
 
--- TODO: 
--- * handle underflow / overflow / loss of precision
--- * try using 'properFraction'
-ratf32 :: Trip Rational Float
-ratf32 = Trip f g h
-  where h (0 :% 0) = 0/0
-        h (x :% 0) = if x > 0 then 1/0 else (-1/0)
-        h x = P.fromRational x --F.fromRat' x
+ratw16 :: Trip (Ratio Natural) (Lifted Word16) 
+ratw16 = Trip (liftNan f) (nan' g) (liftNan h) where
+  f x | x > imax = Top
+      | otherwise = Finite $ P.ceiling x
 
-        g x | F.isFloatNaN x == 1 = 0 :% 0
-            | F.isFloatInfinite x == 1 = if x > 0 then (1 :% 0) else (-1 :% 0)
-            | otherwise = toRational x
+  g = topped P.fromIntegral pinf
 
-        -- fix / remove
-        help x = case pcompare x 0 of
-                   Just LT -> shiftf (-1) x
-                   Just EQ -> x
-                   Just GT -> shiftf 1 x
-                   Nothing -> 0/0
+  h x | x =~ pinf = Top
+      | x > imax = Finite top
+      | otherwise = Finite $ P.floor x
 
-        f x = let y = h x in if g y `ne` x then help y else y
+  imax = 65535
 
-ratf64 :: Trip Rational Double
-ratf64 = Trip h g h
-  where h (0 :% 0) = 0/0
-        h (x :% 0) = if x > 0 then 1/0 else (-1/0)
-        h x = P.fromRational x --F.fromRat' x
+ratw32 :: Trip (Ratio Natural) (Lifted Word32) 
+ratw32 = Trip (liftNan f) (nan' g) (liftNan h) where
+  f x | x > imax = Top
+      | otherwise = Finite $ P.ceiling x
 
-        g x | F.isDoubleNaN x == 1 = 0 :% 0
-            | F.isDoubleInfinite x == 1 = if x > 0 then (1 :% 0) else (-1 :% 0)
-            | otherwise = toRational x
-{-
-        -- fix / remove
-        help x = case pcompare x 0 of
-                   Just LT -> shift (-1) x
-                   Just EQ -> x
-                   Just GT -> shift 1 x
-                   Nothing -> 0/0
+  g = topped P.fromIntegral pinf
 
-        f x = let y = h x in if g y `ne` x then help y else y
--}
+  h x | x =~ pinf = Top
+      | x > imax = Finite top
+      | otherwise = Finite $ P.floor x
 
+  imax = 4294967295
 
+ratw64 :: Trip (Ratio Natural) (Lifted Word64) 
+ratw64 = Trip (liftNan f) (nan' g) (liftNan h) where
+  f x | x > imax = Top
+      | otherwise = Finite $ P.ceiling x
+
+  g = topped P.fromIntegral pinf
+
+  h x | x =~ pinf = Top
+      | x > imax = Finite top
+      | otherwise = Finite $ P.floor x
+
+  imax = 18446744073709551615
+
+ratnat :: Trip (Ratio Natural) (Lifted Natural)
+ratnat = Trip (liftNan f) (nan' g) (liftNan h) where
+  f x | x =~ pinf = Top
+      | otherwise = Finite $ P.ceiling x
+
+  g = topped P.fromIntegral pinf
+
+  h x | x =~ pinf = Top
+      | otherwise = Finite $ P.floor x
+
+---------------------------------------------------------------------
+-- Instances
+---------------------------------------------------------------------
+
+instance TripRatio Integer Float where
+  tripRatio = ratf32
+
+instance TripRatio Integer Double where
+  tripRatio = ratf64
+
+instance TripRatio Integer (Ratio Integer) where
+  tripRatio = C.id
+
+instance TripRatio Integer (Nan Ordering) where
+  tripRatio = fldord
+
+instance TripRatio Integer (Extended Int8) where
+  tripRatio = rati08
+
+instance TripRatio Integer (Extended Int16) where
+  tripRatio = rati16
+
+instance TripRatio Integer (Extended Int32) where
+  tripRatio = rati32
+
+instance TripRatio Integer (Extended Int64) where
+  tripRatio = rati64
+
+instance TripRatio Integer (Extended Integer) where
+  tripRatio = ratint
+
+instance TripRatio Natural (Ratio Natural) where
+  tripRatio = C.id
+
+instance TripRatio Natural (Lifted Word8) where
+  tripRatio = ratw08
+
+instance TripRatio Natural (Lifted Word16) where
+  tripRatio = ratw16
+
+instance TripRatio Natural (Lifted Word32) where
+  tripRatio = ratw32
+
+instance TripRatio Natural (Lifted Word64) where
+  tripRatio = ratw64
+
+instance TripRatio Natural (Lifted Natural) where
+  tripRatio = ratnat

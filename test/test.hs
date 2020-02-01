@@ -8,7 +8,6 @@ import qualified Test.Data.Connection.Int as CI
 import qualified Test.Data.Connection.Word as CW
 import qualified Test.Data.Connection.Float as CF
 import qualified Test.Data.Connection.Ratio as CR
---import qualified Test.Data.Semilattice.Unsigned as U
 
 tests :: IO [Bool]
 tests = sequence [P.tests, C.tests, CI.tests, CW.tests, CF.tests, CR.tests] 

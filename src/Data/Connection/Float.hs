@@ -1,96 +1,97 @@
-module Data.Connection.Float where
-{- 
+module Data.Connection.Float (
   -- * Float
+    TripFloat(..)
+  , fromFloat
+  , f32i08
+  , f32i16
   , f32i32
   , i32f32
-  , f32i32'
   -- * Double
+  , TripDouble(..)
+  , fromDouble
+  , f64i08
+  , f64i16
+  , f64i32
   , f64i64
   , i64f64
 ) where
--}
 
 import Control.Category ((>>>))
 import Data.Bits ((.&.))
-import Data.Int
-import Data.Word
-import Data.Float
-import Data.Prd
-import Data.Prd.Nan
-import Data.Function (on)
 import Data.Connection
 import Data.Connection.Int
 import Data.Connection.Word
+import Data.Float
+import Data.Function (on)
+import Data.Int
+import Data.Prd
+import Data.Prd.Nan
+import Data.Ratio
+import Data.Semifield hiding (finite)
+import Data.Semilattice
+import Data.Semilattice.Bounded
+import Data.Semiring
+import Data.Word
 import GHC.Num (subtract)
+import GHC.Real hiding ((^),(/))
+import Prelude as P hiding (Ord(..), Num(..), Fractional(..), (^), Bounded)
+import qualified Control.Category as C
 import qualified Data.Bits as B
 import qualified GHC.Float as F
 import qualified GHC.Float.RealFracMethods as R
-import Data.Semiring
-import Data.Semilattice
-import Data.Semilattice.Bounded
-import Prelude as P hiding (Num(..), (^), Bounded)
-import qualified Control.Category as C
-
-import Data.Ratio
-
-import GHC.Real hiding ((^))
 
 
-class Prd a => ConnFloat a where
-  connFloat :: Conn Float a
+class Prd a => TripFloat a where
+  tripFloat :: Trip Float a
 
-instance ConnFloat Float where
-  connFloat = C.id
+class Prd a => TripDouble a where
+  tripDouble :: Trip Double a
 
-instance ConnFloat (Nan Int32) where
-  connFloat = f32i32
+fromFloat :: TripFloat a => Float -> a
+fromFloat = connl . tripl $ tripFloat
 
-instance ConnFloat (Nan Ordering) where
-  connFloat = tripl fldord
+fromDouble :: TripDouble a => Double -> a
+fromDouble = connl . tripl $ tripDouble
 
-instance ConnFloat Ulp32 where
-  connFloat = f32u32
+-- | All 'Int08' values are exactly representable in a 'Float'.
+f32i08 :: Trip Float (Extended Int8)
+f32i08 = Trip (liftNan f) (nan' g) (liftNan h) where
+  f x | x > imax = Just Top
+      | x =~ ninf = Nothing
+      | x < imin = finite bottom
+      | otherwise = finite $ P.ceiling x
 
---instance ConnFloat (Nan Word8) where
---  connFloat = tripl f32w08
+  g = bounded ninf P.fromIntegral pinf
 
+  h x | x =~ pinf = Just Top
+      | x > imax = finite top
+      | x < imin = Nothing
+      | otherwise = finite $ P.floor x
 
-class Prd a => ConnDouble a where
-  connDouble :: Conn Double a
+  imax = 127 
 
-instance ConnDouble Double where
-  connDouble = C.id
+  imin = -128
 
---instance ConnDouble Ulp64 where
---  connDouble = f64u64
+-- | All 'Int16' values are exactly representable in a 'Float'.
+f32i16 :: Trip Float (Extended Int16)
+f32i16 = Trip (liftNan f) (nan' g) (liftNan h) where
+  f x | x > imax = Just Top
+      | x =~ ninf = Nothing
+      | x < imin = finite bottom
+      | otherwise = finite $ P.ceiling x
 
-instance ConnDouble (Nan Int64) where
-  connDouble = f64i64
+  g = bounded ninf P.fromIntegral pinf
 
-{-
-f32ord :: Trip Float (Nan Ordering)
-f32ord = fldord
+  h x | x =~ pinf = Just Top
+      | x > imax = finite top
+      | x < imin = Nothing
+      | otherwise = finite $ P.floor x
 
-  g (Def GT) = 1/0
-  g (Def LT) = - 1/0
-  g (Def EQ) = 0
-  g Nan = 0/0
-  
-  f x | isNaN x    = Nan
-  f x | isInf (-x) = Def LT
-  f x | x <~ 0     = Def EQ
-  f x | otherwise  = Def GT
+  imax = 32767 
 
-  h x | isNaN x    = Nan
-  h x | isInf x    = Def GT
-  h x | x >~ 0     = Def EQ
-  h x | otherwise  = Def LT
--}
+  imin = -32768
 
-
-abs' x = if x == minimal then abs (x+one) else abs x
-
--- exact int embedding up to the largest representable int.
+-- | Exact embedding up to the largest representable 'Int32'.
 f32i32 :: Conn Float (Nan Int32)
 f32i32 = Conn (liftNan f) (nan' g) where
   f x | abs x <= 2**24-1 = P.ceiling x
@@ -99,7 +100,7 @@ f32i32 = Conn (liftNan f) (nan' g) where
   g i | abs' i <= 2^24-1 = fromIntegral i
       | otherwise = if i >= 0 then 1/0 else -2**24
 
--- exact int embedding up to the largest representable int.
+-- | Exact embedding up to the largest representable 'Int32'.
 i32f32 :: Conn (Nan Int32) Float
 i32f32 = Conn (nan' g) (liftNan f) where
   f x | abs x <= 2**24-1 = P.floor x
@@ -108,69 +109,84 @@ i32f32 = Conn (nan' g) (liftNan f) where
   g i | abs i <= 2^24-1 = fromIntegral i
       | otherwise = if i >= 0 then 2**24 else -1/0
 
-f32i32' :: Trip Float (Extended Int32)
-f32i32' = Trip (liftNan f) (nan' $ bounded minimal g maximal) (liftNan h) where
-  f x | abs x <= 2**24-1 = Fin $ P.ceiling x
-      | otherwise = if x >= 0 then Fin (2^24) else Bot
+-- | All 'Int8' values are exactly representable in a 'Double'.
+f64i08 :: Trip Double (Extended Int8)
+f64i08 = Trip (liftNan f) (nan' g) (liftNan h) where
+  f x | x > imax = Just Top
+      | x =~ ninf = Nothing
+      | x < imin = finite bottom
+      | otherwise = finite $ P.ceiling x
 
-  g i | abs i <= 2^24-1 = fromIntegral i
-      | otherwise = if i >= 0 then 2**24 else -2**24
+  g = bounded ninf P.fromIntegral pinf
 
-  h x | abs x <= 2**24-1 = Fin $ P.floor x
-      | otherwise = if x >= 0 then Top else Fin (-2^24)
+  h x | x =~ pinf = Just Top
+      | x > imax = finite top
+      | x < imin = Nothing
+      | otherwise = finite $ P.floor x
 
-{-
---TODO check these 4 probably buggy
-f32ixx :: Trip Float (Nan (Bounded Int))
-f32ixx = Trip
-  (liftNan f)
-  (nan' g)
-  (liftNan h)
-  where
-    f x | not (finite x) && signBitf x = minimal
-        | not (finite x) && not (signBitf x) = maximal
-        | otherwise = R.ceilingFloatInt x
+  imax = 127 
 
-    g = F.int2Float
+  imin = -128
 
-    h x | not (finite x) && signBitf x = minimal
-        | not (finite x) && not (signBitf x) = maximal
-        | otherwise = R.floorFloatInt x
+-- | All 'Int16' values are exactly representable in a 'Double'.
+f64i16 :: Trip Double (Extended Int16)
+f64i16 = Trip (liftNan f) (nan' g) (liftNan h) where
+  f x | x > imax = Just Top
+      | x =~ ninf = Nothing
+      | x < imin = finite bottom
+      | otherwise = finite $ P.ceiling x
 
+  g = bounded ninf P.fromIntegral pinf
 
-f64ixx :: Trip Double (Nan Int)
-f64ixx = Trip
-  (liftNan R.ceilingDoubleInt)
-  (nan (0/0) $ F.int2Double)
-  (liftNan R.floorDoubleInt)
+  h x | x =~ pinf = Just Top
+      | x > imax = finite top
+      | x < imin = Nothing
+      | otherwise = finite $ P.floor x
 
--}
+  imax = 32767 
 
+  imin = -32768
 
--- >>> ceiling' f32int (0/0)
--- Nan
--- >>> ceiling' f32int 0.1
--- Def 1
--- >>> ceiling' f32int 0.9
--- Def 1
--- >>> ceiling' f32int 1.1
--- Def 2
--- >>> ceiling' f32int (-1.1)
--- Def (-1)
---
+-- | All 'Int32' values are exactly representable in a 'Double'.
+f64i32 :: Trip Double (Extended Int32)
+f64i32 = Trip (liftNan f) (nan' g) (liftNan h) where
+  f x | x > imax = Just Top
+      | x =~ ninf = Nothing
+      | x < imin = finite bottom
+      | otherwise = finite $ P.ceiling x
+
+  g = bounded ninf P.fromIntegral pinf
+
+  h x | x =~ pinf = Just Top
+      | x > imax = finite top
+      | x < imin = Nothing
+      | otherwise = finite $ P.floor x
+
+  imax = 2147483647 
+
+  imin = -2147483648
+
+-- | Exact embedding up to the largest representable 'Int64'.
+f64i64 :: Conn Double (Nan Int64)
+f64i64 = Conn (liftNan f) (nan' g) where
+  f x | abs x <= 2**53-1 = P.ceiling x
+      | otherwise = if x >= 0 then 2^53 else minimal
+
+  g i | abs' i <= 2^53-1 = fromIntegral i
+      | otherwise = if i >= 0 then 1/0 else -2**53
+  
+-- | Exact embedding up to the largest representable 'Int64'.
+i64f64 :: Conn (Nan Int64) Double
+i64f64 = Conn (nan' g) (liftNan f) where
+  f x | abs x <= 2**53-1 = P.floor x
+      | otherwise = if x >= 0 then maximal else -2^53
+
+  g i | abs i <= 2^53-1 = fromIntegral i
+      | otherwise = if i >= 0 then 2**53 else -1/0
+
+abs' x = if x == minimal then abs (x+one) else abs x
+
 {- slightly broken
-f32int :: Trip Float (Nan Integer)
-f32int = Trip
-  (liftNan R.ceilingFloatInteger)
-  (nan (0/0) $ flip F.rationalToFloat 1) -- TODO map large / small ints to Inf / NInf
-  (liftNan R.floorFloatInteger)
-
-f64int :: Trip Double (Nan Integer)
-f64int = Trip
-  (liftNan R.ceilingDoubleInteger)
-  (nan (0/0) $ flip F.rationalToDouble 1)
-  (liftNan R.floorDoubleInteger)
-
 f32w08 :: Trip Float (Nan Word8)
 f32w08 = Trip (liftNan f) (nan (0/0) g) (liftNan h) where
   h x = if x > 0 then 0 else connr w08w32 $ B.shift (floatWord32 x) (-23)
@@ -178,18 +194,43 @@ f32w08 = Trip (liftNan f) (nan (0/0) g) (liftNan h) where
   f x = 1 + min 254 (h x)
 -}
 
-f64i64 :: Conn Double (Nan Int64)
-f64i64 = Conn (liftNan f) (nan' g) where
-  f x | abs x <~ 2**53-1 = P.ceiling x
-      | otherwise = if x >~ 0 then 2^53 else minimal
+---------------------------------------------------------------------
+-- Instances
+---------------------------------------------------------------------
 
-  g i | abs' i <~ 2^53-1 = fromIntegral i
-      | otherwise = if i >~ 0 then 1/0 else -2**53
-  
-i64f64 :: Conn (Nan Int64) Double
-i64f64 = Conn (nan' g) (liftNan f) where
-  f x | abs x <~ 2**53-1 = P.floor x
-      | otherwise = if x >~ 0 then maximal else -2^53
+instance TripFloat Float where
+  tripFloat = C.id
 
-  g i | abs i <~ 2^53-1 = fromIntegral i
-      | otherwise = if i >~ 0 then 2**53 else -1/0
+instance TripFloat (Nan Ordering) where
+  tripFloat = fldord
+
+instance TripFloat (Extended Int8) where
+  tripFloat = f32i08
+
+instance TripFloat (Extended Int16) where
+  tripFloat = f32i16
+
+--instance TripFloat Ulp32 where
+--  tripFloat = f32u32
+
+--instance TripFloat (Nan Word8) where
+--  tripFloat = tripl f32w08
+
+instance TripDouble Double where
+  tripDouble = C.id
+
+instance TripDouble (Nan Ordering) where
+  tripDouble = fldord
+
+--instance TripDouble Ulp64 where
+--  tripDouble = f64u64
+
+instance TripDouble (Extended Int8) where
+  tripDouble = f64i08
+
+instance TripDouble (Extended Int16) where
+  tripDouble = f64i16
+
+instance TripDouble (Extended Int32) where
+  tripDouble = f64i32
+

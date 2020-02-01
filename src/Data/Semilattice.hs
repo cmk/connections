@@ -35,7 +35,7 @@ import safe Data.List (unfoldr)
 import safe Data.List.NonEmpty hiding (filter, unfoldr)
 import safe Data.Magma
 import safe Data.Prd
-import safe Data.Ord
+import safe Data.Ord (Ord)
 import safe Data.Semiring
 import safe Data.Dioid
 import safe Data.Semigroup
@@ -51,7 +51,8 @@ import safe GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
 import safe Numeric.Natural
 import safe Data.Ratio
 
-import safe Prelude ( Eq(..), Ord(..), Show, Ordering(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), id, (.), ($), flip, (<$>), Integer, Float, Double)
+--import safe Prelude ( Eq(..), Ord, Show, Ordering(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), id, (.), ($), flip, (<$>), Integer, Float, Double)
+import safe Prelude hiding (Ord(..), Fractional(..),Num(..))
 import safe qualified Prelude as P
 
 import qualified Control.Category as C 
@@ -72,7 +73,7 @@ A partially ordered set is a directed-complete partial order (dcpo) if each of i
 --(a ∧ b) ⊗ c = (a ⊗ c) ∧ (b ⊗ c), c ⊗ (a ∧ b) = (c ⊗ a) ∧ (c ⊗ b)
 -- (meet x y) ∧ z = x ∧ z `meet` y ∧ z
 
--- idempotent sup dioids ? complete (join-semi)lattices derived from <~?
+-- idempotent sup dioids ? complete (join-semi)lattices derived from <=?
 --connr-distributivity (the group (E\{ε}, ⊗) is therefore reticulated)
 --
 -- mon zero = const Nothing
@@ -105,21 +106,21 @@ instance Graded Set, IntSet, Natural
 
 
 
-type BoundedJoinSemilattice a = (Prd a, (Join-Monoid) a)
 
-
-
-type BoundedMeetSemilattice a = (Prd a, (Meet-Monoid) a)
 
 type LatticeLaw a = (JoinSemilattice a, MeetSemilattice a)
 
 type BoundedLatticeLaw a = (BoundedJoinSemilattice a, BoundedMeetSemilattice a)
 
+type BoundedLattice a = (Lattice a, BoundedLatticeLaw a)
+
 type LowerBoundedLattice a = (Lattice a, (Join-Monoid) a)
 
 type UpperBoundedLattice a = (Lattice a, (Meet-Monoid) a)
 
-type BoundedLattice a = (Lattice a, BoundedLatticeLaw a)
+type BoundedJoinSemilattice a = (JoinSemilattice a, (Join-Monoid) a)
+
+type BoundedMeetSemilattice a = (MeetSemilattice a, (Meet-Monoid) a)
 
 type Distributive a = (Presemiring a, Lattice a)
 
@@ -374,28 +375,6 @@ evalWith1 f = join1 . fmap meet1 . (fmap . fmap) f
 
 
 
-
-{-
-
--- p. 337 e.g. (N, lcm, (*))
--- 1 is not absorbing for (*) (indeed, for a∈E,a=1,a×1=a /=1). (N, lcm,×) is therefore neither a semiring nor a dioid.
-
-
---Data.Semiring.Euclidean
-newtype GCD a = GCD a
-newtype LCM a = LCM a
-
-instance Semigroup (Join (GCD Natural)) where (<>) = liftA2 gcd
-
-instance Monoid (Join (GCD (PInf Natural))) where mempty = pure Inf
-
-instance Semigroup (Meet (LCM Natural)) where (<>) = liftA2 lcm
-
-instance Monoid (Meet (LCM Natural)) where mempty = pure 1 -- what about zero?
-
-
--}
-
 -- Lattices
 instance Lattice ()
 instance Lattice Bool
@@ -422,12 +401,12 @@ instance Lattice Nano
 instance Lattice Pico
 
 instance Lattice a => Lattice (Down a)
-instance (Prd a, Prd b, Lattice a, Lattice b) => Lattice (Either a b)
-instance (Prd a, Lattice a) => Lattice (Maybe a)
-instance (Prd a, Lattice a) => Lattice (IntMap.IntMap a)
+instance (Lattice a, Lattice b) => Lattice (Either a b)
+instance Lattice a => Lattice (Maybe a)
+instance Lattice a => Lattice (IntMap.IntMap a)
 instance Lattice IntSet.IntSet
 instance Ord a => Lattice (Set.Set a)
-instance (Ord k, Prd a, Lattice a) => Lattice (Map.Map k a)
+instance (Ord k, Lattice a) => Lattice (Map.Map k a)
 
 newtype MaxMin a = MaxMin { unMaxMin :: a } deriving (Eq, Generic, Ord, Show, Functor)
 
@@ -436,7 +415,7 @@ instance Applicative MaxMin where
   MaxMin f <*> MaxMin a = MaxMin (f a)
 
 instance Prd a => Prd (MaxMin a) where
-  MaxMin a <~ MaxMin b = a <~ b
+  MaxMin a <= MaxMin b = a <= b
 
 instance Ord a => Semigroup (Join (MaxMin a)) where
   (<>) = liftA2 . liftA2 $ max
@@ -444,12 +423,10 @@ instance Ord a => Semigroup (Join (MaxMin a)) where
 instance (Ord a, Minimal a) => Monoid (Join (MaxMin a)) where
   mempty = pure . pure $ minimal
 
-
 instance Ord a => Semigroup (Meet (MaxMin a)) where
   (<>) = liftA2 . liftA2 $ min
 
 instance (Ord a, Maximal a) => Monoid (Meet (MaxMin a)) where
   mempty = pure . pure $ maximal
-
 
 instance (Ord a, Bound a) => Lattice (MaxMin a)

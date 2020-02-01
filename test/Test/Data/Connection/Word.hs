@@ -3,9 +3,7 @@ module Test.Data.Connection.Word where
 
 import Data.Int
 import Data.Word
-import Data.Connection
 import Data.Connection.Word
-import Numeric.Natural
 import Test.Data.Connection
 import qualified Data.Connection.Property as Prop
 
@@ -14,8 +12,8 @@ import qualified Hedgehog.Gen as G
 import qualified Hedgehog.Range as R
 
 
-prop_connections_word :: Property
-prop_connections_word = withTests 10000 . property $ do
+prop_connections :: Property
+prop_connections = withTests 1000 . property $ do
 
   i08 <- forAll $ G.integral (ri @Int8)
   w08 <- forAll $ G.integral (ri @Word8)
@@ -52,6 +50,36 @@ prop_connections_word = withTests 10000 . property $ do
   assert $ Prop.connection w08w16 w08 w16
   assert $ Prop.connection w08i08 w08 i08
 
+  assert $ Prop.closed w64nat w64
+  assert $ Prop.closed w64i64 w64
+  assert $ Prop.closed w32nat w32
+  assert $ Prop.closed w32w64 w32
+  assert $ Prop.closed w32i32 w32
+  assert $ Prop.closed w16nat w16
+  assert $ Prop.closed w16w64 w16
+  assert $ Prop.closed w16w32 w16
+  assert $ Prop.closed w16i16 w16
+  assert $ Prop.closed w08nat w08
+  assert $ Prop.closed w08w64 w08
+  assert $ Prop.closed w08w32 w08
+  assert $ Prop.closed w08w16 w08
+  assert $ Prop.closed w08i08 w08
+
+  assert $ Prop.kernel w64nat nat
+  assert $ Prop.kernel w64i64 i64
+  assert $ Prop.kernel w32nat nat
+  assert $ Prop.kernel w32w64 w64
+  assert $ Prop.kernel w32i32 i32
+  assert $ Prop.kernel w16nat nat
+  assert $ Prop.kernel w16w64 w64
+  assert $ Prop.kernel w16w32 w32
+  assert $ Prop.kernel w16i16 i16
+  assert $ Prop.kernel w08nat nat
+  assert $ Prop.kernel w08w64 w64
+  assert $ Prop.kernel w08w32 w32
+  assert $ Prop.kernel w08w16 w16
+  assert $ Prop.kernel w08i08 i08
+
   assert $ Prop.monotonel w64nat w64 w64'
   assert $ Prop.monotonel w64i64 w64 w64'
   assert $ Prop.monotonel w32nat w32 w32'
@@ -82,35 +110,35 @@ prop_connections_word = withTests 10000 . property $ do
   assert $ Prop.monotoner w08w16 w16 w16'
   assert $ Prop.monotoner w08i08 i08 i08'
 
-  assert $ Prop.closed w64nat w64
-  assert $ Prop.closed w64i64 w64
-  assert $ Prop.closed w32nat w32
-  assert $ Prop.closed w32w64 w32
-  assert $ Prop.closed w32i32 w32
-  assert $ Prop.closed w16nat w16
-  assert $ Prop.closed w16w64 w16
-  assert $ Prop.closed w16w32 w16
-  assert $ Prop.closed w16i16 w16
-  assert $ Prop.closed w08nat w08
-  assert $ Prop.closed w08w64 w08
-  assert $ Prop.closed w08w32 w08
-  assert $ Prop.closed w08w16 w08
-  assert $ Prop.closed w08i08 w08
+  assert $ Prop.projectivel w64nat w64
+  assert $ Prop.projectivel w64i64 w64
+  assert $ Prop.projectivel w32nat w32
+  assert $ Prop.projectivel w32w64 w32
+  assert $ Prop.projectivel w32i32 w32
+  assert $ Prop.projectivel w16nat w16
+  assert $ Prop.projectivel w16w64 w16
+  assert $ Prop.projectivel w16w32 w16
+  assert $ Prop.projectivel w16i16 w16
+  assert $ Prop.projectivel w08nat w08
+  assert $ Prop.projectivel w08w64 w08
+  assert $ Prop.projectivel w08w32 w08
+  assert $ Prop.projectivel w08w16 w08
+  assert $ Prop.projectivel w08i08 w08
 
-  assert $ Prop.kernel w64nat nat
-  assert $ Prop.kernel w64i64 i64
-  assert $ Prop.kernel w32nat nat
-  assert $ Prop.kernel w32w64 w64
-  assert $ Prop.kernel w32i32 i32
-  assert $ Prop.kernel w16nat nat
-  assert $ Prop.kernel w16w64 w64
-  assert $ Prop.kernel w16w32 w32
-  assert $ Prop.kernel w16i16 i16
-  assert $ Prop.kernel w08nat nat
-  assert $ Prop.kernel w08w64 w64
-  assert $ Prop.kernel w08w32 w32
-  assert $ Prop.kernel w08w16 w16
-  assert $ Prop.kernel w08i08 i08
+  assert $ Prop.projectiver w64nat nat
+  assert $ Prop.projectiver w64i64 i64
+  assert $ Prop.projectiver w32nat nat
+  assert $ Prop.projectiver w32w64 w64
+  assert $ Prop.projectiver w32i32 i32
+  assert $ Prop.projectiver w16nat nat
+  assert $ Prop.projectiver w16w64 w64
+  assert $ Prop.projectiver w16w32 w32
+  assert $ Prop.projectiver w16i16 i16
+  assert $ Prop.projectiver w08nat nat
+  assert $ Prop.projectiver w08w64 w64
+  assert $ Prop.projectiver w08w32 w32
+  assert $ Prop.projectiver w08w16 w16
+  assert $ Prop.projectiver w08i08 i08
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

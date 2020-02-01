@@ -69,18 +69,18 @@ type DioidLaw a = (Prd a, (Ordered-Monoid) a, (Multiplicative-Monoid) a)
 -- A right-dioid is a semiring with a right-canonical pre-order relation relative to '+':
 --
 -- @ 
--- a '<~' b '<==>' b == a '+' c
--- a '<~' (a '+' b) '==' 'True'
+-- a '<=' b '<==>' b == a '+' c
+-- a '<=' (a '+' b) '==' 'True'
 -- @
 --
--- Consequently '<~' is both reflexive and transitive:
+-- Consequently '<=' is both reflexive and transitive:
 --
 -- @
--- a '<~' a '==' 'True'
--- a '<~' b && b '<~' c ==> a '<~' c '==' 'True'
+-- a '<=' a '==' 'True'
+-- a '<=' b && b '<=' c ==> a '<=' c '==' 'True'
 -- @
 --
--- Finally '<~' is an order relation:
+-- Finally '<=' is an order relation:
 --
 -- @(a '=~' b) '<==>' (a '==' b)@
 --
@@ -174,10 +174,10 @@ instance (Prd a, Dioid a) => Dioid (Maybe a)
 
 {-
 instance Prd a => Prd (V2 a) where
-  V2 a b <~ V2 d e = a <~ d && b <~ e
+  V2 a b <= V2 d e = a <= d && b <= e
 
 instance Prd a => Prd (V4 a) where
-  V4 a b c d <~ V4 e f g h = a <~ e && b <~ f && c <~ g && d <~ h
+  V4 a b c d <= V4 e f g h = a <= e && b <= f && c <= g && d <= h
 
 instance (Monoid a, Dioid a) => Dioid (V4 a) where
 -}
@@ -190,8 +190,8 @@ instance Maximal a => Maximal (Dual a) where
 
 -}
 
---instance Prd a => Prd (First a) where First a <~ _ = True -- TODO would these instances be legal?
---instance Prd a => Prd (Last a) where Last a <~ Last b = a <~ b 
+--instance Prd a => Prd (First a) where First a <= _ = True -- TODO would these instances be legal?
+--instance Prd a => Prd (Last a) where Last a <= Last b = a <= b 
 {-
 instance (Prd a, Ord a, (Max-Monoid) a, (Multiplicative-Semigroup) a) => Predioid (Max a)
 instance (Prd a, Ord a, (Min-Monoid) a, (Additive-Semigroup) a) => Predioid (Min a)

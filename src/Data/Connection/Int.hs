@@ -82,7 +82,7 @@ instance ConnInteger Word64 where
 -- | Lawful replacement for the version in base.
 --
 fromInteger :: ConnInteger a => Integer -> a
-fromInteger = connl connInteger . Fin
+fromInteger = connl connInteger . Just . Finite
 
 unsigned :: (Bound a, Integral a, Integral b) => Conn a b
 unsigned = Conn (\y -> fromIntegral (y P.+ maximal P.+ 1))
@@ -104,9 +104,9 @@ i08i64 :: Conn Int8 Int64
 i08i64 = i08w08' >>> w08w64 >>> w64i64
 
 i08int :: Trip Int8 (Bounded Integer)
-i08int = Trip (liftBot fromIntegral)
+i08int = Trip (liftBottom' fromIntegral)
               (bounded' $ P.fromInteger . min 127 . max (-128))
-              (liftTop fromIntegral)
+              (liftTop' fromIntegral)
 
 i16w16' :: Conn Int16 Word16
 i16w16' = unsigned
@@ -121,9 +121,9 @@ i16i64 :: Conn Int16 Int64
 i16i64 = i16w16' >>> w16w64 >>> w64i64
 
 i16int :: Trip Int16 (Bounded Integer)
-i16int = Trip (liftBot fromIntegral)
+i16int = Trip (liftBottom' fromIntegral)
               (bounded' $ P.fromInteger . min 32767 . max (-32768))
-              (liftTop fromIntegral)
+              (liftTop' fromIntegral)
 
 i32w32' :: Conn Int32 Word32
 i32w32' = unsigned
@@ -135,9 +135,9 @@ i32i64 :: Conn Int32 Int64
 i32i64 = i32w32' >>> w32w64 >>> w64i64
 
 i32int :: Trip Int32 (Bounded Integer)
-i32int = Trip (liftBot fromIntegral)
+i32int = Trip (liftBottom' fromIntegral)
               (bounded' $ P.fromInteger . min 2147483647 . max (-2147483648))
-              (liftTop fromIntegral)
+              (liftTop' fromIntegral)
 
 i64w64' :: Conn Int64 Word64
 i64w64' = unsigned
@@ -146,9 +146,9 @@ i64w64 :: Conn Int64 Word64
 i64w64 = Conn (fromIntegral . max 0) (fromIntegral . min 9223372036854775807)
 
 i64int :: Trip Int64 (Bounded Integer)
-i64int = Trip (liftBot fromIntegral)
+i64int = Trip (liftBottom' fromIntegral)
               (bounded' $ P.fromInteger . min 9223372036854775807 . max (-9223372036854775808))
-              (liftTop fromIntegral)
+              (liftTop' fromIntegral)
 
 ixxwxx :: Conn Int Word
 ixxwxx = unsigned
