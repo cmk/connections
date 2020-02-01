@@ -69,8 +69,7 @@ import Data.Semiring
 import Data.Semifield
 import Data.Semigroup.Join
 import Data.Semigroup.Meet
-import Data.Ord (Down(..))
-import Prelude hiding (Num(..), Fractional(..), RealFrac(..))
+import Prelude hiding (Ord(..), Num(..), Fractional(..), RealFrac(..))
 
 import Test.Logic (xor, (<==>),(==>))
 
@@ -120,11 +119,11 @@ connl (Conn f _) = f
 connr :: Prd a => Prd b => Conn a b -> b -> a
 connr (Conn _ g) = g
 
--- @x <~ unit x@
+-- @x <= unit x@
 unit :: Prd a => Prd b => Conn a b -> a -> a
 unit (Conn f g) = g . f
 
--- @counit x <~ x@
+-- @counit x <= x@
 counit :: Prd a => Prd b => Conn a b -> b -> b
 counit (Conn f g) = f . g
 
@@ -210,9 +209,11 @@ choice (Conn ab ba) (Conn cd dc) = Conn f g where
 --
 -- @'Trip' f g h@ satisfies:
 --
+-- @
 -- f ⊣ g
 -- ⊥   ⊥
 -- g ⊣ h
+-- @
 --
 -- See <https://ncatlab.org/nlab/show/adjoint+triple>
 --
@@ -293,8 +294,8 @@ choice' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
 --
 data Mode = 
     RNZ -- ^ round to nearest with ties towards zero
-  | RTP -- ^ round towards positive infinity
-  | RTN -- ^ round towards negative infinity
+  | RTP -- ^ round towards pos infinity
+  | RTN -- ^ round towards neg infinity
   | RTZ -- ^ round towards zero
   deriving (Eq, Show, Read, Enum, Bounded)
 
@@ -303,9 +304,30 @@ data Mode =
 half :: Prd a => Prd b => (Additive-Group) a => Trip a b -> a -> Maybe Ordering
 half t x = pcompare (x - unitl t x) (counitr t x - x) 
 
+-- | Determine whether /x/ lies above the halfway point between two representations.
+-- 
+-- @ 'above' t x '==' (x '-' 'unitl' t x) '`gt`' ('counitr' t x '-' x) @
+--
+above :: Prd a => Prd b => (Additive-Group) a => Trip a b -> a -> Bool
+above t = maybe False (== GT) . half t
+
+-- | Determine whether /x/ lies below the halfway point between two representations.
+-- 
+-- @ 'below' t x '==' (x '-' 'unitl' t x) '`lt`' ('counitr' t x '-' x) @
+--
+below :: Prd a => Prd b => (Additive-Group) a => Trip a b -> a -> Bool
+below t = maybe False (== LT) . half t
+
+-- | Determine whether /x/ lies exactly halfway between two representations.
+-- 
+-- @ 'tied' t x '==' (x '-' 'unitl' t x) '=~' ('counitr' t x '-' x) @
+--
+tied :: Prd a => Prd b => (Additive-Group) a => Trip a b -> a -> Bool
+tied t = maybe False (== EQ) . half t
+
 -- @ truncateWith C.id == id @
 truncateWith :: (Prd a, Prd b, (Additive-Monoid) a) => Trip a b -> a -> b
-truncateWith t x = bool (ceilingWith t x) (floorWith t x) $ positive x
+truncateWith t x = bool (ceilingWith t x) (floorWith t x) $ pos x
 
 -- @ ceilingWith C.id == id @
 ceilingWith :: Prd a => Prd b => Trip a b -> a -> b
@@ -317,14 +339,14 @@ floorWith = connr . tripr
 
 -- @ roundWith C.id == id @
 roundWith :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> a -> b
-roundWith t x | maybe False (== GT) $ half t x = ceilingWith t x -- upper half interval
-              | maybe False (== LT) $ half t x = floorWith t x -- lower half interval
+roundWith t x | above t x = ceilingWith t x -- upper half interval
+              | below t x = floorWith t x -- lower half interval
               | otherwise = truncateWith t x
 
 {-
 
 rndWith :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b 
-rndWith t@(Trip f g h) rm x = rnd t rm (negative' t rm x) (g x)
+rndWith t@(Trip f g h) rm x = rnd t rm (neg' t rm x) (g x)
 
 -}
 
@@ -336,7 +358,7 @@ addWith :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b -> b
 addWith t@(Trip _ f _) rm x y = rnd t rm (addSgn t rm x y) (f x + f y)
 
 negWith :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b 
-negWith t@(Trip _ f _) rm x = rnd t rm (negative' t rm x) (zero - f x)
+negWith t@(Trip _ f _) rm x = rnd t rm (neg' t rm x) (zero - f x)
 
 subWith :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b -> b 
 subWith t@(Trip _ f _) rm x y = rnd t rm (subSgn t rm x y) (f x - f y)
@@ -369,7 +391,7 @@ remWith t rm x y = fmaWith t rm (negWith t rm $ divWith t rm x y) y x
 λ> divWith @Int RTP 17 5
 4
 -}
--- when positive numbers are divided by −0 we return minus infinity rather than positive:
+-- when pos numbers are divided by −0 we return minus infinity rather than pos:
 -- >>> divWith C.id RNZ 1 (shiftf (-1) 0)
 -- -Infinity
 divWith :: (Prd a, Prd b, Field a) => Trip a b -> Mode -> b -> b -> b 
@@ -391,42 +413,28 @@ rsz :: (Prd a, Prd b) => Trip a b -> Bool -> a -> b
 rsz t = bool (floorWith t) (ceilingWith t)
 
 rnd :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> Bool -> a -> b
-rnd t RNZ s x = bool (roundWith t x) (rsz t s x) $ isZero x
-rnd t RTP s x = bool (ceilingWith t x) (rsz t s x) $ isZero x
-rnd t RTN s x = bool (floorWith t x) (rsz t s x) $ isZero x
-rnd t RTZ s x = bool (truncateWith t x) (rsz t s x) $ isZero x
+rnd t RNZ s x = bool (roundWith t x) (rsz t s x) $ zer x
+rnd t RTP s x = bool (ceilingWith t x) (rsz t s x) $ zer x
+rnd t RTN s x = bool (floorWith t x) (rsz t s x) $ zer x
+rnd t RTZ s x = bool (truncateWith t x) (rsz t s x) $ zer x
 
-negative' :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> Bool
-negative' t rm x = x `lt` rnd t rm False zero
+neg' :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> Bool
+neg' t rm x = x < rnd t rm False zero
 
-positive'  :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> Bool 
-positive' t rm x = x `gt` rnd t rm False zero
+pos'  :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> Bool 
+pos' t rm x = x > rnd t rm False zero
 
 -- | Determine signed-0 behavior under addition.
 addSgn :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b -> Bool
-addSgn t rm x y | rm == RTN = negative' t rm x || negative' t rm y
-                | otherwise = negative' t rm x && negative' t rm y
+addSgn t rm x y | rm == RTN = neg' t rm x || neg' t rm y
+                | otherwise = neg' t rm x && neg' t rm y
 
 subSgn :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b -> Bool
 subSgn t rm x y = not (addSgn t rm x y)
 
 -- | Determine signed-0 behavior under multiplication and division.
 xorSgn :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b -> Bool
-xorSgn t rm x y = negative' t rm x `xor` negative' t rm y
+xorSgn t rm x y = neg' t rm x `xor` neg' t rm y
 
 fmaSgn :: (Prd a, Prd b, Ring a) => Trip a b -> Mode -> b -> b -> b -> Bool
 fmaSgn t rm x y z = addSgn t rm (mulWith t rm x y) z
-
-{-
--- @ upper x = (x - unit' (triple @a) x) > (counit' (triple @a) x - x)@
-upper :: Prd a => Prd b => (Additive-Group) a => Trip a b -> a -> Bool
-upper trip = maybe False (== GT) . half trip
-
--- @ (x - unit' (triple @a) x) < (counit' (triple @a) x - x) @
-lower :: Prd a => Prd b => (Additive-Group) a => Trip a b -> a -> Bool
-lower trip = maybe False (== LT) . half trip
-
--- @ (x - unit' (triple @a) x) ~~ (counit' (triple @a) x - x) @
-tied :: Prd a => Prd b => (Additive-Group) a => Trip a b -> a -> Bool
-tied trip = maybe False (== EQ) . half trip
--}

@@ -18,7 +18,7 @@ import Data.Semigroup.Additive
 import Data.Semigroup.Multiplicative
 import GHC.Generics (Generic, Generic1)
 
-import Prelude hiding (Num(..), Fractional(..))
+import Prelude hiding (Ord(..), Num(..), Fractional(..))
 
 -- | A type with an additional incomparable element allowing for the possibility of undefined values.
 -- Isomorphic to /Maybe a/ but with a different 'Prd' instance.
@@ -44,10 +44,6 @@ isDef :: Nan a -> Bool
 isDef Nan = False
 isDef _   = True
 
-isNan :: Nan a -> Bool
-isNan Nan = True
-isNan _   = False
-
 mapNan :: (a -> b) -> Nan a -> Nan b
 mapNan f = nan Nan $ Def . f
 
@@ -57,7 +53,7 @@ joinNan (Def Nan) = Nan
 joinNan (Def (Def a)) = Def a
 -- collectNan = joinNan . liftNan id
 
-liftNan :: Prd a => Field a => (a -> b) -> a -> Nan b
+liftNan :: Prd a => Semifield a => (a -> b) -> a -> Nan b
 liftNan f x | x =~ anan = Nan
             | otherwise = Def (f x)
 
@@ -69,7 +65,7 @@ liftAll f x | isNaN x = Nan
             | otherwise = Def (f x)
 
 isInf :: (RealFloat a, Prd a) => a -> Bool
-isInf x = isInfinite x && gt x 0
+isInf x = isInfinite x && x > 0
 
 defnan :: Prd a => Prd b => Conn a b -> Conn (Nan a) (Nan b)
 defnan (Conn f g) = Conn (fmap f) (fmap g) 
@@ -80,10 +76,12 @@ defnan' (Trip f g h) = Trip (fmap f) (fmap g) (fmap h)
 --nanfld :: Prd a => Field a => Trip (Nan a) a
 -- Field a => Field (Nan a)
 -- /Caution/ this is only legal if (Nan a) has no nans.
+{-
 fldnan :: Prd a => Field a => Trip a (Nan a)
 fldnan = Trip f g f where
   f a = if a =~ zero / zero then Nan else Def a 
   g = nan (zero / zero) id
+-}
 
 fldord :: Prd a => Field a => Trip a (Nan Ordering)
 fldord = Trip f g h where
@@ -94,19 +92,19 @@ fldord = Trip f g h where
   
   f x | x =~ anan  = Nan
       | x =~ ninf  = Def LT
-      | x <~ zero  = Def EQ
+      | x <= zero  = Def EQ
       | otherwise  = Def GT
 
   h x | x =~ anan  = Nan
       | x =~ pinf  = Def GT
-      | x >~ zero  = Def EQ
+      | x >= zero  = Def EQ
       | otherwise  = Def LT
 
 instance Prd a => Prd (Nan a) where
-    Nan <~ Nan = True
-    _   <~ Nan = False
-    Nan <~ _   = False
-    Def a <~ Def b = a <~ b
+    Nan <= Nan = True
+    _   <= Nan = False
+    Nan <= _   = False
+    Def a <= Def b = a <= b
 
 instance Applicative Nan where
     pure = Def

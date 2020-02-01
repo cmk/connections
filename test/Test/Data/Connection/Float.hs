@@ -1,115 +1,227 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Test.Data.Connection.Float where
 
-import Control.Applicative
-import Data.Prd.Nan
-import Data.Int
-import Data.Word
-import Data.Float
-import Data.Prd
-import Data.Ord
 import Data.Connection
-import Data.Connection.Ratio
-import Data.Semilattice.Bounded
---import Data.Connection.Filter
-import Numeric.Natural
-import Data.Ratio
-import qualified Data.Prd.Property as Prop
-import qualified Data.Connection.Property as Prop
-import Test.Data.Connection
-
+import Data.Connection.Float
+import Data.Float
+import Data.Int
+import Data.Ord
+import Data.Prd.Nan
 import Hedgehog
-import qualified Hedgehog.Gen as G
-import qualified Hedgehog.Range as R
-
 import Prelude hiding (Bounded)
+import Test.Data.Connection
+import qualified Data.Connection.Property as Prop
+import qualified Hedgehog.Gen as G
 
-
-import GHC.Real hiding (Fractional(..), (^^), (^), div)
-
-
---TODO move to Test.Data.Connection
-prop_connections_f32nan :: Property
-prop_connections_f32nan = withTests 1000 . property $ do
-  x <- forAll gen_f32
-  x' <- forAll gen_f32
-  y <- forAll $ gen_nan (G.float rf) 
-  y' <- forAll $ gen_nan (G.float rf)
-
-  assert $ Prop.connection (tripl fldnan) x y
-  assert $ Prop.connection (tripr fldnan) y x
-  assert $ Prop.monotonel (tripl fldnan) x x'
-  assert $ Prop.monotonel (tripr fldnan) y y'
-  assert $ Prop.monotoner (tripl fldnan) y y'
-  assert $ Prop.monotoner (tripr fldnan) x x'
-  assert $ Prop.closed (tripl fldnan) x
-  assert $ Prop.closed (tripr fldnan) y -- would fail on y = Def NaN
-  assert $ Prop.kernel (tripl fldnan) y
-  assert $ Prop.kernel (tripr fldnan) x
-
-prop_connections_f32ord :: Property
-prop_connections_f32ord = withTests 1000 . property $ do
-  x <- forAll gen_f32
-  x' <- forAll gen_f32
-  y <- forAll $ gen_nan gen_ord
-  y' <- forAll $ gen_nan gen_ord
+prop_connection_f32ord :: Property
+prop_connection_f32ord = withTests 1000 . property $ do
+  x <- forAll f32
+  x' <- forAll f32
+  y <- forAll $ gen_nan ord
+  y' <- forAll $ gen_nan ord
 
   let f32ord = fldord :: Trip Float (Nan Ordering)
 
   assert $ Prop.connection (tripl f32ord) x y
   assert $ Prop.connection (tripr f32ord) y x
-  assert $ Prop.monotonel (tripl f32ord) x x'
-  assert $ Prop.monotonel (tripr f32ord) y y'
-  assert $ Prop.monotoner (tripl f32ord) y y'
-  assert $ Prop.monotoner (tripr f32ord) x x'
   assert $ Prop.closed (tripl f32ord) x
   assert $ Prop.closed (tripr f32ord) y
   assert $ Prop.kernel (tripl f32ord) y
   assert $ Prop.kernel (tripr f32ord) x
+  assert $ Prop.monotonel (tripl f32ord) x x'
+  assert $ Prop.monotonel (tripr f32ord) y y'
+  assert $ Prop.monotoner (tripl f32ord) y y'
+  assert $ Prop.monotoner (tripr f32ord) x x'
+  assert $ Prop.projectivel (tripl f32ord) x
+  assert $ Prop.projectivel (tripr f32ord) y
+  assert $ Prop.projectiver (tripl f32ord) y
+  assert $ Prop.projectiver (tripr f32ord) x
 
-prop_connections_f32i32 :: Property
-prop_connections_f32i32 = withTests 10000 . property $ do
-  x <- forAll gen_f32
+prop_connection_f32i08 :: Property
+prop_connection_f32i08 = withTests 1000 . property $ do
+  x <- forAll f32
+  x' <- forAll f32
+  y <- forAll $ gen_ext $ G.integral (ri @Int8)
+  y' <- forAll $ gen_ext $ G.integral (ri @Int8)
+
+  assert $ Prop.connection (tripl f32i08) x y
+  assert $ Prop.connection (tripr f32i08) y x
+  assert $ Prop.closed (tripl f32i08) x
+  assert $ Prop.closed (tripr f32i08) y
+  assert $ Prop.kernel (tripl f32i08) y
+  assert $ Prop.kernel (tripr f32i08) x 
+  assert $ Prop.monotonel (tripl f32i08) x x'
+  assert $ Prop.monotonel (tripr f32i08) y y'
+  assert $ Prop.monotoner (tripl f32i08) y y'
+  assert $ Prop.monotoner (tripr f32i08) x x'
+  assert $ Prop.projectivel (tripl f32i08) x
+  assert $ Prop.projectivel (tripr f32i08) y
+  assert $ Prop.projectiver (tripl f32i08) y
+  assert $ Prop.projectiver (tripr f32i08) x
+
+prop_connection_f32i16 :: Property
+prop_connection_f32i16 = withTests 1000 . property $ do
+  x <- forAll f32
+  x' <- forAll f32
+  y <- forAll $ gen_ext $ G.integral (ri @Int16)
+  y' <- forAll $ gen_ext $ G.integral (ri @Int16)
+
+  assert $ Prop.connection (tripl f32i16) x y
+  assert $ Prop.connection (tripr f32i16) y x
+  assert $ Prop.closed (tripl f32i16) x
+  assert $ Prop.closed (tripr f32i16) y
+  assert $ Prop.kernel (tripl f32i16) y
+  assert $ Prop.kernel (tripr f32i16) x 
+  assert $ Prop.monotonel (tripl f32i16) x x'
+  assert $ Prop.monotonel (tripr f32i16) y y'
+  assert $ Prop.monotoner (tripl f32i16) y y'
+  assert $ Prop.monotoner (tripr f32i16) x x'
+  assert $ Prop.projectivel (tripl f32i16) x
+  assert $ Prop.projectivel (tripr f32i16) y
+  assert $ Prop.projectiver (tripl f32i16) y
+  assert $ Prop.projectiver (tripr f32i16) x
+
+prop_connections_float :: Property
+prop_connections_float = withTests 1000 . property $ do
+  x <- forAll f32
   y <- forAll (gen_nan $ G.integral ri)
-  x' <- forAll gen_f32
+  x' <- forAll f32
   y' <- forAll (gen_nan $ G.integral ri)
  
   assert $ Prop.connection f32i32 x y
   assert $ Prop.connection i32f32 y x
-  assert $ Prop.monotonel f32i32 x x'
-  assert $ Prop.monotonel i32f32 y y'
-  assert $ Prop.monotoner f32i32 y y'
-  assert $ Prop.monotoner i32f32 x x'
   assert $ Prop.closed f32i32 x
   assert $ Prop.closed i32f32 y
   assert $ Prop.kernel i32f32 x
   assert $ Prop.kernel f32i32 y
+  assert $ Prop.monotonel f32i32 x x'
+  assert $ Prop.monotonel i32f32 y y'
+  assert $ Prop.monotoner f32i32 y y'
+  assert $ Prop.monotoner i32f32 x x'
+  assert $ Prop.projectivel f32i32 x
+  assert $ Prop.projectivel i32f32 y
+  assert $ Prop.projectiver i32f32 x
+  assert $ Prop.projectiver f32i32 y
 
-prop_connections_f64i64 :: Property
-prop_connections_f64i64 = withTests 10000 . property $ do
-  x <- forAll gen_f64
+prop_connection_f64ord :: Property
+prop_connection_f64ord = withTests 1000 . property $ do
+  x <- forAll f64
+  x' <- forAll f64
+  y <- forAll $ gen_nan ord
+  y' <- forAll $ gen_nan ord
+
+  let f64ord = fldord :: Trip Double (Nan Ordering)
+
+  assert $ Prop.connection (tripl f64ord) x y
+  assert $ Prop.connection (tripr f64ord) y x
+  assert $ Prop.closed (tripl f64ord) x
+  assert $ Prop.closed (tripr f64ord) y
+  assert $ Prop.kernel (tripl f64ord) y
+  assert $ Prop.kernel (tripr f64ord) x
+  assert $ Prop.monotonel (tripl f64ord) x x'
+  assert $ Prop.monotonel (tripr f64ord) y y'
+  assert $ Prop.monotoner (tripl f64ord) y y'
+  assert $ Prop.monotoner (tripr f64ord) x x'
+  assert $ Prop.projectivel (tripl f64ord) x
+  assert $ Prop.projectivel (tripr f64ord) y
+  assert $ Prop.projectiver (tripl f64ord) y
+  assert $ Prop.projectiver (tripr f64ord) x
+
+prop_connection_f64i08 :: Property
+prop_connection_f64i08 = withTests 1000 . property $ do
+  x <- forAll f64
+  x' <- forAll f64
+  y <- forAll $ gen_ext $ G.integral (ri @Int8)
+  y' <- forAll $ gen_ext $ G.integral (ri @Int8)
+
+  assert $ Prop.connection (tripl f64i08) x y
+  assert $ Prop.connection (tripr f64i08) y x
+  assert $ Prop.closed (tripl f64i08) x
+  assert $ Prop.closed (tripr f64i08) y
+  assert $ Prop.kernel (tripl f64i08) y
+  assert $ Prop.kernel (tripr f64i08) x 
+  assert $ Prop.monotonel (tripl f64i08) x x'
+  assert $ Prop.monotonel (tripr f64i08) y y'
+  assert $ Prop.monotoner (tripl f64i08) y y'
+  assert $ Prop.monotoner (tripr f64i08) x x'
+  assert $ Prop.projectivel (tripl f64i08) x
+  assert $ Prop.projectivel (tripr f64i08) y
+  assert $ Prop.projectiver (tripl f64i08) y
+  assert $ Prop.projectiver (tripr f64i08) x
+
+prop_connection_f64i16 :: Property
+prop_connection_f64i16 = withTests 1000 . property $ do
+  x <- forAll f64
+  x' <- forAll f64
+  y <- forAll $ gen_ext $ G.integral (ri @Int16)
+  y' <- forAll $ gen_ext $ G.integral (ri @Int16)
+
+  assert $ Prop.connection (tripl f64i16) x y
+  assert $ Prop.connection (tripr f64i16) y x
+  assert $ Prop.closed (tripl f64i16) x
+  assert $ Prop.closed (tripr f64i16) y
+  assert $ Prop.kernel (tripl f64i16) y
+  assert $ Prop.kernel (tripr f64i16) x 
+  assert $ Prop.monotonel (tripl f64i16) x x'
+  assert $ Prop.monotonel (tripr f64i16) y y'
+  assert $ Prop.monotoner (tripl f64i16) y y'
+  assert $ Prop.monotoner (tripr f64i16) x x'
+  assert $ Prop.projectivel (tripl f64i16) x
+  assert $ Prop.projectivel (tripr f64i16) y
+  assert $ Prop.projectiver (tripl f64i16) y
+  assert $ Prop.projectiver (tripr f64i16) x
+
+prop_connection_f64i32 :: Property
+prop_connection_f64i32 = withTests 1000 . property $ do
+  x <- forAll f64
+  x' <- forAll f64
+  y <- forAll $ gen_ext $ G.integral (ri @Int32)
+  y' <- forAll $ gen_ext $ G.integral (ri @Int32)
+
+  assert $ Prop.connection (tripl f64i32) x y
+  assert $ Prop.connection (tripr f64i32) y x
+  assert $ Prop.closed (tripl f64i32) x
+  assert $ Prop.closed (tripr f64i32) y
+  assert $ Prop.kernel (tripl f64i32) y
+  assert $ Prop.kernel (tripr f64i32) x 
+  assert $ Prop.monotonel (tripl f64i32) x x'
+  assert $ Prop.monotonel (tripr f64i32) y y'
+  assert $ Prop.monotoner (tripl f64i32) y y'
+  assert $ Prop.monotoner (tripr f64i32) x x'
+  assert $ Prop.projectivel (tripl f64i32) x
+  assert $ Prop.projectivel (tripr f64i32) y
+  assert $ Prop.projectiver (tripl f64i32) y
+  assert $ Prop.projectiver (tripr f64i32) x
+
+prop_connections_double :: Property
+prop_connections_double = withTests 1000 . property $ do
+  x <- forAll f64
   y <- forAll (gen_nan $ G.integral ri)
-  x' <- forAll gen_f64
+  x' <- forAll f64
   y' <- forAll (gen_nan $ G.integral ri)
  
   assert $ Prop.connection f64i64 x y
   assert $ Prop.connection i64f64 y x
-  assert $ Prop.monotonel f64i64 x x'
-  assert $ Prop.monotonel i64f64 y y'
-  assert $ Prop.monotoner f64i64 y y'
-  assert $ Prop.monotoner i64f64 x x'
   assert $ Prop.closed f64i64 x
   assert $ Prop.closed i64f64 y
   assert $ Prop.kernel i64f64 x
   assert $ Prop.kernel f64i64 y
+  assert $ Prop.monotonel f64i64 x x'
+  assert $ Prop.monotonel i64f64 y y'
+  assert $ Prop.monotoner f64i64 y y'
+  assert $ Prop.monotoner i64f64 x x'
+  assert $ Prop.projectivel f64i64 x
+  assert $ Prop.projectivel i64f64 y
+  assert $ Prop.projectiver i64f64 x
+  assert $ Prop.projectiver f64i64 y
 
 
 {-
 prop_prd_u32 :: Property
 prop_prd_u32 = withTests 1000 . property $ do
-  x <- connl f32u32 <$> forAll gen_f32
-  y <- connl f32u32 <$> forAll gen_f32
-  z <- connl f32u32 <$> forAll gen_f32
+  x <- connl f32u32 <$> forAll f32
+  y <- connl f32u32 <$> forAll f32
+  z <- connl f32u32 <$> forAll f32
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -119,41 +231,22 @@ prop_prd_u32 = withTests 1000 . property $ do
   assert $ Prop.transitive_lt x y z
   assert $ Prop.transitive_le x y z
   assert $ Prop.transitive_eq x y z
-
---TODO move to Test.Data.Prd
-prop_prd_f32 :: Property
-prop_prd_f32 = withTests 1000 . property $ do
-  x <- forAll gen_f32
-  y <- forAll gen_f32
-  z <- forAll gen_f32
-  w <- forAll gen_f32
-  assert $ Prop.reflexive_eq x
-  assert $ Prop.reflexive_le x
-  assert $ Prop.irreflexive_lt x
-  assert $ Prop.symmetric x y
-  assert $ Prop.asymmetric x y
-  assert $ Prop.antisymmetric x y
-  assert $ Prop.transitive_lt x y z
-  assert $ Prop.transitive_le x y z
-  assert $ Prop.transitive_eq x y z
-  assert $ Prop.chain_22 x y z w
-  --assert $ Prop.chain_31 x y z w
 
 -}
 
 {-
 
 gen_sgn :: Gen Signed
-gen_sgn = Signed <$> gen_f32
+gen_sgn = Signed <$> f32
 
 gen_ugn :: Gen Unsigned
-gen_ugn = (Unsigned . abs) <$> gen_f32
+gen_ugn = (Unsigned . abs) <$> f32
 
 prop_connections_f32u32 :: Property
 prop_connections_f32u32 = withTests 1000 . property $ do
-  x <- forAll gen_f32
+  x <- forAll f32
   y <- Ulp32 <$> forAll (G.integral ri)
-  x' <- forAll gen_f32
+  x' <- forAll f32
   y' <- Ulp32 <$> forAll (G.integral ri)
 
   assert $ Prop.connection f32u32 x y
@@ -169,8 +262,8 @@ prop_connections_f32u32 = withTests 1000 . property $ do
 
 prop_connections_f32sgn :: Property
 prop_connections_f32sgn = withTests 10000 . property $ do
-  x <- forAll gen_f32
-  x' <- forAll gen_f32
+  x <- forAll f32
+  x' <- forAll f32
   y <- forAll $ gen_sgn
   y' <- forAll $ gen_sgn
 
@@ -184,8 +277,8 @@ prop_connections_f32sgn = withTests 10000 . property $ do
 
 prop_connections_f32w08 :: Property
 prop_connections_f32w08 = withTests 10000 . property $ do
-  x <- forAll gen_f32
-  x' <- forAll gen_f32
+  x <- forAll f32
+  x' <- forAll f32
   y <- forAll $ gen_nan $ G.integral (ri @Word8)
   y' <- forAll $ gen_nan $ G.integral (ri @Word8)
 
@@ -206,10 +299,10 @@ prop_connections_f32w08 = withTests 10000 . property $ do
 {-
 prop_connections_f32w64 :: Property
 prop_connections_f32w64 = withTests 1000 . property $ do
-  x <- forAll gen_f32
-  y <- forAll gen_f32
-  x' <- forAll gen_f32
-  y' <- forAll gen_f32
+  x <- forAll f32
+  y <- forAll f32
+  x' <- forAll f32
+  y' <- forAll f32
   z <- forAll (gen_nan $ G.integral @_ @Word64 ri)
   w <- forAll (gen_nan $ G.integral @_ @Word64 ri)
   z' <- forAll (gen_nan $ G.integral @_ @Word64 ri)

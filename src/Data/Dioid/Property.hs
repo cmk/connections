@@ -21,8 +21,8 @@ module Data.Dioid.Property (
   , monotone_zero
   , morphism_dioid
   , annihilative_unit
-  , positive_addition
-  , positive_multiplication
+  , pos_addition
+  , pos_multiplication
   -- * Left distributive pre-dioids & dioids 
   , distributive_cross_on
   , distributive_cross1_on
@@ -67,17 +67,17 @@ import Test.Operation as Prop hiding (distributive_on)
 import Data.Semiring.Property as Prop
 import Data.Semigroup.Property as Prop
 
-import Prelude hiding (Num(..), sum)
+import Prelude hiding (Ord(..), Num(..), sum)
 
 ------------------------------------------------------------------------------------
 -- Required properties of predioids.
 
--- | '<~' is a preordered relation relative to '+'.
+-- | '<=' is a preordered relation relative to '+'.
 --
 -- This is a required property.
 --
 preordered :: Prd r => (Additive-Semigroup) r => r -> r -> Bool
-preordered a b = a <~ a + b
+preordered a b = a <= a + b
 
 -- | Predioid morphisms are monotone, distributive semigroup morphisms.
 --
@@ -85,13 +85,13 @@ preordered a b = a <~ a + b
 --
 morphism_predioid :: Prd r => Prd s => Predioid r => Predioid s => (r -> s) -> r -> r -> r -> Bool
 morphism_predioid f x y z = 
-  Prop.monotone_on (<~) (<~) f x y &&
+  Prop.monotone_on (<=) (<=) f x y &&
   Prop.morphism_distribitive_on (=~) f x y z &&
   f (x + y) =~ f x + f y && (f $ x * y) =~ (f x * f y)
 
 -- | \( \forall a, b, c: b \leq c \Rightarrow b + a \leq c + a \)
 --
--- In an ordered semiring this follows directly from the definition of '<~'.
+-- In an ordered semiring this follows directly from the definition of '<='.
 --
 -- Compare 'cancellative_addition_on'.
 -- 
@@ -102,11 +102,11 @@ morphism_predioid f x y z =
 -- This is a required property.
 --
 monotone_addition :: Prd r => (Additive-Semigroup) r => r -> r -> r -> Bool
-monotone_addition a = Prop.monotone_on (<~) (<~) (+ a)
+monotone_addition a = Prop.monotone_on (<=) (<=) (+ a)
 
 -- | \( \forall a, b, c: b \leq c \Rightarrow b * a \leq c * a \)
 --
--- In an ordered semiring this follows directly from 'distributive' and the definition of '<~'.
+-- In an ordered semiring this follows directly from 'distributive' and the definition of '<='.
 --
 -- Compare 'cancellative_multiplication_on'.
 --
@@ -117,7 +117,7 @@ monotone_addition a = Prop.monotone_on (<~) (<~) (+ a)
 -- This is a required property.
 --
 monotone_multiplication :: Prd r => (Multiplicative-Semigroup) r => r -> r -> r -> Bool
-monotone_multiplication a = Prop.monotone_on (<~) (<~) (* a)
+monotone_multiplication a = Prop.monotone_on (<=) (<=) (* a)
 
 {-
 -- | A variant of 'monotone_addition'.
@@ -137,7 +137,7 @@ monotone_multiplication' x y z = morphism_predioid (* z) x y
 -- This is a required property.
 --
 monotone_zero :: Prd r => (Additive-Monoid) r => r -> Bool
-monotone_zero a = zero ?~ a ==> zero <~ a 
+monotone_zero a = zero ?~ a ==> zero <= a 
 
 -- | Dioid morphisms are monoidal predioid morphisms.
 --
@@ -149,32 +149,32 @@ morphism_dioid f x y z =
   f zero =~ zero && f one =~ one
 
 
--- | '<~' is consistent with annihilativity.
+-- | '<=' is consistent with annihilativity.
 --
 -- This means that a dioid with an annihilative multiplicative one must satisfy:
 --
 -- @
--- ('one' <~) = ('one' '==')
+-- ('one' <=) = ('one' '==')
 -- @
 --
 -- This is a required property.
 --
 annihilative_unit :: Prd r => (Multiplicative-Monoid) r => r -> Bool
-annihilative_unit a = one <~ a <==> one =~ a
+annihilative_unit a = one <= a <==> one =~ a
 
 -- |  \( \forall a, b: a + b = 0 \Rightarrow a = 0 \wedge b = 0 \)
 --
 -- This is a required property.
 --
-positive_addition :: Prd r => (Additive-Monoid) r => r -> r -> Bool
-positive_addition a b = a + b =~ zero ==> a =~ zero && b =~ zero
+pos_addition :: Prd r => (Additive-Monoid) r => r -> r -> Bool
+pos_addition a b = a + b =~ zero ==> a =~ zero && b =~ zero
 
 -- |  \( \forall a, b: a * b = 0 \Rightarrow a = 0 \vee b = 0 \)
 --
--- Dioids which are groups wrt multiplication are often referred to as positive dioids or semi-fields
+-- Dioids which are groups wrt multiplication are often referred to as pos dioids or semi-fields
 --
-positive_multiplication :: Dioid r => r -> r -> Bool
-positive_multiplication a b = a * b =~ zero ==> a =~ zero || b =~ zero
+pos_multiplication :: Dioid r => r -> r -> Bool
+pos_multiplication a b = a * b =~ zero ==> a =~ zero || b =~ zero
 
 ------------------------------------------------------------------------------------
 -- Properties of absorbative predioids & dioids.
@@ -268,7 +268,7 @@ codistributive = Prop.distributive_on' (~~) (*) (+)
 -- For a dioid this is equivalent to:
 -- 
 -- @
--- ('one' '<~') = ('one' '~~')
+-- ('one' '<=') = ('one' '~~')
 -- @
 --
 -- For 'Alternative' instances this is known as the left-catch law:
@@ -308,7 +308,7 @@ annihilative_addition' r = Prop.annihilative_on' (~~) (+) one r
 -- This is a required property for semilattices and lattices.
 --
 monotone_addition' :: Prd r => (Additive-Semigroup) r => r -> r -> Bool
-monotone_addition' a b = (a <~ b) <==> (a + b =~ b)
+monotone_addition' a b = (a <= b) <==> (a + b =~ b)
 
 -- | \( \forall a : a + a = a \)
 --
@@ -380,8 +380,8 @@ idempotent_star = Prop.idempotent star
 
 -- If @r@ is a kleene dioid then 'star' must be monotone:
 --
--- @x '<~' y ==> 'star' x '<~' 'star' y@
+-- @x '<=' y ==> 'star' x '<=' 'star' y@
 --
 monotone_star :: (Dioid r, Kleene r) => r -> r -> Bool
-monotone_star = Prop.monotone_on (<~) (<~) star
+monotone_star = Prop.monotone_on (<=) (<=) star
 -}
