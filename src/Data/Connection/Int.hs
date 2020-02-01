@@ -15,36 +15,26 @@ module Data.Connection.Int (
   , i08i32
   , i08i64
   , i08int
-  --, inti08
   -- * Int16
   , i16w16
   , i16w16'
   , i16i32
   , i16i64
   , i16int
-  --, inti16
   -- * Int32
   , i32w32
   , i32w32'
   , i32i64
   , i32int
-  --, inti32
   -- * Int64
   , i64w64
   , i64w64'
   , i64int
-  --, inti64
   -- * Int
   , ixxwxx
   -- * Integer
   , intnat
   , natint
-  -- * Float
-  , f32i32
-  , i32f32
-  -- * Double
-  , f64i64
-  , i64f64
   ) where
 
 import Control.Category ((>>>))
@@ -172,37 +162,3 @@ natint = Conn f (maybe minimal g) where
       | otherwise = Just $ fromIntegral i
 
   g = P.fromInteger . max 0
-
-abs' x = if x == minimal then abs (x+one) else abs x
-
-f32i32 :: Conn Float (Nan Int32)
-f32i32 = Conn (liftNan f) (nan' g) where
-  f x | abs x <~ 2**24-1 = P.ceiling x
-      | otherwise = if x >~ 0 then 2^24 else minimal
-
-  g i | abs' i <~ 2^24-1 = fromIntegral i
-      | otherwise = if i >~ 0 then 1/0 else -2**24
-  
-i32f32 :: Conn (Nan Int32) Float
-i32f32 = Conn (nan' f) (liftNan g) where
-  f i | abs i <~ 2^24-1 = fromIntegral i
-      | otherwise = if i >~ 0 then 2**24 else -1/0
-
-  g x | abs x <~ 2**24-1 = P.floor x
-      | otherwise = if x >~ 0 then maximal else -2^24
-
-f64i64 :: Conn Double (Nan Int64)
-f64i64 = Conn (liftNan f) (nan' g) where
-  f x | abs x <~ 2**53-1 = P.ceiling x
-      | otherwise = if x >~ 0 then 2^53 else minimal
-
-  g i | abs' i <~ 2^53-1 = fromIntegral i
-      | otherwise = if i >~ 0 then 1/0 else -2**53
-  
-i64f64 :: Conn (Nan Int64) Double
-i64f64 = Conn (nan' f) (liftNan g) where
-  f i | abs i <~ 2^53-1 = fromIntegral i
-      | otherwise = if i >~ 0 then 2**53 else -1/0
-
-  g x | abs x <~ 2**53-1 = P.floor x
-      | otherwise = if x >~ 0 then maximal else -2^53

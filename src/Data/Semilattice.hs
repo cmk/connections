@@ -405,7 +405,6 @@ instance Lattice Word16
 instance Lattice Word32
 instance Lattice Word64
 instance Lattice Natural
-instance Lattice (Ratio Natural)
 
 instance Lattice Int
 instance Lattice Int8
@@ -413,7 +412,6 @@ instance Lattice Int16
 instance Lattice Int32
 instance Lattice Int64
 instance Lattice Integer
-instance Lattice Rational
 
 instance Lattice Uni
 instance Lattice Deci

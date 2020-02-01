@@ -18,41 +18,7 @@ import qualified Hedgehog.Gen as G
 
 import Prelude hiding (Bounded)
 
-prop_connections_f32i32 :: Property
-prop_connections_f32i32 = withTests 10000 . property $ do
-  x <- forAll gen_f32
-  y <- forAll (gen_nan $ G.integral ri)
-  x' <- forAll gen_f32
-  y' <- forAll (gen_nan $ G.integral ri)
- 
-  assert $ Prop.connection f32i32 x y
-  assert $ Prop.connection i32f32 y x
-  assert $ Prop.monotonel f32i32 x x'
-  assert $ Prop.monotonel i32f32 y y'
-  assert $ Prop.monotoner f32i32 y y'
-  assert $ Prop.monotoner i32f32 x x'
-  assert $ Prop.closed f32i32 x
-  assert $ Prop.closed i32f32 y
-  assert $ Prop.kernel i32f32 x
-  assert $ Prop.kernel f32i32 y
-
-prop_connections_f64i64 :: Property
-prop_connections_f64i64 = withTests 10000 . property $ do
-  x <- forAll gen_f64
-  y <- forAll (gen_nan $ G.integral ri)
-  x' <- forAll gen_f64
-  y' <- forAll (gen_nan $ G.integral ri)
- 
-  assert $ Prop.connection f64i64 x y
-  assert $ Prop.connection i64f64 y x
-  assert $ Prop.monotonel f64i64 x x'
-  assert $ Prop.monotonel i64f64 y y'
-  assert $ Prop.monotoner f64i64 y y'
-  assert $ Prop.monotoner i64f64 x x'
-  assert $ Prop.closed f64i64 x
-  assert $ Prop.closed i64f64 y
-  assert $ Prop.kernel i64f64 x
-  assert $ Prop.kernel f64i64 y
+import Data.Connection.Float
 
 prop_connections_int :: Property
 prop_connections_int = withTests 10000 . property $ do
