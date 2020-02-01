@@ -211,6 +211,7 @@ instance Ord a => Monoid (Join (Set.Set a)) where
 instance (Ord k, (Join-Semigroup) a) => Monoid (Join (Map.Map k a)) where
   mempty = Join Map.empty
 
+
 #define deriveJoinSemigroup(ty)             \
 instance Semigroup (Join ty) where {        \
    a <> b = (P.max) <$> a <*> b             \
@@ -242,8 +243,6 @@ deriveJoinSemigroup(Micro)
 deriveJoinSemigroup(Nano)
 deriveJoinSemigroup(Pico)
 
-deriveJoinSemigroup(Rational)
-deriveJoinSemigroup((Ratio Natural))
 
 #define deriveJoinMonoid(ty)                \
 instance Monoid (Join ty) where {           \
@@ -266,6 +265,3 @@ deriveJoinMonoid(Word16)
 deriveJoinMonoid(Word32)
 deriveJoinMonoid(Word64)
 deriveJoinMonoid(Natural)
-
-deriveJoinMonoid((Ratio Natural))
-

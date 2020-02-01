@@ -22,8 +22,7 @@ import Prelude hiding (Num(..), Fractional(..))
 
 -- | A type with an additional incomparable element allowing for the possibility of undefined values.
 -- Isomorphic to /Maybe a/ but with a different 'Prd' instance.
-data Nan a = Nan | Def a
-  deriving ( Show, Generic, Generic1, Functor, Foldable, Traversable)
+data Nan a = Nan | Def a deriving ( Show, Generic, Generic1, Functor, Foldable, Traversable)
 
 {-
 
@@ -71,7 +70,6 @@ liftAll f x | isNaN x = Nan
 
 isInf :: (RealFloat a, Prd a) => a -> Bool
 isInf x = isInfinite x && gt x 0
-
 
 defnan :: Prd a => Prd b => Conn a b -> Conn (Nan a) (Nan b)
 defnan (Conn f g) = Conn (fmap f) (fmap g) 

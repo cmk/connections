@@ -9,6 +9,7 @@ import Data.Float
 import Data.Prd
 import Data.Ord
 import Data.Connection
+import Data.Connection.Ratio
 import Data.Semilattice.Bounded
 --import Data.Connection.Filter
 import Numeric.Natural
@@ -25,6 +26,7 @@ import Prelude hiding (Bounded)
 
 
 import GHC.Real hiding (Fractional(..), (^^), (^), div)
+
 
 --TODO move to Test.Data.Connection
 prop_connections_f32nan :: Property
@@ -65,6 +67,41 @@ prop_connections_f32ord = withTests 1000 . property $ do
   assert $ Prop.kernel (tripl f32ord) y
   assert $ Prop.kernel (tripr f32ord) x
 
+prop_connections_f32i32 :: Property
+prop_connections_f32i32 = withTests 10000 . property $ do
+  x <- forAll gen_f32
+  y <- forAll (gen_nan $ G.integral ri)
+  x' <- forAll gen_f32
+  y' <- forAll (gen_nan $ G.integral ri)
+ 
+  assert $ Prop.connection f32i32 x y
+  assert $ Prop.connection i32f32 y x
+  assert $ Prop.monotonel f32i32 x x'
+  assert $ Prop.monotonel i32f32 y y'
+  assert $ Prop.monotoner f32i32 y y'
+  assert $ Prop.monotoner i32f32 x x'
+  assert $ Prop.closed f32i32 x
+  assert $ Prop.closed i32f32 y
+  assert $ Prop.kernel i32f32 x
+  assert $ Prop.kernel f32i32 y
+
+prop_connections_f64i64 :: Property
+prop_connections_f64i64 = withTests 10000 . property $ do
+  x <- forAll gen_f64
+  y <- forAll (gen_nan $ G.integral ri)
+  x' <- forAll gen_f64
+  y' <- forAll (gen_nan $ G.integral ri)
+ 
+  assert $ Prop.connection f64i64 x y
+  assert $ Prop.connection i64f64 y x
+  assert $ Prop.monotonel f64i64 x x'
+  assert $ Prop.monotonel i64f64 y y'
+  assert $ Prop.monotoner f64i64 y y'
+  assert $ Prop.monotoner i64f64 x x'
+  assert $ Prop.closed f64i64 x
+  assert $ Prop.closed i64f64 y
+  assert $ Prop.kernel i64f64 x
+  assert $ Prop.kernel f64i64 y
 
 
 {-

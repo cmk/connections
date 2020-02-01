@@ -61,6 +61,7 @@ test-suite test
     , Test.Data.Connection.Float
     , Test.Data.Connection.Ratio
     , Test.Data.Semilattice.Unsigned
+    , Test.Data.Prd
   build-depends:       
       base == 4.*
     , connections -any 

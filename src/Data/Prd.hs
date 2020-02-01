@@ -444,31 +444,41 @@ instance Prd Double where
            | x /= x || y /= y = False
            | otherwise        = x <= y
 
-instance Prd (Ratio Integer)  where
+
+reduce :: Integer -> Integer -> Ratio Integer
+reduce x 0 = x :% 0
+reduce x y = (x `quot` d) :% (y `quot` d) where d = gcd x y
+
+-- x % y = reduce (x * signum y) (abs y)
+
+instance Prd (Ratio Integer) where
+    x <~ y = maybe False ((== LT) + (== EQ)) $ pcompare x y
+
+    pcompare (x:%y) (x':%y') | (x == 0 && y == 0) && (x' == 0 && y' == 0) = Just EQ
+                             | (x == 0 && y == 0) || (x' == 0 && y' == 0) = Nothing
+                             | y == 0 && y' == 0 = Just $ compare (signum x) (signum x')
+                             | y == 0 = Just $ compare x 0
+                             | y' == 0 = Just $ compare 0 x'
+                             | otherwise = Just $ compare (x%y) (x'%y')
+
+--TODO fix & add prop tests
+instance Prd (Ratio Natural) where
+    x <~ y = maybe False ((== LT) + (== EQ)) $ pcompare x y
+
+    pcompare (x:%y) (x':%y') | (x == 0 && y == 0) && (x' == 0 && y' == 0) = Just EQ
+                             | (x == 0 && y == 0) || (x' == 0 && y' == 0) = Nothing
+                             | y == 0 && y' == 0 = Just EQ
+                             | y == 0 = Just GT
+                             | y' == 0 = Just LT
+                             | otherwise =  Just $ compare (x*y') (x'*y)
 {-
-    (x:%y) <~ (x':%y') | (x `eq` 0 && y `eq` 0) && (x' `eq` 0 && y' `eq` 0) = True
-                       | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
-                       | y `eq` 0 = if x > 0 then False else True
-                       | y' `eq` 0 = if x' > 0 then True else False
-                       | otherwise = x * signum y * y' >~ x' * signum y' * y
--}
--- | isNan r && isNan r'
-    r@(x:%y) <~ r'@(x':%y') | (x `eq` 0 && y `eq` 0) && (x' `eq` 0 && y' `eq` 0) = True
-                            | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
-                            | (x `eq` x' && y `eq` y') || (x * y' `eq` y * x') = True
-                            | y `eq` 0 = if x > 0 then False else True
-                            | y' `eq` 0 = if x' > 0 then True else False
-                            | x `eq` 0 || x' `eq` 0 = x <= x'
-                            | otherwise = r <= r' --x * signum y * y' >~ x' * signum y' * y
-
-instance Prd (Ratio Natural)  where
-    (x:%y) <~ (x':%y') | (x `eq` 0 && y `eq` 0) && (x' `eq` 0 && y' `eq` 0) = True
-                       | (x `eq` x' && y `eq` y') || x * y' `eq` y * x' = True
-                       | (x `eq` 0 && y `eq` 0) || (x' `eq` 0 && y' `eq` 0) = False
-                       | y `eq` 0 = False
-                       | y' `eq` 0 = True
+    (x:%y) <~ (x':%y') | (x == 0 && y == 0) && (x' == 0 && y' == 0) = True
+                       | (x == x' && y == y') || x * y' == y * x' = True
+                       | (x == 0 && y == 0) || (x' == 0 && y' == 0) = False
+                       | y == 0 = False
+                       | y' == 0 = True
                        | otherwise = x * y' >~ x' * y
-
+-}
 -- Canonical semigroup ordering
 instance Prd a => Prd (Maybe a) where
     Just a <~ Just b = a <~ b

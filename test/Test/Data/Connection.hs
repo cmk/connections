@@ -25,8 +25,7 @@ import Prelude hiding (Bounded)
 
 import GHC.Real hiding (Fractional(..), (^^), (^), div)
 
-rint :: Range Integer
-rint = R.linearFrom 0 (- 2^127) (2^127)
+
 
 
 
@@ -36,13 +35,14 @@ gen_may gen = G.frequency [(19, Just <$> gen), (1, pure Nothing)]
 gen_inf :: Gen a -> Gen (Bounded a)
 gen_inf gen = G.frequency [(18, Fin <$> gen), (1, pure Bot), (1, pure Top)]
 
-
-
 ri :: (Integral a, Bound a) => Range a
 ri = R.linearFrom 0 minimal maximal
 
 ri' :: Range Integer
 ri' = R.exponentialFrom 0 (-340282366920938463463374607431768211456) 340282366920938463463374607431768211456
+
+rint :: Range Integer
+rint = R.linearFrom 0 (- 2^127) (2^127)
 
 rn :: Range Natural
 rn = R.linear 0 (2^128)
@@ -68,13 +68,13 @@ gen_dwn = Down <$> gen_f32
 gen_nan :: Gen a -> Gen (Nan a)
 gen_nan gen = G.frequency [(9, Def <$> gen), (1, pure Nan)]
 
-gen_nan' :: Gen Rational
-gen_nan' = G.frequency [(99, gen_rat), (1, G.element [((-1) :% 0), (1 :% 0), (0 :% 0)])]
+gen_rat :: Gen (Ratio Integer)
+gen_rat = G.frequency [(49, gen), (1, G.element [((-1) :% 0), (1 :% 0), (0 :% 0)])]
+  where gen = liftA2 (:%) (G.integral rint) (G.integral rint)
 
-gen_rat :: Gen Rational
-gen_rat = liftA2 (:%) (G.integral rint) (G.integral rint)
-
-
+gen_nat :: Gen (Ratio Natural)
+gen_nat = G.frequency [(49, gen), (1, G.element [(1 :% 0), (0 :% 0)])] 
+  where gen = liftA2 (:%) (G.integral rn) (G.integral rn)
 
 
 
@@ -93,25 +93,6 @@ prop_prd_u32 = withTests 1000 . property $ do
   assert $ Prop.transitive_lt x y z
   assert $ Prop.transitive_le x y z
   assert $ Prop.transitive_eq x y z
-
---TODO move to Test.Data.Prd
-prop_prd_f32 :: Property
-prop_prd_f32 = withTests 1000 . property $ do
-  x <- forAll gen_f32
-  y <- forAll gen_f32
-  z <- forAll gen_f32
-  w <- forAll gen_f32
-  assert $ Prop.reflexive_eq x
-  assert $ Prop.reflexive_le x
-  assert $ Prop.irreflexive_lt x
-  assert $ Prop.symmetric x y
-  assert $ Prop.asymmetric x y
-  assert $ Prop.antisymmetric x y
-  assert $ Prop.transitive_lt x y z
-  assert $ Prop.transitive_le x y z
-  assert $ Prop.transitive_eq x y z
-  assert $ Prop.chain_22 x y z w
-  --assert $ Prop.chain_31 x y z w
 
 
 

@@ -9,6 +9,7 @@ import Data.Float
 import Data.Prd
 import Data.Ord
 import Data.Connection
+import Data.Connection.Ratio
 --import Data.Connection.Filter
 --import Data.Connection.Float
 import GHC.Real hiding (Fractional(..), (^^), (^), div)
@@ -32,13 +33,12 @@ import GHC.Float as F
 gen_rat' :: Gen Rational
 gen_rat' = G.realFrac_ (R.linearFracFrom 0 (- 2^127) (2^127))
 
-{- TODO get these passing
-prop_connections_ratnan :: Property
-prop_connections_ratnan = withTests 1000 . property $ do
-  x <- forAll gen_nan'
-  x' <- forAll gen_nan'
-  y <- forAll $ gen_nan gen_rat
-  y' <- forAll $ gen_nan gen_rat
+prop_connection_ratnan :: Property
+prop_connection_ratnan = withTests 1000 . property $ do
+  x <- forAll gen_rat
+  x' <- forAll gen_rat
+  y <- forAll $ gen_nan gen_rat'
+  y' <- forAll $ gen_nan gen_rat'
 
   assert $ Prop.connection (tripl fldnan) x y
   assert $ Prop.connection (tripr fldnan) y x
@@ -47,14 +47,14 @@ prop_connections_ratnan = withTests 1000 . property $ do
   assert $ Prop.monotoner (tripl fldnan) y y'
   assert $ Prop.monotoner (tripr fldnan) x x'
   assert $ Prop.closed (tripl fldnan) x
-  assert $ Prop.closed (tripr fldnan) y -- would fail on y = Def NaN
+  assert $ Prop.closed (tripr fldnan) y -- NB: would fail on y = Def NaN
   assert $ Prop.kernel (tripl fldnan) y
   assert $ Prop.kernel (tripr fldnan) x
 
-prop_connections_ratord :: Property
-prop_connections_ratord = withTests 1000 . property $ do
-  x <- forAll gen_nan'
-  x' <- forAll gen_nan'
+prop_connection_ratord :: Property
+prop_connection_ratord = withTests 1000 . property $ do
+  x <- forAll gen_rat
+  x' <- forAll gen_rat
   y <- forAll $ gen_nan gen_ord
   y' <- forAll $ gen_nan gen_ord
 
@@ -70,12 +70,102 @@ prop_connections_ratord = withTests 1000 . property $ do
   assert $ Prop.closed (tripr ratord) y
   assert $ Prop.kernel (tripl ratord) y
   assert $ Prop.kernel (tripr ratord) x
--}
 
-prop_connections_ratf32 :: Property
-prop_connections_ratf32 = withTests 10000 . property $ do
-  x <- forAll gen_nan'
-  x' <- forAll gen_nan'
+--TODO check gen_rat issue
+prop_connection_rati08 :: Property
+prop_connection_rati08 = withTests 1000 . property $ do
+  x <- forAll gen_rat'
+  x' <- forAll gen_rat'
+  y <- forAll $ gen_nan $ gen_inf $ G.integral (ri @Int8)
+  y' <- forAll $ gen_nan $ gen_inf $ G.integral (ri @Int8)
+
+  assert $ Prop.connection (tripl rati08) x y
+  assert $ Prop.connection (tripr rati08) y x
+  assert $ Prop.monotonel (tripl rati08) x x'
+  assert $ Prop.monotonel (tripr rati08) y y'
+  assert $ Prop.monotoner (tripl rati08) y y'
+  assert $ Prop.monotoner (tripr rati08) x x'
+  assert $ Prop.closed (tripl rati08) x
+  assert $ Prop.closed (tripr rati08) y
+  assert $ Prop.kernel (tripl rati08) y
+  assert $ Prop.kernel (tripr rati08) x -- x = 1 :% (-2) 
+
+prop_connection_rati16 :: Property
+prop_connection_rati16 = withTests 1000 . property $ do
+  x <- forAll gen_rat'
+  x' <- forAll gen_rat'
+  y <- forAll $ gen_nan $ gen_inf $ G.integral (ri @Int16)
+  y' <- forAll $ gen_nan $ gen_inf $ G.integral (ri @Int16)
+
+  assert $ Prop.connection (tripl rati16) x y
+  assert $ Prop.connection (tripr rati16) y x
+  assert $ Prop.monotonel (tripl rati16) x x'
+  assert $ Prop.monotonel (tripr rati16) y y'
+  assert $ Prop.monotoner (tripl rati16) y y'
+  assert $ Prop.monotoner (tripr rati16) x x'
+  assert $ Prop.closed (tripl rati16) x
+  assert $ Prop.closed (tripr rati16) y
+  assert $ Prop.kernel (tripl rati16) y
+  assert $ Prop.kernel (tripr rati16) x 
+
+prop_connection_rati32 :: Property
+prop_connection_rati32 = withTests 1000 . property $ do
+  x <- forAll gen_rat'
+  x' <- forAll gen_rat'
+  y <- forAll $ gen_nan $ gen_inf $ G.integral (ri @Int32)
+  y' <- forAll $ gen_nan $ gen_inf $ G.integral (ri @Int32)
+
+  assert $ Prop.connection (tripl rati32) x y
+  assert $ Prop.connection (tripr rati32) y x
+  assert $ Prop.monotonel (tripl rati32) x x'
+  assert $ Prop.monotonel (tripr rati32) y y'
+  assert $ Prop.monotoner (tripl rati32) y y'
+  assert $ Prop.monotoner (tripr rati32) x x'
+  assert $ Prop.closed (tripl rati32) x
+  assert $ Prop.closed (tripr rati32) y
+  assert $ Prop.kernel (tripl rati32) y
+  assert $ Prop.kernel (tripr rati32) x 
+
+prop_connection_rati64 :: Property
+prop_connection_rati64 = withTests 1000 . property $ do
+  x <- forAll gen_rat'
+  x' <- forAll gen_rat'
+  y <- forAll $ gen_nan $ gen_inf $ G.integral (ri @Int64)
+  y' <- forAll $ gen_nan $ gen_inf $ G.integral (ri @Int64)
+
+  assert $ Prop.connection (tripl rati64) x y
+  assert $ Prop.connection (tripr rati64) y x
+  assert $ Prop.monotonel (tripl rati64) x x'
+  assert $ Prop.monotonel (tripr rati64) y y'
+  assert $ Prop.monotoner (tripl rati64) y y'
+  assert $ Prop.monotoner (tripr rati64) x x'
+  assert $ Prop.closed (tripl rati64) x
+  assert $ Prop.closed (tripr rati64) y
+  assert $ Prop.kernel (tripl rati64) y
+  assert $ Prop.kernel (tripr rati64) x 
+
+prop_connection_ratint :: Property
+prop_connection_ratint = withTests 1000 . property $ do
+  x <- forAll gen_rat'
+  x' <- forAll gen_rat'
+  y <- forAll $ gen_nan $ gen_inf $ G.integral (rint)
+  y' <- forAll $ gen_nan $ gen_inf $ G.integral (rint)
+
+  assert $ Prop.connection (tripl ratint) x y
+  assert $ Prop.connection (tripr ratint) y x
+  assert $ Prop.monotonel (tripl ratint) x x'
+  assert $ Prop.monotonel (tripr ratint) y y'
+  assert $ Prop.monotoner (tripl ratint) y y'
+  assert $ Prop.monotoner (tripr ratint) x x'
+  assert $ Prop.closed (tripl ratint) x
+  assert $ Prop.closed (tripr ratint) y -- would fail on y = Def NaN
+  assert $ Prop.kernel (tripl ratint) y
+  assert $ Prop.kernel (tripr ratint) x -- x = 1 :% (-2) 
+
+prop_connection_ratf32 :: Property
+prop_connection_ratf32 = withTests 10000 . property $ do
+  x <- forAll gen_rat
+  x' <- forAll gen_rat
   y <- forAll gen_f32
   y' <- forAll gen_f32
 {-
@@ -97,5 +187,5 @@ prop_connections_ratf32 = withTests 10000 . property $ do
   assert $ Prop.kernel (tripl ratf32) y
   --assert $ Prop.kernel (tripr ratf32) x -- x = (-1) % 25, (-1) % (-31)
 
-tests :: IO Bool
-tests = checkParallel $$(discover)
+--tests :: IO Bool
+--tests = checkParallel $$(discover)

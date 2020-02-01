@@ -20,10 +20,12 @@ import Data.Float
 
 import Prelude hiding (Bounded)
 
-type IEEE a = Nan (Bounded a)
+type Extended a = Nan (Bounded a)
 
 data Bounded a = Bot | Fin a | Top
   deriving (Show, Generic, Generic1, Functor, Foldable, Traversable)
+
+--instance Semiring a => Semiring (Bounded a)
 
 instance Prd a => Prd (Bounded a) where
     Bot <~ _ = True
@@ -75,8 +77,8 @@ isFin :: Bounded a -> Bool
 isFin = bounded False (const True) False
 
 -- Lift all exceptional values
-liftField :: Bound a => Field a => (a -> b) -> a -> IEEE b
-liftField f = liftNan $ liftBounded f 
+liftExt :: Bound a => Field a => (a -> b) -> a -> Extended b
+liftExt f = liftNan $ liftBounded f 
 
 -- This map is a lattice morphism when /f/ is.
 liftBot :: Minimal a => (a -> b) -> a -> Bounded b
