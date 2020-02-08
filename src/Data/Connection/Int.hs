@@ -44,7 +44,7 @@ import Data.Int
 import Data.Prd
 import Data.Prd.Nan
 import Data.Semiring
-import Data.Semilattice.Bounded
+import Data.Semilattice.Top
 import Data.Word
 import Numeric.Natural
 import qualified Control.Category as C
@@ -53,36 +53,36 @@ import Prelude hiding (Num(..), (^), Bounded)
 import qualified Prelude as P
 
 class Prd a => ConnInteger a where
-  connInteger :: Conn (Bounded Integer) a
+  intxxx :: Conn (Bounded Integer) a
 
 instance ConnInteger Int8 where
-  connInteger = tripr i08int
+  intxxx = tripr i08int
 
 instance ConnInteger Int16 where
-  connInteger = tripr i16int
+  intxxx = tripr i16int
 
 instance ConnInteger Int32 where
-  connInteger = tripr i32int
+  intxxx = tripr i32int
 
 instance ConnInteger Int64 where
-  connInteger = tripr i64int
+  intxxx = tripr i64int
 
 instance ConnInteger Word8 where
-  connInteger = tripr i08int >>> i08w08
+  intxxx = tripr i08int >>> i08w08
 
 instance ConnInteger Word16 where
-  connInteger = tripr i16int >>> i16w16
+  intxxx = tripr i16int >>> i16w16
 
 instance ConnInteger Word32 where
-  connInteger = tripr i32int >>> i32w32
+  intxxx = tripr i32int >>> i32w32
 
 instance ConnInteger Word64 where
-  connInteger = tripr i64int >>> i64w64
+  intxxx = tripr i64int >>> i64w64
 
 -- | Lawful replacement for the version in base.
 --
 fromInteger :: ConnInteger a => Integer -> a
-fromInteger = connl connInteger . Just . Finite
+fromInteger = connl intxxx . Just . Fin
 
 unsigned :: (Bound a, Integral a, Integral b) => Conn a b
 unsigned = Conn (\y -> fromIntegral (y P.+ maximal P.+ 1))

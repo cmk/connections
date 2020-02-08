@@ -12,37 +12,35 @@
 
 module Data.Dioid where
 
-import safe Control.Applicative
-import safe Data.Bool
-import safe Data.Complex
-import safe Data.Maybe
-import safe Data.Either
-import safe Data.Fixed
-import safe Data.Foldable hiding (sum, product)
-import safe Data.Group
-import safe Data.Int
---import safe Data.List
-import safe Data.List.NonEmpty
-import safe Data.Magma
-import safe Data.Prd
-import safe Data.Ord
-import safe Data.Semiring
-import safe Data.Semigroup
-import safe Data.Semigroup.Join
-import safe Data.Semigroup.Meet
-import safe Data.Semigroup.Additive hiding (Ordered)
-import safe Data.Semigroup.Multiplicative as M
-import safe Data.Semigroup.Foldable
-import safe Data.Semigroup.Multiplicative
-import safe Data.Tuple
-import safe Data.Word
-import safe Foreign.C.Types (CFloat(..),CDouble(..))
-import safe GHC.Generics (Generic)
-import safe GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
-import safe Numeric.Natural
+import Control.Applicative
+import Data.Bool
+import Data.Complex
+import Data.Maybe
+import Data.Either
+import Data.Fixed
+import Data.Foldable hiding (sum, product)
+import Data.Int
+--import Data.List
+import Data.List.NonEmpty
+import Data.Prd
+import Data.Ord
+import Data.Semiring
+import Data.Semigroup
+import Data.Semigroup.Join
+import Data.Semigroup.Meet
+import Data.Semigroup.Additive hiding (Ordered)
+import Data.Semigroup.Multiplicative as M
+import Data.Semigroup.Foldable
+import Data.Semigroup.Multiplicative
+import Data.Tuple
+import Data.Word
+import Foreign.C.Types (CFloat(..),CDouble(..))
+import GHC.Generics (Generic)
+import GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
+import Numeric.Natural
 
-import safe Prelude ( Eq(..), Ord(..), Show, Ordering(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, Float, Double)
-import safe qualified Prelude as P
+import Prelude ( Eq(..), Ord(..), Show, Ordering(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, Float, Double)
+import qualified Prelude as P
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
