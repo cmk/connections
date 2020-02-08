@@ -272,40 +272,44 @@ pcompareOrd x y = Just $ x `compare` y
 -- Returns 'Nothing' instead of 'False' when the two values are not comparable.
 --
 peq  :: Prd a => a -> a -> Maybe Bool
-peq x y = case x `pcompare` y of
-     Just EQ -> Just True
-     Just _  -> Just False
-     Nothing -> Nothing
+peq x y = do
+  o <- pcompare x y
+  case o of
+    EQ -> Just True
+    _  -> Just False
 
 -- | A partial version of ('/~')
 --
 -- Returns 'Nothing' instead of 'False' when the two values are not comparable.
 --
 pne :: Prd a => a -> a -> Maybe Bool
-pne x y = case x `pcompare` y of
-     Just EQ -> Just False
-     Just _  -> Just True
-     Nothing -> Nothing
+pne x y = do
+  o <- pcompare x y
+  case o of
+    EQ -> Just False
+    _  -> Just True
 
 -- | A partial version of ('<=')
 --
 -- Returns 'Nothing' instead of 'False' when the two values are not comparable.
 --
 ple :: Prd a => a -> a -> Maybe Bool
-ple x y = case x `pcompare` y of
-     Just GT -> Just False
-     Just _  -> Just True
-     Nothing -> Nothing
+ple x y = do
+  o <- pcompare x y
+  case o of
+    GT -> Just False
+    _  -> Just True
 
 -- | A partial version of ('>=')
 --
 -- Returns 'Nothing' instead of 'False' when the two values are not comparable.
 --
 pge :: Prd a => a -> a -> Maybe Bool
-pge x y = case x `pcompare` y of
-     Just LT -> Just False
-     Just _  -> Just True
-     Nothing -> Nothing
+pge x y = do
+  o <- pcompare x y
+  case o of
+    LT -> Just False
+    _  -> Just True
 
 -- | A partial version of ('<')  
 -- 
@@ -314,10 +318,11 @@ pge x y = case x `pcompare` y of
 -- @lt x y == maybe False id $ plt x y@
 --
 plt :: Prd a => a -> a -> Maybe Bool
-plt x y = case x `pcompare` y of
-     Just LT -> Just True
-     Just _  -> Just False
-     Nothing -> Nothing
+plt x y = do
+  o <- pcompare x y
+  case o of
+    LT -> Just True
+    _  -> Just False
 
 -- | A partial version of ('>')
 --
@@ -326,10 +331,11 @@ plt x y = case x `pcompare` y of
 -- @gt x y == maybe False id $ pgt x y@
 --
 pgt :: Prd a => a -> a -> Maybe Bool
-pgt x y = case x `pcompare` y of
-     Just GT -> Just True
-     Just _  -> Just False
-     Nothing -> Nothing
+pgt x y = do
+  o <- pcompare x y
+  case o of
+    GT -> Just True
+    _  -> Just False
 
 -- | A partial version of 'Data.Ord.max'. 
 --
@@ -340,8 +346,7 @@ pmax x y = do
   o <- pcompare x y
   case o of
     GT -> Just x
-    EQ -> Just y
-    LT -> Just y
+    _  -> Just y
 
 -- | A partial version of 'Data.Ord.min'. 
 --
@@ -352,8 +357,7 @@ pmin x y = do
   o <- pcompare x y
   case o of
     GT -> Just y
-    EQ -> Just x
-    LT -> Just x
+    _  -> Just x
 
 pabs :: (Additive-Group) a => Prd a => a -> a
 pabs x = if zero <= x then x else negate x
@@ -361,31 +365,11 @@ pabs x = if zero <= x then x else negate x
 sign :: (Additive-Monoid) a => Prd a => a -> Maybe Ordering
 sign x = pcompare x zero
 
--- | Is /x/ equivalent to /zero/.
---
-zer :: (Additive-Monoid) a => Prd a => a -> Bool
-zer x = sign x =~ Just EQ
+finite :: Prd a => Semifield a => a -> Bool
+finite = (/~ anan) * (/~ pinf)
 
--- | Is the sign of /x/ indeterminate.
---
-pos :: (Additive-Monoid) a => Prd a => a -> Bool
-pos x = sign x =~ Just GT
-
--- | Is the sign of /x/ indeterminate.
---
-neg :: (Additive-Monoid) a => Prd a => a -> Bool
-neg x = sign x =~ Just LT
-
--- | Is the sign of /x/ indeterminate.
---
-ind :: (Additive-Monoid) a => Prd a => a -> Bool
-ind x = sign x =~ Nothing
-
-fin' :: Prd a => Field a => a -> Bool
-fin' = fin * (/~ ninf)
-
-fin :: Prd a => Semifield a => a -> Bool
-fin = (/~ anan) * (/~ pinf)
+finite' :: Prd a => Field a => a -> Bool
+finite' = finite * (/~ ninf)
 
 extend :: (Prd a, Semifield a, Semifield b) => (a -> b) -> a -> b
 extend f x  | x =~ anan = anan

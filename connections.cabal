@@ -20,13 +20,10 @@ library
     , Data.Prd.Property
     , Data.Float
     , Data.Float.Unit
-    , Data.Float.Radian
-    , Data.Float.Signed
     , Data.Dioid
     , Data.Dioid.Property
     , Data.Semigroup.Join
     , Data.Semigroup.Meet
-    --, Data.Semigroup.Triangular
     , Data.Connection
     , Data.Connection.Int
     , Data.Connection.Word
@@ -35,6 +32,8 @@ library
     , Data.Connection.Property
     , Data.Semilattice
     , Data.Semilattice.Bounded
+    , Data.Semilattice.MaxMin
+    , Data.Semilattice.Pentagonal
     , Data.Semilattice.Property
   build-depends:       
       base              >= 4.10  && < 5.0
@@ -42,6 +41,8 @@ library
     , containers        >= 0.4.0 && < 0.7
     , semigroupoids     >= 5.0   && < 6.0
     , rings             >= 0.0.3 && < 0.1
+    , text
+    , template-haskell  >= 2.14  && < 2.15
 
   default-extensions:
       ScopedTypeVariables

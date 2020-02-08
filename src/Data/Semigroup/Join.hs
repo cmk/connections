@@ -62,15 +62,27 @@ bottom = unJoin mempty
 
 type JoinSemilattice a = (Prd a, (Join-Semigroup) a)
 
--- | The partial ordering induced by the join-semilattice structure
+-- | The partial ordering induced by the join-semilattice structure.
+--
+--
+-- Normally when /a/ implements 'Prd' we should have:
+-- @ 'joinLeq' x y ≡ x '<=' y @
+--
 joinLeq :: Eq a => (Join-Semigroup) a => a -> a -> Bool
 joinLeq x y = x ∨ y == y
 
--- | The partial ordering induced by the join-semilattice structure
+-- | The partial ordering induced by the join-semilattice structure.
+--
+-- Normally when /a/ implements 'Prd' we should have:
+-- @ 'joinGeq' x y ≡ x '>=' y @
+--
 joinGeq :: Eq a => (Join-Semigroup) a => a -> a -> Bool
 joinGeq x y = x ∨ y == x
 
 -- | Partial version of 'Data.Ord.compare'.
+--
+-- Normally when /a/ implements 'Prd' we should have:
+-- @ 'pcompareJoin' x y ≡ 'pcompare' x y @
 --
 pcompareJoin :: Eq a => (Join-Semigroup) a => a -> a -> Maybe Ordering
 pcompareJoin x y

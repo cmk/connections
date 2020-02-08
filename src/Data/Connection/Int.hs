@@ -82,7 +82,7 @@ instance ConnInteger Word64 where
 -- | Lawful replacement for the version in base.
 --
 fromInteger :: ConnInteger a => Integer -> a
-fromInteger = connl connInteger . Just . Finite
+fromInteger = connl connInteger . Just . Fin
 
 unsigned :: (Bound a, Integral a, Integral b) => Conn a b
 unsigned = Conn (\y -> fromIntegral (y P.+ maximal P.+ 1))

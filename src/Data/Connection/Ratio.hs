@@ -20,7 +20,7 @@ import qualified GHC.Float as F
 import Data.Semilattice
 import Data.Semilattice.Bounded
 import Data.Semiring
-import Data.Semifield hiding (finite)
+import Data.Semifield hiding (fin)
 import Prelude hiding (until, Ord(..), Num(..), Fractional(..), (^), Bounded)
 import qualified Prelude as P
 import GHC.Real hiding ((/), (^))
@@ -44,9 +44,9 @@ cancel (x :% y) = if x < zero && y < zero then (pabs x) :% (pabs y) else x :% y
 -- NaN
 --
 -- >>> fromRational @(Extended Int8) 4.9
--- Def (finite 5)
+-- Def (fin 5)
 -- >>> fromRational @(Extended Int8) (-1.2)
--- Def (finite (-1))
+-- Def (fin (-1))
 -- >>> fromRational @(Extended Int8) (1/0)
 -- Def Just Top
 -- >>> fromRational @(Extended Int8) (0/0)
@@ -106,15 +106,15 @@ rati08 :: Trip (Ratio Integer) (Extended Int8)
 rati08 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
-      | x < imin = finite bottom
-      | otherwise = finite $ P.ceiling $ cancel x
+      | x < imin = fin bottom
+      | otherwise = fin $ P.ceiling $ cancel x
 
   g = bounded ninf P.fromIntegral pinf
 
   h x | x =~ pinf = Just Top
-      | x > imax = finite top
+      | x > imax = fin top
       | x < imin = Nothing
-      | otherwise = finite $ P.floor $ cancel x
+      | otherwise = fin $ P.floor $ cancel x
 
   imax = 127
 
@@ -124,15 +124,15 @@ rati16 :: Trip (Ratio Integer) (Extended Int16)
 rati16 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
-      | x < imin = finite bottom
-      | otherwise = finite $ P.ceiling $ cancel x
+      | x < imin = fin bottom
+      | otherwise = fin $ P.ceiling $ cancel x
 
   g = bounded ninf P.fromIntegral pinf
 
   h x | x =~ pinf = Just Top
-      | x > imax = finite top
+      | x > imax = fin top
       | x < imin = Nothing
-      | otherwise = finite $ P.floor $ cancel x
+      | otherwise = fin $ P.floor $ cancel x
 
   imax = 32767
 
@@ -142,15 +142,15 @@ rati32 :: Trip (Ratio Integer) (Extended Int32)
 rati32 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
-      | x < imin = finite bottom
-      | otherwise = finite $ P.ceiling $ cancel x
+      | x < imin = fin bottom
+      | otherwise = fin $ P.ceiling $ cancel x
 
   g = bounded ninf P.fromIntegral pinf
 
   h x | x =~ pinf = Just Top
-      | x > imax = finite top
+      | x > imax = fin top
       | x < imin = Nothing
-      | otherwise = finite $ P.floor $ cancel x
+      | otherwise = fin $ P.floor $ cancel x
 
   imax = 2147483647 
 
@@ -160,15 +160,15 @@ rati64 :: Trip (Ratio Integer) (Extended Int64)
 rati64 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
-      | x < imin = finite bottom
-      | otherwise = finite $ P.ceiling $ cancel x
+      | x < imin = fin bottom
+      | otherwise = fin $ P.ceiling $ cancel x
 
   g = bounded ninf P.fromIntegral pinf
 
   h x | x =~ pinf = Just Top
-      | x > imax = finite top
+      | x > imax = fin top
       | x < imin = Nothing
-      | otherwise = finite $ P.floor $ cancel x
+      | otherwise = fin $ P.floor $ cancel x
  
   imax = 9223372036854775807
 
@@ -178,75 +178,75 @@ ratint :: Trip (Ratio Integer) (Extended Integer)
 ratint = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x =~ pinf = Just Top
       | x =~ ninf = Nothing
-      | otherwise = finite $ P.ceiling $ cancel x
+      | otherwise = fin $ P.ceiling $ cancel x
 
   g = bounded ninf P.fromIntegral pinf
 
   h x | x =~ pinf = Just Top
       | x =~ ninf = Nothing
-      | otherwise = finite $ P.floor $ cancel x
+      | otherwise = fin $ P.floor $ cancel x
 
 ratw08 :: Trip (Ratio Natural) (Lifted Word8) 
 ratw08 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Top
-      | otherwise = Finite $ P.ceiling x
+      | otherwise = Fin $ P.ceiling x
 
   g = topped P.fromIntegral pinf
 
   h x | x =~ pinf = Top
-      | x > imax = Finite top
-      | otherwise = Finite $ P.floor x
+      | x > imax = Fin top
+      | otherwise = Fin $ P.floor x
 
   imax = 255
 
 ratw16 :: Trip (Ratio Natural) (Lifted Word16) 
 ratw16 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Top
-      | otherwise = Finite $ P.ceiling x
+      | otherwise = Fin $ P.ceiling x
 
   g = topped P.fromIntegral pinf
 
   h x | x =~ pinf = Top
-      | x > imax = Finite top
-      | otherwise = Finite $ P.floor x
+      | x > imax = Fin top
+      | otherwise = Fin $ P.floor x
 
   imax = 65535
 
 ratw32 :: Trip (Ratio Natural) (Lifted Word32) 
 ratw32 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Top
-      | otherwise = Finite $ P.ceiling x
+      | otherwise = Fin $ P.ceiling x
 
   g = topped P.fromIntegral pinf
 
   h x | x =~ pinf = Top
-      | x > imax = Finite top
-      | otherwise = Finite $ P.floor x
+      | x > imax = Fin top
+      | otherwise = Fin $ P.floor x
 
   imax = 4294967295
 
 ratw64 :: Trip (Ratio Natural) (Lifted Word64) 
 ratw64 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Top
-      | otherwise = Finite $ P.ceiling x
+      | otherwise = Fin $ P.ceiling x
 
   g = topped P.fromIntegral pinf
 
   h x | x =~ pinf = Top
-      | x > imax = Finite top
-      | otherwise = Finite $ P.floor x
+      | x > imax = Fin top
+      | otherwise = Fin $ P.floor x
 
   imax = 18446744073709551615
 
 ratnat :: Trip (Ratio Natural) (Lifted Natural)
 ratnat = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x =~ pinf = Top
-      | otherwise = Finite $ P.ceiling x
+      | otherwise = Fin $ P.ceiling x
 
   g = topped P.fromIntegral pinf
 
   h x | x =~ pinf = Top
-      | otherwise = Finite $ P.floor x
+      | otherwise = Fin $ P.floor x
 
 ---------------------------------------------------------------------
 -- Instances

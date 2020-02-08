@@ -63,15 +63,26 @@ top :: (Meet-Monoid) a => a
 top = unMeet mempty
 {-# INLINE top #-}
 
--- | The partial ordering induced by the meet-semilattice structure
+-- | The partial ordering induced by the meet-semilattice structure.
+--
+-- Normally when /a/ implements 'Prd' we should have:
+-- @ 'meetLeq' x y ≡ x '<=' y @
+--
 meetLeq :: Eq a => (Meet-Semigroup) a => a -> a -> Bool
 meetLeq x y = x ∧ y == x
 
--- | The partial ordering induced by the meet-semilattice structure
+-- | The partial ordering induced by the meet-semilattice structure.
+--
+-- Normally when /a/ implements 'Prd' we should have:
+-- @ 'meetGeq' x y ≡ x '>=' y @
+--
 meetGeq :: Eq a => (Meet-Semigroup) a => a -> a -> Bool
 meetGeq x y = x ∧ y == y
 
 -- | Partial version of 'Data.Ord.compare'.
+--
+-- Normally when /a/ implements 'Prd' we should have:
+-- @ 'pcompareJoin' x y ≡ 'pcompare' x y @
 --
 pcompareMeet :: Eq a => (Meet-Semigroup) a => a -> a -> Maybe Ordering
 pcompareMeet x y

@@ -327,7 +327,7 @@ tied t = maybe False (== EQ) . half t
 
 -- @ truncateWith C.id == id @
 truncateWith :: (Prd a, Prd b, (Additive-Monoid) a) => Trip a b -> a -> b
-truncateWith t x = bool (ceilingWith t x) (floorWith t x) $ pos x
+truncateWith t x = bool (ceilingWith t x) (floorWith t x) $ x >= zero
 
 -- @ ceilingWith C.id == id @
 ceilingWith :: Prd a => Prd b => Trip a b -> a -> b
@@ -413,10 +413,10 @@ rsz :: (Prd a, Prd b) => Trip a b -> Bool -> a -> b
 rsz t = bool (floorWith t) (ceilingWith t)
 
 rnd :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> Bool -> a -> b
-rnd t RNZ s x = bool (roundWith t x) (rsz t s x) $ zer x
-rnd t RTP s x = bool (ceilingWith t x) (rsz t s x) $ zer x
-rnd t RTN s x = bool (floorWith t x) (rsz t s x) $ zer x
-rnd t RTZ s x = bool (truncateWith t x) (rsz t s x) $ zer x
+rnd t RNZ s x = bool (roundWith t x) (rsz t s x) $ x =~ zero
+rnd t RTP s x = bool (ceilingWith t x) (rsz t s x) $ x =~ zero
+rnd t RTN s x = bool (floorWith t x) (rsz t s x) $ x =~ zero
+rnd t RTZ s x = bool (truncateWith t x) (rsz t s x) $ x =~ zero
 
 neg' :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> Bool
 neg' t rm x = x < rnd t rm False zero

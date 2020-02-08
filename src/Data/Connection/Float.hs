@@ -27,7 +27,7 @@ import Data.Int
 import Data.Prd
 import Data.Prd.Nan
 import Data.Ratio
-import Data.Semifield hiding (finite)
+import Data.Semifield hiding (fin)
 import Data.Semilattice
 import Data.Semilattice.Bounded
 import Data.Semiring
@@ -58,15 +58,15 @@ f32i08 :: Trip Float (Extended Int8)
 f32i08 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
-      | x < imin = finite bottom
-      | otherwise = finite $ P.ceiling x
+      | x < imin = fin bottom
+      | otherwise = fin $ P.ceiling x
 
   g = bounded ninf P.fromIntegral pinf
 
   h x | x =~ pinf = Just Top
-      | x > imax = finite top
+      | x > imax = fin top
       | x < imin = Nothing
-      | otherwise = finite $ P.floor x
+      | otherwise = fin $ P.floor x
 
   imax = 127 
 
@@ -77,15 +77,15 @@ f32i16 :: Trip Float (Extended Int16)
 f32i16 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
-      | x < imin = finite bottom
-      | otherwise = finite $ P.ceiling x
+      | x < imin = fin bottom
+      | otherwise = fin $ P.ceiling x
 
   g = bounded ninf P.fromIntegral pinf
 
   h x | x =~ pinf = Just Top
-      | x > imax = finite top
+      | x > imax = fin top
       | x < imin = Nothing
-      | otherwise = finite $ P.floor x
+      | otherwise = fin $ P.floor x
 
   imax = 32767 
 
@@ -114,15 +114,15 @@ f64i08 :: Trip Double (Extended Int8)
 f64i08 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
-      | x < imin = finite bottom
-      | otherwise = finite $ P.ceiling x
+      | x < imin = fin bottom
+      | otherwise = fin $ P.ceiling x
 
   g = bounded ninf P.fromIntegral pinf
 
   h x | x =~ pinf = Just Top
-      | x > imax = finite top
+      | x > imax = fin top
       | x < imin = Nothing
-      | otherwise = finite $ P.floor x
+      | otherwise = fin $ P.floor x
 
   imax = 127 
 
@@ -133,15 +133,15 @@ f64i16 :: Trip Double (Extended Int16)
 f64i16 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
-      | x < imin = finite bottom
-      | otherwise = finite $ P.ceiling x
+      | x < imin = fin bottom
+      | otherwise = fin $ P.ceiling x
 
   g = bounded ninf P.fromIntegral pinf
 
   h x | x =~ pinf = Just Top
-      | x > imax = finite top
+      | x > imax = fin top
       | x < imin = Nothing
-      | otherwise = finite $ P.floor x
+      | otherwise = fin $ P.floor x
 
   imax = 32767 
 
@@ -152,15 +152,15 @@ f64i32 :: Trip Double (Extended Int32)
 f64i32 = Trip (liftNan f) (nan' g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
-      | x < imin = finite bottom
-      | otherwise = finite $ P.ceiling x
+      | x < imin = fin bottom
+      | otherwise = fin $ P.ceiling x
 
   g = bounded ninf P.fromIntegral pinf
 
   h x | x =~ pinf = Just Top
-      | x > imax = finite top
+      | x > imax = fin top
       | x < imin = Nothing
-      | otherwise = finite $ P.floor x
+      | otherwise = fin $ P.floor x
 
   imax = 2147483647 
 

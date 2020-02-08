@@ -1,43 +1,40 @@
 {-# Language AllowAmbiguousTypes #-}
 {-# LANGUAGE Safe #-}
 
-module Data.Semilattice.Property where
-{- (
-  -- * Required properties of lattices
-    nonunital_on
-  , preordered
-  , monotone_join
-  , monotone_join'
-  , monotone_meet
-  , commutative_join
-  , commutative_meet
-  --, morphism_bounded
-  , morphism_lattice
-  , morphism_joinsemilattice
-  , morphism_meetsemilattice
-  , associative_join_on
-  , associative_meet_on
-  , commutative_join_on
-  , commutative_meet_on
+module Data.Semilattice.Property (
+  -- * Required properties of join lattices
+    monotone_join
   , idempotent_join
   , idempotent_join_on
+  , associative_join
+  , associative_join_on
+  , commutative_join
+  , commutative_join_on
+  , neutral_join
+  , neutral_join_on
+  , morphism_join
+  , morphism_join_on
+  , morphism_join'
+  , morphism_join_on'
+  -- * Required properties of meet semilattices
+  , monotone_meet
   , idempotent_meet
   , idempotent_meet_on
-  , absorbative_join_on
-  , absorbative_join_on'
-  , absorbative_meet_on
-  , absorbative_meet_on'
-  -- * Required properties of bounded lattices
-  , neutral_join_on
+  , associative_meet
+  , associative_meet_on
+  , commutative_meet
+  , commutative_meet_on
+  , neutral_meet
   , neutral_meet_on
-  , annihilative_meet_on
-  , monotone_bottom
-  , annihilative_unit
-  , pos_addition
-  , pos_multiplication
-  , annihilative_join 
-  , annihilative_join' 
-  -- * Distributive semilattices and lattices
+  , morphism_meet
+  , morphism_meet_on
+  , morphism_meet'
+  , morphism_meet_on'
+  -- * Required properties of lattices
+  , absorbative
+  , absorbative'
+  , annihilative_join
+  , annihilative_meet
   , majority_median
   , commutative_median
   , commutative_median'
@@ -45,12 +42,12 @@ module Data.Semilattice.Property where
   , morphism_distributive
   , distributive_on
   , codistributive
-  , distributive_finite_on
-  , distributive_finite1_on
-  , distributive_cross_on
-  , distributive_cross1_on
+  --, distributive_finite_on
+  --, distributive_finite1_on
+  --, distributive_cross_on
+  --, distributive_cross1_on
 ) where
--}
+
 import Data.Dioid
 import Data.Dioid.Property as Prop
 import Data.Semigroup
@@ -73,104 +70,156 @@ import Prelude hiding (Ord(..), Num(..), sum)
 ------------------------------------------------------------------------------------
 -- Required properties of join semilattices
 
--- | \( \forall a, b, c \in R: (a + b) + c \sim a + (b + c) \)
---
--- All semigroups must right-associate join.
+-- | \( \forall a, b, c: b \leq c \Rightarrow b ∨ a \leq c ∨ a \)
 --
 -- This is a required property.
 --
-associative_join_on :: (Join-Semigroup) r => Rel r b -> r -> r -> r -> b
-associative_join_on (~~) = Prop.associative_on (~~) (∨) 
+monotone_join :: JoinSemilattice r => r -> r -> r -> Bool
+monotone_join x = Prop.monotone_on (<=) (<=) (∨ x)
 
-
--- | \( \forall a, b \in R: a + b \sim b + a \)
+-- | \( \forall a \in R: a ∨ a = a \)
 --
--- This is a an /optional/ property for semigroups, and a /required/ property for semirings.
---
-commutative_join_on :: (Join-Semigroup) r => Rel r b -> r -> r -> b
-commutative_join_on (~~) = Prop.commutative_on (~~) (∨) 
-
--- | Idempotency property for join semigroups.
---
--- @ 'idempotent_join' = 'absorbative_join' 'top' @
+-- @ 'idempotent_join' = 'absorbative' 'top' @
 -- 
 -- See < https://en.wikipedia.org/wiki/Band_(mathematics) >.
 --
--- This is a required property for lattices.
+-- This is a required property.
 --
+idempotent_join :: JoinSemilattice r => r -> Bool
+idempotent_join = idempotent_join_on (=~)
+
 idempotent_join_on :: (Join-Semigroup) r => Rel r b -> r -> b
 idempotent_join_on (~~) r = (∨) r r ~~ r
+
+-- | \( \forall a, b, c \in R: (a ∨ b) ∨ c = a ∨ (b ∨ c) \)
+--
+-- This is a required property.
+--
+associative_join :: JoinSemilattice r => r -> r -> r -> Bool
+associative_join = Prop.associative_on (=~) (∨) 
+
+associative_join_on :: (Join-Semigroup) r => Rel r b -> r -> r -> r -> b
+associative_join_on (~~) = Prop.associative_on (~~) (∨) 
+
+-- | \( \forall a, b \in R: a ∨ b = b ∨ a \)
+--
+-- This is a required property.
+--
+commutative_join :: JoinSemilattice r => r -> r -> Bool
+commutative_join = commutative_join_on (=~)
+
+commutative_join_on :: (Join-Semigroup) r => Rel r b -> r -> r -> b
+commutative_join_on (~~) = Prop.commutative_on (~~) (∨) 
+
+-- | \( \forall a \in R: (bottom ∨ a) = a \)
+--
+-- @
+-- 'bottom' '∨' r '=~' r
+-- @
+--
+-- This is a required property for bounded join semilattices.
+--
+neutral_join :: BoundedJoinSemilattice r => r -> Bool
+neutral_join = neutral_join_on (=~)
+
+neutral_join_on :: (Join-Monoid) r => Rel r b -> r -> b
+neutral_join_on (~~) = Prop.neutral_on (~~) (∨) bottom
+
+-- | \( \forall a, b: f(a ∨ b) = f(a) ∨ f(b) \)
+--
+-- Given two join-semilattices (S, ∨) and (T, ∨), a homomorphism is a monotone function /f: S → T/ such that 
+--
+-- @ f (x '∨' y) '==' f x '∨' f y @
+--
+morphism_join :: JoinSemilattice r => JoinSemilattice s => (r -> s) -> r -> r -> Bool
+morphism_join = morphism_join_on (=~)
 
 morphism_join_on :: (Join-Semigroup) r => (Join-Semigroup) s => Rel s b -> (r -> s) -> r -> r -> b
 morphism_join_on (~~) f x y = (f $ x ∨ y) ~~ (f x ∨ f y)
 
+-- | Bounded join semilattice morphisms must preserve the bottom element.
+--
+morphism_join' :: BoundedJoinSemilattice r => BoundedJoinSemilattice s => (r -> s) -> Bool
+morphism_join' = morphism_join_on' (=~)
+
 morphism_join_on' :: (Join-Monoid) r => (Join-Monoid) s => Rel s b -> (r -> s) -> b
 morphism_join_on' (~~) f = (f bottom) ~~ bottom
-
--- | \( \forall a, b: f(a ∨ b) = f(a) ∨ f(b) \)
---
--- Given two join-semilattices (S, ∨) and (T, ∨), a homomorphism of (join-) semilattices 
--- is a function /f: S → T/ such that 
---
--- @ f (x '∨' y) '==' f x '∨' f y @
---
--- In the order-theoretic for(∧)ation, these conditions just state that a homomorphism 
--- of join-semilattices is a function that preserves binary joins and least elements, 
--- if such there be. 
---
-morphism_joinsemilattice :: Prd r => Prd s => (Join-Semigroup) r => (Join-Semigroup) s => (r -> s) -> r -> r -> Bool
-morphism_joinsemilattice f x y =
-  Prop.monotone_on (<=) (<=) f x y &&
-  morphism_join_on (=~) f x y
 
 ------------------------------------------------------------------------------------
 -- Required properties of meet semilattices
 
--- | \( \forall a, b, c \in R: (a * b) * c \sim a * (b * c) \)
+-- | \( \forall a, b, c: b \leq c \Rightarrow b ∧ a \leq c ∧ a \)
+--
+-- This is a required property.
+--
+monotone_meet :: MeetSemilattice r => r -> r -> r -> Bool
+monotone_meet x = Prop.monotone_on (<=) (<=) (∧ x)
+
+-- | \( \forall a, b, c \in R: (a * b) * c = a * (b * c) \)
 --
 -- All semigroups must right-associate meet.
 --
 -- This is a required property.
 --
+associative_meet :: MeetSemilattice r => r -> r -> r -> Bool
+associative_meet = associative_meet_on (=~)
+
 associative_meet_on :: (Meet-Semigroup) r => Rel r b -> r -> r -> r -> b
 associative_meet_on (~~) = Prop.associative_on (~~) (∧) 
 
--- | \( \forall a, b \in R: a * b \sim b * a \)
+-- | \( \forall a, b \in R: a ∧ b = b ∧ a \)
 --
--- This is a an /optional/ property for semigroups, and a /optional/ property for semirings.
--- It is a /required/ property for rings.
+-- This is a required property.
 --
+commutative_meet :: MeetSemilattice r => r -> r -> Bool
+commutative_meet = commutative_meet_on (=~)
+
 commutative_meet_on :: (Meet-Semigroup) r => Rel r b -> r -> r -> b
 commutative_meet_on (~~) = Prop.commutative_on (~~) (∧) 
 
--- | Idempotency property for semigroups.
+-- | \( \forall a \in R: a ∧ a = a \)
 --
--- @ 'idempotent_meet' = 'absorbative_meet' 'bottom' @
+-- @ 'idempotent_meet' = 'absorbative' 'bottom' @
 -- 
 -- See < https://en.wikipedia.org/wiki/Band_(mathematics) >.
 --
--- This is a an /optional/ property for semigroups, and a /optional/ property for semirings.
+-- This is a required property.
 --
--- This is a /required/ property for lattices.
---
+idempotent_meet :: MeetSemilattice r => r -> Bool
+idempotent_meet = idempotent_meet_on (=~)
+
 idempotent_meet_on :: (Meet-Semigroup) r => Rel r b -> r -> b
 idempotent_meet_on (~~) r = (∧) r r ~~ r
+
+-- | \( \forall a \in R: (bottom ∨ a) = a \)
+--
+-- @
+-- 'top' '∧' r '=~' r
+-- @
+--
+-- This is a required property for bounded meet semilattices.
+--
+neutral_meet :: BoundedMeetSemilattice r => r -> Bool
+neutral_meet = neutral_meet_on (=~)
+
+neutral_meet_on :: (Meet-Monoid) r => Rel r b -> r -> b
+neutral_meet_on (~~) = Prop.neutral_on (~~) (∧) top
 
 -- |
 --
 -- The obvious dual replacing '∧' with '∨' and 'bottom' with 'top' transforms this
 -- definition of a join-semilattice homomorphism into its meet-semilattice equivalent.
 --
--- Note that any semilattice homomorphism is necessarily monotone with respect to the 
--- associated partial ordering relation.
---
-morphism_meetsemilattice :: Prd r => Prd s => (Meet-Semigroup) r => (Meet-Semigroup) s => (r -> s) -> r -> r -> Bool
-morphism_meetsemilattice f x y =
-  Prop.monotone_on (>=) (>=) f x y &&
-  morphism_meet_on (=~) f x y
+morphism_meet :: MeetSemilattice r => MeetSemilattice s => (r -> s) -> r -> r -> Bool
+morphism_meet = morphism_meet_on (=~)
 
 morphism_meet_on :: (Meet-Semigroup) r => (Meet-Semigroup) s => Rel s b -> (r -> s) -> r -> r -> b
 morphism_meet_on (~~) f x y = (f $ x ∧ y) ~~ (f x ∧ f y)
+
+-- | Bounded meet semilattice morphisms must preserve the top element.
+--
+morphism_meet' :: BoundedMeetSemilattice r => BoundedMeetSemilattice s => (r -> s) -> Bool
+morphism_meet' = morphism_meet_on' (=~)
 
 morphism_meet_on' :: (Meet-Monoid) r => (Meet-Monoid) s => Rel s b -> (r -> s) -> b
 morphism_meet_on' (~~) f = (f top) ~~ top
@@ -178,38 +227,75 @@ morphism_meet_on' (~~) f = (f top) ~~ top
 ------------------------------------------------------------------------------------
 -- Required properties of lattices
 
--- This is a required property for semilattices and lattices.
+-- | \( \forall a, b \in R: a * b + b = b \)
 --
-commutative_join :: Eq r => Lattice r => r -> r -> Bool
-commutative_join = commutative_join_on $ \a b -> joinLeq a b && meetGeq a b 
-
--- This is a required property for semilattices and lattices.
+-- Absorbativity is a generalized form of idempotency:
 --
-commutative_meet :: Eq r => Lattice r => r -> r -> Bool
-commutative_meet = commutative_meet_on $ \a b -> joinLeq a b && meetGeq a b
-
-{-
--- If /R/ and /S/ both include extremal elements, then /f/ should also be a monoid homomorphism, 
--- i.e. we joinally require that
---
--- @ 
--- f 'top' '=~' 'top'
--- f 'bottom' '=~' 'bottom'
+-- @
+-- 'absorbative' 'top' a '~~' a ∨ a '~~' a
 -- @
 --
-morphism_bounded :: Prd r => Prd s => BoundedLattice r => BoundedLattice s => (r -> s) -> r -> r -> r -> Bool
-morphism_bounded f x y z =
-  morphism_lattice f x y z &&
-  morphism_join_on' (=~) f &&
-  morphism_meet_on' (=~) f
--}
--- | Distributive lattice morphisms are compatible with 'glb'.
+-- This is a required property for semilattices and lattices.
 --
-morphism_lattice :: Prd r => Prd s => Distributive r => Distributive s => (r -> s) -> r -> r -> r -> Bool
-morphism_lattice f x y z =
-  morphism_joinsemilattice f x y &&
-  morphism_meetsemilattice f x y &&
-  Prop.morphism_distribitive_on (=~) f x y z
+absorbative :: Lattice r => r -> r -> Bool
+absorbative x y = (x ∧ y ∨ y) =~ y
+
+-- | \( \forall a, b \in R: b + b * a = b \)
+--
+-- Absorbativity is a generalized form of idempotency:
+--
+-- @
+-- 'absorbative'' 'bottom' a '~~' a ∨ a '~~' a
+-- @
+--
+absorbative' :: Lattice r => r -> r -> Bool
+absorbative' x y = (x ∨ y ∧ y) =~ y
+
+-- | \( \forall a \in R: (top ∨ a) = top \)
+--
+-- If /R/ is a lattice then its top element must be annihilative, i.e.:
+--
+-- @
+-- 'top' '∨' a = 'top'
+-- @
+--
+-- This is a required property.
+--
+annihilative_join :: UpperBoundedLattice r => r -> Bool
+annihilative_join r = Prop.annihilative_on (=~) (∨) top r
+
+-- | \( \forall a \in R: (bottom ∧ a) = bottom \)
+--
+-- If /R/ is a lattice then its bottom element must be annihilative, i.e.:
+--
+-- @
+-- 'bottom' '∧' a = 'bottom'
+-- @
+--
+-- For 'Semiring' instances this property translates to:
+--
+-- @
+-- 'zero' '*' a = 'zero'
+-- @
+--
+-- For 'Alternative' instances this property translates to:
+--
+-- @
+-- 'empty' '*>' a = 'empty'
+-- @
+--
+-- All right semirings must have a right-absorbative addititive one,
+-- however note that depending on the 'Prd' instance this does not preclude 
+-- IEEE754-mandated behavior such as: 
+--
+-- @
+-- 'zero' '*' NaN = NaN
+-- @
+--
+-- This is a required property.
+--
+annihilative_meet :: LowerBoundedLattice r => r -> Bool
+annihilative_meet r = Prop.annihilative_on (=~) (∧) bottom r
 
 ------------------------------------------------------------------------------------
 -- Properties of distributive semilattices and lattices
@@ -230,25 +316,25 @@ distributive_meet c a b a' b' = c >= a ∧ b ==> a' >= a && b' >= b && c >= a' �
 
 -- @ glb x x y '==' x @
 --
-majority_median :: Eq r => Distributive r => r -> r -> Bool
+majority_median :: Eq r => Lattice r => r -> r -> Bool
 majority_median x y = glb x y y == y
 
 -- @ median x y z '==' glb z x y @
 --
-commutative_median :: Eq r => Distributive r => r -> r -> r -> Bool
+commutative_median :: Eq r => Lattice r => r -> r -> r -> Bool
 commutative_median x y z = glb x y z == glb z x y
 
 -- @ median x y z '==' median x z y @
 --
-commutative_median' :: Eq r => Distributive r => r -> r -> r -> Bool
+commutative_median' :: Eq r => Lattice r => r -> r -> r -> Bool
 commutative_median' x y z = glb x y z == glb x z y
 
 -- @ median (median x w y) w z '==' median x w (median y w z) @
 --
-associative_median :: Eq r => Distributive r => r -> r -> r -> r -> Bool
+associative_median :: Eq r => Lattice r => r -> r -> r -> r -> Bool
 associative_median x y z w = glb (glb x w y) w z == glb x w (glb y w z)
 
 -- | Distributive lattice morphisms are compatible with 'median'.
 --
-morphism_distributive :: Prd r => Prd s => Distributive r => Distributive s => (r -> s) -> r -> r -> r -> Bool
+morphism_distributive :: Prd r => Prd s => Lattice r => Lattice s => (r -> s) -> r -> r -> r -> Bool
 morphism_distributive f x y z = f (glb x y z) =~ glb (f x) (f y) (f z)
