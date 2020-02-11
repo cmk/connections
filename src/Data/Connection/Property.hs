@@ -63,24 +63,6 @@ monotoner (Conn _ g) = Prop.monotone_on (<=) (<=) g
 monotonel :: Prd a => Prd b => Conn a b -> a -> a -> Bool
 monotonel (Conn f _) = Prop.monotone_on (<=) (<=) f
 
--- | \( \forall x: f \dashv g \Rightarrow counit \circ f (x) \sim f (x) \)
---
--- This is a required property.
---
--- See <https://ncatlab.org/nlab/show/idempotent+adjunction>
---
-projectivel :: Prd a => Prd b => Conn a b -> a -> Bool
-projectivel conn@(Conn f _) = Prop.projective_on (=~) f $ counit conn
-
--- | \( \forall x: f \dashv g \Rightarrow unit \circ g (x) \sim g (x) \)
---
--- This is a required property.
---
--- See <https://ncatlab.org/nlab/show/idempotent+adjunction>
---
-projectiver :: Prd a => Prd b => Conn a b -> b -> Bool
-projectiver conn@(Conn _ g) = Prop.projective_on (=~) g $ unit conn
-
 -- | \( \forall x : f \dashv g \Rightarrow unit \circ unit (x) \sim unit (x) \)
 --
 -- This is a required property.
@@ -94,3 +76,17 @@ idempotent_unit conn = Prop.idempotent_on (=~) $ unit conn
 --
 idempotent_counit :: Prd a => Prd b => Conn a b -> b -> Bool
 idempotent_counit conn = Prop.idempotent_on (=~) $ counit conn
+
+-- | \( \forall x: f \dashv g \Rightarrow counit \circ f (x) \sim f (x) \)
+--
+-- See <https://ncatlab.org/nlab/show/idempotent+adjunction>
+--
+projectivel :: Prd a => Prd b => Conn a b -> a -> Bool
+projectivel conn@(Conn f _) = Prop.projective_on (=~) f $ counit conn
+
+-- | \( \forall x: f \dashv g \Rightarrow unit \circ g (x) \sim g (x) \)
+--
+-- See <https://ncatlab.org/nlab/show/idempotent+adjunction>
+--
+projectiver :: Prd a => Prd b => Conn a b -> b -> Bool
+projectiver conn@(Conn _ g) = Prop.projective_on (=~) g $ unit conn

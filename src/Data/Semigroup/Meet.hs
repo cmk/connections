@@ -15,38 +15,35 @@ module Data.Semigroup.Meet (
   , module Data.Semigroup.Meet
 ) where
 
-import safe Data.Ord
-import safe Data.Prd
-import safe Control.Applicative
-import safe Data.Bool
-import safe Data.Maybe
-import safe Data.Either
-import safe Data.Foldable as Foldable (Foldable, foldr', foldl')
-import safe Data.List
-import safe Data.List.NonEmpty
-import safe Data.Semigroup
-import safe Data.Semigroup.Additive
-import safe Data.Semigroup.Multiplicative
-import safe Data.Semigroup.Foldable as Foldable1
-import safe Data.Tuple
-import safe GHC.Generics (Generic)
---import safe Prelude ( Eq, Ord, Show, Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, Float, Double)
-import safe qualified Prelude as P
+import Data.Ord
+import Data.Prd
+import Control.Applicative
+import Data.Bool
+import Data.Maybe
+import Data.Either
+import Data.Foldable as Foldable (Foldable, foldr', foldl')
+import Data.List
+import Data.List.NonEmpty
+import Data.Semigroup
+import Data.Semigroup.Additive
+import Data.Semigroup.Multiplicative
+import Data.Semigroup.Foldable as Foldable1
+import GHC.Generics (Generic)
+import qualified Prelude as P
 
-import safe Prelude ( Eq(..), Ord, Show, Ordering(..), Bounded(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, Float, Double)
-import safe qualified Prelude as P
+import Prelude ( Eq(..), Ord, Show, Ordering(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), (<$>), Integer)
+import qualified Prelude as P
 
-import safe Numeric.Natural
-import safe Data.Word
-import safe Data.Int
-import safe Data.Fixed
-import safe Data.Ratio
+import Numeric.Natural
+import Data.Word
+import Data.Int
+import Data.Fixed
+import Data.Ratio
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
-import qualified Data.Sequence as Seq
 
 infixr 6 ∧ 
 

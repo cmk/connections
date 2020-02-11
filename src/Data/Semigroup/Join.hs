@@ -12,31 +12,31 @@
 
 module Data.Semigroup.Join where
 
-import safe Control.Applicative
-import safe Data.Bool
-import safe Data.Maybe
-import safe Data.Either
-import safe Data.Foldable hiding (sum)
-import safe Data.List
-import safe Data.List.NonEmpty
-import safe Data.Ord
-import safe Data.Prd
-import safe Data.Semigroup
-import safe Data.Semigroup.Additive
-import safe Data.Semigroup.Meet
-import safe Data.Semigroup.Foldable
-import safe Data.Semigroup.Multiplicative
-import safe Data.Tuple
-import safe GHC.Generics (Generic)
+import Control.Applicative
+import Data.Bool
+import Data.Maybe
+import Data.Either
+import Data.Foldable hiding (sum)
+import Data.List
+import Data.List.NonEmpty
+import Data.Ord
+import Data.Prd
+import Data.Semigroup
+import Data.Semigroup.Additive
+import Data.Semigroup.Meet
+import Data.Semigroup.Foldable
+import Data.Semigroup.Multiplicative
+import Data.Tuple
+import GHC.Generics (Generic)
 
-import safe Numeric.Natural
-import safe Data.Word
-import safe Data.Int
-import safe Data.Fixed
-import safe Data.Ratio
+import Numeric.Natural
+import Data.Word
+import Data.Int
+import Data.Fixed
+import Data.Ratio
 
-import safe Prelude ( Eq(..), Ord(..), Show, Ordering(..), Bounded(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, Float, Double)
-import safe qualified Prelude as P
+import Prelude ( Eq(..), Ord(..), Show, Ordering(..), Bounded(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, Float, Double)
+import qualified Prelude as P
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set

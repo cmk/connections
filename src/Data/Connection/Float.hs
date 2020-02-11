@@ -1,14 +1,11 @@
 module Data.Connection.Float (
   -- * Float
-    TripFloat(..)
-  , fromFloat
-  , f32i08
+    f32i08
   , f32i16
   , f32i32
   , i32f32
   -- * Double
-  , TripDouble(..)
-  , fromDouble
+  --, f64f32
   , f64i08
   , f64i16
   , f64i32
@@ -29,7 +26,8 @@ import Data.Prd.Nan
 import Data.Ratio
 import Data.Semifield hiding (fin)
 import Data.Semilattice
-import Data.Semilattice.Bounded
+import Data.Semilattice.Top
+import Data.Semilattice.N5
 import Data.Semiring
 import Data.Word
 import GHC.Num (subtract)
@@ -41,17 +39,6 @@ import qualified GHC.Float as F
 import qualified GHC.Float.RealFracMethods as R
 
 
-class Prd a => TripFloat a where
-  tripFloat :: Trip Float a
-
-class Prd a => TripDouble a where
-  tripDouble :: Trip Double a
-
-fromFloat :: TripFloat a => Float -> a
-fromFloat = connl . tripl $ tripFloat
-
-fromDouble :: TripDouble a => Double -> a
-fromDouble = connl . tripl $ tripDouble
 
 -- | All 'Int08' values are exactly representable in a 'Float'.
 f32i08 :: Trip Float (Extended Int8)
@@ -108,6 +95,12 @@ i32f32 = Conn (nan' g) (liftNan f) where
 
   g i | abs i <= 2^24-1 = fromIntegral i
       | otherwise = if i >= 0 then 2**24 else -1/0
+
+
+---------------------------------------------------------------------
+-- Double
+---------------------------------------------------------------------
+
 
 -- | All 'Int8' values are exactly representable in a 'Double'.
 f64i08 :: Trip Double (Extended Int8)
@@ -193,44 +186,3 @@ f32w08 = Trip (liftNan f) (nan (0/0) g) (liftNan h) where
   g = word32Float . flip B.shift 23 . connl w08w32
   f x = 1 + min 254 (h x)
 -}
-
----------------------------------------------------------------------
--- Instances
----------------------------------------------------------------------
-
-instance TripFloat Float where
-  tripFloat = C.id
-
-instance TripFloat (Nan Ordering) where
-  tripFloat = fldord
-
-instance TripFloat (Extended Int8) where
-  tripFloat = f32i08
-
-instance TripFloat (Extended Int16) where
-  tripFloat = f32i16
-
---instance TripFloat Ulp32 where
---  tripFloat = f32u32
-
---instance TripFloat (Nan Word8) where
---  tripFloat = tripl f32w08
-
-instance TripDouble Double where
-  tripDouble = C.id
-
-instance TripDouble (Nan Ordering) where
-  tripDouble = fldord
-
---instance TripDouble Ulp64 where
---  tripDouble = f64u64
-
-instance TripDouble (Extended Int8) where
-  tripDouble = f64i08
-
-instance TripDouble (Extended Int16) where
-  tripDouble = f64i16
-
-instance TripDouble (Extended Int32) where
-  tripDouble = f64i32
-

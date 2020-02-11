@@ -2,58 +2,48 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE QuasiQuotes #-}
-module Data.Float.Unit where
+module Data.Float.Unit (
+  -- * Unit
+    Unit
+  , unt
+  , unit
+  , unit'
+  , untf64
+  , unUnit
+  , cmpl
+  -- * Biunit
+  , Biunit
+  , bnt
+  , biunit
+  , biunit'
+  , bntf64
+  , unBiunit
+) where
 
+import Control.Applicative
 import Data.Prd
 import Data.Connection hiding (unit)
+import Data.Group
+
+import Data.Semiring
 import Data.Semifield (ninf)
-import Prelude hiding (Ord(..))
+import Data.Semilattice.N5
+import Data.Semilattice.Top
+import Prelude hiding (Ord(..), Num(..))
 import Data.Data
 import Data.Text as T
 import Language.Haskell.TH.Syntax (Q, Exp(..), lift, liftData, dataToExpQ)
 import Language.Haskell.TH.Quote (QuasiQuoter (..))
 import Text.Read (readMaybe)
-{-
-untbnt
-f64unt
-posunt
-sgnbnt
--}
 
 -- | A 'Double' in the interval \( [0,1] \).
 --
-newtype Unit = Unit { fromUnit :: Double } deriving (Data, Show)
-
-
-instance Prd Unit where
-  pcompare (Unit x) (Unit y) = pcompare x y
-
-
--- | 
---
--- Clips inputs greater than 1.
---
-untf64 :: Conn (Maybe Unit) Double
-untf64 = Conn f g where
-  f = maybe ninf fromUnit
-  g x | x >= 0 = Just . Unit $ min 1 x
-      | otherwise = Nothing
-
-
--- | Safe `Unit` complement
-complement :: Unit -> Unit
-complement (Unit a) = Unit $ 1 - a
-
-unit :: Double -> Maybe Unit
-unit = connr untf64
-
-unit' :: Double -> Unit
-unit' = Unit . min 1 . max 0
+newtype Unit = Unit Double deriving (Data, Show)
 
 -- | A quasiquoter for safely constructing a 'Unit' from a constant.
 --
 -- >>> [unt|1.0|]
--- Unit {fromUnit = 1.0}
+-- Unit {unUnit = 1.0}
 unt :: QuasiQuoter
 unt = let
     msg = "Invalid Unit: must be in [0,1]."
@@ -61,37 +51,64 @@ unt = let
     mk s = readMaybe s >>= clip
     in qq $ justErr msg . mk
 
+-- | Monotone 'Unit' constructor.
+--
+-- Clips inputs greater than 1 and maps /NaN/ to 'Nothing'.
+--
+unit :: N5 Double -> Bottom Unit
+unit = connr untf64
+
+-- | 'Unit' constructor.
+--
+-- Clips inputs outside of the interval \( [0,1] \).
+--
+-- /Caution/ due to /NaN/s this is not a monotone map.
+--
+unit' :: Double -> Unit
+unit' = Unit . clipu
+
+-- | A 'Unit' \(\dashv\) 'Double' connection.
+--
+-- Clips inputs greater than 1 and maps /NaN/ to 'Nothing'.
+--
+untf64 :: Conn (Bottom Unit) (N5 Double)
+untf64 = Conn f g where
+  f = maybe (N5 ninf) (N5 . unUnit)
+  g (N5 x) | x >= 0 = Just . Unit $ min 1 x
+           | otherwise = Nothing
+
+unUnit :: Unit -> Double
+unUnit (Unit x) = x
+
+-- | `Unit` complement.
+--
+cmpl :: Unit -> Unit
+cmpl (Unit x) = Unit $ 1 - x
+
+clipu = min 1 . max 0
+
+instance Prd Unit where
+  pcompare (Unit x) (Unit y) = pcompare (clipu x) (clipu y)
+
+instance Minimal Unit where
+  minimal = Unit 0
+
+instance Maximal Unit where
+  maximal = Unit 1
+
 -------------------------------------------------------------------------------
 -- Biunit
 -------------------------------------------------------------------------------
 
 -- | A 'Double' in the interval \( [-1,1] \).
 --
-newtype Biunit = Biunit { fromBiunit :: Double } deriving (Data, Show)
+newtype Biunit = Biunit Double deriving (Data, Show)
 
-instance Prd Biunit where
-  pcompare (Biunit x) (Biunit y) = pcompare x y
-
--- | 
---
--- Clips inputs greater than 1.
---
-bntf64 :: Conn (Maybe Biunit) Double
-bntf64 = Conn f g where
-  f = maybe ninf fromBiunit
-  g x | x >= -1 = Just . Biunit $ min 1 x
-      | otherwise = Nothing
-
-biunit :: Double -> Maybe Biunit
-biunit = connr bntf64
-
-biunit' :: Double -> Biunit
-biunit' = Biunit . min 1 . max (-1)
 
 -- | A quasiquoter for safely constructing a 'Biunit' from a constant.
 --
 -- >>> [bnt|1.0|]
--- Biunit {fromBiunit = 1.0}
+-- Biunit {unBiunit = 1.0}
 bnt :: QuasiQuoter
 bnt = let
     msg = "Invalid Biunit: must be in [-1,1]."
@@ -99,6 +116,79 @@ bnt = let
     mk s = readMaybe s >>= clip
     in qq $ justErr msg . mk
 
+-- | Monotone 'Biunit' constructor.
+--
+biunit :: N5 Double -> Bottom Biunit
+biunit = connr bntf64
+
+-- | 'Biunit' constructor.
+--
+-- Clips inputs outside of the interval \( [-1,1] \).
+--
+-- /Caution/ due to /NaN/s this is not a monotone map.
+--
+biunit' :: Double -> Biunit
+biunit' = Biunit . clipb
+
+-- | A 'Biunit' \(\dashv\) 'Double' connection.
+--
+-- Clips inputs greater than 1 and maps /NaN/ to 'Nothing'.
+--
+bntf64 :: Conn (Bottom Biunit) (N5 Double)
+bntf64 = Conn f g where
+  f = maybe (N5 ninf) (N5 . unBiunit)
+  g (N5 x) | x >= -1 = Just . Biunit $ min 1 x
+           | otherwise = Nothing
+
+unBiunit :: Biunit -> Double
+unBiunit (Biunit x) = x
+
+clipb = min 1 . max (-1)
+
+instance Prd Biunit where
+  pcompare (Biunit x) (Biunit y) = pcompare (clipb x) (clipb y)
+
+instance Minimal Biunit where
+  minimal = Biunit (-1)
+
+instance Maximal Biunit where
+  maximal = Biunit 1
+
+instance Semigroup (Additive Biunit) where
+  -- >>> biunit' one + biunit' one
+  -- Biunit {unBiunit = 1.0}
+  (<>) = liftA2 $ \(Biunit x) (Biunit y) -> biunit' (x + y)
+
+instance Monoid (Additive Biunit) where
+  mempty = pure $ Biunit 0
+ 
+instance Magma (Additive Biunit) where
+  (<<) = liftA2 $ \(Biunit x) (Biunit y) -> biunit' (x - y)
+
+instance Quasigroup (Additive Biunit)
+instance Loop (Additive Biunit)
+instance Group (Additive Biunit)
+
+instance Semigroup (Multiplicative Biunit) where
+  (<>) = liftA2 $ \(Biunit x) (Biunit y) -> biunit' (x * y)
+
+instance Monoid (Multiplicative Biunit) where
+  mempty = pure $ Biunit 1
+ 
+{-
+instance (Multiplicative-Group) a => Magma (Multiplicative (Biunit a)) where
+  (<<) = liftA2 (/)
+
+instance (Multiplicative-Group) a => Quasigroup (Multiplicative (Biunit a))
+instance (Multiplicative-Group) a => Loop (Multiplicative (Biunit a))
+instance (Multiplicative-Group) a => Group (Multiplicative (Biunit a))
+-}
+
+instance Presemiring Biunit
+instance Semiring Biunit
+instance Ring Biunit
+--instance Semifield a => Semifield (Biunit a)
+--instance Field a => Field (Biunit a)
 
 -------------------------------------------------------------------------------
 -- Internal

@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP                        #-}
-{-# LANGUAGE Safe                       #-}
 {-# LANGUAGE PolyKinds                  #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DefaultSignatures          #-}
@@ -13,32 +12,32 @@
 module Data.Semilattice (
     type (-)
   -- * Join semilattices
-  , bottom
-  , (∨)
-  , Join(..)
   , JoinSemilattice
   , BoundedJoinSemilattice
+  , Join(..)
+  , bottom
+  , (∨)
   , join
   , joinWith
   , join1
   , joinWith1
   -- * Meet semilattices
-  , top
-  , (∧)
-  , Meet(..)
   , MeetSemilattice
   , BoundedMeetSemilattice
+  , Meet(..)
+  , top
+  , (∧)
   , meet
   , meetWith
   , meet1
   , meetWith1
   -- * Lattices
-  , Lattice
   , LatticeLaw
   , BoundedLatticeLaw
   , BoundedLattice
   , LowerBoundedLattice
   , UpperBoundedLattice
+  , Lattice
   , glb
   , glbWith
   , lub
@@ -51,39 +50,39 @@ module Data.Semilattice (
   , cross1
 ) where
 
-import safe Control.Applicative
-import safe Data.Bool
-import safe Data.Complex
-import safe Data.Connection
-import safe Data.Maybe
-import safe Data.Either
-import safe Data.Fixed
-import safe Data.Float
-import safe Data.Functor.Apply
-import safe Data.Foldable hiding (join, meet)
-import safe Data.Group
-import safe Data.Int
-import safe Data.List (unfoldr)
-import safe Data.List.NonEmpty hiding (filter, unfoldr)
-import safe Data.Magma
-import safe Data.Prd
-import safe Data.Ord (Ord)
-import safe Data.Semiring hiding (eval, eval1, evalWith, evalWith1, cross, cross1)
-import safe Data.Dioid
-import safe Data.Semigroup
-import safe Data.Semigroup
-import safe Data.Semigroup.Join
-import safe Data.Semigroup.Foldable
-import safe Data.Semigroup.Meet
-import safe Data.Tuple
-import safe Data.Word
-import safe Foreign.C.Types (CFloat(..),CDouble(..))
-import safe GHC.Generics (Generic)
-import safe GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
-import safe Numeric.Natural
-import safe Data.Ratio
-import safe Prelude hiding (Ord(..), Fractional(..),Num(..))
-import safe qualified Prelude as P
+import Control.Applicative
+import Data.Bool
+import Data.Complex
+import Data.Connection
+import Data.Maybe
+import Data.Either
+import Data.Fixed
+import Data.Float
+import Data.Functor.Apply
+import Data.Foldable hiding (join, meet)
+import Data.Group
+import Data.Int
+import Data.List (unfoldr)
+import Data.List.NonEmpty hiding (filter, unfoldr)
+
+import Data.Prd
+import Data.Ord (Ord)
+import Data.Semiring hiding (eval, eval1, evalWith, evalWith1, cross, cross1)
+import Data.Dioid
+import Data.Semigroup
+import Data.Semigroup
+import Data.Semigroup.Join
+import Data.Semigroup.Foldable
+import Data.Semigroup.Meet
+import Data.Tuple
+import Data.Word
+import Foreign.C.Types (CFloat(..),CDouble(..))
+import GHC.Generics (Generic)
+import GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
+import Numeric.Natural
+import Data.Ratio
+import Prelude hiding (Ord(..), Fractional(..),Num(..))
+import qualified Prelude as P
 
 import qualified Control.Category as C 
 import qualified Data.Map as Map
@@ -202,6 +201,7 @@ class LatticeLaw a => Lattice a
 glb :: Lattice a => a -> a -> a -> a
 glb = glbWith id
 
+-- |
 -- >>> glbWith N5 1 9 7
 -- N5 {fromN5 = 7.0}
 -- >>> glbWith N5 1 9 (0/0)
@@ -209,9 +209,12 @@ glb = glbWith id
 glbWith :: Lattice r => (a -> r) -> a -> a -> a -> r
 glbWith f x y z = (f x ∨ f y) ∧ (f y ∨ f z) ∧ (f z ∨ f x)
 
+-- | The order dual of 'glb'.
+--
 lub :: Lattice a => a -> a -> a -> a
 lub = lubWith id
 
+-- |
 -- >>> lubWith N5 1 9 7
 -- N5 {fromN5 = 7.0}
 -- >>> lubWith N5 1 9 (0/0)

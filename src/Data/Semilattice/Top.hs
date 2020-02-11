@@ -3,10 +3,9 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE DeriveTraversable   #-}
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE Safe                #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Data.Semilattice.Bounded where
+module Data.Semilattice.Top where
 
 import Control.Applicative
 import Data.Data (Data, Typeable)

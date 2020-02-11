@@ -2,26 +2,23 @@
 module Test.Data.Connection where
 
 import Control.Applicative
-import Data.Connection
+--import Data.Connection
 import Data.Float
-import Data.Int
+import Data.Float.Unit
 import Data.Ord
 import Data.Prd
 import Data.Prd.Nan
 import Data.Ratio
 import Data.Semifield
-import Data.Semilattice.Bounded
-import Data.Word
+import Data.Semilattice.N5
+import Data.Semilattice.Top
 import GHC.Real hiding (Fractional(..), (^^), (^), div)
 import Hedgehog
 import Numeric.Natural
 import Prelude hiding (Bounded)
 import qualified Data.Connection.Property as Prop
-import qualified Data.Prd.Property as Prop
 import qualified Hedgehog.Gen as G
 import qualified Hedgehog.Range as R
-
-import Data.Float.Unit
 
 ri :: (Integral a, Bound a) => Range a
 ri = R.linearFrom 0 minimal maximal
@@ -44,6 +41,12 @@ rd = R.exponentialFloatFrom 0 (-1.7976931348623157e308) 1.7976931348623157e308
 ord :: Gen Ordering
 ord = G.element [LT, EQ, GT]
 
+unt :: Gen Unit
+unt = unit' <$> G.double (R.linearFracFrom 0 0 1)
+
+bnt :: Gen Biunit
+bnt = biunit' <$> G.double (R.linearFracFrom 0 (-1) 1)
+
 f32 :: Gen Float
 f32 = gen_fld $ G.float rf
 
@@ -52,26 +55,6 @@ f64 = gen_fld $ G.double rd
 
 rat :: Gen (Ratio Integer)
 rat = gen_fld $ G.realFrac_ (R.linearFracFrom 0 (- 2^127) (2^127))
-
---TODO harden
-unt :: Gen Unit
-unt = Unit <$> G.double (R.linearFracFrom 0 0 1)
-
---TODO include NaN handling
-prop_connection_untf64 :: Property
-prop_connection_untf64 = withTests 1000 . property $ do
-  x <- forAll $ gen_bot unt
-  x' <- forAll $ gen_bot unt
-  y <- forAll $ G.double rd
-  y' <- forAll $ G.double rd
-
-  assert $ Prop.connection untf64 x y
-  assert $ Prop.closed untf64 x
-  assert $ Prop.kernel untf64 y
-  assert $ Prop.monotonel untf64 x x'
-  assert $ Prop.monotoner untf64 y y'
-  assert $ Prop.projectivel untf64 x
-  assert $ Prop.projectiver untf64 y
 
 pos :: Gen (Ratio Natural)
 pos = G.frequency [(49, gen), (1, G.element [pinf, anan])]
@@ -83,7 +66,10 @@ gen_dwn gen = Down <$> gen
 gen_nan :: Gen a -> Gen (Nan a)
 gen_nan gen = G.frequency [(9, Def <$> gen), (1, pure Nan)]
 
-gen_bot :: Gen a -> Gen (Maybe a)
+gen_pn5 :: Gen a -> Gen (N5 a)
+gen_pn5 gen = N5 <$> gen
+
+gen_bot :: Gen a -> Gen (Bottom a)
 gen_bot gen = G.frequency [(9, Just <$> gen), (1, pure Nothing)]
 
 gen_top :: Gen a -> Gen (Top a)

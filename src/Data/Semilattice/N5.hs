@@ -1,31 +1,68 @@
-module Data.Semilattice.Pentagonal where
+{-# LANGUAGE DeriveFunctor       #-}
+module Data.Semilattice.N5 where
 
 import Control.Applicative
 import Data.Prd
 import Data.Prd.Nan
 import Data.Connection
 import Data.Group
-import Data.Magma
+
 import Data.Semilattice
+import Data.Semilattice.Top
 import Data.Semiring
 import Data.Semifield
 
-import Prelude hiding (Num(..), Ord(..), Fractional(..))
+import Prelude hiding (Num(..), Ord(..), Fractional(..), Bounded)
 
 -- | Lift a 'Semifield' into a non-modular lattice.
 --
 -- See <https://en.wikipedia.org/wiki/Modular_lattice#Examples>
 --
-newtype N5 a = N5 { fromN5 :: a } deriving Show
+newtype N5 a = N5 { unN5 :: a } deriving (Show, Functor)
 
-joinN5 :: (Minimal a, Semifield a) => N5 a -> N5 a -> N5 a
+n5 :: (Minimal a, Semifield a, Minimal b, Semifield b) => Conn a b -> Conn (N5 a) (N5 b)
+n5 (Conn f g) = Conn (fmap f) (fmap g)
+
+n5' :: Semifield a => Minimal a => Bound b => Trip a (Nan b) -> Trip (N5 a) b
+n5' t = Trip f g h where
+  Conn f g = n5l . tripl $ t
+  Conn _ h = n5r . tripr $ t
+
+n5l :: Semifield a => Minimal a => Maximal b => Conn a (Nan b) -> Conn (N5 a) b
+n5l (Conn f g) = Conn f' g' where
+  f' (N5 x) = nan maximal id $ f x
+  g' = N5 . g . Def
+
+n5r :: Semifield b => Minimal a => Minimal b => Conn (Nan a) b -> Conn a (N5 b)
+n5r (Conn f g) = Conn f' g' where
+  f' = N5 . f . Def
+  g' (N5 x) = nan minimal id $ g x
+
+{-
+untf64 :: Conn (Bottom Unit) (N5 Double)
+untf64 = Conn f g where
+  f = maybe (N5 ninf) (N5 . unUnit)
+  g (N5 x) | x >= 0 = Just . Unit $ min 1 x
+           | otherwise = Nothing
+
+nan :: b -> (a -> b) -> Nan a -> b
+
+extended :: Field b => (a -> b) -> Extended a -> b
+extended f = nan' $ bounded ninf f pinf
+
+liftNan :: Prd a => Semifield a => (a -> b) -> a -> Nan b
+liftNan f x | x =~ anan = Nan
+            | otherwise = Def (f x)
+-}
+
+joinN5 :: Minimal a => Semifield a => N5 a -> N5 a -> N5 a
 joinN5 (N5 x) (N5 y) = case pcompare x y of
   Just LT -> N5 y
   Just EQ -> N5 x
   Just GT -> N5 x
   Nothing -> N5 pinf
 
-meetN5 :: (Minimal a, Semifield a) => N5 a -> N5 a -> N5 a
+meetN5 :: Minimal a => Semifield a => N5 a -> N5 a -> N5 a
 meetN5 (N5 x) (N5 y) = case pcompare x y of
   Just LT -> N5 x
   Just EQ -> N5 x
@@ -38,11 +75,12 @@ instance (Minimal a, Semifield a) => Prd (N5 a) where
   -- | 
   -- @ 'anan' '<=' 'pinf' @
   -- @ 'anan' '>=' 'ninf' @
-  pcompare (N5 x) (N5 y) | x =~ minimal = Just LT
+  pcompare (N5 x) (N5 y) | x =~ y = Just EQ
+                         | x =~ minimal = Just LT
                          | y =~ minimal = Just GT
                          | x =~ pinf = Just GT
                          | y =~ pinf = Just LT
-                         | otherwise    = pcompare x y
+                         | otherwise = pcompare x y
 
 instance (Minimal a, Semifield a) => Eq (N5 a) where
   (==) = (=~)
