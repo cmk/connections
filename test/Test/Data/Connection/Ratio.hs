@@ -18,7 +18,7 @@ prop_connection_ratord = withTests 1000 . property $ do
   y <- forAll $ gen_nan ord
   y' <- forAll $ gen_nan ord
 
-  let ratord = fldord :: Trip Rational (Nan Ordering)
+  let ratord = rattyp :: Trip Rational (Nan Ordering)
 
   assert $ Prop.connection (tripl ratord) x y
   assert $ Prop.connection (tripr ratord) y x

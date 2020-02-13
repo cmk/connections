@@ -11,16 +11,11 @@ import Data.Connection
 import Data.Function (on)
 import Data.Int
 import Data.Prd
-import Data.Semifield
-import Data.Semigroup.Join
-import Data.Semigroup.Meet
-import Data.Semiring
 import Data.Word
 import Foreign hiding (shift)
 import Foreign.C
 import GHC.Float as F
-import Prelude (Double,realToFrac,fromIntegral,($),return,IO)
-import Prelude hiding (Ord(..), Num(..), Fractional(..), Floating(..),  (^^), (^), RealFloat(..), Real(..), Enum(..))
+import Prelude hiding (Ord(..), Enum(..))
 import System.IO.Unsafe (unsafePerformIO)
 import qualified Prelude as P
 
@@ -571,7 +566,7 @@ maxOdd = 9.007199254740991e15
 maxOddf :: Float
 maxOddf = 1.6777215e7
 
--- | Minimum (pos) value.
+-- | Minimum positive double value.
 --
 -- >>> shift (-1) minSub
 -- 0.0
@@ -579,6 +574,11 @@ maxOddf = 1.6777215e7
 minSub :: Double
 minSub = shift 1 0
 
+-- | Minimum positive float value.
+--
+-- >>> minSubf
+-- 1.0e-45
+--
 minSubf :: Float
 minSubf = shiftf 1 0
 
@@ -607,7 +607,6 @@ splitf x = case signBitf x of
   _    -> Right x
 
 
--- TODO replace w/ Yoneda / Index / Graded
 -- | Shift by /Int64/ units of least precision.
 --
 shift :: Int64 -> Double -> Double
@@ -697,27 +696,6 @@ instance Minimal Ulp32 where
 instance Maximal Ulp32 where
     maximal = Ulp32 $ 2139095040
 
-instance Semigroup (Additive Ulp32) where
-    Additive (Ulp32 x) <> Additive (Ulp32 y) = Additive . Ulp32 $ x + y
-
-instance Monoid (Additive Ulp32) where
-    mempty = Additive $ Ulp32 0
-
-instance Semigroup (Multiplicative Ulp32) where
-    Multiplicative (Ulp32 x) <> Multiplicative (Ulp32 y) = Multiplicative . Ulp32 $ x * y
-
-instance Monoid (Multiplicative Ulp32) where
-    mempty = Multiplicative $ Ulp32 1
-
-instance Presemiring Ulp32
-instance Semiring Ulp32
-
-instance Semigroup (Join Ulp32) where
-    Join (Ulp32 x) <> Join (Ulp32 y) = Join . Ulp32 $ P.max x y
-
-instance Semigroup (Meet Ulp32) where
-    Meet (Ulp32 x) <> Meet (Ulp32 y) = Meet . Ulp32 $ P.min x y
-
 f32u32 :: Conn Float Ulp32
 f32u32 = Conn (Ulp32 . floatInt32) (int32Float . unUlp32)
 
@@ -729,7 +707,7 @@ u32f32 = Conn (int32Float . unUlp32) (Ulp32 . floatInt32)
 
 --newtype Ulp a = Ulp { unUlp :: a }
 -- instance 
-{- correct but should replace w/ Graded / Yoneda / Indexed etc
+{- correct but maybe replace w/ Graded / Yoneda / Indexed etc
 u32w64 :: Conn Ulp32 (Nan Word64)
 u32w64 = Conn f g where
   conn = i32w32 >>> w32w64
@@ -752,14 +730,9 @@ u32w64 = Conn f g where
 
 -- internal
 
---
---TODO handle neg case, get # of nans/denormals, collect constants         
-
---abs' :: Eq a => Ord a => Bound a => Ring a => a -> a
---abs' x = if x == minimal then abs (x+one) else abs x
 
 signBit :: Double -> Bool
-signBit x = if x =~ anan then False else msbMask x /= 0
+signBit x = if x =~ 0/0 then False else msbMask x /= 0
 
 evenBit :: Double -> Bool
 evenBit x = lsbMask x == 0
@@ -781,7 +754,7 @@ sigMask x = 0x007FFFFFFFFFFFFF .&. doubleWord64 x
 
 
 signBitf :: Float -> Bool
-signBitf x = if x =~ anan then False else msbMaskf x /= 0
+signBitf x = if x =~ 0/0 then False else msbMaskf x /= 0
 
 evenBitf :: Float -> Bool
 evenBitf x = lsbMaskf x == 0

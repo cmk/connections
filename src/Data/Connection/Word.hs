@@ -19,12 +19,9 @@ module Data.Connection.Word (
   , w64nat
 ) where
 
-import Control.Category ((>>>))
 import Data.Connection
 import Data.Int
-import Data.Prd
 import Data.Word
-
 import Numeric.Natural
 
 signed :: (Bounded b, Integral a, Integral b) => Conn a b

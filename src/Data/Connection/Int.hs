@@ -42,49 +42,22 @@ import Data.Connection
 import Data.Connection.Word
 import Data.Int
 import Data.Prd
-import Data.Prd.Nan
-import Data.Semiring
-import Data.Semilattice.Top
+import Data.Prd.Top
 import Data.Word
 import Numeric.Natural
-import qualified Control.Category as C
 
-import Prelude hiding (Num(..), (^), Bounded)
+import Prelude hiding (Bounded, fromInteger)
 import qualified Prelude as P
 
 class Prd a => ConnInteger a where
-  intxxx :: Conn (Bounded Integer) a
-
-instance ConnInteger Int8 where
-  intxxx = tripr i08int
-
-instance ConnInteger Int16 where
-  intxxx = tripr i16int
-
-instance ConnInteger Int32 where
-  intxxx = tripr i32int
-
-instance ConnInteger Int64 where
-  intxxx = tripr i64int
-
-instance ConnInteger Word8 where
-  intxxx = tripr i08int >>> i08w08
-
-instance ConnInteger Word16 where
-  intxxx = tripr i16int >>> i16w16
-
-instance ConnInteger Word32 where
-  intxxx = tripr i32int >>> i32w32
-
-instance ConnInteger Word64 where
-  intxxx = tripr i64int >>> i64w64
+  inttyp :: Conn (Bound Integer) a
 
 -- | Lawful replacement for the version in base.
 --
 fromInteger :: ConnInteger a => Integer -> a
-fromInteger = connl intxxx . Just . Fin
+fromInteger = connl inttyp . Just . Fin
 
-unsigned :: (Bound a, Integral a, Integral b) => Conn a b
+unsigned :: (Bounded a, Integral a, Integral b) => Conn a b
 unsigned = Conn (\y -> fromIntegral (y P.+ maximal P.+ 1))
                 (\x -> fromIntegral x P.- minimal) 
 
@@ -103,9 +76,9 @@ i08i32 = i08w08' >>> w08w32 >>> w32i32
 i08i64 :: Conn Int8 Int64
 i08i64 = i08w08' >>> w08w64 >>> w64i64
 
-i08int :: Trip Int8 (Bounded Integer)
+i08int :: Trip Int8 (Bound Integer)
 i08int = Trip (liftBottom' fromIntegral)
-              (bounded' $ P.fromInteger . min 127 . max (-128))
+              (bounded $ P.fromInteger . min 127 . max (-128))
               (liftTop' fromIntegral)
 
 i16w16' :: Conn Int16 Word16
@@ -120,9 +93,9 @@ i16i32 = i16w16' >>> w16w32 >>> w32i32
 i16i64 :: Conn Int16 Int64
 i16i64 = i16w16' >>> w16w64 >>> w64i64
 
-i16int :: Trip Int16 (Bounded Integer)
+i16int :: Trip Int16 (Bound Integer)
 i16int = Trip (liftBottom' fromIntegral)
-              (bounded' $ P.fromInteger . min 32767 . max (-32768))
+              (bounded $ P.fromInteger . min 32767 . max (-32768))
               (liftTop' fromIntegral)
 
 i32w32' :: Conn Int32 Word32
@@ -134,9 +107,9 @@ i32w32 = Conn (fromIntegral . max 0) (fromIntegral . min 2147483647)
 i32i64 :: Conn Int32 Int64
 i32i64 = i32w32' >>> w32w64 >>> w64i64
 
-i32int :: Trip Int32 (Bounded Integer)
+i32int :: Trip Int32 (Bound Integer)
 i32int = Trip (liftBottom' fromIntegral)
-              (bounded' $ P.fromInteger . min 2147483647 . max (-2147483648))
+              (bounded $ P.fromInteger . min 2147483647 . max (-2147483648))
               (liftTop' fromIntegral)
 
 i64w64' :: Conn Int64 Word64
@@ -145,9 +118,15 @@ i64w64' = unsigned
 i64w64 :: Conn Int64 Word64
 i64w64 = Conn (fromIntegral . max 0) (fromIntegral . min 9223372036854775807)
 
-i64int :: Trip Int64 (Bounded Integer)
+i64int :: Trip Int64 (Bound Integer)
 i64int = Trip (liftBottom' fromIntegral)
-              (bounded' $ P.fromInteger . min 9223372036854775807 . max (-9223372036854775808))
+              (bounded $ P.fromInteger . min 9223372036854775807 . max (-9223372036854775808))
+              (liftTop' fromIntegral)
+
+-- | /Caution/: This assumes that 'Int' on your system is 64 bits.
+ixxint :: Trip Int (Bound Integer)
+ixxint = Trip (liftBottom' fromIntegral)
+              (bounded $ P.fromInteger . min 9223372036854775807 . max (-9223372036854775808))
               (liftTop' fromIntegral)
 
 ixxwxx :: Conn Int Word
@@ -162,3 +141,34 @@ natint = Conn f (maybe minimal g) where
       | otherwise = Just $ fromIntegral i
 
   g = P.fromInteger . max 0
+
+---------------------------------------------------------------------
+-- Instances
+---------------------------------------------------------------------
+
+instance ConnInteger Int8 where
+  inttyp = tripr i08int
+
+instance ConnInteger Int16 where
+  inttyp = tripr i16int
+
+instance ConnInteger Int32 where
+  inttyp = tripr i32int
+
+instance ConnInteger Int64 where
+  inttyp = tripr i64int
+
+instance ConnInteger Int where
+  inttyp = tripr ixxint
+
+instance ConnInteger Word8 where
+  inttyp = tripr i08int >>> i08w08
+
+instance ConnInteger Word16 where
+  inttyp = tripr i16int >>> i16w16
+
+instance ConnInteger Word32 where
+  inttyp = tripr i32int >>> i32w32
+
+instance ConnInteger Word64 where
+  inttyp = tripr i64int >>> i64w64
