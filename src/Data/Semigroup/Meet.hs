@@ -9,41 +9,36 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
+{-# OPTIONS_GHC -fno-warn-orphans       #-}
 
 module Data.Semigroup.Meet (
     type (-)
   , module Data.Semigroup.Meet
 ) where
 
-import Data.Ord
-import Data.Prd
 import Control.Applicative
 import Data.Bool
-import Data.Maybe
 import Data.Either
-import Data.Foldable as Foldable (Foldable, foldr', foldl')
-import Data.List
-import Data.List.NonEmpty
+import Data.Fixed
+import Data.Int
+import Data.Maybe
+import Data.Prd
+import Data.Ratio
 import Data.Semigroup
 import Data.Semigroup.Additive
 import Data.Semigroup.Multiplicative
-import Data.Semigroup.Foldable as Foldable1
-import GHC.Generics (Generic)
-import qualified Prelude as P
-
-import Prelude ( Eq(..), Ord, Show, Ordering(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), (<$>), Integer)
-import qualified Prelude as P
-
-import Numeric.Natural
 import Data.Word
-import Data.Int
-import Data.Fixed
-import Data.Ratio
+import GHC.Generics (Generic)
+import Numeric.Natural
+import Prelude
+  ( Eq(..), Ord, Show, Ordering(..), Applicative(..), Functor(..)
+  , Monoid(..), Semigroup(..), (.), ($), (<$>), Integer)
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import qualified Prelude as P
 
 infixr 6 ∧ 
 
@@ -142,7 +137,7 @@ instance (Meet-Monoid) b => Monoid (Meet (a -> b)) where
 
 instance (Meet-Semigroup) a => Semigroup (Meet (Maybe a)) where
   Meet Nothing  <> _             = Meet Nothing
-  Meet (x@Just{}) <> Meet Nothing   = Meet Nothing
+  Meet (Just{}) <> Meet Nothing  = Meet Nothing
   Meet (Just x) <> Meet (Just y) = Meet . Just $ x ∧ y
 
   -- Mul a <> Mul b = Mul $ liftA2 (∧) a b
@@ -152,7 +147,7 @@ instance (Meet-Monoid) a => Monoid (Meet (Maybe a)) where
 
 instance ((Meet-Semigroup) a, (Meet-Semigroup) b) => Semigroup (Meet (Either a b)) where
   Meet (Right x) <> Meet (Right y) = Meet . Right $ x ∧ y
-  Meet(x@Right{}) <> y     = y
+  Meet (Right{}) <> y     = y
   Meet (Left x) <> Meet (Left y)  = Meet . Left $ x ∧ y
   Meet (x@Left{}) <> _     = Meet x
 

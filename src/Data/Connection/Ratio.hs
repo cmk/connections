@@ -3,28 +3,22 @@
 
 module Data.Connection.Ratio where
 
-import Control.Category ((>>>))
-import Data.Bits ((.&.))
 import Data.Connection
-import Data.Connection.Float
-import Data.Connection.Int
+import Data.Float
+import Data.Int
 import Data.Prd
 import Data.Prd.Nan
-import Data.Int
-import Data.Word
 import Data.Ratio
-import Data.Float
-import Data.Group
-import qualified Control.Category as C
-import qualified GHC.Float as F
+import Data.Semifield
 import Data.Semilattice
 import Data.Semilattice.Top
 import Data.Semiring
-import Data.Semifield hiding (fin)
-import Prelude hiding (until, Ord(..), Num(..), Fractional(..), (^), Bounded)
-import qualified Prelude as P
+import Data.Word
 import GHC.Real hiding ((/), (^))
 import Numeric.Natural
+import Prelude hiding (until, Ord(..), Num(..), Fractional(..), (^), Bounded)
+import qualified Control.Category as C
+import qualified Prelude as P
 
 reduce :: Integral a => a -> a -> Ratio a
 reduce x 0 = x :% 0
@@ -80,9 +74,9 @@ ratf32 = Trip (extend' f) (extend' g) (extend' h) where
           then est
           else descendf est (extend' g) x
 
-  ascendf z g y = until (\x -> g x >= y) (<=) (shiftf 1) z
+  ascendf z g1 y = until (\x -> g1 x >= y) (<=) (shiftf 1) z
 
-  descendf z f x = until (\y -> f y <= x) (>=) (shiftf (-1)) z
+  descendf z f1 x = until (\y -> f1 y <= x) (>=) (shiftf (-1)) z
 
 ratf64 :: Trip (Ratio Integer) Double
 ratf64 = Trip (extend' f) (extend' g) (extend' h) where
@@ -98,9 +92,9 @@ ratf64 = Trip (extend' f) (extend' g) (extend' h) where
           then est
           else descendf est (extend' g) x
 
-  ascendf z g y = until (\x -> g x >= y) (<=) (shift 1) z
+  ascendf z g1 y = until (\x -> g1 x >= y) (<=) (shift 1) z
 
-  descendf z f x = until (\y -> f y <= x) (>=) (shift (-1)) z
+  descendf z f1 x = until (\y -> f1 y <= x) (>=) (shift (-1)) z
 
 rati08 :: Trip (Ratio Integer) (Extended Int8) 
 rati08 = Trip (liftNan f) (nan' g) (liftNan h) where

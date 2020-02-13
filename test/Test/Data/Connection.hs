@@ -2,9 +2,7 @@
 module Test.Data.Connection where
 
 import Control.Applicative
---import Data.Connection
 import Data.Float
-import Data.Float.Unit
 import Data.Ord
 import Data.Prd
 import Data.Prd.Nan
@@ -40,12 +38,6 @@ rd = R.exponentialFloatFrom 0 (-1.7976931348623157e308) 1.7976931348623157e308
 
 ord :: Gen Ordering
 ord = G.element [LT, EQ, GT]
-
-unt :: Gen Unit
-unt = unit' <$> G.double (R.linearFracFrom 0 0 1)
-
-bnt :: Gen Biunit
-bnt = biunit' <$> G.double (R.linearFracFrom 0 (-1) 1)
 
 f32 :: Gen Float
 f32 = gen_fld $ G.float rf

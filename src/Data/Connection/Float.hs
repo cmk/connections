@@ -13,32 +13,17 @@ module Data.Connection.Float (
   , i64f64
 ) where
 
-import Control.Category ((>>>))
-import Data.Bits ((.&.))
 import Data.Connection
-import Data.Connection.Int
-import Data.Connection.Word
 import Data.Float
-import Data.Function (on)
 import Data.Int
 import Data.Prd
 import Data.Prd.Nan
-import Data.Ratio
-import Data.Semifield hiding (fin)
+import Data.Semifield
 import Data.Semilattice
 import Data.Semilattice.Top
-import Data.Semilattice.N5
 import Data.Semiring
-import Data.Word
-import GHC.Num (subtract)
 import GHC.Real hiding ((^),(/))
 import Prelude as P hiding (Ord(..), Num(..), Fractional(..), (^), Bounded)
-import qualified Control.Category as C
-import qualified Data.Bits as B
-import qualified GHC.Float as F
-import qualified GHC.Float.RealFracMethods as R
-
-
 
 -- | All 'Int08' values are exactly representable in a 'Float'.
 f32i08 :: Trip Float (Extended Int8)
@@ -95,7 +80,6 @@ i32f32 = Conn (nan' g) (liftNan f) where
 
   g i | abs i <= 2^24-1 = fromIntegral i
       | otherwise = if i >= 0 then 2**24 else -1/0
-
 
 ---------------------------------------------------------------------
 -- Double
@@ -177,7 +161,8 @@ i64f64 = Conn (nan' g) (liftNan f) where
   g i | abs i <= 2^53-1 = fromIntegral i
       | otherwise = if i >= 0 then 2**53 else -1/0
 
-abs' x = if x == minimal then abs (x+one) else abs x
+abs' :: Ord a => Minimal a => Ring a => a -> a
+abs' x = if x =~ minimal then abs (x+one) else abs x
 
 {- slightly broken
 f32w08 :: Trip Float (Nan Word8)

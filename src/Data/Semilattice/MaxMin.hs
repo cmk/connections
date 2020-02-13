@@ -3,10 +3,7 @@ module Data.Semilattice.MaxMin where
 
 import Control.Applicative
 import Data.Prd
-import Data.Prd.Nan
-import Data.Connection
 import Data.Semilattice
-import Data.Semifield
 
 import Prelude hiding ((<=))
 

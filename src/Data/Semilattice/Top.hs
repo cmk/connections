@@ -7,15 +7,11 @@
 
 module Data.Semilattice.Top where
 
-import Control.Applicative
-import Data.Data (Data, Typeable)
 import Data.Prd
 import Data.Prd.Nan
-import Data.Connection
 import Data.Semilattice
 import Data.Semifield
 import GHC.Generics (Generic, Generic1)
-import Data.Float
 
 import Prelude hiding (Ord(..), Bounded)
 
@@ -51,7 +47,7 @@ instance Prd a => Maximal (Top a) where
 -- analagous to Maybe (Meet-Semigroup) instance
 instance (Join-Semigroup) a => Semigroup (Join (Top a)) where
   Join Top <> _                      = Join Top
-  Join (x@Fin{}) <> Join Top      = Join Top
+  Join (Fin{}) <> Join Top      = Join Top
   Join (Fin x) <> Join (Fin y) = Join . Fin $ x ∨ y
 
 -- analagous to Maybe (Meet-Monoid) instance
@@ -119,8 +115,11 @@ bounded _ _ b (Just Top) = b
 bounded' :: BoundedLattice b => (a -> b) -> Bounded a -> b
 bounded' f = bounded bottom f top
 
-extended :: Field b => (a -> b) -> Extended a -> b
-extended f = nan' $ bounded ninf f pinf
+extended :: b -> b -> (a -> b) -> b -> Extended a -> b
+extended x y f z = nan x $ bounded y f z
+
+extended' :: Field b => (a -> b) -> Extended a -> b
+extended' f = extended anan ninf f pinf
 
 -- this is a monotone map
 liftTop :: Maximal a => (a -> b) -> a -> Top b

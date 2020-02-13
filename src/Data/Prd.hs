@@ -9,41 +9,34 @@
 {-# LANGUAGE TypeOperators       #-}
 {-# LANGUAGE CPP       #-}
 module Data.Prd (
-    module Data.Prd
-  , min, max
-  , compare
-  , Down(..)
+    Down(..)
+  , Ord(min, max, compare)
+  , module Data.Prd
 ) where
 
-import Control.Applicative
-import Control.Monad
-import Data.Data (Data, Typeable)
 import Data.Function
 import Data.Int as Int (Int, Int8, Int16, Int32, Int64)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe
-import Data.Group
 import Data.Monoid hiding (First, Last)
 import Data.Ord (Ord, Down(..), compare, min, max)
 import Data.Ratio
 import Data.Word (Word, Word8, Word16, Word32, Word64)
-import GHC.Generics (Generic, Generic1)
 import GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
 import Numeric.Natural
-import Data.Semigroup (Min(..), Max(..))
+--import Data.Semigroup
 import Data.Semigroup.Additive
 import Data.Semigroup.Multiplicative
 import Data.Semiring
 import Data.Semifield (Field, Semifield, anan, pinf, ninf)
 import Data.Fixed
-import Test.Logic ((==>))
 import qualified Data.Semigroup as S
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
-import qualified Data.Sequence as Seq
 import qualified Prelude as P
+
 
 import Prelude hiding (Ord(..), Fractional(..),Num(..))
 
@@ -465,7 +458,7 @@ instance Prd (Ratio Integer) where
                              | y' == 0 = pcompareOrd 0 x'
                              | otherwise = pcompareOrd (x%y) (x'%y')
 
---TODO fix & add prop tests
+--TODO add prop tests
 instance Prd (Ratio Natural) where
     pcompare (x:%y) (x':%y') | (x == 0 && y == 0) && (x' == 0 && y' == 0) = Just EQ
                              | (x == 0 && y == 0) || (x' == 0 && y' == 0) = Nothing
@@ -477,7 +470,7 @@ instance Prd (Ratio Natural) where
 -- Canonical semigroup ordering
 instance Prd a => Prd (Maybe a) where
     Just a <= Just b = a <= b
-    x@Just{} <= Nothing = False
+    Just{} <= Nothing = False
     Nothing <= _ = True
 
 -- Canonical semigroup ordering
@@ -672,17 +665,17 @@ instance Minimal a => Maximal (Down a) where
 
 {-# INLINE until #-}
 until :: (a -> Bool) -> (a -> a -> Bool) -> (a -> a) -> a -> a
-until pred rel f seed = go seed
+until pre rel f seed = go seed
   where go x | x' `rel` x = x
-             | pred x = x
+             | pre x = x
              | otherwise = go x'
           where x' = f x
 
 {-# INLINE while #-}
 while :: (a -> Bool) -> (a -> a -> Bool) -> (a -> a) -> a -> a
-while pred rel f seed = go seed
+while pre rel f seed = go seed
   where go x | x' `rel` x = x
-             | not (pred x') = x
+             | not (pre x') = x
              | otherwise = go x'
           where x' = f x
 

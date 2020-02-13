@@ -2,17 +2,13 @@
 {-# Language TypeApplications #-}
 module Data.Connection.Property where
 
-import Data.Proxy
 import Data.Prd
 import Data.Connection
+import Prelude hiding (Num(..),Ord(..))
 
 import qualified Test.Function.Idempotent as Prop
 import qualified Test.Function.Invertible as Prop
 import qualified Test.Function.Monotone   as Prop
-
-import Test.Logic
-import Prelude hiding (Num(..),Ord(..))
-
 
 -- | \( \forall x, y : f \dashv g \Rightarrow f (x) \leq y \Leftrightarrow x \leq g (y) \)
 --

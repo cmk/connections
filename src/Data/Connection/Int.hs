@@ -42,12 +42,9 @@ import Data.Connection
 import Data.Connection.Word
 import Data.Int
 import Data.Prd
-import Data.Prd.Nan
-import Data.Semiring
 import Data.Semilattice.Top
 import Data.Word
 import Numeric.Natural
-import qualified Control.Category as C
 
 import Prelude hiding (Num(..), (^), Bounded)
 import qualified Prelude as P

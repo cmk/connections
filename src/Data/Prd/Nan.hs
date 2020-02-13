@@ -9,13 +9,10 @@
 module Data.Prd.Nan where
 
 import Control.Applicative
-import Data.Data (Data, Typeable)
 import Data.Prd
 import Data.Connection
 import Data.Semiring
 import Data.Semifield
-import Data.Semigroup.Additive
-import Data.Semigroup.Multiplicative
 import GHC.Generics (Generic, Generic1)
 
 import Prelude hiding (Ord(..), Num(..), Fractional(..))

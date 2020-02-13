@@ -49,19 +49,11 @@ module Data.Connection (
 import Control.Category (Category, (>>>))
 import Data.Bifunctor (bimap)
 import Data.Bool
-import Data.Word
-import Data.Int
 import Data.Prd
-import Data.Group
-import Data.Semiring
-import Data.Semifield
 import Data.Semigroup.Join
 import Data.Semigroup.Meet
 import Prelude hiding (Ord(..), Num(..), Fractional(..), RealFrac(..))
 
-import Test.Logic (xor, (<==>),(==>))
-
-import qualified Data.Ord as O
 import qualified Control.Category as C
 
 

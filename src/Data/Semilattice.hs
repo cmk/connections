@@ -52,43 +52,24 @@ module Data.Semilattice (
 
 import Control.Applicative
 import Data.Bool
-import Data.Complex
-import Data.Connection
-import Data.Maybe
 import Data.Either
 import Data.Fixed
-import Data.Float
+import Data.Foldable
 import Data.Functor.Apply
-import Data.Foldable hiding (join, meet)
-import Data.Group
 import Data.Int
-import Data.List (unfoldr)
-import Data.List.NonEmpty hiding (filter, unfoldr)
-
-import Data.Prd
+import Data.Maybe
 import Data.Ord (Ord)
-import Data.Semiring hiding (eval, eval1, evalWith, evalWith1, cross, cross1)
-import Data.Dioid
-import Data.Semigroup
-import Data.Semigroup
-import Data.Semigroup.Join
+import Data.Prd
 import Data.Semigroup.Foldable
+import Data.Semigroup.Join
 import Data.Semigroup.Meet
-import Data.Tuple
 import Data.Word
-import Foreign.C.Types (CFloat(..),CDouble(..))
-import GHC.Generics (Generic)
-import GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
 import Numeric.Natural
-import Data.Ratio
 import Prelude hiding (Ord(..), Fractional(..),Num(..))
-import qualified Prelude as P
-
-import qualified Control.Category as C 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 
 

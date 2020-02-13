@@ -50,27 +50,27 @@ consistent x y =
   (pcompare x y == pcmp x y)
 
   where
-    le x y = maybe False (P.<= EQ) $ pcompare x y
+    le x1 y1 = maybe False (P.<= EQ) $ pcompare x1 y1
 
-    ge x y = maybe False (P.>= EQ) $ pcompare x y
+    ge x1 y1 = maybe False (P.>= EQ) $ pcompare x1 y1
 
-    lt x y = maybe False (P.< EQ) $ pcompare x y
+    lt x1 y1 = maybe False (P.< EQ) $ pcompare x1 y1
 
-    gt x y = maybe False (P.> EQ) $ pcompare x y
+    gt x1 y1 = maybe False (P.> EQ) $ pcompare x1 y1
 
-    cp x y = maybe False (const True) $ pcompare x y
+    cp x1 y1 = maybe False (const True) $ pcompare x1 y1
 
-    eq x y = maybe False (== EQ) $ pcompare x y
+    eq x1 y1 = maybe False (== EQ) $ pcompare x1 y1
 
-    ne x y = not $ x =~ y
+    ne x1 y1 = not $ x1 =~ y1
 
-    sm x y = not (x < y) && not (x > y)
+    sm x1 y1 = not (x1 < y1) && not (x1 > y1)
 
-    ns x y = not $ x ~~ y
+    ns x1 y1 = not $ x1 ~~ y1
 
-    pcmp x y 
-      | x <= y = Just $ if y <= x then EQ else LT
-      | y <= x = Just GT
+    pcmp x1 y1
+      | x1 <= y1 = Just $ if y1 <= x1 then EQ else LT
+      | y1 <= x1 = Just GT
       | otherwise = Nothing
 
 

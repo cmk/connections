@@ -25,39 +25,23 @@ module Data.Connection.Round (
   , fmaWith
   , remWith
   , divWith
+  , divWith'
 ) where
 
 import Data.Bool
-import Data.Prd
 import Data.Connection
 import Data.Connection.Float
 import Data.Connection.Ratio
-import Data.Ratio
-
-
-import Control.Category ((>>>))
-import Data.Bits ((.&.))
-import Data.Connection
-import Data.Connection.Float
-import Data.Connection.Int
-import Data.Prd
-import Data.Prd.Nan
-import Data.Int
-import Data.Word
-import Data.Ratio
 import Data.Float
-import Data.Group
-import qualified Control.Category as C
-import qualified GHC.Float as F
+import Data.Int
+import Data.Prd
+import Data.Ratio
+import Data.Semifield
 import Data.Semilattice
 import Data.Semilattice.Top
 import Data.Semiring
-import Data.Semifield hiding (fin)
 import Prelude hiding (until, Ord(..), Num(..), Fractional(..), (^), Bounded)
-import qualified Prelude as P
-import GHC.Real hiding ((/), (^))
-import Numeric.Natural
-import Test.Logic (xor, (<==>),(==>))
+import Test.Logic (xor)
 
 class Prd a => TripInt16 a where
   xxxi16 :: Trip a (Extended Int16)
@@ -180,12 +164,10 @@ remWith t rm x y = fmaWith t rm (negWith t rm $ divWith t rm x y) y x
 divWith :: (Prd a, Prd b, Field a) => Trip a b -> Mode -> b -> b -> b 
 divWith t@(Trip _ f _) rm x y = rnd t rm (xorSgn t rm x y) (f x / f y)
 
-
 -- requires that sign be flipped back in /a/.
 divWith' :: (Prd a, Prd b, Field a) => Trip a b -> Mode -> b -> b -> b 
 divWith' t@(Trip _ f _) rm x y | xorSgn t rm x y = rnd t rm True (negate $ f x / f y)
                                | otherwise  = rnd t rm False (f x / f y)
-
 
 ---------------------------------------------------------------------
 -- Internal
@@ -229,8 +211,8 @@ rnd t RTZ s x = bool (truncateWith t x) (rsz t s x) $ x =~ zero
 neg' :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> Bool
 neg' t rm x = x < rnd t rm False zero
 
-pos'  :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> Bool 
-pos' t rm x = x > rnd t rm False zero
+--pos'  :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> Bool 
+--pos' t rm x = x > rnd t rm False zero
 
 -- | Determine signed-0 behavior under addition.
 addSgn :: (Prd a, Prd b, (Additive-Group) a) => Trip a b -> Mode -> b -> b -> Bool

@@ -67,12 +67,12 @@ module Numeric.Prelude
     Monoid (..),
     mreplicate,
     Magma(..), 
-    Quasigroup(..),
-    Loop(..),
+    Quasigroup,
+    Loop,
     Group(..), 
     -- ** Semirings
-    Semiring (..),
-    Ring (..),
+    Semiring,
+    Ring,
     (+), (-), (*), (^),
     zero, one,
     abs,
@@ -81,8 +81,8 @@ module Numeric.Prelude
     sum,
     product,
     -- ** Semifields
-    Semifield (..),
-    Field (..),
+    Semifield,
+    Field,
     (/), (^^),
     pinf, ninf, anan,
     recip,
@@ -155,15 +155,15 @@ import Data.Float (fmod, floor, ceil, trunc, round, sqrt, cbrt, pow, log, exp, l
 import Data.Foldable (Foldable (), asum, fold, foldMap, foldl', foldr', for_, traverse_)
 import Data.Function (($), (&), (.), const, flip, id, on)
 import Data.Functor (($>), (<$>), Functor (..), void)
-import Data.Group (Magma(..), Quasigroup(..), Loop(..), Group(..), mreplicate)
 import Data.Int (Int, Int16, Int32, Int64, Int8)
 import Data.Maybe (Maybe (..), fromMaybe, maybe)
 import Data.Monoid (Monoid (..))
 import Data.Ord (Ordering (..), min, max, compare, comparing)
 import Data.Prd (Prd (..))
-import Data.Semifield (Semifield (..), Field (..), (/), (^^), anan, pinf, ninf, recip)
+import Data.Semifield (Semifield, Field, (/), (^^), anan, pinf, ninf, recip)
 import Data.Semigroup (Semigroup (..))
-import Data.Semiring (Semiring (..), Ring (..), (+), (-), (*), (^), zero, one, abs, negate, signum, sum, product )
+import Data.Semiring (Semiring, Ring, (+), (-), (*), (^), zero, one, abs, negate, signum, sum, product)
+import Data.Semiring (Magma(..), Quasigroup, Loop, Group(..), mreplicate)
 import Data.Traversable (Traversable (..), for)
 import Data.Tuple (curry, fst, snd, uncurry)
 import Data.Word (Word, Word16, Word32, Word64, Word8)

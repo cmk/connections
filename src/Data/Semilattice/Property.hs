@@ -51,19 +51,13 @@ module Data.Semilattice.Property (
 ) where
 
 --import Data.Semigroup.Property as Prop
-import Data.Dioid
-import Data.List (unfoldr)
-import Data.List.NonEmpty (NonEmpty(..))
-import Data.Prd
+import Data.Prd hiding ((~~))
 import Data.Semigroup
 import Data.Semigroup.Join
 import Data.Semigroup.Meet
 import Data.Semilattice
-import Data.Semiring hiding (nonunital)
-import Data.Semiring.Property as Prop hiding (distributive_on)
-import Numeric.Natural
 import Test.Function  as Prop
-import Test.Logic (Rel, (<==>),(==>))
+import Test.Logic (Rel, (==>))
 import qualified Test.Operation as Prop
 
 import Prelude hiding (Ord(..), Num(..), sum)

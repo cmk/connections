@@ -9,6 +9,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeFamilies               #-}
+{-# OPTIONS_GHC -fno-warn-orphans       #-}
 
 module Data.Semigroup.Join where
 
@@ -16,26 +17,18 @@ import Control.Applicative
 import Data.Bool
 import Data.Maybe
 import Data.Either
-import Data.Foldable hiding (sum)
-import Data.List
-import Data.List.NonEmpty
-import Data.Ord
 import Data.Prd
 import Data.Semigroup
 import Data.Semigroup.Additive
 import Data.Semigroup.Meet
-import Data.Semigroup.Foldable
-import Data.Semigroup.Multiplicative
-import Data.Tuple
 import GHC.Generics (Generic)
 
 import Numeric.Natural
 import Data.Word
 import Data.Int
 import Data.Fixed
-import Data.Ratio
 
-import Prelude ( Eq(..), Ord(..), Show, Ordering(..), Bounded(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), flip, (<$>), Integer, Float, Double)
+import Prelude ( Eq(..), Ord(..), Show, Ordering(..), Applicative(..), Functor(..), Monoid(..), Semigroup(..), (.), ($), (<$>), Integer) 
 import qualified Prelude as P
 
 import qualified Data.Map as Map

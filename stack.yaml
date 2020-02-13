@@ -5,4 +5,6 @@ extra-deps:
   - github: cmk/lawz
     commit: 55c8dcdc6322f7c35c8568e1317afb5d35c3963d
   - github: cmk/rings
-    commit: 893f916d87dea11f6ddcd8c015f356882fd6163c
+    commit: e8f4b33267f9a16973f9662110a4160e12b42535
+  - github: cmk/magmas
+    commit: f86a7433ffa13407b939280523feb661143a800a

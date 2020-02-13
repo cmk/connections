@@ -5,10 +5,7 @@ import Control.Applicative
 import Data.Prd
 import Data.Prd.Nan
 import Data.Connection
-import Data.Group
-
 import Data.Semilattice
-import Data.Semilattice.Top
 import Data.Semiring
 import Data.Semifield
 
