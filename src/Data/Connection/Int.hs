@@ -64,6 +64,9 @@ instance ConnInteger Int32 where
 instance ConnInteger Int64 where
   intxxx = tripr i64int
 
+instance ConnInteger Int where
+  intxxx = tripr ixxint
+
 instance ConnInteger Word8 where
   intxxx = tripr i08int >>> i08w08
 
@@ -144,6 +147,12 @@ i64w64 = Conn (fromIntegral . max 0) (fromIntegral . min 9223372036854775807)
 
 i64int :: Trip Int64 (Bounded Integer)
 i64int = Trip (liftBottom' fromIntegral)
+              (bounded' $ P.fromInteger . min 9223372036854775807 . max (-9223372036854775808))
+              (liftTop' fromIntegral)
+
+-- | /Caution/: This assumes that 'Int' on your system is 64 bits.
+ixxint :: Trip Int (Bounded Integer)
+ixxint = Trip (liftBottom' fromIntegral)
               (bounded' $ P.fromInteger . min 9223372036854775807 . max (-9223372036854775808))
               (liftTop' fromIntegral)
 

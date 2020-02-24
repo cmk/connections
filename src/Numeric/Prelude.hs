@@ -37,6 +37,7 @@ module Numeric.Prelude
     Word64,
     -- ** Rational
     Ratio(..),
+    type Rational,
     -- ** Floating
     Float,
     Double,
@@ -51,6 +52,7 @@ module Numeric.Prelude
     Eq (..),
     -- ** Orders
     Prd (..),
+    Ord (),
     Ordering (..),
     min, max,
     compare,
@@ -129,8 +131,7 @@ module Numeric.Prelude
     guard,
     msum,
     -- ** Foldable
-    Foldable (foldMap, fold),
-    foldl', foldr',
+    Foldable (..),
     for_,
     traverse_,
     -- ** Show
@@ -158,7 +159,7 @@ import Data.Functor (($>), (<$>), Functor (..), void)
 import Data.Int (Int, Int16, Int32, Int64, Int8)
 import Data.Maybe (Maybe (..), fromMaybe, maybe)
 import Data.Monoid (Monoid (..))
-import Data.Ord (Ordering (..), min, max, compare, comparing)
+import Data.Ord (Ord, Ordering (..), min, max, compare, comparing)
 import Data.Prd (Prd (..))
 import Data.Semifield (Semifield, Field, (/), (^^), anan, pinf, ninf, recip)
 import Data.Semigroup (Semigroup (..))
@@ -171,7 +172,7 @@ import GHC.Real (Ratio(..))
 import Numeric.Natural (Natural)
 import Text.Show (Show (..), ShowS, showString)
 
-import Prelude (($!), Double, Float, Integer, seq)
+import Prelude (($!), Rational, Double, Float, Integer, seq)
 
 pi :: TripRatio Integer b => b
 pi = 3.141592653589793238

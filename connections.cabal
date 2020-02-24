@@ -42,7 +42,7 @@ library
   build-depends:       
       base              >= 4.10    && < 5.0
     , lawz              >= 0.1.1   && < 1.0
-    , rings             >= 0.0.3.1 && < 0.0.4
+    , rings             >= 0.1.1.1 && < 0.2
     , containers        >= 0.4.0   && < 0.7
     , semigroupoids     >= 5.0     && < 6.0
 

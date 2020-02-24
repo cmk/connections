@@ -26,7 +26,6 @@ import Data.Prd
 import Data.Ratio
 import Data.Semigroup
 import Data.Semigroup.Additive
-import Data.Semigroup.Multiplicative
 import Data.Word
 import GHC.Generics (Generic)
 import Numeric.Natural

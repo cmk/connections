@@ -25,8 +25,6 @@ import Data.Word (Word, Word8, Word16, Word32, Word64)
 import GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
 import Numeric.Natural
 --import Data.Semigroup
-import Data.Semigroup.Additive
-import Data.Semigroup.Multiplicative
 import Data.Semiring
 import Data.Semifield (Field, Semifield, anan, pinf, ninf)
 import Data.Fixed
