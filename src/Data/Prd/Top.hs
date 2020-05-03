@@ -1,23 +1,41 @@
-{-# LANGUAGE DeriveFunctor       #-}
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
+{-# Language DeriveFunctor       #-}
+{-# Language DeriveGeneric       #-}
+{-# Language FlexibleContexts    #-}
+{-# Language ScopedTypeVariables #-}
+{-# Language Safe                #-}
 module Data.Prd.Top where
 
-import Data.Prd
-import Data.Prd.Nan
-import GHC.Generics (Generic, Generic1)
-import Prelude hiding (Ord(..), Bounded)
+import safe Data.Prd
+import safe GHC.Generics (Generic, Generic1)
+import safe Prelude hiding (Ord(..), Bounded)
 
 type Bottom a = Maybe a
 type Bound a = Bottom (Top a)
-type Lifted a = Nan (Top a)
-type Lowered a = Nan (Bottom a)
-type Extended a = Nan (Bound a)
 
 data Top a = Fin a | Top
   deriving (Show, Generic, Generic1, Functor)
+
+top :: b -> (a -> b) -> Top a -> b
+top _ f (Fin a) = f a
+top b _ Top = b
+
+fin :: a -> Bound a
+fin = Just . Fin
+
+bound :: b -> b -> (a -> b) -> Bound a -> b
+bound b _ _ Nothing = b
+bound _ b _ (Just Top) = b
+bound _ _ f (Just (Fin a)) = f a
+
+topped :: Maximal b => (a -> b) -> Top a -> b
+topped = top maximal 
+
+-- | Interpret @'Bound' a@ using the 'BoundLattice' of @a@.
+--
+-- This map is monotone when /f/ is.
+--
+bounded :: Bounded b => (a -> b) -> Bound a -> b
+bounded = bound minimal maximal
 
 -- analagous to Maybe Semigroup instance
 instance Semigroup a => Semigroup (Top a) where
@@ -39,45 +57,20 @@ instance Minimal a => Minimal (Top a) where
 instance Prd a => Maximal (Top a) where
   maximal = Top
 
+isFin :: Bound a -> Bool
+isFin = bound False False (const True)
+
 isTop :: Bound a -> Bool
 isTop = bound False True (const False)
 
 isBottom :: Bound a -> Bool
 isBottom = bound True False (const False)
 
-isFin :: Bound a -> Bool
-isFin = bound False False (const True)
-
-fin :: a -> Bound a
-fin = Just . Fin
-
-toTop :: Prd a => Minimal b => (a -> b) -> Bound a -> Top b
+toTop :: Minimal b => (a -> b) -> Bound a -> Top b
 toTop f = bound (Fin minimal) Top (Fin . f)
 
-toBottom :: Prd a => Maximal b => (a -> b) -> Bound a -> Bottom b
+toBottom :: Maximal b => (a -> b) -> Bound a -> Bottom b
 toBottom f = bound Nothing (Just maximal) (Just . f)
-
-topped :: b -> (a -> b) -> Top a -> b
-topped _ f (Fin a) = f a
-topped b _ Top = b
-
-lifted :: RealFloat b => (a -> b) -> Lifted a -> b
-lifted = nanf . topped (1/0)
-
-bound :: b -> b -> (a -> b) -> Bound a -> b
-bound b _ _ Nothing = b
-bound _ b _ (Just Top) = b
-bound _ _ f (Just (Fin a)) = f a
-
--- | Interpret @'Bound' a@ using the 'BoundLattice' of @a@.
---
--- This map is monotone when /f/ is.
---
-bounded :: Bounded b => (a -> b) -> Bound a -> b
-bounded = bound minimal maximal
-
-extended :: Bounded b => b -> (a -> b) -> Extended a -> b
-extended b f = nan b (bounded f)
 
 -- this is a monotone map
 liftTop :: Maximal a => (a -> b) -> a -> Top b
@@ -100,7 +93,3 @@ liftBottom' f = liftBottom (Fin . f)
 -- this is a monotone map
 liftBound :: Bounded a => (a -> b) -> a -> Bound b
 liftBound f = liftBottom (liftTop f)
-
--- Lift all exceptional values
-liftExtended :: Bounded a => Floating a => (a -> b) -> a -> Extended b
-liftExtended f = liftNan (liftBound f)

@@ -1,18 +1,39 @@
 {-# Language TypeFamilies #-}
 {-# Language TypeApplications #-}
+-- | Galois connections have the same properties as adjunctions defined over other categories:
+--
+--  \( \forall x, y : f \dashv g \Rightarrow f (x) \leq b \Leftrightarrow x \leq g (y) \)
+--
+--  \( \forall x, y : x \leq y \Rightarrow f (x) \leq f (y) \)
+--
+--  \( \forall x, y : x \leq y \Rightarrow g (x) \leq g (y) \)
+--
+--  \( \forall x : f \dashv g \Rightarrow x \leq g \circ f (x) \)
+--
+--  \( \forall x : f \dashv g \Rightarrow f \circ g (x) \leq x \)
+--
+--  \( \forall x : unit \circ unit (x) \sim unit (x) \)
+--
+--  \( \forall x : counit \circ counit (x) \sim counit (x) \)
+--
+--  \( \forall x : counit \circ f (x) \sim f (x) \)
+--
+--  \( \forall x : unit \circ g (x) \sim g (x) \)
+--
 module Data.Connection.Property where
 
 import Data.Prd hiding ((~~))
 import Data.Prd.Property
-import Data.Connection
+import Data.Connection.Conn
+import Data.Connection.Trip
 import Prelude hiding (Num(..),Ord(..))
 
 -- | \( \forall x, y : f \dashv g \Rightarrow f (x) \leq y \Leftrightarrow x \leq g (y) \)
 --
--- A Galois connection. This is a required property.
+-- A Galois connection is an adjunction of preorders. This is a required property.
 --
-connection :: Prd a => Prd b => Conn a b -> a -> b -> Bool
-connection (Conn f g) = adjoint (<=) (<=) f g
+adjoined :: Prd a => Prd b => Conn a b -> a -> b -> Bool
+adjoined (Conn f g) = adjoint (<=) (<=) f g
 
 -- | \( \forall x : f \dashv g \Rightarrow x \leq g \circ f (x) \)
 --

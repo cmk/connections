@@ -1,14 +1,13 @@
 {-# Language AllowAmbiguousTypes #-}
 {-# Language ConstraintKinds #-}
 {-# Language FunctionalDependencies #-}
-
+{-# Language Safe                #-}
 module Data.Connection.Ratio (
-    TripRatio(..)
-  -- * Rational
-  , TripRational
-  , fromRational
+    Ratio(..) 
   , reduce
   , shiftd
+  -- * Ratio Integer
+  , ratord
   , ratf32
   , ratf64
   , rati08
@@ -16,10 +15,7 @@ module Data.Connection.Ratio (
   , rati32
   , rati64
   , ratint
-  -- * Positive
-  , Positive
-  , TripPositive
-  , fromPositive
+  -- * Ratio Natural
   , ratw08
   , ratw16
   , ratw32
@@ -27,70 +23,55 @@ module Data.Connection.Ratio (
   , ratnat
 ) where
 
-import Data.Connection
-import Data.Float
-import Data.Int
-import Data.Prd hiding (extend, pinf, ninf, anan)
-import Data.Prd.Nan hiding (liftNan, fldord)
-import Data.Ratio
-import Data.Prd.Top
-import Data.Word
-import GHC.Real hiding (reduce, fromRational)
-import Numeric.Natural
-import Prelude hiding (until, Ord(..), Bounded, fromRational)
-import qualified Control.Category as C
-import qualified Prelude as P
-import qualified Data.Prd as Prd
-
-type Positive = Ratio Natural
-
-type TripRational a = TripRatio Integer a
-
-type TripPositive a = TripRatio Natural a
-
-class (Prd (Ratio a), Prd b) => TripRatio a b | b -> a where
-  rattyp :: Trip (Ratio a) b
-
--- | Lawful replacement for the version in base.
---
--- >>> fromRational @Float 1.3
--- 1.3000001
--- >>> fromRational @Float (1/0)
--- Infinity
--- >>> fromRational @Float (0/0)
--- NaN
---
--- >>> fromRational @(Extended Int8) 4.9
--- Def (fin 5)
--- >>> fromRational @(Extended Int8) (-1.2)
--- Def (fin (-1))
--- >>> fromRational @(Extended Int8) (1/0)
--- Def Just Top
--- >>> fromRational @(Extended Int8) (0/0)
--- Nan
--- >>> fromRational @(Extended Int8) (-1/0)
--- Def Nothing
---
-fromRational :: TripRational a => Rational -> a
-fromRational = connl . tripl $ rattyp
-
-fromPositive :: TripPositive a => Positive -> a
-fromPositive = connl . tripl $ rattyp
+import safe Data.Connection.Trip
+import safe Data.Connection.Float
+import safe Data.Int
+import safe Data.Prd
+import safe Data.Prd.Nan hiding (liftNan)
+import safe Data.Ratio
+import safe Data.Prd.Top
+import safe Data.Word
+import safe GHC.Real (Ratio(..), Rational)
+import safe Numeric.Natural
+import safe Prelude hiding (until, Ord(..), Bounded)
+import safe qualified Prelude as P
+import safe qualified Data.Prd as Prd
 
 -- | A total version of 'GHC.Real.reduce'.
 --
-reduce :: Integral a => a -> a -> Ratio a
-reduce x 0 = x :% 0
-reduce x y = (x `quot` d) :% (y `quot` d) where d = gcd x y
+reduce :: Integral a => Ratio a -> Ratio a
+reduce (x :% 0) = x :% 0
+reduce (x :% y) = (x `quot` d) :% (y `quot` d) where d = gcd x y
 
 -- | Shift by n 'units of least precision' where the ULP is determined by the denominator
 -- 
--- This is an analog of 'Data.Float.shiftf' for rationals.
+-- This is an analog of 'Data.Connection.Float.shift' for rationals.
 --
 shiftd :: Num a => a -> Ratio a -> Ratio a
 shiftd n (x :% y) = (n + x) :% y
 
-ratf32 :: Trip Rational Float
+---------------------------------------------------------------------
+-- Ratio Integer
+---------------------------------------------------------------------
+
+ratord :: Trip (Ratio Integer) (Nan Ordering)
+ratord = Trip f g h where
+    g (Def GT) = pinf 
+    g (Def LT) = ninf 
+    g (Def EQ) = 0
+    g Nan = anan 
+    
+    f x | x =~ anan  = Nan
+        | x =~ ninf  = Def LT
+        | x <= 0  = Def EQ
+        | otherwise  = Def GT
+
+    h x | x =~ anan  = Nan
+        | x =~ pinf  = Def GT
+        | x >= 0  = Def EQ
+        | otherwise  = Def LT
+
+ratf32 :: Trip (Ratio Integer) Float
 ratf32 = Trip (extend' f) (extend g) (extend' h) where
   f x = let est = P.fromRational x in --F.fromRat'
           if extend g est >= x
@@ -108,7 +89,7 @@ ratf32 = Trip (extend' f) (extend g) (extend' h) where
 
   descendf z f1 x = until (\y -> f1 y <= x) (>=) (shiftf (-1)) z
 
-ratf64 :: Trip Rational Double
+ratf64 :: Trip (Ratio Integer) Double
 ratf64 = Trip (extend' f) (extend g) (extend' h) where
   f x = let est = P.fromRational x in
           if extend g est >= x
@@ -126,7 +107,7 @@ ratf64 = Trip (extend' f) (extend g) (extend' h) where
 
   descendf z f1 x = until (\y -> f1 y <= x) (>=) (shift (-1)) z
 
-rati08 :: Trip Rational (Extended Int8) 
+rati08 :: Trip (Ratio Integer) (Extended Int8) 
 rati08 = Trip (liftNan f) (nanr g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
@@ -144,7 +125,7 @@ rati08 = Trip (liftNan f) (nanr g) (liftNan h) where
 
   imin = -128
 
-rati16 :: Trip Rational (Extended Int16) 
+rati16 :: Trip (Ratio Integer) (Extended Int16) 
 rati16 = Trip (liftNan f) (nanr g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
@@ -162,7 +143,7 @@ rati16 = Trip (liftNan f) (nanr g) (liftNan h) where
 
   imin = -32768
 
-rati32 :: Trip Rational (Extended Int32) 
+rati32 :: Trip (Ratio Integer) (Extended Int32) 
 rati32 = Trip (liftNan f) (nanr g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
@@ -180,7 +161,7 @@ rati32 = Trip (liftNan f) (nanr g) (liftNan h) where
 
   imin = -2147483648
 
-rati64 :: Trip Rational (Extended Int64) 
+rati64 :: Trip (Ratio Integer) (Extended Int64) 
 rati64 = Trip (liftNan f) (nanr g) (liftNan h) where
   f x | x > imax = Just Top
       | x =~ ninf = Nothing
@@ -198,7 +179,7 @@ rati64 = Trip (liftNan f) (nanr g) (liftNan h) where
 
   imin = -9223372036854775808
 
-ratint :: Trip Rational (Extended Integer)
+ratint :: Trip (Ratio Integer) (Extended Integer)
 ratint = Trip (liftNan f) (nanr g) (liftNan h) where
   f x | x =~ pinf = Just Top
       | x =~ ninf = Nothing
@@ -210,12 +191,16 @@ ratint = Trip (liftNan f) (nanr g) (liftNan h) where
       | x =~ ninf = Nothing
       | otherwise = fin $ P.floor $ cancel x
 
-ratw08 :: Trip Positive (Lifted Word8) 
+---------------------------------------------------------------------
+-- Ratio Natural
+---------------------------------------------------------------------
+
+ratw08 :: Trip (Ratio Natural) (Lifted Word8) 
 ratw08 = Trip (liftNan f) (nanr g) (liftNan h) where
   f x | x > imax = Top
       | otherwise = Fin $ P.ceiling x
 
-  g = topped pinf P.fromIntegral
+  g = top pinf P.fromIntegral
 
   h x | x =~ pinf = Top
       | x > imax = Fin maximal
@@ -223,12 +208,12 @@ ratw08 = Trip (liftNan f) (nanr g) (liftNan h) where
 
   imax = 255
 
-ratw16 :: Trip Positive (Lifted Word16) 
+ratw16 :: Trip (Ratio Natural) (Lifted Word16) 
 ratw16 = Trip (liftNan f) (nanr g) (liftNan h) where
   f x | x > imax = Top
       | otherwise = Fin $ P.ceiling x
 
-  g = topped pinf P.fromIntegral
+  g = top pinf P.fromIntegral
 
   h x | x =~ pinf = Top
       | x > imax = Fin maximal
@@ -236,12 +221,12 @@ ratw16 = Trip (liftNan f) (nanr g) (liftNan h) where
 
   imax = 65535
 
-ratw32 :: Trip Positive (Lifted Word32) 
+ratw32 :: Trip (Ratio Natural) (Lifted Word32) 
 ratw32 = Trip (liftNan f) (nanr g) (liftNan h) where
   f x | x > imax = Top
       | otherwise = Fin $ P.ceiling x
 
-  g = topped pinf P.fromIntegral
+  g = top pinf P.fromIntegral
 
   h x | x =~ pinf = Top
       | x > imax = Fin maximal
@@ -249,12 +234,12 @@ ratw32 = Trip (liftNan f) (nanr g) (liftNan h) where
 
   imax = 4294967295
 
-ratw64 :: Trip Positive (Lifted Word64) 
+ratw64 :: Trip (Ratio Natural) (Lifted Word64) 
 ratw64 = Trip (liftNan f) (nanr g) (liftNan h) where
   f x | x > imax = Top
       | otherwise = Fin $ P.ceiling x
 
-  g = topped pinf P.fromIntegral
+  g = top pinf P.fromIntegral
 
   h x | x =~ pinf = Top
       | x > imax = Fin maximal
@@ -262,84 +247,20 @@ ratw64 = Trip (liftNan f) (nanr g) (liftNan h) where
 
   imax = 18446744073709551615
 
-ratnat :: Trip Positive (Lifted Natural)
+ratnat :: Trip (Ratio Natural) (Lifted Natural)
 ratnat = Trip (liftNan f) (nanr g) (liftNan h) where
   f x | x =~ pinf = Top
       | otherwise = Fin $ P.ceiling x
 
-  g = topped pinf P.fromIntegral
+  g = top pinf P.fromIntegral
 
   h x | x =~ pinf = Top
       | otherwise = Fin $ P.floor x
 
 ---------------------------------------------------------------------
--- Instances
----------------------------------------------------------------------
-
-instance TripRatio Integer (Nan Ordering) where
-  rattyp = Trip f g h where
-    g (Def GT) = pinf 
-    g (Def LT) = ninf 
-    g (Def EQ) = 0
-    g Nan = anan 
-    
-    f x | x =~ anan  = Nan
-        | x =~ ninf  = Def LT
-        | x <= 0  = Def EQ
-        | otherwise  = Def GT
-
-    h x | x =~ anan  = Nan
-        | x =~ pinf  = Def GT
-        | x >= 0  = Def EQ
-        | otherwise  = Def LT
-
-instance TripRatio Integer Float where
-  rattyp = ratf32
-
-instance TripRatio Integer Double where
-  rattyp = ratf64
-
-instance TripRatio Integer Rational where
-  rattyp = C.id
-
-instance TripRatio Integer (Extended Int8) where
-  rattyp = rati08
-
-instance TripRatio Integer (Extended Int16) where
-  rattyp = rati16
-
-instance TripRatio Integer (Extended Int32) where
-  rattyp = rati32
-
-instance TripRatio Integer (Extended Int64) where
-  rattyp = rati64
-
-instance TripRatio Integer (Extended Integer) where
-  rattyp = ratint
-
-instance TripRatio Natural Positive where
-  rattyp = C.id
-
-instance TripRatio Natural (Lifted Word8) where
-  rattyp = ratw08
-
-instance TripRatio Natural (Lifted Word16) where
-  rattyp = ratw16
-
-instance TripRatio Natural (Lifted Word32) where
-  rattyp = ratw32
-
-instance TripRatio Natural (Lifted Word64) where
-  rattyp = ratw64
-
-instance TripRatio Natural (Lifted Natural) where
-  rattyp = ratnat
-
----------------------------------------------------------------------
 -- Internal
 ---------------------------------------------------------------------
 
--- x % y = reduce (x * signum y) (abs y)
 cancel :: Prd a => Num a => Ratio a -> Ratio a
 cancel (x :% y) = if x < 0 && y < 0 then (pabs x) :% (pabs y) else x :% y
 
@@ -366,3 +287,6 @@ ninf = (-1) :% 0
 
 anan :: Num a => Ratio a
 anan = 0 :% 0
+
+--showr :: Integral a => Show a => Ratio a -> String
+--showr r = show x ++ " % " ++ show y where (x :% y) = reduce r

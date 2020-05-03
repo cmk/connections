@@ -1,21 +1,34 @@
-{-# LANGUAGE DeriveFunctor       #-}
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE Safe                #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
+{-# Language DeriveFunctor       #-}
+{-# Language DeriveGeneric       #-}
+{-# Language FlexibleContexts    #-}
+{-# Language Safe                #-}
+{-# Language ScopedTypeVariables #-}
 module Data.Prd.Nan where
 
-import Control.Applicative
-import Data.Prd
-import Data.Connection
-import GHC.Real
-import GHC.Generics (Generic, Generic1)
-import Prelude hiding (Ord(..), Bounded)
+import safe Control.Applicative
+import safe Data.Prd
+import safe Data.Prd.Top
+import safe GHC.Real
+import safe GHC.Generics (Generic, Generic1)
+import safe Prelude hiding (Ord(..), Bounded)
+
+type Lifted a = Nan (Top a)
+type Lowered a = Nan (Bottom a)
+type Extended a = Nan (Bound a)
 
 -- | A type with an additional incomparable element allowing for the possibility of undefined values.
--- Isomorphic to /Maybe a/ but with a different 'Prd' instance.
-data Nan a = Nan | Def a deriving ( Show, Generic, Generic1, Functor)
+data Nan a = Nan | Def a deriving (Show, Generic, Generic1, Functor)
+
+instance Prd a => Prd (Nan a) where
+    Nan <= Nan = True
+    _   <= Nan = False
+    Nan <= _   = False
+    Def a <= Def b = a <= b
+
+instance Applicative Nan where
+    pure = Def
+    Nan <*> _ = Nan
+    Def f <*> x = f <$> x
 
 nan :: b -> (a -> b) -> Nan a -> b
 nan _ f (Def y) = f y
@@ -36,39 +49,8 @@ isDef _   = True
 mapNan :: (a -> b) -> Nan a -> Nan b
 mapNan f = nan Nan $ Def . f
 
-joinNan :: Nan (Nan a) -> Nan a
-joinNan Nan = Nan
-joinNan (Def Nan) = Nan
-joinNan (Def (Def a)) = Def a
--- collectNan = joinNan . liftNan id
+lifted :: Floating b => (a -> b) -> Lifted a -> b
+lifted = nanf . top (1/0)
 
-liftNan :: Prd a => Floating a => (a -> b) -> a -> Nan b
-liftNan f x | x =~ 0/0 = Nan
-            | otherwise = Def (f x)
-
--- Lift all exceptional values
-liftAll :: (RealFloat a, Prd a, Bounded b) => (a -> b) -> a -> Nan b
-liftAll f x | isNaN x = Nan
-            | isInf x = Def maximal
-            | isInf (-x) = Def minimal
-            | otherwise = Def (f x)
-
-isInf :: (RealFloat a, Prd a) => a -> Bool
-isInf x = isInfinite x && x > 0
-
-defnan :: Prd a => Prd b => Conn a b -> Conn (Nan a) (Nan b)
-defnan (Conn f g) = Conn (fmap f) (fmap g) 
-
-defnan' :: Prd a => Prd b => Trip a b -> Trip (Nan a) (Nan b)
-defnan' (Trip f g h) = Trip (fmap f) (fmap g) (fmap h)
-
-instance Prd a => Prd (Nan a) where
-    Nan <= Nan = True
-    _   <= Nan = False
-    Nan <= _   = False
-    Def a <= Def b = a <= b
-
-instance Applicative Nan where
-    pure = Def
-    Nan <*> _ = Nan
-    Def f <*> x = f <$> x
+extended :: Bounded b => b -> (a -> b) -> Extended a -> b
+extended b f = nan b (bounded f)

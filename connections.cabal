@@ -1,5 +1,5 @@
 name:                connections
-version:             0.0.3
+version:             0.1.0
 synopsis:            Partial orders, Galois connections, and lattices.
 description:         A library for numerical conversions using Galois connections.
 homepage:            https://github.com/cmk/connections
@@ -24,11 +24,12 @@ library
     , Data.Prd.Property
     , Data.Float
     , Data.Connection
+    , Data.Connection.Conn
+    , Data.Connection.Trip
     , Data.Connection.Int
     , Data.Connection.Word
     , Data.Connection.Float
     , Data.Connection.Ratio
-    , Data.Connection.Round
     , Data.Connection.Property
 
   build-depends:       

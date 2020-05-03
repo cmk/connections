@@ -44,11 +44,11 @@ f32 = gen_flt $ G.float rf
 f64 :: Gen Double
 f64 = gen_flt $ G.double rd
 
-rat :: Gen Rational
+rat :: Gen (Ratio Integer)
 rat = G.frequency [(49, gen), (1, G.element [-1 :% 0, 1 :% 0, 0 :% 0])]
   where gen = G.realFrac_ (R.linearFracFrom 0 (- 2^127) (2^127))
 
-pos :: Gen Positive
+pos :: Gen (Ratio Natural)
 pos = G.frequency [(49, gen), (1, G.element [1 :% 0, 0 :% 0])]
   where gen = G.realFrac_ (R.linearFracFrom 0 0 (2^127))
 
@@ -78,8 +78,6 @@ gen_ext = gen_nan . gen_bnd
 
 gen_flt :: Floating a => Gen a -> Gen a 
 gen_flt gen = G.frequency [(49, gen), (1, G.element [(-1/0), 1/0, 0/0])]
-
-
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

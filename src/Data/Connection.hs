@@ -1,261 +1,466 @@
 {-# Language TypeFamilies #-}
 {-# Language TypeApplications #-}
 {-# Language AllowAmbiguousTypes #-}
-{-# Language ConstraintKinds #-}
+{-# Language ConstraintKinds     #-}
+{-# Language Safe                #-}
 
 module Data.Connection (
-  -- * Connection
-    Conn(..)
-  , connl
-  , connr
-  , unit
-  , counit
-  , pcomparing
-  , dual
-  , first
-  , second
-  , left
-  , right
-  , strong
-  , choice
-  , just
-  , list
-  , ordbin
-  , binord
-  -- * Triple
-  , Trip(..)
-  , tripl
-  , tripr
-  , unitl
-  , unitr
-  , counitl
-  , counitr
-  , trivial
-  , first'
-  , second'
-  , left'
-  , right'
-  , strong'
-  , choice'
-  , maybel
-  , mayber
+  -- * Connections
+    Connection(..)
+  , ConnInteger
+  , ConnNatural
+  , lower
+  , upper
+  , fromInteger
+  , fromNatural
+  -- * Triples
+  , Triple(..)
+  , TripInteger
+  , TripNatural
+  , lower'
+  , upper'
+  , floor
+  , ceiling
 ) where
 
+import safe Data.Connection.Conn
+import safe Data.Connection.Trip
+import safe Data.Connection.Int
+import safe Data.Connection.Word
+import safe Data.Connection.Float
+import safe Data.Connection.Ratio
+import safe Data.Prd
+import safe Data.Prd.Nan
+import safe Data.Prd.Top
+import safe Data.Word
+import safe Data.Int
+import safe Numeric.Natural
+import safe Prelude hiding (Ord(..), Bounded, fromInteger, fromRational, RealFrac(..))
 
-import Control.Category (Category, (>>>))
-import Data.Bifunctor (bimap)
-import Data.Bool
-import Data.Prd
-import Prelude hiding (Ord, Bounded)
+import safe qualified Control.Category as C
+import safe qualified Data.Set as Set
+import safe qualified Data.IntSet as IntSet
 
-import qualified Control.Category as C
+-- $setup
+-- >>> :set -XTypeApplications
+-- >>> import Data.Int
+-- >>> import Prelude hiding (Ord(..), Bounded, fromInteger, fromRational, RealFrac(..))
+-- >>> import qualified Prelude as P
+-- >>> :load Data.Connection
 
+---------------------------------------------------------------------
+-- Connection
+---------------------------------------------------------------------
+
+type ConnInteger a = Connection a (Maybe Integer)
+
+type ConnNatural a = Connection a Natural
 
 -- | A Galois connection between two monotone functions.
 --
--- /Caution/: Monotonicity is not checked.
+-- A Galois connection between /f/ and /g/ (denoted \(f \dashv g \))
+-- is an adjunction in the category of partially ordered sets.
 --
--- Each side of the connection may be defined in terms of the other:
+-- Each side of a connection may be defined in terms of the other:
 -- 
---  \( connr(x) = \sup \{y \in E \mid connl(y) \leq x \} \)
+--  \( g(x) = \sup \{y \in E \mid f(y) \leq x \} \)
 --
---  \( connl(x) = \inf \{y \in E \mid connr(y) \geq x \} \)
+--  \( f(x) = \inf \{y \in E \mid g(y) \geq x \} \)
 --
--- Galois connections have the same properties as adjunctions defined over other categories:
+-- For further information see 'Data.Connection.Property' and <https://ncatlab.org/nlab/show/Galois+connection>.
 --
---  \( \forall x, y : connl \dashv connr \Rightarrow connl (x) \leq b \Leftrightarrow x \leq connr (y) \)
---
---  \( \forall x, y : x \leq y \Rightarrow connl (x) \leq connl (y) \)
---
---  \( \forall x, y : x \leq y \Rightarrow connr (x) \leq connr (y) \)
---
---  \( \forall x : connl \dashv connr \Rightarrow x \leq connr \circ connl (x) \)
---
---  \( \forall x : connl \dashv connr \Rightarrow connl \circ connr (x) \leq x \)
---
---  \( \forall x : unit \circ unit (x) \sim unit (x) \)
---
---  \( \forall x : counit \circ counit (x) \sim counit (x) \)
---
---  \( \forall x : counit \circ connl (x) \sim connl (x) \)
---
---  \( \forall x : unit \circ connr (x) \sim connr (x) \)
---
--- See also 'Data.Function.Connection.Property' and <https://en.wikipedia.org/wiki/Galois_connection>.
---
-data Conn a b = Conn (a -> b) (b -> a)
+class (Prd a, Prd b) => Connection a b where
+  connection :: Conn a b
 
-instance Category Conn where
-  id = Conn id id
-  Conn f' g' . Conn f g = Conn (f' . f) (g . g')
+-- | The lower half of a Galois connection.
+--
+lower :: Connection a b => a -> b
+lower = connl connection
 
--- | Extract the left side of a connection.
+-- | The upper half of a Galois connection.
 --
-connl :: Prd a => Prd b => Conn a b -> a -> b
-connl (Conn f _) = f
+upper :: Connection a b => b -> a
+upper = connr connection
 
--- | Extract the right side of a connection.
+-- | A monotone function from the integers to /a/.
 --
-connr :: Prd a => Prd b => Conn a b -> b -> a
-connr (Conn _ g) = g
+-- This is a lawful replacement for the version in base.
+--
+fromInteger :: ConnInteger a => Integer -> a
+fromInteger = connr connection . Just
 
--- | Round trip through a connection.
+-- | A monotone function from the natural numbers to /a/.
 --
--- @x '<=' 'unit' x@
---
-unit :: Prd a => Prd b => Conn a b -> a -> a
-unit (Conn f g) = g . f
-
--- | Reverse round trip through a connection.
---
--- @'counit' x '<=' x@
---
-counit :: Prd a => Prd b => Conn a b -> b -> b
-counit (Conn f g) = f . g
-
--- | Partial version of 'Data.Ord.comparing'. 
---
-pcomparing :: Prd a => Prd b => Conn a b -> a -> a -> Maybe Ordering
-pcomparing (Conn f _) x y = f x `pcompare` f y
+fromNatural :: ConnNatural a => Natural -> a
+fromNatural = connr connection
 
 ---------------------------------------------------------------------
--- Instances
+-- Triple
 ---------------------------------------------------------------------
 
--- | Reverse a connection using the dual partial order on each side.
+type TripInteger a = Triple a (Bound Integer)
+
+type TripNatural a = Triple a (Top Natural)
+
+-- | An adjoint triple of Galois connections.
 --
-dual :: Prd a => Prd b => Conn a b -> Conn (Down b) (Down a)
-dual (Conn f g) = Conn (\(Down b) -> Down $ g b) (\(Down a) -> Down $ f a)
-
--- | @'first' (ab '>>>' cd) = 'first' ab '>>>' 'first' cd@
+-- An adjoint triple is a chain of connections of length 2:
 --
-first :: Prd a => Prd b => Prd c => Conn a b -> Conn (a, c) (b, c)
-first = flip strong C.id
-
--- | @'second' (ab '>>>' cd) = 'second' ab '>>>' 'second' cd@
+-- \(f \dashv g \dashv h \) 
 --
-second :: Prd a => Prd b => Prd c => Conn a b -> Conn (c, a) (c, b)
-second = strong C.id
-
--- | @'left' (ab '>>>' cd) = 'left' ab '>>>' 'left' cd@
+-- For further information see 'Data.Connection.Property' and <https://ncatlab.org/nlab/show/adjoint+triple>.
 --
-left :: Prd a => Prd b => Prd c => Conn a b -> Conn (Either a c) (Either b c)
-left = flip choice C.id
+class (Prd a, Prd b) => Triple a b where
+  triple :: Trip a b
 
--- | @'right' (ab '>>>' cd) = 'right' ab '>>>' 'right' cd@
+-- | The lower half of a Galois triple.
 --
-right :: Prd a => Prd b => Prd c => Conn a b -> Conn (Either c a) (Either c b)
-right = choice C.id 
+lower' :: Triple a b => Conn a b
+lower' = tripl triple
 
-strong :: Prd a => Prd b => Prd c => Prd d => Conn a b -> Conn c d -> Conn (a, c) (b, d)
-strong (Conn ab ba) (Conn cd dc) = Conn (bimap ab cd) (bimap ba dc)
+-- | The upper half of a Galois triple.
+--
+upper' :: Triple a b => Conn b a
+upper' = tripr triple
 
-choice :: Prd a => Prd b => Prd c => Prd d => Conn a b -> Conn c d -> Conn (Either a c) (Either b d)
-choice (Conn ab ba) (Conn cd dc) = Conn f g where
-  f = either (Left . ab) (Right . cd)
-  g = either (Left . ba) (Right . dc)
+-- | A monotonic floor function.
+--
+-- >>> floor @Rational @Float (0 :% 0)
+-- NaN
+-- >>> floor @Rational @Float (1 :% 0)
+-- Infinity
+-- >>> floor @Rational @Float (13 :% 10)
+-- 1.3
+--
+floor :: Triple a b => a -> b
+floor = floorOn triple
 
-just :: Prd a => Prd b => Conn a b -> Conn (Maybe a) (Maybe b)
-just (Conn f g) = Conn (fmap f) (fmap g)
-
-list :: Prd a => Prd b => Conn a b -> Conn [a] [b]
-list (Conn f g) = Conn (fmap f) (fmap g)
-
-ordbin :: Conn Ordering Bool
-ordbin = Conn f g where
-  f GT = True
-  f _  = False
-
-  g True = GT
-  g _    = EQ
-
-binord :: Conn Bool Ordering
-binord = Conn f g where
-  f False = LT
-  f _     = EQ
-
-  g LT = False
-  g _  = True
+-- | A monotonic ceiling function.
+--
+-- >>> ceiling @Rational @Float (0 :% 0)
+-- NaN
+-- >>> ceiling @Rational @Float (1 :% 0)
+-- Infinity
+-- >>> ceiling @Rational @Float (13 :% 10)
+-- 1.3000001
+--
+-- 'ceiling' can be used to build lawful replacements for the 'Prelude.ceiling':
+--
+-- >>> ceiling32 = mapNan (bounded id) . ceiling @Float
+-- >>> P.ceiling @Float @Int8 129
+-- -127
+-- >>> ceiling32 @Int8 129
+-- Def 127
+-- >>> P.ceiling @Float @Int8 (0/0)
+-- 0
+-- >>> ceiling32 @Int8 (0/0)
+-- Nan
+--
+ceiling :: Triple a b => a -> b
+ceiling = ceilingOn triple
 
 ---------------------------------------------------------------------
--- Adjoint triples
+-- Connection instances
 ---------------------------------------------------------------------
 
--- | An adjoint triple.
---
--- @'Trip' f g h@ satisfies:
---
--- @
--- f ⊣ g
--- ⊥   ⊥
--- g ⊣ h
--- @
---
--- See <https://ncatlab.org/nlab/show/adjoint+triple>
---
-data Trip a b = Trip (a -> b) (b -> a) (a -> b)
+{-
+instance Connection Bool Ordering where
+  connection = binord
 
-instance Category Trip where
-  id = Trip id id id
-  Trip f' g' h' . Trip f g h = Trip (f' . f) (g . g') (h' . h)
+instance Connection Ordering Bool where
+  connection = ordbin
 
-tripl :: Prd a => Prd b => Trip a b -> Conn a b
-tripl (Trip f g _) = Conn f g
+instance Connection Bool CBool where
+  connection = binc08
 
-tripr :: Prd a => Prd b => Trip a b -> Conn b a
-tripr (Trip _ g h) = Conn g h
+instance Connection CBool Bool where
+  connection = c08bin
 
-unitl :: Prd a => Prd b => Trip a b -> a -> a
-unitl = unit . tripl
+instance Connection Word8 CUChar where
+  connection = w08c08
+-}
+instance Connection Word8 (Maybe Integer) where
+  connection = w08nat C.>>> natint
 
-unitr :: Prd a => Prd b => Trip a b -> b -> b
-unitr = unit . tripr
+instance Connection Word8 Natural where
+  connection = w08nat
 
-counitl :: Prd a => Prd b => Trip a b -> b -> b
-counitl = counit . tripl
+--instance Connection Word16 CUShort where
+--  connection = w16c16
 
-counitr :: Prd a => Prd b => Trip a b -> a -> a
-counitr = counit . tripr
+instance Connection Word16 (Maybe Integer) where
+  connection = w16nat C.>>> natint
+
+instance Connection Word16 Natural where
+  connection = w16nat
+
+--instance Connection Word32 CUInt where
+--  connection = w32c32
+
+instance Connection Word32 (Maybe Integer) where
+  connection = w32nat C.>>> natint
+
+instance Connection Word32 Natural where
+  connection = w32nat
+
+--instance Connection Word64 CULong where
+--  connection = w64c64
+
+instance Connection Word64 (Maybe Integer) where
+  connection = w64nat C.>>> natint
+
+instance Connection Word64 Natural where
+  connection = w64nat
+
+instance Connection Word (Maybe Integer) where
+  connection = wxxnat C.>>> natint
+
+instance Connection Word Natural where
+  connection = wxxnat
+
+instance Connection Natural (Maybe Integer) where
+  connection = natint
+
+instance Connection Int8 (Maybe Integer) where
+  connection = i08int
+
+instance Connection Int16 (Maybe Integer) where
+  connection = i16int
+
+instance Connection Int32 (Maybe Integer) where
+  connection = i32int
+
+instance Connection Int64 (Maybe Integer) where
+  connection = i64int
+
+instance Connection Int (Maybe Integer) where
+  connection = ixxint
+
+instance Connection Integer Natural where
+  connection = intnat
+
+{-
+--instance Connection Float CFloat where
+--  connection = f32c32
+
+instance Connection (Nan Int32) Float where
+  connection = i32f32
+
+instance Connection Float (Nan Int32) where
+  connection = f32i32
+
+--instance Connection Float (Nan Int64) where
+--  connection = f32i32 C.>>> mapped i32i64
+
+--instance Connection Double CDouble where
+--  connection = f64c64
+
+instance Connection (Nan Int64) Double where
+  connection = i64f64
+
+instance Connection Double (Nan Int64) where
+  connection = f64i64
+
+instance Connection (Nan Int) Double where
+  connection = ixxf64
+
+instance Connection Double (Nan Int) where
+  connection = f64ixx
+-}
+instance Prd a => Connection a a where
+  connection = C.id
+
+instance Connection a b => Connection (Down b) (Down a) where
+  connection = dual connection
+
+instance (Connection a b, Connection c d) => Connection (a, c) (b, d) where
+  connection = strong connection connection
+
+instance (Connection a b, Prd c) => Connection (c, a) (c, b) where
+  connection = strong C.id connection
+
+instance (Connection a b, Prd c) => Connection (a, c) (b, c) where
+  connection = flip strong C.id connection
+
+instance (Connection a b, Connection c d) => Connection (Either a c) (Either b d) where
+  connection = choice connection connection
+
+instance (Connection a b, Prd c) => Connection (Either c a) (Either c b) where
+  connection = choice C.id connection
+
+instance (Connection a b, Prd c) => Connection (Either a c) (Either b c) where
+  connection = flip choice C.id connection
+
+instance (Connection a b) => Connection [a] [b] where
+  connection = mapped connection
+
+instance (Connection a b) => Connection (Maybe a) (Maybe b) where
+  connection = mapped connection
+
+instance (Connection a b) => Connection (Top a) (Top b) where
+  connection = mapped connection
+
+instance (Connection a b) => Connection (Nan a) (Nan b) where
+  connection = mapped connection
+
+instance (Connection a b) => Connection (Bound a) (Bound b) where
+  connection = mapped connection
+
+instance (Connection a b) => Connection (Extended a) (Extended b) where
+  connection = mapped . mapped $ connection
+
+mapped :: Functor f => Conn a b -> Conn (f a) (f b)
+mapped (Conn f g) = Conn (fmap f) (fmap g)
 
 ---------------------------------------------------------------------
---  Instances
+-- Triple instances
 ---------------------------------------------------------------------
 
-trivial :: Prd a => Bounded a => Trip () a
-trivial = Trip (const minimal) (const ()) (const maximal)
+instance Bounded a => Triple () a where
+  triple = Trip (const minimal) (const ()) (const maximal)
 
-first' :: Prd a => Prd b => Prd c => Trip a b -> Trip (a, c) (b, c)
-first' = flip strong' C.id
+instance Triple Int8 (Bound Integer) where
+  triple = i08int'
 
-second' :: Prd a => Prd b => Prd c => Trip a b -> Trip (c, a) (c, b)
-second' = strong' C.id
+instance Triple Int16 (Bound Integer) where
+  triple = i16int'
 
-left' :: Prd a => Prd b => Prd c => Trip a b -> Trip (Either a c) (Either b c)
-left' = flip choice' C.id
+instance Triple Int32 (Bound Integer) where
+  triple = i32int'
 
-right' :: Prd a => Prd b => Prd c => Trip a b -> Trip (Either c a) (Either c b)
-right' = choice' C.id
+instance Triple Int64 (Bound Integer) where
+  triple = i64int'
 
-strong' :: Prd a => Prd b => Prd c => Prd d => Trip a b -> Trip c d -> Trip (a, c) (b, d)
-strong' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
-  f = bimap ab cd 
-  g = bimap ba dc
-  h = bimap ab' cd'
+instance Triple Int (Bound Integer) where
+  triple = ixxint'
 
-choice' :: Prd a => Prd b => Prd c => Prd d => Trip a b -> Trip c d -> Trip (Either a c) (Either b d)
-choice' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
-  f = either (Left . ab) (Right . cd)
-  g = either (Left . ba) (Right . dc)
-  h = either (Left . ab') (Right . cd')
+instance Triple Word8 (Top Natural) where
+  triple = w08nat'
 
-maybel :: Prd a => Bounded b => Trip (Maybe a) (Either a b)
-maybel = Trip f g h where
-  f = maybe (Right minimal) Left
-  g = either Just (const Nothing)
-  h = maybe (Right maximal) Left
+instance Triple Word16 (Top Natural) where
+  triple = w16nat'
 
-mayber :: Prd b => Bounded a => Trip (Maybe b) (Either a b)
-mayber = Trip f g h where
-  f = maybe (Left minimal) Right
-  g = either (const Nothing) Just
-  h = maybe (Left maximal) Right
+instance Triple Word32 (Top Natural) where
+  triple = w32nat'
+
+instance Triple Word64 (Top Natural) where
+  triple = w64nat'
+
+instance Triple Word (Top Natural) where
+  triple = wxxnat'
+
+instance Triple (Ratio Integer) (Nan Ordering) where
+  triple = ratord
+
+instance Triple (Ratio Integer) Float where
+  triple = ratf32
+
+instance Triple (Ratio Integer) Double where
+  triple = ratf64
+
+instance Triple (Ratio Integer) (Extended Int8) where
+  triple = rati08
+
+instance Triple (Ratio Integer) (Extended Int16) where
+  triple = rati16
+
+instance Triple (Ratio Integer) (Extended Int32) where
+  triple = rati32
+
+instance Triple (Ratio Integer) (Extended Int64) where
+  triple = rati64
+
+instance Triple (Ratio Integer) (Extended Integer) where
+  triple = ratint
+
+instance Triple (Ratio Natural) (Lifted Word8) where
+  triple = ratw08
+
+instance Triple (Ratio Natural) (Lifted Word16) where
+  triple = ratw16
+
+instance Triple (Ratio Natural) (Lifted Word32) where
+  triple = ratw32
+
+instance Triple (Ratio Natural) (Lifted Word64) where
+  triple = ratw64
+
+instance Triple (Ratio Natural) (Lifted Natural) where
+  triple = ratnat
+
+instance Triple Float (Extended Int8) where
+  triple = f32i08
+
+instance Triple Float (Extended Int16) where
+  triple = f32i16
+
+instance Triple Double (Extended Int8) where
+  triple = f64i08
+
+instance Triple Double (Extended Int16) where
+  triple = f64i16
+
+instance Triple Double (Extended Int32) where
+  triple = f64i32
+
+instance Triple (IntSet.IntSet, IntSet.IntSet) IntSet.IntSet where
+  triple = Trip (uncurry IntSet.union) (\x -> (x,x)) (uncurry IntSet.intersection)
+
+instance Ord a => Triple (Set.Set a, Set.Set a) (Set.Set a) where
+  triple = Trip (uncurry Set.union) (\x -> (x,x)) (uncurry Set.intersection)
+
+instance Prd a => Triple a a where
+  triple = C.id
+
+instance (Triple a b, Triple c d) => Triple (a, c) (b, d) where
+  triple = strong' triple triple
+
+instance (Triple a b, Prd c) => Triple (a, c) (b, c) where
+  triple = flip strong' C.id triple
+
+instance (Triple a b, Prd c) => Triple (c, a) (c, b) where
+  triple = strong' C.id triple
+
+instance (Triple a b, Triple c d) => Triple (Either a c) (Either b d) where
+  triple = choice' triple triple
+
+instance (Triple a b, Prd c) => Triple (Either c a) (Either c b) where
+  triple = choice' C.id triple
+
+instance (Triple a b, Prd c) => Triple (Either a c) (Either b c) where
+  triple = flip choice' C.id triple
+
+instance (Triple a b, Bounded b) => Triple (Maybe a) (Either a b) where
+  triple = Trip f g h where
+    f = maybe (Right minimal) Left
+    g = either Just (const Nothing)
+    h = maybe (Right maximal) Left
+
+instance (Triple a b, Bounded a) => Triple (Maybe b) (Either a b) where
+  triple = Trip f g h where
+    f = maybe (Left minimal) Right
+    g = either (const Nothing) Just
+    h = maybe (Left maximal) Right
+
+{-
+instance (Triple a b) => Triple [a] [b] where
+  triple = mapped' triple
+
+instance (Triple a b) => Triple (Maybe a) (Maybe b) where
+  triple = mapped' triple
+
+instance (Triple a b) => Triple (Top a) (Top b) where
+  triple = mapped' triple
+
+instance (Triple a b) => Triple (Nan a) (Nan b) where
+  triple = mapped' triple
+
+instance (Triple a b) => Triple (Bound a) (Bound b) where
+  triple = mapped' . mapped' $ triple
+
+instance (Triple a b) => Triple (Extended a) (Extended b) where
+  triple = mapped' . mapped' . mapped' $ triple
+
+mapped' :: Functor f => Trip a b -> Trip (f a) (f b)
+mapped' (Trip f g h) = Trip (fmap f) (fmap g) (fmap h)
+-}

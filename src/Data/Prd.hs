@@ -1,4 +1,3 @@
--- {-# LANGUAGE ConstrainedClassMethods #-}
 {-# LANGUAGE ConstraintKinds     #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveFoldable      #-}
@@ -7,32 +6,52 @@
 {-# LANGUAGE DeriveTraversable   #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE TypeOperators       #-}
-{-# LANGUAGE CPP       #-}
+{-# LANGUAGE Safe                #-}
+{-# LANGUAGE CPP                 #-}
 module Data.Prd (
-    Down(..)
+    Prd(..)
+  , Bounded
+  , Minimal(..)
+  , Maximal(..)
+  , peq
+  , pne
+  , ple
+  , pge
+  , plt
+  , pgt
+  , pabs
+  , sign
+  , pmin
+  , pmax
+  , pcompareEq
+  , pcompareOrd
   , Ord(min, max, compare)
-  , module Data.Prd
+  , until
+  , while
+  , fixed
+  , Down(..)
 ) where
 
-import Data.Function
-import Data.Int as Int (Int, Int8, Int16, Int32, Int64)
-import Data.List.NonEmpty (NonEmpty(..))
-import Data.Maybe
-import Data.Monoid hiding (First, Last)
-import Data.Ord (Ord, Down(..), compare, min, max)
-import Data.Ratio
-import Data.Word (Word, Word8, Word16, Word32, Word64)
-import GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
-import Numeric.Natural
-import Data.Fixed
-import qualified Data.Semigroup as S
-import qualified Data.Set as Set
-import qualified Data.Map as Map
-import qualified Data.IntMap as IntMap
-import qualified Data.IntSet as IntSet
-import qualified Prelude as P
+import safe Data.Function
+import safe Data.Int as Int (Int, Int8, Int16, Int32, Int64)
+import safe Data.List.NonEmpty (NonEmpty(..))
+import safe Data.Maybe
+import safe Data.Monoid hiding (First, Last)
+import safe Data.Ord (Ord, Down(..), compare, min, max)
+import safe Data.Ratio
+import safe Data.Word (Word, Word8, Word16, Word32, Word64)
+import safe Foreign.C.Types
+import safe GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
+import safe Numeric.Natural
+import safe Data.Fixed
+import safe qualified Data.Semigroup as S
+import safe qualified Data.Set as Set
+import safe qualified Data.Map as Map
+import safe qualified Data.IntMap as IntMap
+import safe qualified Data.IntSet as IntSet
+import safe qualified Prelude as P
 
-import Prelude hiding (Ord(..))
+import Prelude hiding (Ord(..), Bounded, until)
 
 infix 4 <=, >=, <, >, =~, ~~, !~, /~, ?~, `pgt`, `pge`, `peq`, `pne`, `ple`, `plt`
 
@@ -358,6 +377,11 @@ sign x = pcompare x 0
 --  Instances
 ---------------------------------------------------------------------
 
+-- Canonical semigroup ordering
+instance Prd a => Prd (Maybe a) where
+    Nothing <= _ = True
+    Just{} <= Nothing = False
+    Just a <= Just b = a <= b
 
 instance Prd a => Prd [a] where
     {-# SPECIALISE instance Prd [Char] #-}
@@ -415,6 +439,9 @@ instance Prd Float where
                  | x /= x || y /= y = Nothing
                  | otherwise        = pcompareOrd x y
 
+instance Prd CFloat where
+   CFloat x <= CFloat y = x <= y
+
 instance Prd Double where
     x <= y | x /= x && y /= y = True
            | x /= x || y /= y = False
@@ -432,6 +459,9 @@ instance Prd Double where
                  | x /= x || y /= y = Nothing
                  | otherwise        = pcompareOrd x y
 
+instance Prd CDouble where
+   CDouble x <= CDouble y = x <= y
+
 instance Prd (Ratio Integer) where
     pcompare (x:%y) (x':%y') | (x == 0 && y == 0) && (x' == 0 && y' == 0) = Just EQ
                              | (x == 0 && y == 0) || (x' == 0 && y' == 0) = Nothing
@@ -447,12 +477,6 @@ instance Prd (Ratio Natural) where
                              | y == 0 = Just GT
                              | y' == 0 = Just LT
                              | otherwise = pcompareOrd (x*y') (x'*y)
-
--- Canonical semigroup ordering
-instance Prd a => Prd (Maybe a) where
-    Just a <= Just b = a <= b
-    Just{} <= Nothing = False
-    Nothing <= _ = True
 
 -- Canonical semigroup ordering
 instance (Prd a, Prd b) => Prd (Either a b) where
@@ -523,6 +547,17 @@ derivePrd(Word16)
 derivePrd(Word32)
 derivePrd(Word64)
 derivePrd(Natural)
+
+derivePrd(CChar)
+derivePrd(CShort)
+derivePrd(CInt)
+derivePrd(CLong)
+
+derivePrd(CBool)
+derivePrd(CUChar)
+derivePrd(CUShort)
+derivePrd(CUInt)
+derivePrd(CULong)
 
 derivePrd(Uni)
 derivePrd(Deci)
