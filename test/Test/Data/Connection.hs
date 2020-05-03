@@ -79,7 +79,5 @@ gen_ext = gen_nan . gen_bnd
 gen_flt :: Floating a => Gen a -> Gen a 
 gen_flt gen = G.frequency [(49, gen), (1, G.element [(-1/0), 1/0, 0/0])]
 
-
-
 tests :: IO Bool
 tests = checkParallel $$(discover)

@@ -1,7 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Test.Data.Connection.Ratio where
 
-import Data.Connection
+import Data.Connection.Conn
+import Data.Connection.Trip
 import Data.Connection.Ratio
 import Data.Int
 import Data.Prd.Nan
@@ -18,10 +19,8 @@ prop_connection_ratord = withTests 1000 . property $ do
   y <- forAll $ gen_nan ord
   y' <- forAll $ gen_nan ord
 
-  let ratord = rattyp :: Trip Rational (Nan Ordering)
-
-  assert $ Prop.connection (tripl ratord) x y
-  assert $ Prop.connection (tripr ratord) y x
+  assert $ Prop.adjoined (tripl ratord) x y
+  assert $ Prop.adjoined (tripr ratord) y x
   assert $ Prop.closed (tripl ratord) x
   assert $ Prop.closed (tripr ratord) y
   assert $ Prop.kernel (tripl ratord) y
@@ -42,8 +41,8 @@ prop_connection_ratf32 = withTests 1000 . property $ do
   y <- forAll f32
   y' <- forAll f32
 
-  assert $ Prop.connection (tripl ratf32) x y
-  assert $ Prop.connection (tripr ratf32) y x
+  assert $ Prop.adjoined (tripl ratf32) x y
+  assert $ Prop.adjoined (tripr ratf32) y x
   assert $ Prop.closed (tripl ratf32) x
   assert $ Prop.closed (tripr ratf32) y
   assert $ Prop.kernel (tripl ratf32) y
@@ -64,8 +63,8 @@ prop_connection_ratf64 = withTests 1000 . property $ do
   y <- forAll f64
   y' <- forAll f64
 
-  assert $ Prop.connection (tripl ratf64) x y
-  assert $ Prop.connection (tripr ratf64) y x
+  assert $ Prop.adjoined (tripl ratf64) x y
+  assert $ Prop.adjoined (tripr ratf64) y x
   assert $ Prop.closed (tripl ratf64) x
   assert $ Prop.closed (tripr ratf64) y
   assert $ Prop.kernel (tripl ratf64) y
@@ -86,8 +85,8 @@ prop_connection_rati08 = withTests 1000 . property $ do
   y <- forAll $ gen_ext $ G.integral (ri @Int8)
   y' <- forAll $ gen_ext $ G.integral (ri @Int8)
 
-  assert $ Prop.connection (tripl rati08) x y
-  assert $ Prop.connection (tripr rati08) y x
+  assert $ Prop.adjoined (tripl rati08) x y
+  assert $ Prop.adjoined (tripr rati08) y x
   assert $ Prop.closed (tripl rati08) x
   assert $ Prop.closed (tripr rati08) y
   assert $ Prop.kernel (tripl rati08) y
@@ -108,8 +107,8 @@ prop_connection_rati16 = withTests 1000 . property $ do
   y <- forAll $ gen_ext $ G.integral (ri @Int16)
   y' <- forAll $ gen_ext $ G.integral (ri @Int16)
 
-  assert $ Prop.connection (tripl rati16) x y
-  assert $ Prop.connection (tripr rati16) y x
+  assert $ Prop.adjoined (tripl rati16) x y
+  assert $ Prop.adjoined (tripr rati16) y x
   assert $ Prop.closed (tripl rati16) x
   assert $ Prop.closed (tripr rati16) y
   assert $ Prop.kernel (tripl rati16) y
@@ -130,8 +129,8 @@ prop_connection_rati32 = withTests 1000 . property $ do
   y <- forAll $ gen_ext $ G.integral (ri @Int32)
   y' <- forAll $ gen_ext $ G.integral (ri @Int32)
 
-  assert $ Prop.connection (tripl rati32) x y
-  assert $ Prop.connection (tripr rati32) y x
+  assert $ Prop.adjoined (tripl rati32) x y
+  assert $ Prop.adjoined (tripr rati32) y x
   assert $ Prop.closed (tripl rati32) x
   assert $ Prop.closed (tripr rati32) y
   assert $ Prop.kernel (tripl rati32) y
@@ -152,8 +151,8 @@ prop_connection_rati64 = withTests 1000 . property $ do
   y <- forAll $ gen_ext $ G.integral (ri @Int64)
   y' <- forAll $ gen_ext $ G.integral (ri @Int64)
 
-  assert $ Prop.connection (tripl rati64) x y
-  assert $ Prop.connection (tripr rati64) y x
+  assert $ Prop.adjoined (tripl rati64) x y
+  assert $ Prop.adjoined (tripr rati64) y x
   assert $ Prop.closed (tripl rati64) x
   assert $ Prop.closed (tripr rati64) y
   assert $ Prop.kernel (tripl rati64) y
@@ -174,8 +173,8 @@ prop_connection_ratint = withTests 1000 . property $ do
   y <- forAll $ gen_ext $ G.integral ri'
   y' <- forAll $ gen_ext $ G.integral ri'
 
-  assert $ Prop.connection (tripl ratint) x y
-  assert $ Prop.connection (tripr ratint) y x
+  assert $ Prop.adjoined (tripl ratint) x y
+  assert $ Prop.adjoined (tripr ratint) y x
   assert $ Prop.closed (tripl ratint) x
   assert $ Prop.closed (tripr ratint) y
   assert $ Prop.kernel (tripl ratint) y
@@ -196,8 +195,8 @@ prop_connection_ratw08 = withTests 1000 . property $ do
   y <- forAll $ gen_lft $ G.integral (ri @Word8)
   y' <- forAll $ gen_lft $ G.integral (ri @Word8)
 
-  assert $ Prop.connection (tripl ratw08) x y
-  assert $ Prop.connection (tripr ratw08) y x
+  assert $ Prop.adjoined (tripl ratw08) x y
+  assert $ Prop.adjoined (tripr ratw08) y x
   assert $ Prop.closed (tripl ratw08) x
   assert $ Prop.closed (tripr ratw08) y
   assert $ Prop.kernel (tripl ratw08) y
@@ -218,8 +217,8 @@ prop_connection_ratw16 = withTests 1000 . property $ do
   y <- forAll $ gen_lft $ G.integral (ri @Word16)
   y' <- forAll $ gen_lft $ G.integral (ri @Word16)
 
-  assert $ Prop.connection (tripl ratw16) x y
-  assert $ Prop.connection (tripr ratw16) y x
+  assert $ Prop.adjoined (tripl ratw16) x y
+  assert $ Prop.adjoined (tripr ratw16) y x
   assert $ Prop.closed (tripl ratw16) x
   assert $ Prop.closed (tripr ratw16) y
   assert $ Prop.kernel (tripl ratw16) y
@@ -240,8 +239,8 @@ prop_connection_ratw32 = withTests 1000 . property $ do
   y <- forAll $ gen_lft $ G.integral (ri @Word32)
   y' <- forAll $ gen_lft $ G.integral (ri @Word32)
 
-  assert $ Prop.connection (tripl ratw32) x y
-  assert $ Prop.connection (tripr ratw32) y x
+  assert $ Prop.adjoined (tripl ratw32) x y
+  assert $ Prop.adjoined (tripr ratw32) y x
   assert $ Prop.closed (tripl ratw32) x
   assert $ Prop.closed (tripr ratw32) y
   assert $ Prop.kernel (tripl ratw32) y
@@ -262,8 +261,8 @@ prop_connection_ratw64 = withTests 1000 . property $ do
   y <- forAll $ gen_lft $ G.integral (ri @Word64)
   y' <- forAll $ gen_lft $ G.integral (ri @Word64)
 
-  assert $ Prop.connection (tripl ratw64) x y
-  assert $ Prop.connection (tripr ratw64) y x
+  assert $ Prop.adjoined (tripl ratw64) x y
+  assert $ Prop.adjoined (tripr ratw64) y x
   assert $ Prop.closed (tripl ratw64) x
   assert $ Prop.closed (tripr ratw64) y
   assert $ Prop.kernel (tripl ratw64) y
@@ -284,8 +283,8 @@ prop_connection_ratnat = withTests 1000 . property $ do
   y <- forAll $ gen_lft $ G.integral rn
   y' <- forAll $ gen_lft $ G.integral rn
 
-  assert $ Prop.connection (tripl ratnat) x y
-  assert $ Prop.connection (tripr ratnat) y x
+  assert $ Prop.adjoined (tripl ratnat) x y
+  assert $ Prop.adjoined (tripr ratnat) y x
   assert $ Prop.closed (tripl ratnat) x
   assert $ Prop.closed (tripr ratnat) y
   assert $ Prop.kernel (tripl ratnat) y

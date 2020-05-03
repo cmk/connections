@@ -1,3 +1,4 @@
+{-# Language ConstraintKinds #-}
 -- Note that in most cases the obvious implementation is not a valid
 -- Galois connection. For example:
 --
@@ -6,10 +7,8 @@
 -- @
 --
 module Data.Connection.Int (
-    ConnInteger(..)
-  , fromInteger
   -- * Int8
-  , i08w08
+    i08w08
   , i08w08'
   , i08i16
   , i08i32
@@ -31,6 +30,7 @@ module Data.Connection.Int (
   , i64w64'
   , i64int
   -- * Int
+  , ixxint
   , ixxwxx
   -- * Integer
   , intnat
@@ -38,8 +38,9 @@ module Data.Connection.Int (
   ) where
 
 import Control.Category ((>>>))
-import Data.Connection
+import Data.Connection.Conn
 import Data.Connection.Word
+import Data.Connection.Trip
 import Data.Int
 import Data.Prd
 import Data.Prd.Top
@@ -49,13 +50,33 @@ import Numeric.Natural
 import Prelude hiding (Bounded, fromInteger)
 import qualified Prelude as P
 
-class Prd a => ConnInteger a where
-  inttyp :: Conn (Bound Integer) a
+--class Prd a => ConnInteger a where
+--  inttyp :: Conn (Bound Integer) a
+
+{-
+-- TODO: add Ord-based Prd instances, test
+-- 
+--i08chr :: Conn Int8 Char
+i08c08 :: Conn Int8 CChar
+w08u08 :: Conn Word8 UChar
+i16c16 :: Conn Int16 CShort
+w16u16 :: Conn Word16 CUShort
+i32c32 :: Conn Int32 CInt
+w32u32 :: Conn Word32 CUInt
+i64c64 :: Conn Int64 CLong
+w64u64 :: Conn Word64 CULong
+w64csz :: Conn Word64 CSize
+
+f32c32 :: Conn Float CFloat
+f64c64 :: Conn Double CDouble
 
 -- | Lawful replacement for the version in base.
 --
 fromInteger :: ConnInteger a => Integer -> a
-fromInteger = connl inttyp . Just . Fin
+fromInteger = connl connection . Just . Fin
+
+-}
+
 
 unsigned :: (Bounded a, Integral a, Integral b) => Conn a b
 unsigned = Conn (\y -> fromIntegral (y P.+ maximal P.+ 1))
@@ -145,7 +166,7 @@ natint = Conn f (maybe minimal g) where
 ---------------------------------------------------------------------
 -- Instances
 ---------------------------------------------------------------------
-
+{-
 instance ConnInteger Int8 where
   inttyp = tripr i08int
 
@@ -172,3 +193,7 @@ instance ConnInteger Word32 where
 
 instance ConnInteger Word64 where
   inttyp = tripr i64int >>> i64w64
+
+instance ConnInteger Word where
+  inttyp = tripr ixxint >>> ixxwxx
+-}

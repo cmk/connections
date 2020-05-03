@@ -3,12 +3,10 @@
 {-# Language FunctionalDependencies #-}
 
 module Data.Connection.Ratio (
-    TripRatio(..)
   -- * Rational
-  , TripRational
-  , fromRational
-  , reduce
+    reduce
   , shiftd
+  , ratord
   , ratf32
   , ratf64
   , rati08
@@ -18,8 +16,6 @@ module Data.Connection.Ratio (
   , ratint
   -- * Positive
   , Positive
-  , TripPositive
-  , fromPositive
   , ratw08
   , ratw16
   , ratw32
@@ -27,55 +23,21 @@ module Data.Connection.Ratio (
   , ratnat
 ) where
 
-import Data.Connection
+import Data.Connection.Trip
 import Data.Float
 import Data.Int
-import Data.Prd hiding (extend, pinf, ninf, anan)
-import Data.Prd.Nan hiding (liftNan, fldord)
+import Data.Prd
+import Data.Prd.Nan hiding (liftNan)
 import Data.Ratio
 import Data.Prd.Top
 import Data.Word
 import GHC.Real hiding (reduce, fromRational)
 import Numeric.Natural
 import Prelude hiding (until, Ord(..), Bounded, fromRational)
-import qualified Control.Category as C
 import qualified Prelude as P
 import qualified Data.Prd as Prd
 
 type Positive = Ratio Natural
-
-type TripRational a = TripRatio Integer a
-
-type TripPositive a = TripRatio Natural a
-
-class (Prd (Ratio a), Prd b) => TripRatio a b | b -> a where
-  rattyp :: Trip (Ratio a) b
-
--- | Lawful replacement for the version in base.
---
--- >>> fromRational @Float 1.3
--- 1.3000001
--- >>> fromRational @Float (1/0)
--- Infinity
--- >>> fromRational @Float (0/0)
--- NaN
---
--- >>> fromRational @(Extended Int8) 4.9
--- Def (fin 5)
--- >>> fromRational @(Extended Int8) (-1.2)
--- Def (fin (-1))
--- >>> fromRational @(Extended Int8) (1/0)
--- Def Just Top
--- >>> fromRational @(Extended Int8) (0/0)
--- Nan
--- >>> fromRational @(Extended Int8) (-1/0)
--- Def Nothing
---
-fromRational :: TripRational a => Rational -> a
-fromRational = connl . tripl $ rattyp
-
-fromPositive :: TripPositive a => Positive -> a
-fromPositive = connl . tripl $ rattyp
 
 -- | A total version of 'GHC.Real.reduce'.
 --
@@ -89,6 +51,23 @@ reduce x y = (x `quot` d) :% (y `quot` d) where d = gcd x y
 --
 shiftd :: Num a => a -> Ratio a -> Ratio a
 shiftd n (x :% y) = (n + x) :% y
+
+ratord :: Trip Rational (Nan Ordering)
+ratord = Trip f g h where
+    g (Def GT) = pinf 
+    g (Def LT) = ninf 
+    g (Def EQ) = 0
+    g Nan = anan 
+    
+    f x | x =~ anan  = Nan
+        | x =~ ninf  = Def LT
+        | x <= 0  = Def EQ
+        | otherwise  = Def GT
+
+    h x | x =~ anan  = Nan
+        | x =~ pinf  = Def GT
+        | x >= 0  = Def EQ
+        | otherwise  = Def LT
 
 ratf32 :: Trip Rational Float
 ratf32 = Trip (extend' f) (extend g) (extend' h) where
@@ -271,69 +250,6 @@ ratnat = Trip (liftNan f) (nanr g) (liftNan h) where
 
   h x | x =~ pinf = Top
       | otherwise = Fin $ P.floor x
-
----------------------------------------------------------------------
--- Instances
----------------------------------------------------------------------
-
-instance TripRatio Integer (Nan Ordering) where
-  rattyp = Trip f g h where
-    g (Def GT) = pinf 
-    g (Def LT) = ninf 
-    g (Def EQ) = 0
-    g Nan = anan 
-    
-    f x | x =~ anan  = Nan
-        | x =~ ninf  = Def LT
-        | x <= 0  = Def EQ
-        | otherwise  = Def GT
-
-    h x | x =~ anan  = Nan
-        | x =~ pinf  = Def GT
-        | x >= 0  = Def EQ
-        | otherwise  = Def LT
-
-instance TripRatio Integer Float where
-  rattyp = ratf32
-
-instance TripRatio Integer Double where
-  rattyp = ratf64
-
-instance TripRatio Integer Rational where
-  rattyp = C.id
-
-instance TripRatio Integer (Extended Int8) where
-  rattyp = rati08
-
-instance TripRatio Integer (Extended Int16) where
-  rattyp = rati16
-
-instance TripRatio Integer (Extended Int32) where
-  rattyp = rati32
-
-instance TripRatio Integer (Extended Int64) where
-  rattyp = rati64
-
-instance TripRatio Integer (Extended Integer) where
-  rattyp = ratint
-
-instance TripRatio Natural Positive where
-  rattyp = C.id
-
-instance TripRatio Natural (Lifted Word8) where
-  rattyp = ratw08
-
-instance TripRatio Natural (Lifted Word16) where
-  rattyp = ratw16
-
-instance TripRatio Natural (Lifted Word32) where
-  rattyp = ratw32
-
-instance TripRatio Natural (Lifted Word64) where
-  rattyp = ratw64
-
-instance TripRatio Natural (Lifted Natural) where
-  rattyp = ratnat
 
 ---------------------------------------------------------------------
 -- Internal

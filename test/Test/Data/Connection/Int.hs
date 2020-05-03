@@ -1,8 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Test.Data.Connection.Int where
 
-import Data.Connection
 import Data.Connection.Int
+import Data.Connection.Trip
 import Data.Int
 import Data.Word
 import Hedgehog
@@ -44,31 +44,31 @@ prop_connections = withTests 1000 . property $ do
   mnt' <- forAll $ gen_bot (G.integral ri')
   inf' <- forAll $ gen_bnd (G.integral ri')
 
-  assert $ Prop.connection intnat  int nat
-  assert $ Prop.connection natint  nat mnt
-  assert $ Prop.connection ixxwxx  ixx wxx
-  assert $ Prop.connection i64w64  i64 w64
-  assert $ Prop.connection i64w64' i64 w64
-  assert $ Prop.connection i32i64  i32 i64
-  assert $ Prop.connection i32w32  i32 w32
-  assert $ Prop.connection i32w32' i32 w32
-  assert $ Prop.connection i16i64  i16 i64
-  assert $ Prop.connection i16i32  i16 i32
-  assert $ Prop.connection i16w16  i16 w16
-  assert $ Prop.connection i16w16' i16 w16
-  assert $ Prop.connection i08i64  i08 i64
-  assert $ Prop.connection i08i32  i08 i32
-  assert $ Prop.connection i08i16  i08 i16
-  assert $ Prop.connection i08w08  i08 w08
-  assert $ Prop.connection i08w08' i08 w08
-  assert $ Prop.connection (tripl i64int) i64 inf
-  assert $ Prop.connection (tripr i64int) inf i64
-  assert $ Prop.connection (tripl i32int) i32 inf
-  assert $ Prop.connection (tripr i32int) inf i32
-  assert $ Prop.connection (tripl i16int) i16 inf
-  assert $ Prop.connection (tripr i16int) inf i16
-  assert $ Prop.connection (tripl i08int) i08 inf
-  assert $ Prop.connection (tripr i08int) inf i08
+  assert $ Prop.adjoined intnat  int nat
+  assert $ Prop.adjoined natint  nat mnt
+  assert $ Prop.adjoined ixxwxx  ixx wxx
+  assert $ Prop.adjoined i64w64  i64 w64
+  assert $ Prop.adjoined i64w64' i64 w64
+  assert $ Prop.adjoined i32i64  i32 i64
+  assert $ Prop.adjoined i32w32  i32 w32
+  assert $ Prop.adjoined i32w32' i32 w32
+  assert $ Prop.adjoined i16i64  i16 i64
+  assert $ Prop.adjoined i16i32  i16 i32
+  assert $ Prop.adjoined i16w16  i16 w16
+  assert $ Prop.adjoined i16w16' i16 w16
+  assert $ Prop.adjoined i08i64  i08 i64
+  assert $ Prop.adjoined i08i32  i08 i32
+  assert $ Prop.adjoined i08i16  i08 i16
+  assert $ Prop.adjoined i08w08  i08 w08
+  assert $ Prop.adjoined i08w08' i08 w08
+  assert $ Prop.adjoined (tripl i64int) i64 inf
+  assert $ Prop.adjoined (tripr i64int) inf i64
+  assert $ Prop.adjoined (tripl i32int) i32 inf
+  assert $ Prop.adjoined (tripr i32int) inf i32
+  assert $ Prop.adjoined (tripl i16int) i16 inf
+  assert $ Prop.adjoined (tripr i16int) inf i16
+  assert $ Prop.adjoined (tripl i08int) i08 inf
+  assert $ Prop.adjoined (tripr i08int) inf i08
 
   assert $ Prop.closed intnat  int
   assert $ Prop.closed natint  nat

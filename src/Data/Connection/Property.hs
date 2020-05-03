@@ -4,15 +4,16 @@ module Data.Connection.Property where
 
 import Data.Prd hiding ((~~))
 import Data.Prd.Property
-import Data.Connection
+import Data.Connection.Conn
+import Data.Connection.Trip
 import Prelude hiding (Num(..),Ord(..))
 
 -- | \( \forall x, y : f \dashv g \Rightarrow f (x) \leq y \Leftrightarrow x \leq g (y) \)
 --
 -- A Galois connection. This is a required property.
 --
-connection :: Prd a => Prd b => Conn a b -> a -> b -> Bool
-connection (Conn f g) = adjoint (<=) (<=) f g
+adjoined :: Prd a => Prd b => Conn a b -> a -> b -> Bool
+adjoined (Conn f g) = adjoint (<=) (<=) f g
 
 -- | \( \forall x : f \dashv g \Rightarrow x \leq g \circ f (x) \)
 --

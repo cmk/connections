@@ -19,7 +19,7 @@ module Data.Connection.Word (
   , w64nat
 ) where
 
-import Data.Connection
+import Data.Connection.Conn
 import Data.Int
 import Data.Word
 import Numeric.Natural

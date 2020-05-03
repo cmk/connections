@@ -7,7 +7,6 @@ module Data.Float (
 ) where
 
 import Data.Bits ((.&.))
-import Data.Connection 
 import Data.Function (on)
 import Data.Int
 import Data.Prd
@@ -244,6 +243,7 @@ fmod x y = realToFrac (c_fmod (realToFrac x) (realToFrac y))
 foreign import ccall unsafe "math.h fmod"
      c_fmod     :: CDouble -> CDouble -> CDouble
 
+{-
 -- | The round function returns the nearest integral value to x; if x lies
 -- halfway between two integral values, then these functions return the integral
 -- value with the larger absolute value (i.e., it rounds away from zero).
@@ -251,6 +251,7 @@ foreign import ccall unsafe "math.h fmod"
 round :: Double -> Double
 round x = realToFrac (c_round (realToFrac x))
 {-# INLINE round #-}
+-}
 
 foreign import ccall unsafe "math.h round"
      c_round    :: CDouble -> CDouble
@@ -696,36 +697,7 @@ instance Minimal Ulp32 where
 instance Maximal Ulp32 where
     maximal = Ulp32 $ 2139095040
 
-f32u32 :: Conn Float Ulp32
-f32u32 = Conn (Ulp32 . floatInt32) (int32Float . unUlp32)
 
-u32f32 :: Conn Ulp32 Float
-u32f32 = Conn (int32Float . unUlp32) (Ulp32 . floatInt32)
-
--- fromIntegral (maxBound :: Ulp32) + 1 , image of aNan
-
-
---newtype Ulp a = Ulp { unUlp :: a }
--- instance 
-{- correct but maybe replace w/ Graded / Yoneda / Indexed etc
-u32w64 :: Conn Ulp32 (Nan Word64)
-u32w64 = Conn f g where
-  conn = i32w32 >>> w32w64
-
-  offset  = 2139095041 :: Word64
-  offset' = 2139095041 :: Int32
-
-  f x@(Ulp32 y) | ulp32Nan x = Nan
-                | neg y = Def $ fromIntegral (y + offset')
-                | otherwise = Def $ (fromIntegral y) + offset
-               where fromIntegral = connl conn
-
-  g x = case x of
-          Nan -> Ulp32 offset'
-          Def y | y < offset -> Ulp32 $ (fromIntegral y) P.- offset'
-                | otherwise  -> Ulp32 $ fromIntegral ((min 4278190081 y) P.- offset)
-               where fromIntegral = connr conn
--}
 
 
 -- internal

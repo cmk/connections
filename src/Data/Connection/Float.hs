@@ -1,21 +1,13 @@
+{-# Language ConstraintKinds #-}
 module Data.Connection.Float (
     fltord
   -- * Float
-  , TripFloat(..)
-  , round32
-  , trunc32
-  , floor32
-  , ceiling32
   , f32i08
   , f32i16
   , f32i32
   , i32f32
   -- * Double
-  , TripDouble(..)
-  , round64
-  , trunc64
-  , floor64
-  , ceiling64
+  , f64f32
   , f64i08
   , f64i16
   , f64i32
@@ -24,15 +16,15 @@ module Data.Connection.Float (
 ) where
 
 import Data.Bool
-import Data.Connection
-import Data.Connection.Round
-import Data.Float hiding (round)
+import Data.Connection.Conn
+import Data.Connection.Trip
+import Data.Float
 import Data.Int
 import Data.Prd
 import Data.Prd.Nan
 import Data.Prd.Top
-import Prelude as P hiding (Ord(..), Bounded)
-
+import GHC.Float (float2Double,double2Float)
+import Prelude as P hiding (Ord(..), Bounded, until)
 
 fltord :: Prd a => Floating a => Trip a (Nan Ordering)
 fltord = Trip f g h where
@@ -55,70 +47,6 @@ fltord = Trip f g h where
 -- Float
 ---------------------------------------------------------------------
 
-class Prd a => TripFloat a where
-  f32typ :: Trip Float (Extended a)
-
-instance TripFloat Int8 where f32typ = f32i08
-
-instance TripFloat Int16 where f32typ = f32i16
-
--- | 
---
--- >>> round @Float @Int8 $ 0/0
--- 0
--- >>> round @Float @Int8 $ 1/0
--- 0
--- >>> round @Float @Int8 129
--- -127
--- >>> round @Float @Int8 $ -129
--- 127
--- >>> round @Float @Int8 $ -130
--- 126
--- >>> round32 @Int8 $ 0/0
--- Nan
--- >>> round32 @Int8 $ 1/0
--- Def 127
--- >>> round32 @Int8 129
--- Def 127
--- >>> round32 @Int8 $ -129
--- Def (-128)
--- >>> round32 @Int8 $ -130
--- Def (-128)
--- >>> round32 5.3 :: Nan Int8
--- Def 5
--- >>> round32 (-5.3) :: Nan Int8
--- Def (-5)
--- 
-round32 :: forall a. Bounded a => Num a => TripFloat a => Float -> Nan a
-round32 x = maybe Nan f $ half @Float @(Extended a) f32typ x where
-  f LT = floor32 x
-  f GT = ceiling32 x
-  f EQ = trunc32 x --TODO: round to even
-
-trunc32 :: Bounded a => Num a => TripFloat a => Float -> Nan a
-trunc32 x = maybe Nan f $ sign x where
-  f LT = ceiling32 x
-  f GT = floor32 x
-  f EQ = Def 0
-
--- | A monotonic floor function.
---
-floor32 :: Bounded a => TripFloat a => Float -> Nan a
-floor32 = fmap (bounded id) . floorOn f32typ
-
--- | A monotonic ceiling function.
---
--- >>> ceiling @Float @Int8 129
--- -127
--- >>> ceiling32 @Int8 129
--- Def 127
--- >>> ceiling @Float @Int8 (0/0)
--- 0
--- >>> ceiling32 @Int8 (0/0)
--- Nan
---
-ceiling32 :: Bounded a => TripFloat a => Float -> Nan a
-ceiling32 = fmap (bounded id) . ceilingOn f32typ
 
 -- | All 'Int08' values are exactly representable in a 'Float'.
 f32i08 :: Trip Float (Extended Int8)
@@ -180,36 +108,23 @@ i32f32 = Conn (nanf g) (liftNan f) where
 -- Double
 ---------------------------------------------------------------------
 
-class Prd a => TripDouble a where
-  f64typ :: Trip Double (Extended a)
+f64f32 :: Trip Double Float
+f64f32 = Trip f g h where
+  f x = let est = double2Float x in
+          if g est >= x
+          then est
+          else ascendf est g x
 
-instance TripDouble Int8 where f64typ = f64i08
+  g = float2Double
 
-instance TripDouble Int16 where f64typ = f64i16
+  h x = let est = double2Float x in
+          if g est <= x
+          then est
+          else descendf est g x
 
-instance TripDouble Int32 where f64typ = f64i32
+  ascendf z g1 y = until (\x -> g1 x >= y) (<=) (shiftf 1) z
 
-round64 :: forall a. Bounded a => Num a => TripDouble a => Double -> Nan a
-round64 x = maybe Nan f $ half @Double @(Extended a) f64typ x where
-  f LT = floor64 x
-  f GT = ceiling64 x
-  f EQ = trunc64 x --TODO: round to even
-
-trunc64 :: Bounded a => Num a => TripDouble a => Double -> Nan a
-trunc64 x = maybe Nan f $ sign x where
-  f LT = ceiling64 x
-  f GT = floor64 x
-  f EQ = Def 0
-
--- | A monotonic floor function.
---
-floor64 :: Bounded a => TripDouble a => Double -> Nan a
-floor64 = fmap (bounded id) . floorOn f64typ
-
--- | A monotonic ceiling function.
---
-ceiling64 :: Bounded a => TripDouble a => Double -> Nan a
-ceiling64 = fmap (bounded id) . ceilingOn f64typ
+  descendf z f1 x = until (\y -> f1 y <= x) (>=) (shiftf (-1)) z
 
 -- | All 'Int8' values are exactly representable in a 'Double'.
 f64i08 :: Trip Double (Extended Int8)
@@ -286,8 +201,33 @@ i64f64 = Conn (nanf g) (liftNan f) where
   g i | abs i <= 2^53-1 = fromIntegral i
       | otherwise = if i >= 0 then 2**53 else -1/0
 
-abs' :: Ord a => Minimal a => Num a => a -> a
-abs' x = if x =~ minimal then abs (x+1) else abs x
+
+{- 
+f32u32 :: Conn Float Ulp32
+f32u32 = Conn (Ulp32 . floatInt32) (int32Float . unUlp32)
+
+u32f32 :: Conn Ulp32 Float
+u32f32 = Conn (int32Float . unUlp32) (Ulp32 . floatInt32)
+
+-- correct but maybe replace w/ Graded / Yoneda / Indexed etc
+u32w64 :: Conn Ulp32 (Nan Word64)
+u32w64 = Conn f g where
+  conn = i32w32 >>> w32w64
+
+  offset  = 2139095041 :: Word64
+  offset' = 2139095041 :: Int32
+
+  f x@(Ulp32 y) | ulp32Nan x = Nan
+                | neg y = Def $ fromIntegral (y + offset')
+                | otherwise = Def $ (fromIntegral y) + offset
+               where fromIntegral = connl conn
+
+  g x = case x of
+          Nan -> Ulp32 offset'
+          Def y | y < offset -> Ulp32 $ (fromIntegral y) P.- offset'
+                | otherwise  -> Ulp32 $ fromIntegral ((min 4278190081 y) P.- offset)
+               where fromIntegral = connr conn
+-}
 
 {- 
 f32w08 :: Trip Float (Nan Word8)
@@ -321,3 +261,6 @@ f64f32 = Trip f g h where
                              Just GT -> minSubf
       | otherwise = (fromIntegral . round) x
 -}
+
+abs' :: Ord a => Minimal a => Num a => a -> a
+abs' x = if x =~ minimal then abs (x+1) else abs x

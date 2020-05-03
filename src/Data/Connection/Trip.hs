@@ -1,103 +1,87 @@
 {-# Language AllowAmbiguousTypes #-}
 
-module Data.Connection.Round (
-    Mode(..)
+module Data.Connection.Trip (
+  -- * Triple
+    Trip(..)
+  , tripl
+  , tripr
+  , unitl
+  , unitr
+  , counitl
+  , counitr
+  , strong'
+  , choice'
+  -- * Rounding
+  , Mode(..)
   , half
   , tied
   , above
   , below
-  , ceilingOn
-  , floorOn
   , roundOn
-  , truncOn
-  , addOn
-  , negOn
-  , subOn
-  , mulOn
-  , fmaOn
-  , remOn
-  , divOn
-  , divOn'
+  , floorOn
+  , ceilingOn
+  , truncateOn
 ) where
 
+import Control.Category (Category)
+import Data.Bifunctor (bimap)
 import Data.Bool
-import Data.Connection
-import Data.Connection.Ratio
-import Data.Float
-import Data.Int
+import Data.Connection.Conn
 import Data.Prd
-import Data.Prd.Property (xor)
-import Data.Prd.Top
-import Data.Ratio
 import Prelude hiding (until, Ord(..), Bounded)
-
-{-
-  -- * Rounding Classes
-    TripInt64(..) 
-  , ceil64
-  , floor64
-  , trunc64
-  , round64
-  , TripInt32(..)
-  , ceil32
-  , floor32
-  , trunc32
-  , round32
-
-class Prd a => TripInt64 a where
-  typi64 :: Trip a (Extended Int64)
-
-ceil64 :: TripInt64 a => a -> a
-ceil64 = ceilingOn typi64
-
-floor64 :: TripInt64 a => a -> a
-floor64 = counitr typi64
-
-trunc64 :: Num a => TripInt64 a => a -> a
-trunc64 x = bool (ceil64 x) (floor64 x) $ x >= 0
-
-round64 :: Num a => TripInt64 a => a -> a
-round64 x | above typi64 x = ceil64 x -- upper half interval
-          | below typi64 x = floor64 x -- lower half interval
-          | otherwise = trunc64 x
-
-class Prd a => TripInt32 a where
-  typi32 :: Trip a (Extended Int32)
-
-ceil32 :: TripInt32 a => a -> a
-ceil32 = unitl typi32
-
-floor32 :: TripInt32 a => a -> a
-floor32 = counitr typi32
-
-trunc32 :: Num a => TripInt32 a => a -> a
-trunc32 x = bool (ceil32 x) (floor32 x) $ x >= 0 
-
-round32 :: Num a => TripInt32 a => a -> a
-round32 x | above typi32 x = ceil32 x -- upper half interval
-          | below typi32 x = floor32 x -- lower half interval
-          | otherwise = trunc32 x
-
+import qualified Control.Category as C
 
 ---------------------------------------------------------------------
--- Instances
+-- Adjoint triples
 ---------------------------------------------------------------------
 
-instance TripInt16 Float where
-  typi16 = f32i16
+-- | An adjoint triple.
+--
+-- @'Trip' f g h@ satisfies:
+--
+-- @
+-- f ⊣ g
+-- ⊥   ⊥
+-- g ⊣ h
+-- @
+--
+-- See <https://ncatlab.org/nlab/show/adjoint+triple>
+--
+data Trip a b = Trip (a -> b) (b -> a) (a -> b)
 
-instance TripInt16 Double where
-  typi16 = f64i16
+instance Category Trip where
+  id = Trip id id id
+  Trip f' g' h' . Trip f g h = Trip (f' . f) (g . g') (h' . h)
 
-instance TripInt16 (Ratio Integer) where
-  typi16 = rati16 
+tripl :: Trip a b -> Conn a b
+tripl (Trip f g _) = Conn f g
 
-instance TripInt32 Double where
-  typi32 = f64i32
+tripr :: Trip a b -> Conn b a
+tripr (Trip _ g h) = Conn g h
 
-instance TripInt32 (Ratio Integer) where
-  typi32 = rati32
--}
+unitl :: Trip a b -> a -> a
+unitl = unit . tripl
+
+unitr :: Trip a b -> b -> b
+unitr = unit . tripr
+
+counitl :: Trip a b -> b -> b
+counitl = counit . tripl
+
+counitr :: Trip a b -> a -> a
+counitr = counit . tripr
+
+strong' :: Trip a b -> Trip c d -> Trip (a, c) (b, d)
+strong' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
+  f = bimap ab cd 
+  g = bimap ba dc
+  h = bimap ab' cd'
+
+choice' :: Trip a b -> Trip c d -> Trip (Either a c) (Either b d)
+choice' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
+  f = either (Left . ab) (Right . cd)
+  g = either (Left . ba) (Right . dc)
+  h = either (Left . ab') (Right . cd')
 
 ---------------------------------------------------------------------
 -- Rounding
@@ -116,30 +100,53 @@ data Mode =
 
 -- | Determine which half of the interval between two representations of /a/ a particular value lies.
 -- 
-half :: Prd a => Prd b => Num a => Trip a b -> a -> Maybe Ordering
+half :: (Num a, Prd a) => Trip a b -> a -> Maybe Ordering
 half t x = pcompare (x - unitl t x) (counitr t x - x) 
 
 -- | Determine whether /x/ lies above the halfway point between two representations.
 -- 
 -- @ 'above' t x '==' (x '-' 'unitl' t x) '`gt`' ('counitr' t x '-' x) @
 --
-above :: Prd a => Prd b => Num a => Trip a b -> a -> Bool
+above :: (Num a, Prd a) => Trip a b -> a -> Bool
 above t = maybe False (== GT) . half t
 
 -- | Determine whether /x/ lies below the halfway point between two representations.
 -- 
 -- @ 'below' t x '==' (x '-' 'unitl' t x) '`lt`' ('counitr' t x '-' x) @
 --
-below :: Prd a => Prd b => Num a => Trip a b -> a -> Bool
+below :: (Num a, Prd a) => Trip a b -> a -> Bool
 below t = maybe False (== LT) . half t
 
 -- | Determine whether /x/ lies exactly halfway between two representations.
 -- 
 -- @ 'tied' t x '==' (x '-' 'unitl' t x) '=~' ('counitr' t x '-' x) @
 --
-tied :: Prd a => Prd b => Num a => Trip a b -> a -> Bool
+tied :: (Num a, Prd a) => Trip a b -> a -> Bool
 tied t = maybe False (== EQ) . half t
 
+-- @ roundOn C.id == id @
+roundOn :: (Prd a, Num a) => Trip a b -> a -> b
+roundOn t x | above t x = ceilingOn t x -- upper half interval
+            | below t x = floorOn t x -- lower half interval
+            | otherwise = truncateOn t x
+
+-- @ floorOn C.id == id @
+floorOn :: Trip a b -> a -> b
+floorOn = connr . tripr
+
+-- @ ceilingOn C.id == id @
+ceilingOn :: Trip a b -> a -> b
+ceilingOn = connl . tripl
+
+-- @ truncateOn C.id == id @
+truncateOn :: (Num a, Prd a) => Trip a b -> a -> b
+truncateOn t x = bool (ceilingOn t x) (floorOn t x) $ x >= 0
+
+---------------------------------------------------------------------
+-- Internal
+---------------------------------------------------------------------
+
+{-
 -- >>> addOn ratf32 RTN 1 2
 -- 3.0
 -- minSubf
@@ -189,29 +196,9 @@ divOn t@(Trip _ f _) rm x y = rnd t rm (xorSgn t rm x y) (f x / f y)
 -- requires that sign be flipped back in /a/.
 divOn' :: (Prd a, Prd b, Fractional a) => Trip a b -> Mode -> b -> b -> b 
 divOn' t@(Trip _ f _) rm x y | xorSgn t rm x y = rnd t rm True (negate $ f x / f y)
-                               | otherwise  = rnd t rm False (f x / f y)
+                             | otherwise  = rnd t rm False (f x / f y)
 
----------------------------------------------------------------------
--- Internal
----------------------------------------------------------------------
 
--- @ truncOn C.id == id @
-truncOn :: (Prd a, Prd b, Num a) => Trip a b -> a -> b
-truncOn t x = bool (ceilingOn t x) (floorOn t x) $ x >= 0
-
--- @ ceilingOn C.id == id @
-ceilingOn :: Prd a => Prd b => Trip a b -> a -> b
-ceilingOn = connl . tripl
-
--- @ floorOn C.id == id @
-floorOn :: Prd a => Prd b => Trip a b -> a -> b
-floorOn = connr . tripr
-
--- @ roundOn C.id == id @
-roundOn :: (Prd a, Prd b, Num a) => Trip a b -> a -> b
-roundOn t x | above t x = ceilingOn t x -- upper half interval
-              | below t x = floorOn t x -- lower half interval
-              | otherwise = truncOn t x
 
 {-
 
@@ -228,7 +215,7 @@ rnd :: (Prd a, Prd b, Num a) => Trip a b -> Mode -> Bool -> a -> b
 rnd t RNZ s x = bool (roundOn t x) (rsz t s x) $ x =~ 0
 rnd t RTP s x = bool (ceilingOn t x) (rsz t s x) $ x =~ 0
 rnd t RTN s x = bool (floorOn t x) (rsz t s x) $ x =~ 0
-rnd t RTZ s x = bool (truncOn t x) (rsz t s x) $ x =~ 0
+rnd t RTZ s x = bool (truncateOn t x) (rsz t s x) $ x =~ 0
 
 neg' :: (Prd a, Prd b, Num a) => Trip a b -> Mode -> b -> Bool
 neg' t rm x = x < rnd t rm False 0
@@ -250,3 +237,5 @@ xorSgn t rm x y = neg' t rm x `xor` neg' t rm y
 
 fmaSgn :: (Prd a, Prd b, Num a) => Trip a b -> Mode -> b -> b -> b -> Bool
 fmaSgn t rm x y z = addSgn t rm (mulOn t rm x y) z
+
+-}
