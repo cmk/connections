@@ -2,14 +2,13 @@
 module Test.Data.Connection where
 
 import Control.Applicative
+import Data.Connection.Ratio
 import Data.Float
 import Data.Ord
 import Data.Prd
 import Data.Prd.Nan
+import Data.Prd.Top
 import Data.Ratio
-import Data.Semifield
-import Data.Semilattice.N5
-import Data.Semilattice.Top
 import GHC.Real hiding (Fractional(..), (^^), (^), div)
 import Hedgehog
 import Numeric.Natural
@@ -18,7 +17,7 @@ import qualified Data.Connection.Property as Prop
 import qualified Hedgehog.Gen as G
 import qualified Hedgehog.Range as R
 
-ri :: (Integral a, Bound a) => Range a
+ri :: (Integral a, Bounded a) => Range a
 ri = R.linearFrom 0 minimal maximal
 
 ri' :: Range Integer
@@ -40,16 +39,17 @@ ord :: Gen Ordering
 ord = G.element [LT, EQ, GT]
 
 f32 :: Gen Float
-f32 = gen_fld $ G.float rf
+f32 = gen_flt $ G.float rf
 
 f64 :: Gen Double
-f64 = gen_fld $ G.double rd
+f64 = gen_flt $ G.double rd
 
-rat :: Gen (Ratio Integer)
-rat = gen_fld $ G.realFrac_ (R.linearFracFrom 0 (- 2^127) (2^127))
+rat :: Gen Rational
+rat = G.frequency [(49, gen), (1, G.element [-1 :% 0, 1 :% 0, 0 :% 0])]
+  where gen = G.realFrac_ (R.linearFracFrom 0 (- 2^127) (2^127))
 
-pos :: Gen (Ratio Natural)
-pos = G.frequency [(49, gen), (1, G.element [pinf, anan])]
+pos :: Gen Positive
+pos = G.frequency [(49, gen), (1, G.element [1 :% 0, 0 :% 0])]
   where gen = G.realFrac_ (R.linearFracFrom 0 0 (2^127))
 
 gen_dwn :: Gen a -> Gen (Down a)
@@ -58,8 +58,8 @@ gen_dwn gen = Down <$> gen
 gen_nan :: Gen a -> Gen (Nan a)
 gen_nan gen = G.frequency [(9, Def <$> gen), (1, pure Nan)]
 
-gen_pn5 :: Gen a -> Gen (N5 a)
-gen_pn5 gen = N5 <$> gen
+--gen_pn5 :: Gen a -> Gen (N5 a)
+--gen_pn5 gen = N5 <$> gen
 
 gen_bot :: Gen a -> Gen (Bottom a)
 gen_bot gen = G.frequency [(9, Just <$> gen), (1, pure Nothing)]
@@ -67,7 +67,7 @@ gen_bot gen = G.frequency [(9, Just <$> gen), (1, pure Nothing)]
 gen_top :: Gen a -> Gen (Top a)
 gen_top gen = G.frequency [(9, Fin <$> gen), (1, pure Top)]
 
-gen_bnd :: Gen a -> Gen (Bounded a)
+gen_bnd :: Gen a -> Gen (Bound a)
 gen_bnd gen = G.frequency [(18, (Just . Fin) <$> gen), (1, pure Nothing), (1, pure $ Just Top)]
 
 gen_lft :: Gen a -> Gen (Lifted a)
@@ -76,8 +76,8 @@ gen_lft = gen_nan . gen_top
 gen_ext :: Gen a -> Gen (Extended a)
 gen_ext = gen_nan . gen_bnd
 
-gen_fld :: Field a => Gen a -> Gen a 
-gen_fld gen = G.frequency [(49, gen), (1, G.element [ninf, pinf, anan])]
+gen_flt :: Floating a => Gen a -> Gen a 
+gen_flt gen = G.frequency [(49, gen), (1, G.element [(-1/0), 1/0, 0/0])]
 
 
 

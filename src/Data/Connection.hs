@@ -18,8 +18,6 @@ module Data.Connection (
   , right
   , strong
   , choice
-  , (&&&)
-  , (|||)
   , just
   , list
   , ordbin
@@ -32,15 +30,13 @@ module Data.Connection (
   , unitr
   , counitl
   , counitr
-  , bound
+  , trivial
   , first'
   , second'
   , left'
   , right'
   , strong'
   , choice'
-  , forked
-  , joined
   , maybel
   , mayber
 ) where
@@ -50,14 +46,14 @@ import Control.Category (Category, (>>>))
 import Data.Bifunctor (bimap)
 import Data.Bool
 import Data.Prd
-import Data.Semigroup.Join
-import Data.Semigroup.Meet
-import Prelude hiding (Ord(..), Num(..), Fractional(..), RealFrac(..))
+import Prelude hiding (Ord, Bounded)
 
 import qualified Control.Category as C
 
 
 -- | A Galois connection between two monotone functions.
+--
+-- /Caution/: Monotonicity is not checked.
 --
 -- Each side of the connection may be defined in terms of the other:
 -- 
@@ -151,18 +147,8 @@ left = flip choice C.id
 right :: Prd a => Prd b => Prd c => Conn a b -> Conn (Either c a) (Either c b)
 right = choice C.id 
 
-infixr 3 &&&
-(&&&) :: Prd a => Prd b => JoinSemilattice c => MeetSemilattice c => Conn c a -> Conn c b -> Conn c (a, b)
-f &&& g = tripr forked >>> f `strong` g
-
-infixr 2 |||
-(|||) :: Prd a => Prd b => Prd c => Conn a c -> Conn b c -> Conn (Either a b) c
-f ||| g = f `choice` g >>> tripr joined
-
 strong :: Prd a => Prd b => Prd c => Prd d => Conn a b -> Conn c d -> Conn (a, c) (b, d)
-strong (Conn ab ba) (Conn cd dc) = Conn f g where
-  f = bimap ab cd 
-  g = bimap ba dc
+strong (Conn ab ba) (Conn cd dc) = Conn (bimap ab cd) (bimap ba dc)
 
 choice :: Prd a => Prd b => Prd c => Prd d => Conn a b -> Conn c d -> Conn (Either a c) (Either b d)
 choice (Conn ab ba) (Conn cd dc) = Conn f g where
@@ -235,8 +221,8 @@ counitr = counit . tripr
 --  Instances
 ---------------------------------------------------------------------
 
-bound :: Prd a => Bound a => Trip () a
-bound = Trip (const minimal) (const ()) (const maximal)
+trivial :: Prd a => Bounded a => Trip () a
+trivial = Trip (const minimal) (const ()) (const maximal)
 
 first' :: Prd a => Prd b => Prd c => Trip a b -> Trip (a, c) (b, c)
 first' = flip strong' C.id
@@ -262,19 +248,13 @@ choice' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
   g = either (Left . ba) (Right . dc)
   h = either (Left . ab') (Right . cd')
 
-forked :: JoinSemilattice a => MeetSemilattice a => Trip (a, a) a
-forked = Trip (uncurry (∨)) (\x -> (x,x)) (uncurry (∧))
-
-joined :: Prd a => Trip a (Either a a)
-joined = Trip Left (either id id) Right
-
-maybel :: Prd a => Bound b => Trip (Maybe a) (Either a b)
+maybel :: Prd a => Bounded b => Trip (Maybe a) (Either a b)
 maybel = Trip f g h where
   f = maybe (Right minimal) Left
   g = either Just (const Nothing)
   h = maybe (Right maximal) Left
 
-mayber :: Prd b => Bound a => Trip (Maybe b) (Either a b)
+mayber :: Prd b => Bounded a => Trip (Maybe b) (Either a b)
 mayber = Trip f g h where
   f = maybe (Left minimal) Right
   g = either (const Nothing) Just

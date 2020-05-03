@@ -2,15 +2,13 @@
 module Test.Data.Connection.Float where
 
 import Data.Connection
-import Data.Connection.Float
-import Data.Float
+import Data.Connection.Float hiding (f64f32)
+import Data.Float hiding (round)
 import Data.Int
-import Data.Ord
+import Data.Prd
 import Data.Prd.Nan
-import Data.Semilattice.N5
-import Data.Semilattice.Top
 import Hedgehog
-import Prelude hiding (Bounded)
+import Prelude hiding (Ord(..),Bounded)
 import Test.Data.Connection
 import qualified Data.Connection.Property as Prop
 import qualified Hedgehog.Gen as G
@@ -22,7 +20,7 @@ prop_connection_f32ord = withTests 100 . property $ do
   y <- forAll $ gen_nan ord
   y' <- forAll $ gen_nan ord
 
-  let f32ord = fldord :: Trip Float (Nan Ordering)
+  let f32ord = fltord :: Trip Float (Nan Ordering)
 
   assert $ Prop.connection (tripl f32ord) x y
   assert $ Prop.connection (tripr f32ord) y x
@@ -39,6 +37,7 @@ prop_connection_f32ord = withTests 100 . property $ do
   assert $ Prop.projectiver (tripl f32ord) y
   assert $ Prop.projectiver (tripr f32ord) x
 
+{-
 prop_connection_n5ford :: Property
 prop_connection_n5ford = withTests 100 . property $ do
   x <- forAll $ gen_pn5 f32
@@ -46,7 +45,7 @@ prop_connection_n5ford = withTests 100 . property $ do
   y <- forAll ord
   y' <- forAll ord
 
-  let n5ford = n5' fldord :: Trip (N5 Float) Ordering 
+  let n5ford = n5' fltord :: Trip (N5 Float) Ordering 
 
   assert $ Prop.connection (tripl n5ford) x y
   assert $ Prop.connection (tripr n5ford) y x
@@ -62,6 +61,7 @@ prop_connection_n5ford = withTests 100 . property $ do
   assert $ Prop.projectivel (tripr n5ford) y
   assert $ Prop.projectiver (tripl n5ford) y
   assert $ Prop.projectiver (tripr n5ford) x
+-}
 
 prop_connection_f32i08 :: Property
 prop_connection_f32i08 = withTests 1000 . property $ do
@@ -85,6 +85,7 @@ prop_connection_f32i08 = withTests 1000 . property $ do
   assert $ Prop.projectiver (tripl f32i08) y
   assert $ Prop.projectiver (tripr f32i08) x
 
+{-
 prop_connection_n5fi08 :: Property
 prop_connection_n5fi08 = withTests 1000 . property $ do
   x <- forAll $ gen_pn5 f32
@@ -108,6 +109,7 @@ prop_connection_n5fi08 = withTests 1000 . property $ do
   assert $ Prop.projectivel (tripr n5fi08) y
   assert $ Prop.projectiver (tripl n5fi08) y
   assert $ Prop.projectiver (tripr n5fi08) x
+-}
 
 prop_connection_f32i16 :: Property
 prop_connection_f32i16 = withTests 1000 . property $ do
@@ -131,6 +133,7 @@ prop_connection_f32i16 = withTests 1000 . property $ do
   assert $ Prop.projectiver (tripl f32i16) y
   assert $ Prop.projectiver (tripr f32i16) x
 
+{-
 prop_connection_n5fi16 :: Property
 prop_connection_n5fi16 = withTests 1000 . property $ do
   x <- forAll $ gen_pn5 f32
@@ -154,6 +157,8 @@ prop_connection_n5fi16 = withTests 1000 . property $ do
   assert $ Prop.projectivel (tripr n5fi16) y
   assert $ Prop.projectiver (tripl n5fi16) y
   assert $ Prop.projectiver (tripr n5fi16) x
+-}
+
 
 prop_connections_f32 :: Property
 prop_connections_f32 = withTests 1000 . property $ do
@@ -184,7 +189,7 @@ prop_connection_f64ord = withTests 100 . property $ do
   y <- forAll $ gen_nan ord
   y' <- forAll $ gen_nan ord
 
-  let f64ord = fldord :: Trip Double (Nan Ordering)
+  let f64ord = fltord :: Trip Double (Nan Ordering)
 
   assert $ Prop.connection (tripl f64ord) x y
   assert $ Prop.connection (tripr f64ord) y x
@@ -201,6 +206,7 @@ prop_connection_f64ord = withTests 100 . property $ do
   assert $ Prop.projectiver (tripl f64ord) y
   assert $ Prop.projectiver (tripr f64ord) x
 
+{-
 prop_connection_n5dord :: Property
 prop_connection_n5dord = withTests 100 . property $ do
   x <- forAll $ gen_pn5 f64
@@ -208,7 +214,7 @@ prop_connection_n5dord = withTests 100 . property $ do
   y <- forAll ord
   y' <- forAll ord
 
-  let n5dord = n5' fldord :: Trip (N5 Double) Ordering
+  let n5dord = n5' fltord :: Trip (N5 Double) Ordering
 
   assert $ Prop.connection (tripl n5dord) x y
   assert $ Prop.connection (tripr n5dord) y x
@@ -224,6 +230,30 @@ prop_connection_n5dord = withTests 100 . property $ do
   assert $ Prop.projectivel (tripr n5dord) y
   assert $ Prop.projectiver (tripl n5dord) y
   assert $ Prop.projectiver (tripr n5dord) x
+
+prop_connection_f64f32 :: Property
+prop_connection_f64f32 = withTests 1000 . property $ do
+  x <- forAll f64
+  x' <- forAll f64
+  y <- forAll f32
+  y' <- forAll f32
+
+  assert $ Prop.connection (tripl f64f32) x y
+  assert $ Prop.connection (tripr f64f32) y x
+  assert $ Prop.closed (tripl f64f32) x
+  assert $ Prop.closed (tripr f64f32) y
+  assert $ Prop.kernel (tripl f64f32) y
+  assert $ Prop.kernel (tripr f64f32) x
+  assert $ Prop.monotonel (tripl f64f32) x x'
+  assert $ Prop.monotonel (tripr f64f32) y y'
+  assert $ Prop.monotoner (tripl f64f32) y y'
+  assert $ Prop.monotoner (tripr f64f32) x x'
+  assert $ Prop.projectivel (tripl f64f32) x
+  assert $ Prop.projectivel (tripr f64f32) y
+  assert $ Prop.projectiver (tripl f64f32) y
+  assert $ Prop.projectiver (tripr f64f32) x
+-}
+
 
 prop_connection_f64i08 :: Property
 prop_connection_f64i08 = withTests 1000 . property $ do
@@ -247,6 +277,7 @@ prop_connection_f64i08 = withTests 1000 . property $ do
   assert $ Prop.projectiver (tripl f64i08) y
   assert $ Prop.projectiver (tripr f64i08) x
 
+{-
 prop_connection_n5di08 :: Property
 prop_connection_n5di08 = withTests 1000 . property $ do
   x <- forAll $ gen_pn5 f64
@@ -270,6 +301,7 @@ prop_connection_n5di08 = withTests 1000 . property $ do
   assert $ Prop.projectivel (tripr n5di08) y
   assert $ Prop.projectiver (tripl n5di08) y
   assert $ Prop.projectiver (tripr n5di08) x
+-}
 
 prop_connection_f64i16 :: Property
 prop_connection_f64i16 = withTests 1000 . property $ do
@@ -293,6 +325,7 @@ prop_connection_f64i16 = withTests 1000 . property $ do
   assert $ Prop.projectiver (tripl f64i16) y
   assert $ Prop.projectiver (tripr f64i16) x
 
+{-
 prop_connection_n5di16 :: Property
 prop_connection_n5di16 = withTests 1000 . property $ do
   x <- forAll $ gen_pn5 f64
@@ -316,6 +349,7 @@ prop_connection_n5di16 = withTests 1000 . property $ do
   assert $ Prop.projectivel (tripr n5di16) y
   assert $ Prop.projectiver (tripl n5di16) y
   assert $ Prop.projectiver (tripr n5di16) x
+-}
 
 prop_connection_f64i32 :: Property
 prop_connection_f64i32 = withTests 1000 . property $ do
@@ -339,6 +373,7 @@ prop_connection_f64i32 = withTests 1000 . property $ do
   assert $ Prop.projectiver (tripl f64i32) y
   assert $ Prop.projectiver (tripr f64i32) x
 
+{-
 prop_connection_n5di32 :: Property
 prop_connection_n5di32 = withTests 1000 . property $ do
   x <- forAll $ gen_pn5 f64
@@ -362,6 +397,7 @@ prop_connection_n5di32 = withTests 1000 . property $ do
   assert $ Prop.projectivel (tripr n5di32) y
   assert $ Prop.projectiver (tripl n5di32) y
   assert $ Prop.projectiver (tripr n5di32) x
+-}
 
 prop_connections_f64 :: Property
 prop_connections_f64 = withTests 1000 . property $ do

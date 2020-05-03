@@ -24,9 +24,6 @@ import Data.Ratio
 import Data.Word (Word, Word8, Word16, Word32, Word64)
 import GHC.Real hiding (Fractional(..), div, (^^), (^), (%))
 import Numeric.Natural
---import Data.Semigroup
-import Data.Semiring
-import Data.Semifield (Field, Semifield, anan, pinf, ninf)
 import Data.Fixed
 import qualified Data.Semigroup as S
 import qualified Data.Set as Set
@@ -35,8 +32,7 @@ import qualified Data.IntMap as IntMap
 import qualified Data.IntSet as IntSet
 import qualified Prelude as P
 
-
-import Prelude hiding (Ord(..), Fractional(..),Num(..))
+import Prelude hiding (Ord(..))
 
 infix 4 <=, >=, <, >, =~, ~~, !~, /~, ?~, `pgt`, `pge`, `peq`, `pne`, `ple`, `plt`
 
@@ -214,7 +210,9 @@ class Prd a where
     | otherwise = Nothing
 
 
-type Bound a = (Minimal a, Maximal a) 
+-- | A version of 'Prelude.Bounded' with precise semantics.
+--
+type Bounded a = (Minimal a, Maximal a) 
 
 -- | A minimal element of a partially ordered set.
 -- 
@@ -222,7 +220,7 @@ type Bound a = (Minimal a, Maximal a)
 --
 -- Note that 'minimal' needn't be comparable to all values in /a/.
 --
--- When /a/ is a 'Field' we should have: @ 'minimal' '==' 'ninf' @.
+-- When /a/ is a 'Fractional' we should have: @ 'minimal' '==' '(-1/0)' @.
 --
 -- See < https://en.wikipedia.org/wiki/Maximal_and_minimal_elements >.
 --
@@ -235,7 +233,7 @@ class Prd a => Minimal a where
 --
 -- Note that 'maximal' needn't be comparable to all values in /a/.
 --
--- When /a/ is a 'Semifield' we should have @ 'maximal' = 'pinf' @.
+-- When /a/ is a 'Fractional' we should have @ 'maximal' = '(1/0)' @.
 --
 -- See < https://en.wikipedia.org/wiki/Maximal_and_minimal_elements >.
 --
@@ -328,6 +326,9 @@ pgt x y = do
     GT -> Just True
     _  -> Just False
 
+pabs :: Num a => Prd a => a -> a
+pabs x = if 0 <= x then x else negate x
+
 -- | A partial version of 'Data.Ord.max'. 
 --
 -- Returns the right argument in the case of equality.
@@ -350,30 +351,13 @@ pmin x y = do
     GT -> Just y
     _  -> Just x
 
-pabs :: (Additive-Group) a => Prd a => a -> a
-pabs x = if zero <= x then x else negate x
-
-sign :: (Additive-Monoid) a => Prd a => a -> Maybe Ordering
-sign x = pcompare x zero
-
-finite :: Prd a => Semifield a => a -> Bool
-finite = (/~ anan) * (/~ pinf)
-
-finite' :: Prd a => Field a => a -> Bool
-finite' = finite * (/~ ninf)
-
-extend :: (Prd a, Semifield a, Semifield b) => (a -> b) -> a -> b
-extend f x  | x =~ anan = anan
-            | x =~ pinf = pinf
-            | otherwise = f x
-
-extend' :: (Prd a, Field a, Field b) => (a -> b) -> a -> b
-extend' f x | x =~ ninf = ninf
-            | otherwise = extend f x
+sign :: Num a => Prd a => a -> Maybe Ordering
+sign x = pcompare x 0
 
 ---------------------------------------------------------------------
 --  Instances
 ---------------------------------------------------------------------
+
 
 instance Prd a => Prd [a] where
     {-# SPECIALISE instance Prd [Char] #-}
@@ -456,7 +440,6 @@ instance Prd (Ratio Integer) where
                              | y' == 0 = pcompareOrd 0 x'
                              | otherwise = pcompareOrd (x%y) (x'%y')
 
---TODO add prop tests
 instance Prd (Ratio Natural) where
     pcompare (x:%y) (x':%y') | (x == 0 && y == 0) && (x' == 0 && y' == 0) = Just EQ
                              | (x == 0 && y == 0) || (x' == 0 && y' == 0) = Nothing
@@ -553,9 +536,9 @@ derivePrd(Pico)
 -- Minimal
 -------------------------------------------------------------------------------
 
-instance Minimal Float where minimal = ninf
+instance Minimal Float where minimal = (-1/0)
 
-instance Minimal Double where minimal = ninf
+instance Minimal Double where minimal = (-1/0)
 
 instance Minimal Natural where minimal = 0
 
@@ -638,9 +621,9 @@ deriveMaximal(Word16)
 deriveMaximal(Word32)
 deriveMaximal(Word64)
 
-instance Maximal Float where maximal = pinf
+instance Maximal Float where maximal = (1/0)
 
-instance Maximal Double where maximal = pinf
+instance Maximal Double where maximal = (1/0)
 
 instance (Maximal a, Maximal b) => Maximal (a, b) where
     maximal = (maximal, maximal)

@@ -20,10 +20,9 @@ library
   exposed-modules:
       Data.Prd
     , Data.Prd.Nan
+    , Data.Prd.Top
     , Data.Prd.Property
     , Data.Float
-    , Data.Semigroup.Join
-    , Data.Semigroup.Meet
     , Data.Connection
     , Data.Connection.Int
     , Data.Connection.Word
@@ -31,20 +30,10 @@ library
     , Data.Connection.Ratio
     , Data.Connection.Round
     , Data.Connection.Property
-    , Data.Semilattice
-    , Data.Semilattice.N5
-    , Data.Semilattice.Top
-    , Data.Semilattice.MaxMin
-    , Data.Semilattice.Property
-
-    , Numeric.Prelude
 
   build-depends:       
-      base              >= 4.10    && < 5.0
-    , lawz              >= 0.1.1   && < 1.0
-    , rings             >= 0.1.1.1 && < 0.2
-    , containers        >= 0.4.0   && < 0.7
-    , semigroupoids     >= 5.0     && < 6.0
+      base           >= 4.10  && < 5.0
+    , containers     >= 0.4.0 && < 1.0
 
   default-extensions:
       ScopedTypeVariables
@@ -68,8 +57,6 @@ test-suite test
       base == 4.*
     , connections -any 
     , hedgehog
-    , rings
-    , lawz
   default-extensions:
       ScopedTypeVariables,
       TypeApplications
