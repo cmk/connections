@@ -1,16 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
-module Test.Data.Prd where
+module Test.Data.Order where
 
 import Data.Int
 import Data.Word
-import Test.Data.Connection
 import Hedgehog
+import Test.Data.Connection
 
-import qualified Data.Prd.Property as Prop
+import qualified Data.Order.Property as Prop
 import qualified Hedgehog.Gen as G
 
-prop_prd_i08 :: Property
-prop_prd_i08 = withTests 1000 . property $ do
+prop_order_i08 :: Property
+prop_order_i08 = withTests 1000 . property $ do
   x <- forAll $ G.integral (ri @Int8) 
   y <- forAll $ G.integral (ri @Int8) 
   z <- forAll $ G.integral (ri @Int8)
@@ -29,8 +29,8 @@ prop_prd_i08 = withTests 1000 . property $ do
   assert $ Prop.chain_22 x y z w
   assert $ Prop.chain_31 x y z w
 
-prop_prd_i16 :: Property
-prop_prd_i16 = withTests 1000 . property $ do
+prop_order_i16 :: Property
+prop_order_i16 = withTests 1000 . property $ do
   x <- forAll $ G.integral (ri @Int16) 
   y <- forAll $ G.integral (ri @Int16) 
   z <- forAll $ G.integral (ri @Int16)
@@ -49,8 +49,8 @@ prop_prd_i16 = withTests 1000 . property $ do
   assert $ Prop.chain_22 x y z w
   assert $ Prop.chain_31 x y z w
 
-prop_prd_i32 :: Property
-prop_prd_i32 = withTests 1000 . property $ do
+prop_order_i32 :: Property
+prop_order_i32 = withTests 1000 . property $ do
   x <- forAll $ G.integral (ri @Int32) 
   y <- forAll $ G.integral (ri @Int32) 
   z <- forAll $ G.integral (ri @Int32)
@@ -69,8 +69,8 @@ prop_prd_i32 = withTests 1000 . property $ do
   assert $ Prop.chain_22 x y z w
   assert $ Prop.chain_31 x y z w
 
-prop_prd_i64 :: Property
-prop_prd_i64 = withTests 1000 . property $ do
+prop_order_i64 :: Property
+prop_order_i64 = withTests 1000 . property $ do
   x <- forAll $ G.integral (ri @Int64) 
   y <- forAll $ G.integral (ri @Int64) 
   z <- forAll $ G.integral (ri @Int64)
@@ -89,8 +89,8 @@ prop_prd_i64 = withTests 1000 . property $ do
   assert $ Prop.chain_22 x y z w
   assert $ Prop.chain_31 x y z w
 
-prop_prd_ixx :: Property
-prop_prd_ixx = withTests 1000 . property $ do
+prop_order_ixx :: Property
+prop_order_ixx = withTests 1000 . property $ do
   x <- forAll $ G.integral (ri @Int) 
   y <- forAll $ G.integral (ri @Int) 
   z <- forAll $ G.integral (ri @Int)
@@ -109,8 +109,8 @@ prop_prd_ixx = withTests 1000 . property $ do
   assert $ Prop.chain_22 x y z w
   assert $ Prop.chain_31 x y z w
 
-prop_prd_int :: Property
-prop_prd_int = withTests 1000 . property $ do
+prop_order_int :: Property
+prop_order_int = withTests 1000 . property $ do
   x <- forAll $ G.integral ri'
   y <- forAll $ G.integral ri' 
   z <- forAll $ G.integral ri'
@@ -129,8 +129,8 @@ prop_prd_int = withTests 1000 . property $ do
   assert $ Prop.chain_22 x y z w
   assert $ Prop.chain_31 x y z w
 
-prop_prd_w08 :: Property
-prop_prd_w08 = withTests 1000 . property $ do
+prop_order_w08 :: Property
+prop_order_w08 = withTests 1000 . property $ do
   x <- forAll $ G.integral (ri @Word8) 
   y <- forAll $ G.integral (ri @Word8) 
   z <- forAll $ G.integral (ri @Word8)
@@ -149,8 +149,8 @@ prop_prd_w08 = withTests 1000 . property $ do
   assert $ Prop.chain_22 x y z w
   assert $ Prop.chain_31 x y z w
 
-prop_prd_w16 :: Property
-prop_prd_w16 = withTests 1000 . property $ do
+prop_order_w16 :: Property
+prop_order_w16 = withTests 1000 . property $ do
   x <- forAll $ G.integral (ri @Word16) 
   y <- forAll $ G.integral (ri @Word16) 
   z <- forAll $ G.integral (ri @Word16)
@@ -169,8 +169,8 @@ prop_prd_w16 = withTests 1000 . property $ do
   assert $ Prop.chain_22 x y z w
   assert $ Prop.chain_31 x y z w
 
-prop_prd_w32 :: Property
-prop_prd_w32 = withTests 1000 . property $ do
+prop_order_w32 :: Property
+prop_order_w32 = withTests 1000 . property $ do
   x <- forAll $ G.integral (ri @Word32) 
   y <- forAll $ G.integral (ri @Word32) 
   z <- forAll $ G.integral (ri @Word32)
@@ -189,8 +189,8 @@ prop_prd_w32 = withTests 1000 . property $ do
   assert $ Prop.chain_22 x y z w
   assert $ Prop.chain_31 x y z w
 
-prop_prd_w64 :: Property
-prop_prd_w64 = withTests 1000 . property $ do
+prop_order_w64 :: Property
+prop_order_w64 = withTests 1000 . property $ do
   x <- forAll $ G.integral (ri @Word64) 
   y <- forAll $ G.integral (ri @Word64) 
   z <- forAll $ G.integral (ri @Word64)
@@ -209,8 +209,8 @@ prop_prd_w64 = withTests 1000 . property $ do
   assert $ Prop.chain_22 x y z w
   assert $ Prop.chain_31 x y z w
 
-prop_prd_wxx :: Property
-prop_prd_wxx = withTests 1000 . property $ do
+prop_order_wxx :: Property
+prop_order_wxx = withTests 1000 . property $ do
   x <- forAll $ G.integral (ri @Word) 
   y <- forAll $ G.integral (ri @Word) 
   z <- forAll $ G.integral (ri @Word)
@@ -227,10 +227,9 @@ prop_prd_wxx = withTests 1000 . property $ do
   assert $ Prop.transitive_le x y z
   assert $ Prop.transitive_eq x y z
   assert $ Prop.chain_22 x y z w
-  assert $ Prop.chain_31 x y z w
 
-prop_prd_nat :: Property
-prop_prd_nat = withTests 1000 . property $ do
+prop_order_nat :: Property
+prop_order_nat = withTests 1000 . property $ do
   x <- forAll $ G.integral rn
   y <- forAll $ G.integral rn 
   z <- forAll $ G.integral rn
@@ -247,18 +246,9 @@ prop_prd_nat = withTests 1000 . property $ do
   assert $ Prop.transitive_le x y z
   assert $ Prop.transitive_eq x y z
   assert $ Prop.chain_22 x y z w
-  assert $ Prop.chain_31 x y z w
 
-{-
-w = (-61190296498818470224935979790417002496) % 1
-y = 784675940593409576367211913280487424 % 1
-z = 44351588178463768880997328738947432448 % 1
-w = 0 % 0
-Prop.chain_31 x y z w
--}
-
-prop_prd_rat :: Property
-prop_prd_rat = withTests 1000 . property $ do
+prop_order_rat :: Property
+prop_order_rat = withTests 1000 . property $ do
   x <- forAll rat
   y <- forAll rat
   z <- forAll rat
@@ -276,8 +266,8 @@ prop_prd_rat = withTests 1000 . property $ do
   assert $ Prop.transitive_eq x y z
   assert $ Prop.chain_22 x y z w
 
-prop_prd_pos :: Property
-prop_prd_pos = withTests 1000 . property $ do
+prop_order_pos :: Property
+prop_order_pos = withTests 1000 . property $ do
   x <- forAll pos
   y <- forAll pos
   z <- forAll pos
@@ -295,8 +285,8 @@ prop_prd_pos = withTests 1000 . property $ do
   assert $ Prop.transitive_eq x y z
   assert $ Prop.chain_22 x y z w
 
-prop_prd_f32 :: Property
-prop_prd_f32 = withTests 1000 . property $ do
+prop_order_f32 :: Property
+prop_order_f32 = withTests 1000 . property $ do
   x <- forAll f32
   y <- forAll f32
   z <- forAll f32
@@ -314,8 +304,8 @@ prop_prd_f32 = withTests 1000 . property $ do
   assert $ Prop.transitive_eq x y z
   assert $ Prop.chain_22 x y z w
 
-prop_prd_f64 :: Property
-prop_prd_f64 = withTests 1000 . property $ do
+prop_order_f64 :: Property
+prop_order_f64 = withTests 1000 . property $ do
   x <- forAll f64
   y <- forAll f64
   z <- forAll f64

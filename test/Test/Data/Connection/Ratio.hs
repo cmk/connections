@@ -1,38 +1,41 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Test.Data.Connection.Ratio where
 
-import Data.Connection.Conn
-import Data.Connection.Trip
+import Data.Connection.Type
 import Data.Connection.Ratio
-import Data.Int
-import Data.Prd.Nan
-import Data.Word
 import Hedgehog
 import Test.Data.Connection
 import qualified Data.Connection.Property as Prop
-import qualified Hedgehog.Gen as G
 
 prop_connection_ratord :: Property
 prop_connection_ratord = withTests 1000 . property $ do
   x <- forAll rat
+  y <- forAll (gen_lowered ord)
   x' <- forAll rat
-  y <- forAll $ gen_nan ord
-  y' <- forAll $ gen_nan ord
+  y' <- forAll (gen_lowered ord)
+  
+  assert $ Prop.adjoint ratord x y
+  assert $ Prop.closed ratord x
+  assert $ Prop.kernel ratord y
+  assert $ Prop.monotoneL ratord x x'
+  assert $ Prop.monotoneR ratord y y'
+  assert $ Prop.projectiveL ratord x
+  assert $ Prop.projectiveR ratord y
 
-  assert $ Prop.adjoined (tripl ratord) x y
-  assert $ Prop.adjoined (tripr ratord) y x
-  assert $ Prop.closed (tripl ratord) x
-  assert $ Prop.closed (tripr ratord) y
-  assert $ Prop.kernel (tripl ratord) y
-  assert $ Prop.kernel (tripr ratord) x
-  assert $ Prop.monotonel (tripl ratord) x x'
-  assert $ Prop.monotonel (tripr ratord) y y'
-  assert $ Prop.monotoner (tripl ratord) y y'
-  assert $ Prop.monotoner (tripr ratord) x x'
-  assert $ Prop.projectivel (tripl ratord) x
-  assert $ Prop.projectivel (tripr ratord) y
-  assert $ Prop.projectiver (tripl ratord) y
-  assert $ Prop.projectiver (tripr ratord) x
+prop_connection_ordrat :: Property
+prop_connection_ordrat = withTests 1000 . property $ do
+  x <- forAll rat
+  y <- forAll (gen_lifted ord)
+  x' <- forAll rat
+  y' <- forAll (gen_lifted ord)
+  
+  assert $ Prop.adjoint ordrat y x
+  assert $ Prop.closed ordrat y
+  assert $ Prop.kernel ordrat x
+  assert $ Prop.monotoneL ordrat y y'
+  assert $ Prop.monotoneR ordrat x x'
+  assert $ Prop.projectiveL ordrat y
+  assert $ Prop.projectiveR ordrat x
 
 prop_connection_ratf32 :: Property
 prop_connection_ratf32 = withTests 1000 . property $ do
@@ -41,20 +44,20 @@ prop_connection_ratf32 = withTests 1000 . property $ do
   y <- forAll f32
   y' <- forAll f32
 
-  assert $ Prop.adjoined (tripl ratf32) x y
-  assert $ Prop.adjoined (tripr ratf32) y x
+  assert $ Prop.adjoint (tripl ratf32) x y
+  assert $ Prop.adjoint (tripr ratf32) y x
   assert $ Prop.closed (tripl ratf32) x
   assert $ Prop.closed (tripr ratf32) y
   assert $ Prop.kernel (tripl ratf32) y
   assert $ Prop.kernel (tripr ratf32) x
-  assert $ Prop.monotoner (tripl ratf32) y y'
-  assert $ Prop.monotoner (tripr ratf32) x x'
-  assert $ Prop.monotonel (tripl ratf32) x x'
-  assert $ Prop.monotonel (tripr ratf32) y y'
-  assert $ Prop.projectivel (tripl ratf32) x
-  assert $ Prop.projectivel (tripr ratf32) y
-  assert $ Prop.projectiver (tripl ratf32) y
-  assert $ Prop.projectiver (tripr ratf32) x
+  assert $ Prop.monotoneR (tripl ratf32) y y'
+  assert $ Prop.monotoneR (tripr ratf32) x x'
+  assert $ Prop.monotoneL (tripl ratf32) x x'
+  assert $ Prop.monotoneL (tripr ratf32) y y'
+  assert $ Prop.projectiveL (tripl ratf32) x
+  assert $ Prop.projectiveL (tripr ratf32) y
+  assert $ Prop.projectiveR (tripl ratf32) y
+  assert $ Prop.projectiveR (tripr ratf32) x
 
 prop_connection_ratf64 :: Property
 prop_connection_ratf64 = withTests 1000 . property $ do
@@ -63,240 +66,242 @@ prop_connection_ratf64 = withTests 1000 . property $ do
   y <- forAll f64
   y' <- forAll f64
 
-  assert $ Prop.adjoined (tripl ratf64) x y
-  assert $ Prop.adjoined (tripr ratf64) y x
+  assert $ Prop.adjoint (tripl ratf64) x y
+  assert $ Prop.adjoint (tripr ratf64) y x
   assert $ Prop.closed (tripl ratf64) x
   assert $ Prop.closed (tripr ratf64) y
   assert $ Prop.kernel (tripl ratf64) y
   assert $ Prop.kernel (tripr ratf64) x
-  assert $ Prop.monotoner (tripl ratf64) y y'
-  assert $ Prop.monotoner (tripr ratf64) x x'
-  assert $ Prop.monotonel (tripl ratf64) x x'
-  assert $ Prop.monotonel (tripr ratf64) y y'
-  assert $ Prop.projectivel (tripl ratf64) x
-  assert $ Prop.projectivel (tripr ratf64) y
-  assert $ Prop.projectiver (tripl ratf64) y
-  assert $ Prop.projectiver (tripr ratf64) x
+  assert $ Prop.monotoneR (tripl ratf64) y y'
+  assert $ Prop.monotoneR (tripr ratf64) x x'
+  assert $ Prop.monotoneL (tripl ratf64) x x'
+  assert $ Prop.monotoneL (tripr ratf64) y y'
+  assert $ Prop.projectiveL (tripl ratf64) x
+  assert $ Prop.projectiveL (tripr ratf64) y
+  assert $ Prop.projectiveR (tripl ratf64) y
+  assert $ Prop.projectiveR (tripr ratf64) x
 
+{-
 prop_connection_rati08 :: Property
 prop_connection_rati08 = withTests 1000 . property $ do
   x <- forAll rat
   x' <- forAll rat
-  y <- forAll $ gen_ext $ G.integral (ri @Int8)
-  y' <- forAll $ gen_ext $ G.integral (ri @Int8)
+  y <- forAll $ gen_extended $ G.integral (ri @Int8)
+  y' <- forAll $ gen_extended $ G.integral (ri @Int8)
 
-  assert $ Prop.adjoined (tripl rati08) x y
-  assert $ Prop.adjoined (tripr rati08) y x
+  assert $ Prop.adjoint (tripl rati08) x y
+  assert $ Prop.adjoint (tripr rati08) y x
   assert $ Prop.closed (tripl rati08) x
   assert $ Prop.closed (tripr rati08) y
   assert $ Prop.kernel (tripl rati08) y
   assert $ Prop.kernel (tripr rati08) x
-  assert $ Prop.monotonel (tripl rati08) x x'
-  assert $ Prop.monotonel (tripr rati08) y y'
-  assert $ Prop.monotoner (tripl rati08) y y'
-  assert $ Prop.monotoner (tripr rati08) x x'
-  assert $ Prop.projectivel (tripl rati08) x
-  assert $ Prop.projectivel (tripr rati08) y
-  assert $ Prop.projectiver (tripl rati08) y
-  assert $ Prop.projectiver (tripr rati08) x
+  assert $ Prop.monotoneL (tripl rati08) x x'
+  assert $ Prop.monotoneL (tripr rati08) y y'
+  assert $ Prop.monotoneR (tripl rati08) y y'
+  assert $ Prop.monotoneR (tripr rati08) x x'
+  assert $ Prop.projectiveL (tripl rati08) x
+  assert $ Prop.projectiveL (tripr rati08) y
+  assert $ Prop.projectiveR (tripl rati08) y
+  assert $ Prop.projectiveR (tripr rati08) x
 
 prop_connection_rati16 :: Property
 prop_connection_rati16 = withTests 1000 . property $ do
   x <- forAll rat
   x' <- forAll rat
-  y <- forAll $ gen_ext $ G.integral (ri @Int16)
-  y' <- forAll $ gen_ext $ G.integral (ri @Int16)
+  y <- forAll $ gen_extended $ G.integral (ri @Int16)
+  y' <- forAll $ gen_extended $ G.integral (ri @Int16)
 
-  assert $ Prop.adjoined (tripl rati16) x y
-  assert $ Prop.adjoined (tripr rati16) y x
+  assert $ Prop.adjoint (tripl rati16) x y
+  assert $ Prop.adjoint (tripr rati16) y x
   assert $ Prop.closed (tripl rati16) x
   assert $ Prop.closed (tripr rati16) y
   assert $ Prop.kernel (tripl rati16) y
   assert $ Prop.kernel (tripr rati16) x 
-  assert $ Prop.monotonel (tripl rati16) x x'
-  assert $ Prop.monotonel (tripr rati16) y y'
-  assert $ Prop.monotoner (tripl rati16) y y'
-  assert $ Prop.monotoner (tripr rati16) x x'
-  assert $ Prop.projectivel (tripl rati16) x
-  assert $ Prop.projectivel (tripr rati16) y
-  assert $ Prop.projectiver (tripl rati16) y
-  assert $ Prop.projectiver (tripr rati16) x
+  assert $ Prop.monotoneL (tripl rati16) x x'
+  assert $ Prop.monotoneL (tripr rati16) y y'
+  assert $ Prop.monotoneR (tripl rati16) y y'
+  assert $ Prop.monotoneR (tripr rati16) x x'
+  assert $ Prop.projectiveL (tripl rati16) x
+  assert $ Prop.projectiveL (tripr rati16) y
+  assert $ Prop.projectiveR (tripl rati16) y
+  assert $ Prop.projectiveR (tripr rati16) x
 
 prop_connection_rati32 :: Property
 prop_connection_rati32 = withTests 1000 . property $ do
   x <- forAll rat
   x' <- forAll rat
-  y <- forAll $ gen_ext $ G.integral (ri @Int32)
-  y' <- forAll $ gen_ext $ G.integral (ri @Int32)
+  y <- forAll $ gen_extended $ G.integral (ri @Int32)
+  y' <- forAll $ gen_extended $ G.integral (ri @Int32)
 
-  assert $ Prop.adjoined (tripl rati32) x y
-  assert $ Prop.adjoined (tripr rati32) y x
+  assert $ Prop.adjoint (tripl rati32) x y
+  assert $ Prop.adjoint (tripr rati32) y x
   assert $ Prop.closed (tripl rati32) x
   assert $ Prop.closed (tripr rati32) y
   assert $ Prop.kernel (tripl rati32) y
   assert $ Prop.kernel (tripr rati32) x 
-  assert $ Prop.monotonel (tripl rati32) x x'
-  assert $ Prop.monotonel (tripr rati32) y y'
-  assert $ Prop.monotoner (tripl rati32) y y'
-  assert $ Prop.monotoner (tripr rati32) x x'
-  assert $ Prop.projectivel (tripl rati32) x
-  assert $ Prop.projectivel (tripr rati32) y
-  assert $ Prop.projectiver (tripl rati32) y
-  assert $ Prop.projectiver (tripr rati32) x
+  assert $ Prop.monotoneL (tripl rati32) x x'
+  assert $ Prop.monotoneL (tripr rati32) y y'
+  assert $ Prop.monotoneR (tripl rati32) y y'
+  assert $ Prop.monotoneR (tripr rati32) x x'
+  assert $ Prop.projectiveL (tripl rati32) x
+  assert $ Prop.projectiveL (tripr rati32) y
+  assert $ Prop.projectiveR (tripl rati32) y
+  assert $ Prop.projectiveR (tripr rati32) x
 
 prop_connection_rati64 :: Property
 prop_connection_rati64 = withTests 1000 . property $ do
   x <- forAll rat
   x' <- forAll rat
-  y <- forAll $ gen_ext $ G.integral (ri @Int64)
-  y' <- forAll $ gen_ext $ G.integral (ri @Int64)
+  y <- forAll $ gen_extended $ G.integral (ri @Int64)
+  y' <- forAll $ gen_extended $ G.integral (ri @Int64)
 
-  assert $ Prop.adjoined (tripl rati64) x y
-  assert $ Prop.adjoined (tripr rati64) y x
+  assert $ Prop.adjoint (tripl rati64) x y
+  assert $ Prop.adjoint (tripr rati64) y x
   assert $ Prop.closed (tripl rati64) x
   assert $ Prop.closed (tripr rati64) y
   assert $ Prop.kernel (tripl rati64) y
   assert $ Prop.kernel (tripr rati64) x 
-  assert $ Prop.monotonel (tripl rati64) x x'
-  assert $ Prop.monotonel (tripr rati64) y y'
-  assert $ Prop.monotoner (tripl rati64) y y'
-  assert $ Prop.monotoner (tripr rati64) x x'
-  assert $ Prop.projectivel (tripl rati64) x
-  assert $ Prop.projectivel (tripr rati64) y
-  assert $ Prop.projectiver (tripl rati64) y
-  assert $ Prop.projectiver (tripr rati64) x
+  assert $ Prop.monotoneL (tripl rati64) x x'
+  assert $ Prop.monotoneL (tripr rati64) y y'
+  assert $ Prop.monotoneR (tripl rati64) y y'
+  assert $ Prop.monotoneR (tripr rati64) x x'
+  assert $ Prop.projectiveL (tripl rati64) x
+  assert $ Prop.projectiveL (tripr rati64) y
+  assert $ Prop.projectiveR (tripl rati64) y
+  assert $ Prop.projectiveR (tripr rati64) x
 
 prop_connection_ratint :: Property
 prop_connection_ratint = withTests 1000 . property $ do
   x <- forAll rat
   x' <- forAll rat
-  y <- forAll $ gen_ext $ G.integral ri'
-  y' <- forAll $ gen_ext $ G.integral ri'
+  y <- forAll $ gen_extended $ G.integral ri'
+  y' <- forAll $ gen_extended $ G.integral ri'
 
-  assert $ Prop.adjoined (tripl ratint) x y
-  assert $ Prop.adjoined (tripr ratint) y x
+  assert $ Prop.adjoint (tripl ratint) x y
+  assert $ Prop.adjoint (tripr ratint) y x
   assert $ Prop.closed (tripl ratint) x
   assert $ Prop.closed (tripr ratint) y
   assert $ Prop.kernel (tripl ratint) y
   assert $ Prop.kernel (tripr ratint) x
-  assert $ Prop.monotonel (tripl ratint) x x'
-  assert $ Prop.monotonel (tripr ratint) y y'
-  assert $ Prop.monotoner (tripl ratint) y y'
-  assert $ Prop.monotoner (tripr ratint) x x'
-  assert $ Prop.projectivel (tripl ratint) x
-  assert $ Prop.projectivel (tripr ratint) y
-  assert $ Prop.projectiver (tripl ratint) y
-  assert $ Prop.projectiver (tripr ratint) x
+  assert $ Prop.monotoneL (tripl ratint) x x'
+  assert $ Prop.monotoneL (tripr ratint) y y'
+  assert $ Prop.monotoneR (tripl ratint) y y'
+  assert $ Prop.monotoneR (tripr ratint) x x'
+  assert $ Prop.projectiveL (tripl ratint) x
+  assert $ Prop.projectiveL (tripr ratint) y
+  assert $ Prop.projectiveR (tripl ratint) y
+  assert $ Prop.projectiveR (tripr ratint) x
 
 prop_connection_ratw08 :: Property
 prop_connection_ratw08 = withTests 1000 . property $ do
   x <- forAll pos
   x' <- forAll pos
-  y <- forAll $ gen_lft $ G.integral (ri @Word8)
-  y' <- forAll $ gen_lft $ G.integral (ri @Word8)
+  y <- forAll $ gen_lifted $ G.integral (ri @Word8)
+  y' <- forAll $ gen_lifted $ G.integral (ri @Word8)
 
-  assert $ Prop.adjoined (tripl ratw08) x y
-  assert $ Prop.adjoined (tripr ratw08) y x
+  assert $ Prop.adjoint (tripl ratw08) x y
+  assert $ Prop.adjoint (tripr ratw08) y x
   assert $ Prop.closed (tripl ratw08) x
   assert $ Prop.closed (tripr ratw08) y
   assert $ Prop.kernel (tripl ratw08) y
   assert $ Prop.kernel (tripr ratw08) x 
-  assert $ Prop.monotonel (tripl ratw08) x x'
-  assert $ Prop.monotonel (tripr ratw08) y y'
-  assert $ Prop.monotoner (tripl ratw08) y y'
-  assert $ Prop.monotoner (tripr ratw08) x x'
-  assert $ Prop.projectivel (tripl ratw08) x
-  assert $ Prop.projectivel (tripr ratw08) y
-  assert $ Prop.projectiver (tripl ratw08) y
-  assert $ Prop.projectiver (tripr ratw08) x
+  assert $ Prop.monotoneL (tripl ratw08) x x'
+  assert $ Prop.monotoneL (tripr ratw08) y y'
+  assert $ Prop.monotoneR (tripl ratw08) y y'
+  assert $ Prop.monotoneR (tripr ratw08) x x'
+  assert $ Prop.projectiveL (tripl ratw08) x
+  assert $ Prop.projectiveL (tripr ratw08) y
+  assert $ Prop.projectiveR (tripl ratw08) y
+  assert $ Prop.projectiveR (tripr ratw08) x
 
 prop_connection_ratw16 :: Property
 prop_connection_ratw16 = withTests 1000 . property $ do
   x <- forAll pos
   x' <- forAll pos
-  y <- forAll $ gen_lft $ G.integral (ri @Word16)
-  y' <- forAll $ gen_lft $ G.integral (ri @Word16)
+  y <- forAll $ gen_lifted $ G.integral (ri @Word16)
+  y' <- forAll $ gen_lifted $ G.integral (ri @Word16)
 
-  assert $ Prop.adjoined (tripl ratw16) x y
-  assert $ Prop.adjoined (tripr ratw16) y x
+  assert $ Prop.adjoint (tripl ratw16) x y
+  assert $ Prop.adjoint (tripr ratw16) y x
   assert $ Prop.closed (tripl ratw16) x
   assert $ Prop.closed (tripr ratw16) y
   assert $ Prop.kernel (tripl ratw16) y
   assert $ Prop.kernel (tripr ratw16) x 
-  assert $ Prop.monotonel (tripl ratw16) x x'
-  assert $ Prop.monotonel (tripr ratw16) y y'
-  assert $ Prop.monotoner (tripl ratw16) y y'
-  assert $ Prop.monotoner (tripr ratw16) x x'
-  assert $ Prop.projectivel (tripl ratw16) x
-  assert $ Prop.projectivel (tripr ratw16) y
-  assert $ Prop.projectiver (tripl ratw16) y
-  assert $ Prop.projectiver (tripr ratw16) x
+  assert $ Prop.monotoneL (tripl ratw16) x x'
+  assert $ Prop.monotoneL (tripr ratw16) y y'
+  assert $ Prop.monotoneR (tripl ratw16) y y'
+  assert $ Prop.monotoneR (tripr ratw16) x x'
+  assert $ Prop.projectiveL (tripl ratw16) x
+  assert $ Prop.projectiveL (tripr ratw16) y
+  assert $ Prop.projectiveR (tripl ratw16) y
+  assert $ Prop.projectiveR (tripr ratw16) x
 
 prop_connection_ratw32 :: Property
 prop_connection_ratw32 = withTests 1000 . property $ do
   x <- forAll pos
   x' <- forAll pos
-  y <- forAll $ gen_lft $ G.integral (ri @Word32)
-  y' <- forAll $ gen_lft $ G.integral (ri @Word32)
+  y <- forAll $ gen_lifted $ G.integral (ri @Word32)
+  y' <- forAll $ gen_lifted $ G.integral (ri @Word32)
 
-  assert $ Prop.adjoined (tripl ratw32) x y
-  assert $ Prop.adjoined (tripr ratw32) y x
+  assert $ Prop.adjoint (tripl ratw32) x y
+  assert $ Prop.adjoint (tripr ratw32) y x
   assert $ Prop.closed (tripl ratw32) x
   assert $ Prop.closed (tripr ratw32) y
   assert $ Prop.kernel (tripl ratw32) y
   assert $ Prop.kernel (tripr ratw32) x 
-  assert $ Prop.monotonel (tripl ratw32) x x'
-  assert $ Prop.monotonel (tripr ratw32) y y'
-  assert $ Prop.monotoner (tripl ratw32) y y'
-  assert $ Prop.monotoner (tripr ratw32) x x'
-  assert $ Prop.projectivel (tripl ratw32) x
-  assert $ Prop.projectivel (tripr ratw32) y
-  assert $ Prop.projectiver (tripl ratw32) y
-  assert $ Prop.projectiver (tripr ratw32) x
+  assert $ Prop.monotoneL (tripl ratw32) x x'
+  assert $ Prop.monotoneL (tripr ratw32) y y'
+  assert $ Prop.monotoneR (tripl ratw32) y y'
+  assert $ Prop.monotoneR (tripr ratw32) x x'
+  assert $ Prop.projectiveL (tripl ratw32) x
+  assert $ Prop.projectiveL (tripr ratw32) y
+  assert $ Prop.projectiveR (tripl ratw32) y
+  assert $ Prop.projectiveR (tripr ratw32) x
 
 prop_connection_ratw64 :: Property
 prop_connection_ratw64 = withTests 1000 . property $ do
   x <- forAll pos
   x' <- forAll pos
-  y <- forAll $ gen_lft $ G.integral (ri @Word64)
-  y' <- forAll $ gen_lft $ G.integral (ri @Word64)
+  y <- forAll $ gen_lifted $ G.integral (ri @Word64)
+  y' <- forAll $ gen_lifted $ G.integral (ri @Word64)
 
-  assert $ Prop.adjoined (tripl ratw64) x y
-  assert $ Prop.adjoined (tripr ratw64) y x
+  assert $ Prop.adjoint (tripl ratw64) x y
+  assert $ Prop.adjoint (tripr ratw64) y x
   assert $ Prop.closed (tripl ratw64) x
   assert $ Prop.closed (tripr ratw64) y
   assert $ Prop.kernel (tripl ratw64) y
   assert $ Prop.kernel (tripr ratw64) x 
-  assert $ Prop.monotonel (tripl ratw64) x x'
-  assert $ Prop.monotonel (tripr ratw64) y y'
-  assert $ Prop.monotoner (tripl ratw64) y y'
-  assert $ Prop.monotoner (tripr ratw64) x x'
-  assert $ Prop.projectivel (tripl ratw64) x
-  assert $ Prop.projectivel (tripr ratw64) y
-  assert $ Prop.projectiver (tripl ratw64) y
-  assert $ Prop.projectiver (tripr ratw64) x
+  assert $ Prop.monotoneL (tripl ratw64) x x'
+  assert $ Prop.monotoneL (tripr ratw64) y y'
+  assert $ Prop.monotoneR (tripl ratw64) y y'
+  assert $ Prop.monotoneR (tripr ratw64) x x'
+  assert $ Prop.projectiveL (tripl ratw64) x
+  assert $ Prop.projectiveL (tripr ratw64) y
+  assert $ Prop.projectiveR (tripl ratw64) y
+  assert $ Prop.projectiveR (tripr ratw64) x
 
 prop_connection_ratnat :: Property
 prop_connection_ratnat = withTests 1000 . property $ do
   x <- forAll pos
   x' <- forAll pos
-  y <- forAll $ gen_lft $ G.integral rn
-  y' <- forAll $ gen_lft $ G.integral rn
+  y <- forAll $ gen_lifted $ G.integral rn
+  y' <- forAll $ gen_lifted $ G.integral rn
 
-  assert $ Prop.adjoined (tripl ratnat) x y
-  assert $ Prop.adjoined (tripr ratnat) y x
+  assert $ Prop.adjoint (tripl ratnat) x y
+  assert $ Prop.adjoint (tripr ratnat) y x
   assert $ Prop.closed (tripl ratnat) x
   assert $ Prop.closed (tripr ratnat) y
   assert $ Prop.kernel (tripl ratnat) y
   assert $ Prop.kernel (tripr ratnat) x
-  assert $ Prop.monotonel (tripl ratnat) x x'
-  assert $ Prop.monotonel (tripr ratnat) y y'
-  assert $ Prop.monotoner (tripl ratnat) y y'
-  assert $ Prop.monotoner (tripr ratnat) x x'
-  assert $ Prop.projectivel (tripl ratnat) x
-  assert $ Prop.projectivel (tripr ratnat) y
-  assert $ Prop.projectiver (tripl ratnat) y
-  assert $ Prop.projectiver (tripr ratnat) x
+  assert $ Prop.monotoneL (tripl ratnat) x x'
+  assert $ Prop.monotoneL (tripr ratnat) y y'
+  assert $ Prop.monotoneR (tripl ratnat) y y'
+  assert $ Prop.monotoneR (tripr ratnat) x x'
+  assert $ Prop.projectiveL (tripl ratnat) x
+  assert $ Prop.projectiveL (tripr ratnat) y
+  assert $ Prop.projectiveR (tripl ratnat) y
+  assert $ Prop.projectiveR (tripr ratnat) x
+-}
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

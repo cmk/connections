@@ -2,7 +2,7 @@ import Control.Monad
 import System.Exit (exitFailure)
 import System.IO (BufferMode(..), hSetBuffering, stdout, stderr)
 
-import qualified Test.Data.Prd as P
+import qualified Test.Data.Order as P
 import qualified Test.Data.Connection as C
 import qualified Test.Data.Connection.Int as CI
 import qualified Test.Data.Connection.Word as CW

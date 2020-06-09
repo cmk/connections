@@ -35,17 +35,14 @@ module Data.Connection.Int (
   , natint
   ) where
 
-import safe Control.Category ((>>>))
-import safe Data.Connection.Conn
-import safe Data.Connection.Word
-import safe Data.Connection.Trip
+import safe Data.Connection.Type
 import safe Data.Int
-import safe Data.Prd
-import safe Data.Prd.Top
+import safe Data.Order
+import safe Data.Lattice
 import safe Data.Word
 import safe Foreign.C.Types
 import safe Numeric.Natural
-import safe Prelude hiding (Bounded, fromInteger)
+import safe Prelude hiding (Ord(..), Bounded, fromInteger)
 import safe qualified Prelude as P
 
 i08c08 :: Conn Int8 CChar
@@ -57,10 +54,10 @@ i08w08 = unsigned -- Conn (fromIntegral . max 0) (fromIntegral . min 127)
 i08w08' :: Trip Int8 Word8
 i08w08' = unsigned'
 
-i08int :: Conn Int8 (Maybe Integer)
-i08int = signed -- Conn (liftBottom P.fromIntegral) (maybe minimal $ P.fromInteger . clip08)
+i08int :: Conn Int8 (Lifted Integer)
+i08int = signed -- Conn (liftBottom P.fromIntegral) (maybe bottom $ P.fromInteger . clip08)
 
-i08int' :: Trip Int8 (Bound Integer)
+i08int' :: Trip Int8 (Extended Integer)
 i08int' = signed'
 
 i16c16 :: Conn Int16 CShort
@@ -72,40 +69,40 @@ i16w16 = unsigned -- Conn (fromIntegral . max 0) (fromIntegral . min 32767)
 i16w16' :: Trip Int16 Word16
 i16w16' = unsigned'
 
-i16int :: Conn Int16 (Maybe Integer)
-i16int = signed -- Conn (liftBottom P.fromIntegral) (maybe minimal $ P.fromInteger . clip16)
+i16int :: Conn Int16 (Lifted Integer)
+i16int = signed -- Conn (liftBottom P.fromIntegral) (maybe bottom $ P.fromInteger . clip16)
 
-i16int' :: Trip Int16 (Bound Integer)
+i16int' :: Trip Int16 (Extended Integer)
 i16int' = signed'
 
 i32c32 :: Conn Int32 CInt
 i32c32 = Conn CInt $ \(CInt x) -> x
 
 i32w32 :: Conn Int32 Word32
-i32w32 = unsigned -- Conn (fromIntegral . max 0) (fromIntegral . min 2147483647)
+i32w32 = unsigned
 
 i32w32' :: Trip Int32 Word32
 i32w32' = unsigned'
 
-i32int :: Conn Int32 (Maybe Integer)
-i32int = signed -- Conn (liftBottom P.fromIntegral) (maybe minimal $ P.fromInteger . clip32)
+i32int :: Conn Int32 (Lifted Integer)
+i32int = signed
 
-i32int' :: Trip Int32 (Bound Integer)
+i32int' :: Trip Int32 (Extended Integer)
 i32int' = signed'
 
 i64c64 :: Conn Int64 CLong
 i64c64 = Conn CLong $ \(CLong x) -> x
 
 i64w64 :: Conn Int64 Word64
-i64w64 = unsigned -- Conn (fromIntegral . max 0) (fromIntegral . min 9223372036854775807)
+i64w64 = unsigned
 
 i64w64' :: Trip Int64 Word64
 i64w64' = unsigned'
 
-i64int :: Conn Int64 (Maybe Integer)
-i64int = signed -- Conn (liftBottom P.fromIntegral) (maybe minimal $ P.fromInteger . clip64)
+i64int :: Conn Int64 (Lifted Integer)
+i64int = signed
 
-i64int' :: Trip Int64 (Bound Integer)
+i64int' :: Trip Int64 (Extended Integer)
 i64int' = signed'
 
 ixxwxx :: Conn Int Word
@@ -115,18 +112,18 @@ ixxwxx' :: Trip Int Word
 ixxwxx' = unsigned'
 
 -- | /Caution/: This assumes that 'Int' on your system is 64 bits.
-ixxint :: Conn Int (Maybe Integer)
-ixxint = signed -- Conn (liftBottom P.fromIntegral) (maybe minimal $ P.fromInteger . clip64)
+ixxint :: Conn Int (Lifted Integer)
+ixxint = signed
 
 -- | /Caution/: This assumes that 'Int' on your system is 64 bits.
-ixxint' :: Trip Int (Bound Integer)
+ixxint' :: Trip Int (Extended Integer)
 ixxint' = signed'
 
 intnat :: Conn Integer Natural
 intnat = Conn (fromIntegral . max 0) fromIntegral
 
-natint :: Conn Natural (Maybe Integer)
-natint = Conn (liftBottom P.fromIntegral) (maybe minimal $ P.fromInteger . max 0)
+natint :: Conn Natural (Lifted Integer)
+natint = Conn (lifts P.fromIntegral) (lifted $ P.fromInteger . max 0)
 
 ---------------------------------------------------------------------
 -- Internal
@@ -163,25 +160,48 @@ clip32 = min 2147483647 . max (-2147483648)
 
 clip64 :: Integer -> Integer
 clip64 = min 9223372036854775807 . max (-9223372036854775808)
+
+
+liftTop' :: Maximal a => (a -> b) -> a -> Extended b
+liftTop' f a = Just $ liftTop f a
+
+-- this is a monotone map
+liftTop :: Bounded a => (a -> b) -> a -> Top b
+liftTop f = g where
+  g i | i ~~ top = Top
+      | otherwise = Extended $ f i
+
+liftBottom' :: Minimal a => (a -> b) -> a -> Extended b
+liftBottom' f = liftBottom (Fin . f)
+
+-- this is a monotone map
+liftExtended :: Bounded a => (a -> b) -> a -> Extended b
+liftExtended f = liftBottom (liftTop f)
+signed :: forall a. (BoundedEq a, Integral a) => Conn a (Maybe Integer)
+signed = Conn f g where
+  f = liftMaybe (~~ bottom) fromIntegral
+  g = maybe bottom $ P.fromInteger . min (fromIntegral @a top) . max (fromIntegral @a bottom)
 -}
+-- this is a monotone map
 
 
-signed :: (Bounded a, Integral a) => Conn a (Bottom Integer)
-signed = Conn (liftBottom f) g where
-  f = fromIntegral
-  g = maybe minimal $ P.fromInteger . min (f maximal) . max (f minimal)
+signed :: forall a. (Bounded a, Integral a) => Conn a (Lifted Integer)
+signed = Conn f g where
+  f = lifts fromIntegral
+  g = lifted $ P.fromInteger . min (fromIntegral @a top) . max (fromIntegral @a bottom)
 
-signed' :: (Bounded a, Integral a) => Trip a (Bound Integer)
-signed' = Trip (liftBottom' f) g (liftTop' f) where
-  f = fromIntegral
-  g = bounded $ P.fromInteger . min (f maximal) . max (f minimal)
+signed' :: forall a. (Bounded a, Integral a) => Trip a (Extended Integer)
+signed' = Trip f g h where
+  f = liftExtended (~~ bottom) (const False) fromIntegral
+  g = extends $ P.fromInteger . min (fromIntegral @a top) . max (fromIntegral @a bottom)
+  h = liftExtended (const False) (~~ top) fromIntegral
 
-unsigned :: (Maximal a, Integral a, Integral b) => Conn a b
+unsigned :: (Bounded a, Integral a, Integral b) => Conn a b
 unsigned = Conn f g where
   f = fromIntegral . max 0
-  g = fromIntegral . min (f maximal)
+  g = fromIntegral . min (f top)
 
 unsigned' :: (Bounded a, Integral a, Integral b) => Trip a b
 unsigned' = Trip f g f where
-  f y = fromIntegral (y + maximal + 1)
-  g x = fromIntegral x - minimal
+  f y = fromIntegral (y + top + 1)
+  g x = fromIntegral x - bottom
