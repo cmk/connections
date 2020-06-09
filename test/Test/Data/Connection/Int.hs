@@ -2,7 +2,7 @@
 module Test.Data.Connection.Int where
 
 import Data.Connection.Int
-import Data.Connection.Trip
+import Data.Connection.Type
 import Data.Int
 import Data.Word
 import Hedgehog
@@ -26,8 +26,8 @@ prop_connections = withTests 1000 . property $ do
   wxx <- forAll $ G.integral (ri @Word)
   int <- forAll $ G.integral ri'
   nat <- forAll $ G.integral rn
-  mnt <- forAll $ gen_bot (G.integral ri')
-  inf <- forAll $ gen_bnd (G.integral ri')
+  mnt <- forAll $ gen_lifted (G.integral ri')
+  inf <- forAll $ gen_extended (G.integral ri')
 
   i08' <- forAll $ G.integral (ri @Int8)
   w08' <- forAll $ G.integral (ri @Word8)
@@ -41,34 +41,34 @@ prop_connections = withTests 1000 . property $ do
   wxx' <- forAll $ G.integral (ri @Word)
   int' <- forAll $ G.integral ri'
   nat' <- forAll $ G.integral rn
-  mnt' <- forAll $ gen_bot (G.integral ri')
-  inf' <- forAll $ gen_bnd (G.integral ri')
+  mnt' <- forAll $ gen_lifted (G.integral ri')
+  inf' <- forAll $ gen_extended (G.integral ri')
 
-  assert $ Prop.adjoined intnat  int nat
-  assert $ Prop.adjoined natint  nat mnt
-  assert $ Prop.adjoined ixxwxx  ixx wxx
-  assert $ Prop.adjoined i64w64  i64 w64
-  assert $ Prop.adjoined i32w32  i32 w32
-  assert $ Prop.adjoined i16w16  i16 w16
-  assert $ Prop.adjoined i08w08  i08 w08
-  assert $ Prop.adjoined (tripl ixxwxx') ixx wxx
-  assert $ Prop.adjoined (tripr ixxwxx') wxx ixx
-  assert $ Prop.adjoined (tripl i64w64') i64 w64
-  assert $ Prop.adjoined (tripr i64w64') w64 i64
-  assert $ Prop.adjoined (tripl i32w32') i32 w32
-  assert $ Prop.adjoined (tripr i32w32') w32 i32
-  assert $ Prop.adjoined (tripl i16w16') i16 w16
-  assert $ Prop.adjoined (tripr i16w16') w16 i16
-  assert $ Prop.adjoined (tripl i08w08') i08 w08
-  assert $ Prop.adjoined (tripr i08w08') w08 i08
-  assert $ Prop.adjoined (tripl i64int') i64 inf
-  assert $ Prop.adjoined (tripr i64int') inf i64
-  assert $ Prop.adjoined (tripl i32int') i32 inf
-  assert $ Prop.adjoined (tripr i32int') inf i32
-  assert $ Prop.adjoined (tripl i16int') i16 inf
-  assert $ Prop.adjoined (tripr i16int') inf i16
-  assert $ Prop.adjoined (tripl i08int') i08 inf
-  assert $ Prop.adjoined (tripr i08int') inf i08
+  assert $ Prop.adjoint intnat  int nat
+  assert $ Prop.adjoint natint  nat mnt
+  assert $ Prop.adjoint ixxwxx  ixx wxx
+  assert $ Prop.adjoint i64w64  i64 w64
+  assert $ Prop.adjoint i32w32  i32 w32
+  assert $ Prop.adjoint i16w16  i16 w16
+  assert $ Prop.adjoint i08w08  i08 w08
+  assert $ Prop.adjoint (tripl ixxwxx') ixx wxx
+  assert $ Prop.adjoint (tripr ixxwxx') wxx ixx
+  assert $ Prop.adjoint (tripl i64w64') i64 w64
+  assert $ Prop.adjoint (tripr i64w64') w64 i64
+  assert $ Prop.adjoint (tripl i32w32') i32 w32
+  assert $ Prop.adjoint (tripr i32w32') w32 i32
+  assert $ Prop.adjoint (tripl i16w16') i16 w16
+  assert $ Prop.adjoint (tripr i16w16') w16 i16
+  assert $ Prop.adjoint (tripl i08w08') i08 w08
+  assert $ Prop.adjoint (tripr i08w08') w08 i08
+  assert $ Prop.adjoint (tripl i64int') i64 inf
+  assert $ Prop.adjoint (tripr i64int') inf i64
+  assert $ Prop.adjoint (tripl i32int') i32 inf
+  assert $ Prop.adjoint (tripr i32int') inf i32
+  assert $ Prop.adjoint (tripl i16int') i16 inf
+  assert $ Prop.adjoint (tripr i16int') inf i16
+  assert $ Prop.adjoint (tripl i08int') i08 inf
+  assert $ Prop.adjoint (tripr i08int') inf i08
 
   assert $ Prop.closed intnat  int
   assert $ Prop.closed natint  nat
@@ -77,6 +77,7 @@ prop_connections = withTests 1000 . property $ do
   assert $ Prop.closed i32w32  i32
   assert $ Prop.closed i16w16  i16
   assert $ Prop.closed i08w08  i08
+
   assert $ Prop.closed (tripl ixxwxx') ixx
   assert $ Prop.closed (tripr ixxwxx') wxx
   assert $ Prop.closed (tripl i64w64') i64
@@ -112,69 +113,69 @@ prop_connections = withTests 1000 . property $ do
   assert $ Prop.kernel (tripl i08int') inf
   assert $ Prop.kernel (tripr i08int') i08
 
-  assert $ Prop.monotonel intnat  int int'
-  assert $ Prop.monotonel natint  nat nat'
-  assert $ Prop.monotonel ixxwxx  ixx ixx'
-  assert $ Prop.monotonel i64w64  i64 i64'
-  assert $ Prop.monotonel i32w32  i32 i32'
-  assert $ Prop.monotonel i16w16  i16 i16'
-  assert $ Prop.monotonel i08w08  i08 i08'
-  assert $ Prop.monotonel (tripl i64int') i64 i64'
-  assert $ Prop.monotonel (tripr i64int') inf inf'
-  assert $ Prop.monotonel (tripl i32int') i32 i32'
-  assert $ Prop.monotonel (tripr i32int') inf inf'
-  assert $ Prop.monotonel (tripl i16int') i16 i16'
-  assert $ Prop.monotonel (tripr i16int') inf inf'
-  assert $ Prop.monotonel (tripl i08int') i08 i08'
-  assert $ Prop.monotonel (tripr i08int') inf inf'
+  assert $ Prop.monotoneL intnat  int int'
+  assert $ Prop.monotoneL natint  nat nat'
+  assert $ Prop.monotoneL ixxwxx  ixx ixx'
+  assert $ Prop.monotoneL i64w64  i64 i64'
+  assert $ Prop.monotoneL i32w32  i32 i32'
+  assert $ Prop.monotoneL i16w16  i16 i16'
+  assert $ Prop.monotoneL i08w08  i08 i08'
+  assert $ Prop.monotoneL (tripl i64int') i64 i64'
+  assert $ Prop.monotoneL (tripr i64int') inf inf'
+  assert $ Prop.monotoneL (tripl i32int') i32 i32'
+  assert $ Prop.monotoneL (tripr i32int') inf inf'
+  assert $ Prop.monotoneL (tripl i16int') i16 i16'
+  assert $ Prop.monotoneL (tripr i16int') inf inf'
+  assert $ Prop.monotoneL (tripl i08int') i08 i08'
+  assert $ Prop.monotoneL (tripr i08int') inf inf'
 
-  assert $ Prop.monotoner intnat  nat nat'
-  assert $ Prop.monotoner natint  mnt mnt'
-  assert $ Prop.monotoner ixxwxx  wxx wxx'
-  assert $ Prop.monotoner i64w64  w64 w64'
-  assert $ Prop.monotoner i32w32  w32 w32'
-  assert $ Prop.monotoner i16w16  w16 w16'
-  assert $ Prop.monotoner i08w08  w08 w08'
-  assert $ Prop.monotoner (tripl i64int') inf inf'
-  assert $ Prop.monotoner (tripr i64int') i64 i64'
-  assert $ Prop.monotoner (tripl i32int') inf inf'
-  assert $ Prop.monotoner (tripr i32int') i32 i32'
-  assert $ Prop.monotoner (tripl i16int') inf inf'
-  assert $ Prop.monotoner (tripr i16int') i16 i16'
-  assert $ Prop.monotoner (tripl i08int') inf inf'
-  assert $ Prop.monotoner (tripr i08int') i08 i08'
+  assert $ Prop.monotoneR intnat  nat nat'
+  assert $ Prop.monotoneR natint  mnt mnt'
+  assert $ Prop.monotoneR ixxwxx  wxx wxx'
+  assert $ Prop.monotoneR i64w64  w64 w64'
+  assert $ Prop.monotoneR i32w32  w32 w32'
+  assert $ Prop.monotoneR i16w16  w16 w16'
+  assert $ Prop.monotoneR i08w08  w08 w08'
+  assert $ Prop.monotoneR (tripl i64int') inf inf'
+  assert $ Prop.monotoneR (tripr i64int') i64 i64'
+  assert $ Prop.monotoneR (tripl i32int') inf inf'
+  assert $ Prop.monotoneR (tripr i32int') i32 i32'
+  assert $ Prop.monotoneR (tripl i16int') inf inf'
+  assert $ Prop.monotoneR (tripr i16int') i16 i16'
+  assert $ Prop.monotoneR (tripl i08int') inf inf'
+  assert $ Prop.monotoneR (tripr i08int') i08 i08'
 
-  assert $ Prop.projectivel intnat  int
-  assert $ Prop.projectivel natint  nat
-  assert $ Prop.projectivel ixxwxx  ixx
-  assert $ Prop.projectivel i64w64  i64
-  assert $ Prop.projectivel i32w32  i32
-  assert $ Prop.projectivel i16w16  i16
-  assert $ Prop.projectivel i08w08  i08
-  assert $ Prop.projectivel (tripl i64int') i64
-  assert $ Prop.projectivel (tripr i64int') inf
-  assert $ Prop.projectivel (tripl i32int') i32
-  assert $ Prop.projectivel (tripr i32int') inf
-  assert $ Prop.projectivel (tripl i16int') i16
-  assert $ Prop.projectivel (tripr i16int') inf
-  assert $ Prop.projectivel (tripl i08int') i08
-  assert $ Prop.projectivel (tripr i08int') inf
+  assert $ Prop.projectiveL intnat  int
+  assert $ Prop.projectiveL natint  nat
+  assert $ Prop.projectiveL ixxwxx  ixx
+  assert $ Prop.projectiveL i64w64  i64
+  assert $ Prop.projectiveL i32w32  i32
+  assert $ Prop.projectiveL i16w16  i16
+  assert $ Prop.projectiveL i08w08  i08
+  assert $ Prop.projectiveL (tripl i64int') i64
+  assert $ Prop.projectiveL (tripr i64int') inf
+  assert $ Prop.projectiveL (tripl i32int') i32
+  assert $ Prop.projectiveL (tripr i32int') inf
+  assert $ Prop.projectiveL (tripl i16int') i16
+  assert $ Prop.projectiveL (tripr i16int') inf
+  assert $ Prop.projectiveL (tripl i08int') i08
+  assert $ Prop.projectiveL (tripr i08int') inf
 
-  assert $ Prop.projectiver intnat  nat
-  assert $ Prop.projectiver natint  mnt
-  assert $ Prop.projectiver ixxwxx  wxx
-  assert $ Prop.projectiver i64w64  w64
-  assert $ Prop.projectiver i32w32  w32
-  assert $ Prop.projectiver i16w16  w16
-  assert $ Prop.projectiver i08w08  w08
-  assert $ Prop.projectiver (tripl i64int') inf
-  assert $ Prop.projectiver (tripr i64int') i64
-  assert $ Prop.projectiver (tripl i32int') inf
-  assert $ Prop.projectiver (tripr i32int') i32
-  assert $ Prop.projectiver (tripl i16int') inf
-  assert $ Prop.projectiver (tripr i16int') i16
-  assert $ Prop.projectiver (tripl i08int') inf
-  assert $ Prop.projectiver (tripr i08int') i08
+  assert $ Prop.projectiveR intnat  nat
+  assert $ Prop.projectiveR natint  mnt
+  assert $ Prop.projectiveR ixxwxx  wxx
+  assert $ Prop.projectiveR i64w64  w64
+  assert $ Prop.projectiveR i32w32  w32
+  assert $ Prop.projectiveR i16w16  w16
+  assert $ Prop.projectiveR i08w08  w08
+  assert $ Prop.projectiveR (tripl i64int') inf
+  assert $ Prop.projectiveR (tripr i64int') i64
+  assert $ Prop.projectiveR (tripl i32int') inf
+  assert $ Prop.projectiveR (tripr i32int') i32
+  assert $ Prop.projectiveR (tripl i16int') inf
+  assert $ Prop.projectiveR (tripr i16int') i16
+  assert $ Prop.projectiveR (tripl i08int') inf
+  assert $ Prop.projectiveR (tripr i08int') i08
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

@@ -7,35 +7,42 @@ module Data.Connection.Ratio (
   , reduce
   , shiftd
   -- * Ratio Integer
+  , ordrat
   , ratord
   , ratf32
   , ratf64
+{-
   , rati08
   , rati16
   , rati32
   , rati64
+  , ratixx
   , ratint
+-}
   -- * Ratio Natural
+{-
+  , ordpos
+  , posord
   , ratw08
   , ratw16
   , ratw32
   , ratw64
+  , ratwxx
   , ratnat
+-}
 ) where
 
-import safe Data.Connection.Trip
+import safe Data.Connection.Type
 import safe Data.Connection.Float
 import safe Data.Int
-import safe Data.Prd
-import safe Data.Prd.Nan hiding (liftNan)
+import safe Data.Lattice hiding (reduce)
+import safe Data.Order
 import safe Data.Ratio
-import safe Data.Prd.Top
 import safe Data.Word
 import safe GHC.Real (Ratio(..), Rational)
 import safe Numeric.Natural
-import safe Prelude hiding (until, Ord(..), Bounded)
+import safe Prelude hiding (Ord(..), until, Bounded)
 import safe qualified Prelude as P
-import safe qualified Data.Prd as Prd
 
 -- | A total version of 'GHC.Real.reduce'.
 --
@@ -50,234 +57,197 @@ reduce (x :% y) = (x `quot` d) :% (y `quot` d) where d = gcd x y
 shiftd :: Num a => a -> Ratio a -> Ratio a
 shiftd n (x :% y) = (n + x) :% y
 
+{-
+ratord :: (BoundedEq a, Fractional a) => Trip a (Extended Ordering)
+ratord = Trip (liftExtended (~~ 0/0) (const False) f)
+              (extends g)
+              (liftExtended (const False) (~~ 0/0) h)
+  where
+    g GT = 1/0
+    g LT = -1/0 
+    g EQ = 0
+
+    f x | x ~~ (-1/0) = LT
+        | x <~ 0  = EQ
+  | otherwise = GT
+
+    h x | x ~~ (1/0) = GT
+        | x >~ 0  = EQ
+  | otherwise = LT
+-}
+
+
 ---------------------------------------------------------------------
 -- Ratio Integer
 ---------------------------------------------------------------------
 
-ratord :: Trip (Ratio Integer) (Nan Ordering)
-ratord = Trip f g h where
-    g (Def GT) = pinf 
-    g (Def LT) = ninf 
-    g (Def EQ) = 0
-    g Nan = anan 
-    
-    f x | x =~ anan  = Nan
-        | x =~ ninf  = Def LT
-        | x <= 0  = Def EQ
-        | otherwise  = Def GT
+ratord :: Conn (Ratio Integer) (Lowered Ordering)
+ratord = Conn (Left . f) (lowered g) where
+  g GT = top
+  g EQ = zero
+  g LT = bottom
+  
+  f x | x ~~ bottom = LT
+      | x <~ zero   = EQ
+      | otherwise   = GT
 
-    h x | x =~ anan  = Nan
-        | x =~ pinf  = Def GT
-        | x >= 0  = Def EQ
-        | otherwise  = Def LT
+ordrat :: Conn (Lifted Ordering) (Ratio Integer)
+ordrat = Conn (lifted g) (Right . h) where
+  g GT = top
+  g EQ = zero
+  g LT = bottom
 
-ratf32 :: Trip (Ratio Integer) Float
-ratf32 = Trip (extend' f) (extend g) (extend' h) where
-  f x = let est = P.fromRational x in --F.fromRat'
-          if extend g est >= x
-          then est
-          else ascendf est (extend g) x
-    
-  g = flip approxRational 0 
+  h x | x ~~ top  = GT
+      | x >~ zero = EQ
+      | otherwise = LT
 
-  h x = let est = P.fromRational x in
-          if extend g est <= x
-          then est
-          else descendf est (extend g) x
+rati08 :: Trip (Ratio Integer) (Extended Int8)
+rati08 = ratixx 127
 
-  ascendf z g1 y = until (\x -> g1 x >= y) (<=) (shiftf 1) z
+rati16 :: Trip (Ratio Integer) (Extended Int16)
+rati16 = ratixx 32767
 
-  descendf z f1 x = until (\y -> f1 y <= x) (>=) (shiftf (-1)) z
+rati32 :: Trip (Ratio Integer) (Extended Int32)
+rati32 = ratixx 2147483647
 
-ratf64 :: Trip (Ratio Integer) Double
-ratf64 = Trip (extend' f) (extend g) (extend' h) where
-  f x = let est = P.fromRational x in
-          if extend g est >= x
-          then est
-          else ascendf est (extend g) x
-    
-  g = flip approxRational 0 
-
-  h x = let est = P.fromRational x in
-          if extend g est <= x
-          then est
-          else descendf est (extend g) x
-
-  ascendf z g1 y = until (\x -> g1 x >= y) (<=) (shift 1) z
-
-  descendf z f1 x = until (\y -> f1 y <= x) (>=) (shift (-1)) z
-
-rati08 :: Trip (Ratio Integer) (Extended Int8) 
-rati08 = Trip (liftNan f) (nanr g) (liftNan h) where
-  f x | x > imax = Just Top
-      | x =~ ninf = Nothing
-      | x < imin = fin minimal
-      | otherwise = fin $ P.ceiling $ cancel x
-
-  g = bound ninf pinf P.fromIntegral
-
-  h x | x =~ pinf = Just Top
-      | x > imax = fin maximal
-      | x < imin = Nothing
-      | otherwise = fin $ P.floor $ cancel x
-
-  imax = 127
-
-  imin = -128
-
-rati16 :: Trip (Ratio Integer) (Extended Int16) 
-rati16 = Trip (liftNan f) (nanr g) (liftNan h) where
-  f x | x > imax = Just Top
-      | x =~ ninf = Nothing
-      | x < imin = fin minimal
-      | otherwise = fin $ P.ceiling $ cancel x
-
-  g = bound ninf pinf P.fromIntegral
-
-  h x | x =~ pinf = Just Top
-      | x > imax = fin maximal
-      | x < imin = Nothing
-      | otherwise = fin $ P.floor $ cancel x
-
-  imax = 32767
-
-  imin = -32768
-
-rati32 :: Trip (Ratio Integer) (Extended Int32) 
-rati32 = Trip (liftNan f) (nanr g) (liftNan h) where
-  f x | x > imax = Just Top
-      | x =~ ninf = Nothing
-      | x < imin = fin minimal
-      | otherwise = fin $ P.ceiling $ cancel x
-
-  g = bound ninf pinf P.fromIntegral
-
-  h x | x =~ pinf = Just Top
-      | x > imax = fin maximal
-      | x < imin = Nothing
-      | otherwise = fin $ P.floor $ cancel x
-
-  imax = 2147483647 
-
-  imin = -2147483648
-
-rati64 :: Trip (Ratio Integer) (Extended Int64) 
-rati64 = Trip (liftNan f) (nanr g) (liftNan h) where
-  f x | x > imax = Just Top
-      | x =~ ninf = Nothing
-      | x < imin = fin minimal
-      | otherwise = fin $ P.ceiling $ cancel x
-
-  g = bound ninf pinf P.fromIntegral
-
-  h x | x =~ pinf = Just Top
-      | x > imax = fin maximal
-      | x < imin = Nothing
-      | otherwise = fin $ P.floor $ cancel x
- 
-  imax = 9223372036854775807
-
-  imin = -9223372036854775808
+rati64 :: Trip (Ratio Integer) (Extended Int64)
+rati64 = ratixx 9223372036854775807
 
 ratint :: Trip (Ratio Integer) (Extended Integer)
-ratint = Trip (liftNan f) (nanr g) (liftNan h) where
-  f x | x =~ pinf = Just Top
-      | x =~ ninf = Nothing
-      | otherwise = fin $ P.ceiling $ cancel x
+ratint = Trip f g h where
+  f x | x ~~ pinf = Top
+      | x ~~ ninf = Bottom
+      | otherwise = Extended $ P.ceiling $ cancel x
 
-  g = bound ninf pinf P.fromIntegral
+  g = extends P.fromIntegral
 
-  h x | x =~ pinf = Just Top
-      | x =~ ninf = Nothing
-      | otherwise = fin $ P.floor $ cancel x
+  h x | x ~~ pinf = Top
+      | x ~~ ninf = Bottom
+      | otherwise = Extended $ P.floor $ cancel x
+
+ratixx :: (Bounded i, Integral i) => Ratio Integer -> Trip (Ratio Integer) (Extended i) 
+ratixx i = Trip f g h where
+  f x | x > imax = Top
+      | x ~~ ninf = Bottom
+      | x < imin = Extended bottom
+      | otherwise = Extended $ P.ceiling $ cancel x
+
+  g = extends P.fromIntegral
+
+  h x | x ~~ pinf = Top
+      | x > imax = Extended top
+      | x < imin = Bottom
+      | otherwise = Extended $ P.floor $ cancel x
+
+  imax = i 
+
+  imin = -1 - i
+
+ratf32 :: Trip (Ratio Integer) Float
+ratf32 = Trip (toFloating f) (fromFloating g) (toFloating h) where
+  f x = let est = P.fromRational x in --F.fromRat'
+          if fromFloating g est >~ x
+          then est
+          else ascendf est (fromFloating g) x
+    
+  g = flip approxRational 0 
+
+  h x = let est = P.fromRational x in
+          if fromFloating g est <~ x
+          then est
+          else descendf est (fromFloating g) x
+
+  ascendf z g1 y = until (\x -> g1 x >~ y) (<~) (shift32 1) z
+
+  descendf z f1 x = until (\y -> f1 y <~ x) (>~) (shift32 (-1)) z
+
+ratf64 :: Trip (Ratio Integer) Double
+ratf64 = Trip (toFloating f) (fromFloating g) (toFloating h) where
+  f x = let est = P.fromRational x in
+          if fromFloating g est >~ x
+          then est
+          else ascendf est (fromFloating g) x
+    
+  g = flip approxRational 0 
+
+  h x = let est = P.fromRational x in
+          if fromFloating g est <~ x
+          then est
+          else descendf est (fromFloating g) x
+
+  ascendf z g1 y = until (\x -> g1 x >~ y) (<~) (shift64 1) z
+
+  descendf z f1 x = until (\y -> f1 y <~ x) (>~) (shift64 (-1)) z
+
 
 ---------------------------------------------------------------------
 -- Ratio Natural
 ---------------------------------------------------------------------
 
-ratw08 :: Trip (Ratio Natural) (Lifted Word8) 
-ratw08 = Trip (liftNan f) (nanr g) (liftNan h) where
-  f x | x > imax = Top
-      | otherwise = Fin $ P.ceiling x
+ratw08 :: Trip (Ratio Natural) (Lowered Word8) 
+ratw08 = ratwxx 255
 
-  g = top pinf P.fromIntegral
+ratw16 :: Trip (Ratio Natural) (Lowered Word16) 
+ratw16 = ratwxx 65535
 
-  h x | x =~ pinf = Top
-      | x > imax = Fin maximal
-      | otherwise = Fin $ P.floor x
+ratw32 :: Trip (Ratio Natural) (Lowered Word32) 
+ratw32 = ratwxx 4294967295
 
-  imax = 255
+ratw64 :: Trip (Ratio Natural) (Lowered Word64) 
+ratw64 = ratwxx 18446744073709551615
 
-ratw16 :: Trip (Ratio Natural) (Lifted Word16) 
-ratw16 = Trip (liftNan f) (nanr g) (liftNan h) where
-  f x | x > imax = Top
-      | otherwise = Fin $ P.ceiling x
+ratwxx :: (Bounded i, Integral i) => Ratio Natural -> Trip (Ratio Natural) (Lowered i) 
+ratwxx i = Trip f g h where
+  f x | x ~~ anan = top
+      | x > i = top
+      | otherwise = Left $ P.ceiling x
 
-  g = top pinf P.fromIntegral
+  g = either P.fromIntegral (const pinf)
 
-  h x | x =~ pinf = Top
-      | x > imax = Fin maximal
-      | otherwise = Fin $ P.floor x
+  h x | x ~~ anan = Left bottom
+      | x ~~ pinf = top
+      | x > i = Left top
+      | otherwise = Left $ P.floor x
 
-  imax = 65535
+ratnat :: Trip (Ratio Natural) (Lowered Natural)
+ratnat = Trip f g h where
+  f x | x ~~ pinf = top
+      | otherwise = Left $ P.ceiling x
 
-ratw32 :: Trip (Ratio Natural) (Lifted Word32) 
-ratw32 = Trip (liftNan f) (nanr g) (liftNan h) where
-  f x | x > imax = Top
-      | otherwise = Fin $ P.ceiling x
+  g = either P.fromIntegral (const pinf) 
 
-  g = top pinf P.fromIntegral
-
-  h x | x =~ pinf = Top
-      | x > imax = Fin maximal
-      | otherwise = Fin $ P.floor x
-
-  imax = 4294967295
-
-ratw64 :: Trip (Ratio Natural) (Lifted Word64) 
-ratw64 = Trip (liftNan f) (nanr g) (liftNan h) where
-  f x | x > imax = Top
-      | otherwise = Fin $ P.ceiling x
-
-  g = top pinf P.fromIntegral
-
-  h x | x =~ pinf = Top
-      | x > imax = Fin maximal
-      | otherwise = Fin $ P.floor x
-
-  imax = 18446744073709551615
-
-ratnat :: Trip (Ratio Natural) (Lifted Natural)
-ratnat = Trip (liftNan f) (nanr g) (liftNan h) where
-  f x | x =~ pinf = Top
-      | otherwise = Fin $ P.ceiling x
-
-  g = top pinf P.fromIntegral
-
-  h x | x =~ pinf = Top
-      | otherwise = Fin $ P.floor x
+  h x | x ~~ pinf = top
+      | otherwise = Left $ P.floor x
 
 ---------------------------------------------------------------------
 -- Internal
 ---------------------------------------------------------------------
 
-cancel :: Prd a => Num a => Ratio a -> Ratio a
+pabs :: (Lattice a, Eq a, Num a) => a -> a
+pabs x = if 0 <~ x then x else negate x
+
+cancel :: (Lattice a, Eq a, Num a) => Ratio a -> Ratio a
 cancel (x :% y) = if x < 0 && y < 0 then (pabs x) :% (pabs y) else x :% y
 
-liftNan f x | x =~ anan = Nan
-            | otherwise = Def (f x)
+-- | An exception-safe version of 'nanf' for rationals.
+--
+nanr :: Integral b => (a -> Ratio b) -> Maybe a -> Ratio b
+nanr f = maybe (0 :% 0) f
 
-extend :: (Prd a, Fractional a, Num b) => (a -> Ratio b) -> a -> Ratio b
-extend f x  | x =~ 0/0 = anan
-            | x =~ (-1)/0 = ninf
-            | x =~ 1/0 = pinf
-            | otherwise = f x
+toFloating :: (Lattice (Ratio a), Eq a, Fractional b, Num a) => (Ratio a -> b) -> Ratio a -> b
+toFloating f x | x ~~ anan = 0/0
+         | x ~~ ninf = (-1)/0
+         | x ~~ pinf = 1/0
+         | otherwise = f x
 
-extend' :: (Prd (Ratio a), Num a, Fractional b) => (Ratio a -> b) -> Ratio a -> b
-extend' f x | x =~ anan = 0/0
-            | x =~ ninf = (-1)/0
-            | x =~ pinf = 1/0
-            | otherwise = f x
+fromFloating :: (Lattice a, Eq a, Fractional a, Num b) => (a -> Ratio b) -> a -> Ratio b
+fromFloating f x | x ~~ 0/0 = anan
+                 | x ~~ (-1)/0 = ninf
+                 | x ~~ 1/0 = pinf
+                 | otherwise = f x
+
+zero :: Num a => Ratio a
+zero = 0 :% 1
 
 pinf :: Num a => Ratio a
 pinf = 1 :% 0
@@ -288,5 +258,26 @@ ninf = (-1) :% 0
 anan :: Num a => Ratio a
 anan = 0 :% 0
 
---showr :: Integral a => Show a => Ratio a -> String
---showr r = show x ++ " % " ++ show y where (x :% y) = reduce r
+
+
+
+{-
+ratord :: (Eq a, Lattice a, Fractional a) => Trip a (Maybe Ordering)
+ratord = Trip f g h where
+  g (Just GT) = (1/0) 
+  g (Just LT) = (-1/0) 
+  g (Just EQ) = 0
+  g Nothing = 0/0 
+  
+  f x | x ~~ 0/0  = Nothing
+      | x ~~ (-1/0)  = Just LT
+      | x <~ 0  = Just EQ
+      | otherwise  = Just GT
+
+  h x | x ~~ 0/0  = Nothing
+      | x ~~ (1/0)  = Just GT
+      | x >~ 0  = Just EQ
+      | otherwise  = Just LT
+-}
+
+

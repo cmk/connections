@@ -1,6 +1,6 @@
 name:                connections
 version:             0.1.0
-synopsis:            Partial orders, Galois connections, and lattices.
+synopsis:            Preorders, Galois connections, and lattices.
 description:         A library for numerical conversions using Galois connections.
 homepage:            https://github.com/cmk/connections
 license:             BSD3
@@ -18,23 +18,31 @@ library
   default-language: Haskell2010
   ghc-options:      -Wall -optc-std=c99
   exposed-modules:
-      Data.Prd
-    , Data.Prd.Nan
-    , Data.Prd.Top
-    , Data.Prd.Property
-    , Data.Float
-    , Data.Connection
-    , Data.Connection.Conn
-    , Data.Connection.Trip
+
+      Data.Connection
+    , Data.Connection.Type
     , Data.Connection.Int
     , Data.Connection.Word
     , Data.Connection.Float
     , Data.Connection.Ratio
     , Data.Connection.Property
+    , Data.Connection.Quantale
+
+    , Data.Lattice
+    , Data.Lattice.Heyting
+    , Data.Semigroup.Join
+
+    , Data.Order
+    , Data.Order.Property
 
   build-depends:       
       base           >= 4.10  && < 5.0
     , containers     >= 0.4.0 && < 1.0
+    , semigroupoids  >= 5.0   && < 6.0
+    , universe-base  >= 1.1.1 && < 2.0
+    --, universe-instances-extended >= 1.1.1 && < 2.0
+    --, adjunctions    >= 4.4   && < 5.0
+    --, finite-typelits >= 0.1.4.2 && < 0.2
 
   default-extensions:
       ScopedTypeVariables
@@ -48,7 +56,7 @@ library
 test-suite test
   type: exitcode-stdio-1.0
   other-modules:
-      Test.Data.Prd
+      Test.Data.Order
     , Test.Data.Connection
     , Test.Data.Connection.Int
     , Test.Data.Connection.Word

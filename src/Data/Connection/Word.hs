@@ -36,15 +36,14 @@ module Data.Connection.Word (
   , wxxnat'
 ) where
 
-import safe Data.Connection.Conn
-import safe Data.Connection.Trip
+import safe Data.Connection.Type
 import safe Data.Int
+import safe Data.Order
 import safe Data.Word
-import safe Data.Prd
-import safe Data.Prd.Top
+import safe Data.Lattice
 import safe Foreign.C.Types
 import safe Numeric.Natural
-import safe Prelude hiding (Ord(..), Bounded(..))
+import safe Prelude hiding (Ord(..), Bounded)
 
 ordbin :: Conn Ordering Bool
 ordbin = Conn f g where
@@ -87,10 +86,10 @@ w08i08 = signed
 w08nat :: Conn Word8 Natural
 w08nat = unsigned
 
-w08nat' :: Trip Word8 (Top Natural)
-w08nat' = Trip (Fin . fromIntegral)
-              (topped $ fromIntegral . min 255)
-              (liftTop fromIntegral)
+w08nat' :: Trip Word8 (Lowered Natural)
+w08nat' = Trip (Left . fromIntegral)
+               (lowered $ fromIntegral . min 255)
+               (lowers fromIntegral)
 
 w08w16 :: Conn Word8 Word16
 w08w16 = unsigned
@@ -122,11 +121,10 @@ w16w64 = unsigned
 w16nat :: Conn Word16 Natural
 w16nat = unsigned
 
-w16nat' :: Trip Word16 (Top Natural)
-w16nat' = Trip (Fin . fromIntegral)
-               (topped $ fromIntegral . min 65535)
-               (liftTop fromIntegral)
-
+w16nat' :: Trip Word16 (Lowered Natural)
+w16nat' = Trip (Left . fromIntegral)
+               (lowered $ fromIntegral . min 65535)
+               (lowers fromIntegral)
 
 w32c32 :: Conn Word32 CUInt
 w32c32 = Conn CUInt $ \(CUInt x) -> x
@@ -140,10 +138,10 @@ w32w64 = unsigned
 w32nat :: Conn Word32 Natural
 w32nat = unsigned
 
-w32nat' :: Trip Word32 (Top Natural)
-w32nat' = Trip (Fin . fromIntegral)
-               (topped $ fromIntegral . min 4294967295)
-               (liftTop fromIntegral)
+w32nat' :: Trip Word32 (Lowered Natural)
+w32nat' = Trip (Left . fromIntegral)
+               (lowered $ fromIntegral . min 4294967295)
+               (lowers fromIntegral)
 
 w64c64 :: Conn Word64 CULong
 w64c64 = Conn CULong $ \(CULong x) -> x
@@ -154,30 +152,29 @@ w64i64 = signed
 w64nat :: Conn Word64 Natural
 w64nat = unsigned
 
-w64nat' :: Trip Word64 (Top Natural)
-w64nat' = Trip (Fin . fromIntegral)
-               (topped $ fromIntegral . min 18446744073709551615)
-               (liftTop fromIntegral)
+w64nat' :: Trip Word64 (Lowered Natural)
+w64nat' = Trip (Left . fromIntegral)
+               (lowered $ fromIntegral . min 18446744073709551615)
+               (lowers fromIntegral)
 
 -- | /Caution/: This assumes that 'Word' on your system is 64 bits.
 wxxnat :: Conn Word Natural
 wxxnat = Conn fromIntegral (fromIntegral . min 18446744073709551615)
 
 -- | /Caution/: This assumes that 'Word' on your system is 64 bits.
-wxxnat' :: Trip Word (Top Natural)
-wxxnat' = Trip (Fin . fromIntegral)
-               (topped $ fromIntegral . min 18446744073709551615)
-               (liftTop fromIntegral)
+wxxnat' :: Trip Word (Lowered Natural)
+wxxnat' = Trip (Left . fromIntegral)
+               (lowered $ fromIntegral . min 18446744073709551615)
+               (lowers fromIntegral)
 
 ---------------------------------------------------------------------
 -- Internal
 ---------------------------------------------------------------------
-
 signed :: (Bounded b, Integral a, Integral b) => Conn a b
-signed = Conn (\x -> fromIntegral x - minimal)
-              (\y -> fromIntegral (y + maximal + 1))
+signed = Conn (\x -> fromIntegral x - bottom)
+              (\y -> fromIntegral (y + top + 1))
 
-unsigned :: (Bounded a, Integral a, Integral b) => Conn a b
+unsigned :: (Bounded a, Preorder b, Integral a, Integral b) => Conn a b
 unsigned = Conn f g where
   f = fromIntegral
-  g = fromIntegral . min (f maximal)
+  g = fromIntegral . min (f top)
