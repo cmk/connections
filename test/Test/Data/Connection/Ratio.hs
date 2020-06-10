@@ -1,41 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# Language AllowAmbiguousTypes #-}
 module Test.Data.Connection.Ratio where
 
+import Data.Int
+import Data.Word
 import Data.Connection.Type
 import Data.Connection.Ratio
 import Hedgehog
 import Test.Data.Connection
 import qualified Data.Connection.Property as Prop
+import qualified Hedgehog.Gen as G
 
-prop_connection_ratord :: Property
-prop_connection_ratord = withTests 1000 . property $ do
-  x <- forAll rat
-  y <- forAll (gen_lowered ord)
-  x' <- forAll rat
-  y' <- forAll (gen_lowered ord)
-  
-  assert $ Prop.adjoint ratord x y
-  assert $ Prop.closed ratord x
-  assert $ Prop.kernel ratord y
-  assert $ Prop.monotoneL ratord x x'
-  assert $ Prop.monotoneR ratord y y'
-  assert $ Prop.projectiveL ratord x
-  assert $ Prop.projectiveR ratord y
-
-prop_connection_ordrat :: Property
-prop_connection_ordrat = withTests 1000 . property $ do
-  x <- forAll rat
-  y <- forAll (gen_lifted ord)
-  x' <- forAll rat
-  y' <- forAll (gen_lifted ord)
-  
-  assert $ Prop.adjoint ordrat y x
-  assert $ Prop.closed ordrat y
-  assert $ Prop.kernel ordrat x
-  assert $ Prop.monotoneL ordrat y y'
-  assert $ Prop.monotoneR ordrat x x'
-  assert $ Prop.projectiveL ordrat y
-  assert $ Prop.projectiveR ordrat x
 
 prop_connection_ratf32 :: Property
 prop_connection_ratf32 = withTests 1000 . property $ do
@@ -81,13 +56,12 @@ prop_connection_ratf64 = withTests 1000 . property $ do
   assert $ Prop.projectiveR (tripl ratf64) y
   assert $ Prop.projectiveR (tripr ratf64) x
 
-{-
 prop_connection_rati08 :: Property
 prop_connection_rati08 = withTests 1000 . property $ do
   x <- forAll rat
   x' <- forAll rat
-  y <- forAll $ gen_extended $ G.integral (ri @Int8)
-  y' <- forAll $ gen_extended $ G.integral (ri @Int8)
+  y <- forAll . gen_extended $ G.integral (ri @Int8)
+  y' <- forAll . gen_extended $ G.integral (ri @Int8)
 
   assert $ Prop.adjoint (tripl rati08) x y
   assert $ Prop.adjoint (tripr rati08) y x
@@ -108,8 +82,8 @@ prop_connection_rati16 :: Property
 prop_connection_rati16 = withTests 1000 . property $ do
   x <- forAll rat
   x' <- forAll rat
-  y <- forAll $ gen_extended $ G.integral (ri @Int16)
-  y' <- forAll $ gen_extended $ G.integral (ri @Int16)
+  y <- forAll . gen_extended $ G.integral (ri @Int16)
+  y' <- forAll . gen_extended $ G.integral (ri @Int16)
 
   assert $ Prop.adjoint (tripl rati16) x y
   assert $ Prop.adjoint (tripr rati16) y x
@@ -130,8 +104,8 @@ prop_connection_rati32 :: Property
 prop_connection_rati32 = withTests 1000 . property $ do
   x <- forAll rat
   x' <- forAll rat
-  y <- forAll $ gen_extended $ G.integral (ri @Int32)
-  y' <- forAll $ gen_extended $ G.integral (ri @Int32)
+  y <- forAll . gen_extended $ G.integral (ri @Int32)
+  y' <- forAll . gen_extended $ G.integral (ri @Int32)
 
   assert $ Prop.adjoint (tripl rati32) x y
   assert $ Prop.adjoint (tripr rati32) y x
@@ -152,8 +126,8 @@ prop_connection_rati64 :: Property
 prop_connection_rati64 = withTests 1000 . property $ do
   x <- forAll rat
   x' <- forAll rat
-  y <- forAll $ gen_extended $ G.integral (ri @Int64)
-  y' <- forAll $ gen_extended $ G.integral (ri @Int64)
+  y <- forAll . gen_extended $ G.integral (ri @Int64)
+  y' <- forAll . gen_extended $ G.integral (ri @Int64)
 
   assert $ Prop.adjoint (tripl rati64) x y
   assert $ Prop.adjoint (tripr rati64) y x
@@ -174,8 +148,8 @@ prop_connection_ratint :: Property
 prop_connection_ratint = withTests 1000 . property $ do
   x <- forAll rat
   x' <- forAll rat
-  y <- forAll $ gen_extended $ G.integral ri'
-  y' <- forAll $ gen_extended $ G.integral ri'
+  y <- forAll . gen_extended $ G.integral ri'
+  y' <- forAll . gen_extended $ G.integral ri'
 
   assert $ Prop.adjoint (tripl ratint) x y
   assert $ Prop.adjoint (tripr ratint) y x
@@ -196,8 +170,8 @@ prop_connection_ratw08 :: Property
 prop_connection_ratw08 = withTests 1000 . property $ do
   x <- forAll pos
   x' <- forAll pos
-  y <- forAll $ gen_lifted $ G.integral (ri @Word8)
-  y' <- forAll $ gen_lifted $ G.integral (ri @Word8)
+  y <- forAll . gen_lowered $ G.integral (ri @Word8)
+  y' <- forAll . gen_lowered $ G.integral (ri @Word8)
 
   assert $ Prop.adjoint (tripl ratw08) x y
   assert $ Prop.adjoint (tripr ratw08) y x
@@ -218,8 +192,8 @@ prop_connection_ratw16 :: Property
 prop_connection_ratw16 = withTests 1000 . property $ do
   x <- forAll pos
   x' <- forAll pos
-  y <- forAll $ gen_lifted $ G.integral (ri @Word16)
-  y' <- forAll $ gen_lifted $ G.integral (ri @Word16)
+  y <- forAll . gen_lowered $ G.integral (ri @Word16)
+  y' <- forAll . gen_lowered $ G.integral (ri @Word16)
 
   assert $ Prop.adjoint (tripl ratw16) x y
   assert $ Prop.adjoint (tripr ratw16) y x
@@ -240,8 +214,8 @@ prop_connection_ratw32 :: Property
 prop_connection_ratw32 = withTests 1000 . property $ do
   x <- forAll pos
   x' <- forAll pos
-  y <- forAll $ gen_lifted $ G.integral (ri @Word32)
-  y' <- forAll $ gen_lifted $ G.integral (ri @Word32)
+  y <- forAll . gen_lowered $ G.integral (ri @Word32)
+  y' <- forAll . gen_lowered $ G.integral (ri @Word32)
 
   assert $ Prop.adjoint (tripl ratw32) x y
   assert $ Prop.adjoint (tripr ratw32) y x
@@ -262,8 +236,8 @@ prop_connection_ratw64 :: Property
 prop_connection_ratw64 = withTests 1000 . property $ do
   x <- forAll pos
   x' <- forAll pos
-  y <- forAll $ gen_lifted $ G.integral (ri @Word64)
-  y' <- forAll $ gen_lifted $ G.integral (ri @Word64)
+  y <- forAll . gen_lowered $ G.integral (ri @Word64)
+  y' <- forAll . gen_lowered $ G.integral (ri @Word64)
 
   assert $ Prop.adjoint (tripl ratw64) x y
   assert $ Prop.adjoint (tripr ratw64) y x
@@ -284,8 +258,8 @@ prop_connection_ratnat :: Property
 prop_connection_ratnat = withTests 1000 . property $ do
   x <- forAll pos
   x' <- forAll pos
-  y <- forAll $ gen_lifted $ G.integral rn
-  y' <- forAll $ gen_lifted $ G.integral rn
+  y <- forAll . gen_lowered $ G.integral rn
+  y' <- forAll . gen_lowered $ G.integral rn
 
   assert $ Prop.adjoint (tripl ratnat) x y
   assert $ Prop.adjoint (tripr ratnat) y x
@@ -301,7 +275,6 @@ prop_connection_ratnat = withTests 1000 . property $ do
   assert $ Prop.projectiveL (tripr ratnat) y
   assert $ Prop.projectiveR (tripl ratnat) y
   assert $ Prop.projectiveR (tripr ratnat) x
--}
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

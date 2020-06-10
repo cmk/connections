@@ -9,6 +9,7 @@ import Test.Data.Connection
 import qualified Data.Order.Property as Prop
 import qualified Hedgehog.Gen as G
 
+
 prop_order_i08 :: Property
 prop_order_i08 = withTests 1000 . property $ do
   x <- forAll $ G.integral (ri @Int8) 
@@ -322,6 +323,26 @@ prop_order_f64 = withTests 1000 . property $ do
   assert $ Prop.transitive_le x y z
   assert $ Prop.transitive_eq x y z
   assert $ Prop.chain_22 x y z w
+
+prop_order_extended :: Property
+prop_order_extended = withTests 1000 . property $ do
+  x <- forAll . gen_extended $ G.integral (ri @Int8) 
+  y <- forAll . gen_extended $ G.integral (ri @Int8) 
+  z <- forAll . gen_extended $ G.integral (ri @Int8)
+  w <- forAll . gen_extended $ G.integral (ri @Int8) 
+  assert $ Prop.consistent x y
+  assert $ Prop.consistent z w
+  assert $ Prop.reflexive_eq x
+  assert $ Prop.reflexive_le x
+  assert $ Prop.irreflexive_lt x
+  assert $ Prop.symmetric_eq x y
+  assert $ Prop.asymmetric_lt x y
+  assert $ Prop.antisymmetric_le x y
+  assert $ Prop.transitive_lt x y z
+  assert $ Prop.transitive_le x y z
+  assert $ Prop.transitive_eq x y z
+  assert $ Prop.chain_22 x y z w
+  assert $ Prop.chain_31 x y z w
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

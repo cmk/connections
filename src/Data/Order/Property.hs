@@ -41,7 +41,7 @@ module Data.Order.Property (
 
 import Data.Order
 import Data.Lattice.Heyting
-import Prelude hiding (Ord(..), not)
+import Prelude hiding (Ord(..), Eq(..))
 
 -- | See <https://en.wikipedia.org/wiki/Binary_relation#Properties>.
 --

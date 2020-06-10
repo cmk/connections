@@ -1,6 +1,6 @@
 name:                connections
 version:             0.1.0
-synopsis:            Preorders, Galois connections, and lattices.
+synopsis:            Orders, Galois connections, and lattices.
 description:         A library for numerical conversions using Galois connections.
 homepage:            https://github.com/cmk/connections
 license:             BSD3
@@ -19,30 +19,34 @@ library
   ghc-options:      -Wall -optc-std=c99
   exposed-modules:
 
-      Data.Connection
-    , Data.Connection.Type
-    , Data.Connection.Int
-    , Data.Connection.Word
-    , Data.Connection.Float
-    , Data.Connection.Ratio
-    , Data.Connection.Property
-    , Data.Connection.Quantale
+      Data.Order
+    , Data.Order.Float
+    , Data.Order.Double
+    , Data.Order.Interval
+    , Data.Order.Extended
+    , Data.Order.Property
+    
+    , Data.Semigroup.Join
+    , Data.Semigroup.Quantale
 
     , Data.Lattice
     , Data.Lattice.Heyting
-    , Data.Semigroup.Join
 
-    , Data.Order
-    , Data.Order.Property
+    , Data.Connection
+    , Data.Connection.Type
+    , Data.Connection.Int
+    , Data.Connection.Word
+    , Data.Connection.Ratio
+    , Data.Connection.Float
+    , Data.Connection.Double
+    , Data.Connection.Property
 
   build-depends:       
       base           >= 4.10  && < 5.0
     , containers     >= 0.4.0 && < 1.0
     , semigroupoids  >= 5.0   && < 6.0
     , universe-base  >= 1.1.1 && < 2.0
-    --, universe-instances-extended >= 1.1.1 && < 2.0
-    --, adjunctions    >= 4.4   && < 5.0
-    --, finite-typelits >= 0.1.4.2 && < 0.2
+    , adjunctions    >= 4.4   && < 5.0
 
   default-extensions:
       ScopedTypeVariables
@@ -68,7 +72,8 @@ test-suite test
     , hedgehog
   default-extensions:
       ScopedTypeVariables,
-      TypeApplications
+      TypeApplications,
+      FlexibleContexts
   main-is: test.hs
   hs-source-dirs: test
   default-language: Haskell2010

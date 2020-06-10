@@ -6,6 +6,7 @@ import Data.Connection.Type
 import Data.Connection.Ratio
 import Data.Lattice
 import Data.Ord
+import Data.Order.Extended
 import GHC.Real hiding (Fractional(..), (^^), (^), div)
 import Hedgehog
 import Numeric.Natural
@@ -47,12 +48,6 @@ rat = G.frequency [(49, gen), (1, G.element [-1 :% 0, 1 :% 0, 0 :% 0])]
 pos :: Gen (Ratio Natural)
 pos = G.frequency [(49, gen), (1, G.element [1 :% 0, 0 :% 0])]
   where gen = G.realFrac_ (R.linearFracFrom 0 0 (2^127))
-
---gen_dwn :: Gen a -> Gen (Down a)
---gen_dwn gen = Down <$> gen
-
---gen_pn5 :: Gen a -> Gen (N5 a)
---gen_pn5 gen = N5 <$> gen
 
 gen_maybe :: Gen a -> Gen (Maybe a)
 gen_maybe gen = G.frequency [(9, Just <$> gen), (1, pure Nothing)]

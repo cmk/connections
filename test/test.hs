@@ -11,12 +11,12 @@ import qualified Test.Data.Connection.Ratio as CR
 
 tests :: IO [Bool]
 tests = sequence 
-  [ P.tests
-  , C.tests
-  , CI.tests
-  , CW.tests
-  , CF.tests
-  , CR.tests
+  [   P.tests
+    , C.tests
+    , CI.tests
+    , CW.tests
+    , CF.tests
+    , CR.tests
   ]
 
 main :: IO ()

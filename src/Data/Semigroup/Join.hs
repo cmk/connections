@@ -17,7 +17,6 @@ module Data.Semigroup.Join (
   , type Semilattice
   , type LatticeLaw
   , type BoundedLaw
-  , eq
   -- * Join semilattices
   , bottom
   , (\/)
@@ -43,6 +42,8 @@ module Data.Semigroup.Join (
   -- * DerivingVia
   , F1(..)
   , F2(..)
+  , N5Min(..)
+  , N5Max(..)
 ) where
 
 import safe Control.Applicative
@@ -64,7 +65,7 @@ import safe Data.Word
 import safe GHC.Generics (Generic)
 import safe GHC.Real (Ratio(..))
 import safe Numeric.Natural
-import safe Prelude hiding (Ord(..), Bounded, not)
+import safe Prelude hiding (Ord(..), Eq(..), Bounded, not)
 import safe qualified Data.IntMap as IntMap
 import safe qualified Data.IntSet as IntSet
 import safe qualified Data.Map as Map
@@ -78,13 +79,6 @@ type Semilattice = Semigroup
 type LatticeLaw a = ((Join-Semilattice) a, (Meet-Semilattice) a)
 
 type BoundedLaw a = ((Join-Monoid) a, (Meet-Monoid) a)
-
-infix 4 `eq`
-
--- | A version of /==/ that forces /NaN == NaN/.
---
-eq :: Eq a => a -> a -> Bool
-eq x y = if x /= x && y /= y then True else x == y
 
 -------------------------------------------------------------------------------
 -- Join semilattices
@@ -151,7 +145,7 @@ infix 4 `joinLe`
 -- @ 'joinLe' x y = x '<=' y @
 --
 joinLe :: Eq a => (Join-Semilattice) a => a -> a -> Bool
-joinLe x y = eq y $ x \/ y
+joinLe x y = y == x \/ y
 
 infix 4 `joinGe`
 -- | The partial ordering induced by the join-semilattice structure.
@@ -160,7 +154,7 @@ infix 4 `joinGe`
 -- @ 'joinGe' x y = x '>=' y @
 --
 joinGe :: Eq a => (Join-Semilattice) a => a -> a -> Bool
-joinGe x y = eq x $ x \/ y
+joinGe x y = x == x \/ y
 
 -- | Partial version of 'Data.Ord.compare'.
 --
@@ -247,7 +241,7 @@ infix 4 `meetLe`
 -- @ 'meetLe' x y = x '<~' y @
 --
 meetLe :: Eq a => (Meet-Semilattice) a => a -> a -> Bool
-meetLe x y = eq x $ x /\ y
+meetLe x y = x == x /\ y
 
 infix 4 `meetGe`
 -- | The partial ordering induced by the meet-semilattice structure.
@@ -256,7 +250,7 @@ infix 4 `meetGe`
 -- @ 'meetGe' x y = x '>~' y @
 --
 meetGe :: Eq a => (Meet-Semilattice) a => a -> a -> Bool
-meetGe x y = eq y $ x /\ y
+meetGe x y = y == x /\ y
 
 -- | Partial version of 'Data.Ord.compare'.
 --
@@ -293,24 +287,24 @@ instance (Applicative f, Applicative g, Monoid a) => Monoid (F2 f g a) where
   mempty = pure mempty
 
 
-newtype Pmin a = Pmin a deriving stock (Eq, Ord, Show, Functor)
+newtype N5Min a = N5Min a deriving stock (Eq, Ord, Show, Functor)
   deriving Applicative via Identity
 
-instance (Preorder a, Fractional a) => Semigroup (Pmin a) where
+instance (Preorder a, Fractional a) => Semigroup (N5Min a) where
   (<>) = liftA2 $ \x y -> maybe (-1 / 0) (bool y x . (<= EQ)) (pcompare x y)
 
-instance (Preorder a, Fractional a) => Monoid (Pmin a) where
-  mempty = Pmin $ 1/0
+instance (Preorder a, Fractional a) => Monoid (N5Min a) where
+  mempty = N5Min $ 1/0
 
 
-newtype Pmax a = Pmax a deriving stock (Eq, Ord, Show, Functor)
+newtype N5Max a = N5Max a deriving stock (Eq, Ord, Show, Functor)
   deriving Applicative via Identity
 
-instance (Preorder a, Fractional a) => Semigroup (Pmax a) where
+instance (Preorder a, Fractional a) => Semigroup (N5Max a) where
   (<>) = liftA2 $ \x y -> maybe (1 / 0) (bool y x . (>= EQ)) (pcompare x y)
 
-instance (Preorder a, Fractional a) => Monoid (Pmax a) where
-  mempty = Pmax $ -1/0
+instance (Preorder a, Fractional a) => Monoid (N5Max a) where
+  mempty = N5Max $ -1/0
 
 ---------------------------------------------------------------------
 -- Instances
@@ -415,30 +409,26 @@ deriving via (F1 Meet (Min Int)) instance Monoid (Meet Int)
 deriving via (F1 Join (Max Integer)) instance Semigroup (Join Integer)
 deriving via (F1 Meet (Min Integer)) instance Semigroup (Meet Integer)
 
-deriving via (F1 Join (Pmax Float)) instance Semigroup (Join Float)
-deriving via (F1 Join (Pmax Float)) instance Monoid (Join Float)
-deriving via (F1 Meet (Pmin Float)) instance Semigroup (Meet Float)
-deriving via (F1 Meet (Pmin Float)) instance Monoid (Meet Float)
+deriving via (F1 Join (N5Max Float)) instance Semigroup (Join Float)
+deriving via (F1 Join (N5Max Float)) instance Monoid (Join Float)
+deriving via (F1 Meet (N5Min Float)) instance Semigroup (Meet Float)
+deriving via (F1 Meet (N5Min Float)) instance Monoid (Meet Float)
 
-deriving via (F1 Join (Pmax Double)) instance Semigroup (Join Double)
-deriving via (F1 Join (Pmax Double)) instance Monoid (Join Double)
-deriving via (F1 Meet (Pmin Double)) instance Semigroup (Meet Double)
-deriving via (F1 Meet (Pmin Double)) instance Monoid (Meet Double)
+deriving via (F1 Join (N5Max Double)) instance Semigroup (Join Double)
+deriving via (F1 Join (N5Max Double)) instance Monoid (Join Double)
+deriving via (F1 Meet (N5Min Double)) instance Semigroup (Meet Double)
+deriving via (F1 Meet (N5Min Double)) instance Monoid (Meet Double)
 
-deriving via (F1 Join (Pmax (Ratio Integer))) instance Semigroup (Join (Ratio Integer))
+deriving via (F1 Join (N5Max (Ratio Integer))) instance Semigroup (Join (Ratio Integer))
 -- write by hand to guard against div-by-zero exceptions
 instance Monoid (Join (Ratio Integer)) where mempty = Join $ -1 :% 0
--- deriving via (F1 Join (Pmax (Ratio Integer))) instance Monoid (Join (Ratio Integer))
-deriving via (F1 Meet (Pmin (Ratio Integer))) instance Semigroup (Meet (Ratio Integer))
--- write by hand to guard against div-by-zero exceptions
+deriving via (F1 Meet (N5Min (Ratio Integer))) instance Semigroup (Meet (Ratio Integer))
 instance Monoid (Meet (Ratio Integer)) where mempty = Meet $ 1 :% 0
--- deriving via (F1 Meet (Pmin (Ratio Integer))) instance Monoid (Meet (Ratio Integer))
 
-deriving via (F1 Join (Pmax (Ratio Natural))) instance Semigroup (Join (Ratio Natural))
-deriving via (F1 Join (Pmax (Ratio Natural))) instance Monoid (Join (Ratio Natural))
-deriving via (F1 Meet (Pmin (Ratio Natural))) instance Semigroup (Meet (Ratio Natural))
+deriving via (F1 Join (N5Max (Ratio Natural))) instance Semigroup (Join (Ratio Natural))
+instance Monoid (Join (Ratio Natural)) where mempty = Join $ 0 :% 1
+deriving via (F1 Meet (N5Min (Ratio Natural))) instance Semigroup (Meet (Ratio Natural))
 instance Monoid (Meet (Ratio Natural)) where mempty = Meet $ 1 :% 0
---deriving via (F1 Meet (Pmin (Ratio Natural))) instance Monoid (Meet (Ratio Natural))
 
 deriving via (F2 Meet Down (Join a)) instance Semigroup (Join a) => Semigroup (Meet (Down a))
 deriving via (F2 Meet Down (Join a)) instance Monoid (Join a) => Monoid (Meet (Down a))
@@ -516,9 +506,6 @@ instance Order a => Semigroup (Meet (Set.Set a)) where
 
 instance (Order a, Finite a) => Monoid (Meet (Set.Set a)) where
   mempty = Meet $ Set.fromList universeF
-
---complement :: (Order a, Finite a) => Set.Set a -> Set.Set a
---complement xs = Set.fromList [ x | x <- universeF, Set.notMember x xs]
 
 instance (Order k, Semigroup (Join a)) => Semigroup (Join (Map.Map k a)) where
   (<>) = liftA2 (Map.unionWith (\/))

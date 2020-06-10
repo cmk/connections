@@ -8,7 +8,7 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 
 -- | < https://ncatlab.org/nlab/show/quantale >
-module Data.Connection.Quantale (
+module Data.Semigroup.Quantale (
     type UnitalQuantale
   , Quantale(..)
   , (<==), (==>)
@@ -16,6 +16,7 @@ module Data.Connection.Quantale (
 
 import safe Control.Applicative
 import safe Data.Connection.Type
+import safe Data.Functor.Contravariant
 import safe Data.Monoid
 import safe Data.Order
 import safe Data.Int
@@ -228,6 +229,10 @@ instance (Preorder a, UnitalQuantale (Meet a)) => Quantale (Meet (Either a a)) w
       impliesEither (Left l)  (Left l')  = case l ==> l' of
         ll' | ll' ~~ top -> Right top
             | otherwise  -> Left ll'
+
+instance Quantale (Meet (Predicate a)) where
+  (\\) = liftA2 $ \(Predicate f) (Predicate g) -> Predicate $ \a -> f a <= g a
+  (//) = flip (\\)
 
 instance Order a => Quantale (Meet (Set.Set a)) where
   (\\) = liftA2 (Set.\\)

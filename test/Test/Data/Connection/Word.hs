@@ -49,14 +49,6 @@ prop_connections = withTests 1000 . property $ do
   assert $ Prop.adjoint w08w32 w08 w32
   assert $ Prop.adjoint w08w16 w08 w16
   assert $ Prop.adjoint w08i08 w08 i08
-  assert $ Prop.adjoint (tripl w08nat') w08 inf
-  assert $ Prop.adjoint (tripr w08nat') inf w08
-  assert $ Prop.adjoint (tripl w16nat') w16 inf
-  assert $ Prop.adjoint (tripr w16nat') inf w16
-  assert $ Prop.adjoint (tripl w32nat') w32 inf
-  assert $ Prop.adjoint (tripr w32nat') inf w32
-  assert $ Prop.adjoint (tripl w64nat') w64 inf
-  assert $ Prop.adjoint (tripr w64nat') inf w64
 
   assert $ Prop.closed w64nat w64
   assert $ Prop.closed w64i64 w64
@@ -72,14 +64,6 @@ prop_connections = withTests 1000 . property $ do
   assert $ Prop.closed w08w32 w08
   assert $ Prop.closed w08w16 w08
   assert $ Prop.closed w08i08 w08
-  assert $ Prop.closed (tripl w08nat') w08
-  assert $ Prop.closed (tripr w08nat') inf
-  assert $ Prop.closed (tripl w16nat') w16
-  assert $ Prop.closed (tripr w16nat') inf
-  assert $ Prop.closed (tripl w32nat') w32
-  assert $ Prop.closed (tripr w32nat') inf
-  assert $ Prop.closed (tripl w64nat') w64
-  assert $ Prop.closed (tripr w64nat') inf
 
   assert $ Prop.kernel w64nat nat
   assert $ Prop.kernel w64i64 i64
@@ -95,14 +79,6 @@ prop_connections = withTests 1000 . property $ do
   assert $ Prop.kernel w08w32 w32
   assert $ Prop.kernel w08w16 w16
   assert $ Prop.kernel w08i08 i08
-  assert $ Prop.kernel (tripl w08nat') inf
-  assert $ Prop.kernel (tripr w08nat') w08
-  assert $ Prop.kernel (tripl w16nat') inf
-  assert $ Prop.kernel (tripr w16nat') w16
-  assert $ Prop.kernel (tripl w32nat') inf
-  assert $ Prop.kernel (tripr w32nat') w32
-  assert $ Prop.kernel (tripl w64nat') inf
-  assert $ Prop.kernel (tripr w64nat') w64
 
   assert $ Prop.monotoneL w64nat w64 w64'
   assert $ Prop.monotoneL w64i64 w64 w64'
@@ -118,14 +94,6 @@ prop_connections = withTests 1000 . property $ do
   assert $ Prop.monotoneL w08w32 w08 w08'
   assert $ Prop.monotoneL w08w16 w08 w08'
   assert $ Prop.monotoneL w08i08 w08 w08'
-  assert $ Prop.monotoneL (tripl w08nat') w08 w08'
-  assert $ Prop.monotoneL (tripr w08nat') inf inf'
-  assert $ Prop.monotoneL (tripl w16nat') w16 w16'
-  assert $ Prop.monotoneL (tripr w16nat') inf inf'
-  assert $ Prop.monotoneL (tripl w32nat') w32 w32'
-  assert $ Prop.monotoneL (tripr w32nat') inf inf'
-  assert $ Prop.monotoneL (tripl w64nat') w64 w64'
-  assert $ Prop.monotoneL (tripr w64nat') inf inf'
 
   assert $ Prop.monotoneR w64nat nat nat'
   assert $ Prop.monotoneR w64i64 i64 i64'
@@ -141,14 +109,6 @@ prop_connections = withTests 1000 . property $ do
   assert $ Prop.monotoneR w08w32 w32 w32'
   assert $ Prop.monotoneR w08w16 w16 w16'
   assert $ Prop.monotoneR w08i08 i08 i08'
-  assert $ Prop.monotoneR (tripl w08nat') inf inf'
-  assert $ Prop.monotoneR (tripr w08nat') w08 w08'
-  assert $ Prop.monotoneR (tripl w16nat') inf inf'
-  assert $ Prop.monotoneR (tripr w16nat') w16 w16'
-  assert $ Prop.monotoneR (tripl w32nat') inf inf'
-  assert $ Prop.monotoneR (tripr w32nat') w32 w32'
-  assert $ Prop.monotoneR (tripl w64nat') inf inf'
-  assert $ Prop.monotoneR (tripr w64nat') w64 w64'
 
   assert $ Prop.projectiveL w64nat w64
   assert $ Prop.projectiveL w64i64 w64
@@ -164,14 +124,6 @@ prop_connections = withTests 1000 . property $ do
   assert $ Prop.projectiveL w08w32 w08
   assert $ Prop.projectiveL w08w16 w08
   assert $ Prop.projectiveL w08i08 w08
-  assert $ Prop.projectiveL (tripl w08nat') w08
-  assert $ Prop.projectiveL (tripr w08nat') inf
-  assert $ Prop.projectiveL (tripl w16nat') w16
-  assert $ Prop.projectiveL (tripr w16nat') inf
-  assert $ Prop.projectiveL (tripl w32nat') w32
-  assert $ Prop.projectiveL (tripr w32nat') inf
-  assert $ Prop.projectiveL (tripl w64nat') w64
-  assert $ Prop.projectiveL (tripr w64nat') inf
 
   assert $ Prop.projectiveR w64nat nat
   assert $ Prop.projectiveR w64i64 i64
@@ -187,14 +139,6 @@ prop_connections = withTests 1000 . property $ do
   assert $ Prop.projectiveR w08w32 w32
   assert $ Prop.projectiveR w08w16 w16
   assert $ Prop.projectiveR w08i08 i08
-  assert $ Prop.projectiveR (tripl w08nat') inf
-  assert $ Prop.projectiveR (tripr w08nat') w08
-  assert $ Prop.projectiveR (tripl w16nat') inf
-  assert $ Prop.projectiveR (tripr w16nat') w16
-  assert $ Prop.projectiveR (tripl w32nat') inf
-  assert $ Prop.projectiveR (tripr w32nat') w32
-  assert $ Prop.projectiveR (tripl w64nat') inf
-  assert $ Prop.projectiveR (tripr w64nat') w64
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

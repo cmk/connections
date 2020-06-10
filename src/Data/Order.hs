@@ -14,19 +14,15 @@
 module Data.Order (
   -- * Preorders
     Preorder(..)
-  , pcompareEq
-  , pcompareOrd
-  , pcompareRat
   -- * Orders
-  , type Order
-  , (<=), (>=)
-  , min, max
-  , compare
+  , Order
+  , Total(..) 
   -- * Re-exports
+  , Positive
+  , Eq.Eq(..)
+  , Ord.Ord((<=),(>=),min,max,compare)
   , Ordering(..)
   , Down(..)
-  , Ord.Ord
-  , Eq(..)
 ) where
 
 import safe Control.Applicative
@@ -35,11 +31,13 @@ import safe Data.Either
 import safe Data.Functor.Apply
 import safe Data.Functor.Identity
 import safe Data.Functor.Contravariant
+import safe Data.Functor.Rep 
 import safe Data.Int
 import safe Data.List.NonEmpty
 import safe Data.Maybe
-import safe Data.Ord (Down(..))
+import safe Data.Ord hiding ((<), (>))
 import safe Data.Semigroup
+import safe Data.Semigroup.Foldable
 import safe Data.Universe.Class (Finite(..))
 import safe Data.Word
 import safe GHC.Real
@@ -50,6 +48,8 @@ import safe qualified Data.IntSet as IntSet
 import safe qualified Data.Map as Map
 import safe qualified Data.Set as Set
 import safe qualified Data.Ord as Ord
+import safe qualified Data.Eq as Eq
+
 
 -------------------------------------------------------------------------------
 -- Preorders
@@ -220,21 +220,7 @@ class Preorder a where
       | y <~ x    = Just GT
       | otherwise = Nothing
 
--- | Version of 'pcompare' that uses a semiorder relation and '=='.
---
--- See <https://en.wikipedia.org/wiki/Semiorder>.
---
-pcompareEq :: Eq a => (a -> a -> Bool) -> a -> a -> Maybe Ordering
-pcompareEq lt x y
-  | lt x y = Just LT
-  | x == y = Just EQ
-  | lt y x = Just GT
-  | otherwise = Nothing
-
--- | Version of 'pcompare' that uses 'compare'.
---
-pcompareOrd :: Ord.Ord a => a -> a -> Maybe Ordering
-pcompareOrd x y = Just $ x `Ord.compare` y
+type Positive = Ratio Natural
 
 -------------------------------------------------------------------------------
 -- Total orders
@@ -248,28 +234,41 @@ pcompareOrd x y = Just $ x `Ord.compare` y
 -- 
 type Order a = (Ord.Ord a, Preorder a)
 
-infix 4 <=, >=, `min`, `max`
+{-
+infix 4 ==, /=, <=, >=, `min`, `max`
+
+-- | A version of /==/ that forces /NaN == NaN/.
+--
+(==) :: Eq.Eq a => a -> a -> Bool
+(==) x y = if x Eq./= x && y Eq./= y then True else x Eq.== y
+
+(/=) :: Eq.Eq a => a -> a -> Bool
+(/=) x y = not (x == y)
 
 (<=) :: Order a => a -> a -> Bool
-(<=) = (Ord.<=)
+(<=) x y = x < y || x == y
 
 (>=) :: Order a => a -> a -> Bool
-(>=) = (Ord.>=)
+(>=) x y = x > y || x == y
 
 min :: Order a => a -> a -> a
-min = Ord.min
+min x y = if x <= y then x else y
 
 max :: Order a => a -> a -> a
-max = Ord.max
+max x y = if x >= y then x else y
 
 compare :: Order a => a -> a -> Ordering
-compare = Ord.compare
+compare x y
+  | x Ord.< y = LT
+  | x == y = EQ
+  | otherwise = GT
+-}
 
 ---------------------------------------------------------------------
 -- DerivingVia
 ---------------------------------------------------------------------
 
-newtype Total a = Total { getTotal :: a } deriving stock (Eq, Ord.Ord, Show, Functor)
+newtype Total a = Total { getTotal :: a } deriving stock (Eq.Eq, Ord.Ord, Show, Functor)
   deriving Applicative via Identity
 
 instance Order a => Preorder (Total a) where
@@ -300,10 +299,10 @@ deriving via (Total Integer) instance Preorder Integer
 
 -- N5 lattice ordering: NInf <= NaN <= PInf
 n5 :: (Order a, Fractional a) => a -> a -> Bool
-n5 x y | x /= x && y /= y = True
-       | x /= x = y == 1/0
-       | y /= y = x == -1/0
-       | otherwise = x <= y
+n5 x y | x Eq./= x && y Eq./= y = True
+       | x Eq./= x = y == 1/0
+       | y Eq./= y = x == -1/0
+       | otherwise = x Ord.<= y
 
 instance Preorder Float where
   (<~) = n5
@@ -326,7 +325,7 @@ Just EQ
 λ> pcompareRat anan (3 :% 5)
 Nothing
 -}
-pcompareRat :: Ratio Integer -> Ratio Integer -> Maybe Ordering
+pcompareRat :: Rational -> Rational -> Maybe Ordering
 pcompareRat (0:%0) (x:%0) = Just $ Ord.compare 0 x
 pcompareRat (x:%0) (0:%0) = Just $ Ord.compare x 0
 pcompareRat (x:%0) (y:%0) = Just $ Ord.compare (signum x) (signum y)
@@ -337,7 +336,7 @@ pcompareRat (x:%0) _ = Just $ Ord.compare x 0
 pcompareRat x y = Just $ Ord.compare x y
 
 -- N5 lattice comparison
-pcomparePos :: Ratio Natural -> Ratio Natural -> Maybe Ordering
+pcomparePos :: Positive -> Positive -> Maybe Ordering
 pcomparePos (0:%0) (x:%0) = Just $ Ord.compare 0 x
 pcomparePos (x:%0) (0:%0) = Just $ Ord.compare x 0
 pcomparePos (_:%0) (_:%0) = Just EQ -- all non-nan infs are equal
@@ -347,10 +346,10 @@ pcomparePos (0:%0) _ = Nothing
 pcomparePos _ (0:%0) = Nothing
 pcomparePos (x:%y) (x':%y') = Just $ Ord.compare (x*y') (x'*y)
 
-instance Preorder (Ratio Integer) where
+instance Preorder Rational where
   pcompare = pcompareRat
 
-instance Preorder (Ratio Natural) where
+instance Preorder Positive where
   pcompare = pcomparePos
 
 instance Preorder a => Preorder (Down a) where
@@ -373,7 +372,6 @@ instance Preorder Any where
 instance Preorder All where
   All x <~ All y = y <~ x
 
--- Canonical semigroup ordering
 instance Preorder a => Preorder (Maybe a) where
   Nothing <~ _ = True
   Just{} <~ Nothing = False
@@ -397,7 +395,6 @@ instance Preorder a => Preorder [a] where
 instance Preorder a => Preorder (NonEmpty a) where
   (x :| xs) <~ (y :| ys) = x <~ y && xs <~ ys
 
--- Canonical semigroup ordering
 instance (Preorder a, Preorder b) => Preorder (Either a b) where
   Right a <~ Right b  = a <~ b
   Right _ <~ _        = False
@@ -405,7 +402,6 @@ instance (Preorder a, Preorder b) => Preorder (Either a b) where
   Left a <~ Left b   = a <~ b
   Left _ <~ _        = True
  
--- Canonical semigroup ordering
 instance (Preorder a, Preorder b) => Preorder (a, b) where 
   (a,b) <~ (i,j) = a <~ i && b <~ j
 
@@ -417,6 +413,9 @@ instance (Preorder a, Preorder b, Preorder c, Preorder d) => Preorder (a, b, c, 
 
 instance (Preorder a, Preorder b, Preorder c, Preorder d, Preorder e) => Preorder (a, b, c, d, e) where 
   (a,b,c,d,e) <~ (i,j,k,l,m) = a <~ i && b <~ j && c <~ k && d <~ l && e <~ m
+
+instance (Foldable1 f, Representable f, Preorder a) => Preorder (Co f a) where
+  Co f <~ Co g = and $ liftR2 (<~) f g
 
 instance Order a => Preorder (Set.Set a) where
   (<~) = Set.isSubsetOf

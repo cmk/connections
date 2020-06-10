@@ -16,9 +16,6 @@ module Data.Connection.Type (
   , conn1r
   , conn2l
   , conn2r
-  , strong
-  , choice
-  , mapped
   -- * Trip
   , Trip(..)
   , tripl
@@ -27,33 +24,31 @@ module Data.Connection.Type (
   , unitr
   , counitl
   , counitr
-  , floorOn
-  , ceilingOn
+  -- ** Connections
+  , dual
+  , strong
   , strong'
+  , choice
   , choice'
+  , mapped
   , mapped'
+  , stackl
+  , stackr
   -- * Iterators
   , until
   , while
   , fixed
-  -- * Lattice Extensions
-  , type Lifted
-  , type Lowered
-  , lifts
-  , lifted
-  , lowers
-  , lowered
-  , extends
-  , liftMaybe
-  , liftEitherL
-  , liftEitherR
-  , liftExtended
 ) where
 
 import safe Control.Category (Category)
 import safe Data.Bifunctor (bimap)
+import safe Data.Functor.Identity
+import safe Data.Functor.Rep
+import safe Data.Order
+import safe Data.Order.Extended
+import safe Data.Order.Interval
+import safe Data.Semigroup.Foldable
 import safe Data.Lattice
-import safe Data.Semigroup.Join (eq)
 import safe Prelude hiding (Ord(..), Bounded, until)
 import safe qualified Control.Category as C
 
@@ -81,14 +76,14 @@ instance Category Conn where
 
 -- | Round trip through a connection.
 --
--- > x <= unit x
+-- > x <~ unit x
 --
 unit :: Conn a b -> a -> a
 unit c = conn1r c id
 
 -- | Reverse round trip through a connection.
 --
--- > counit x <= x
+-- > counit x <~ x
 --
 counit :: Conn a b -> b -> b
 counit c = conn1l c id
@@ -123,33 +118,8 @@ conn2l (Conn f g) h b1 b2 = f $ h (g b1) (g b2)
 conn2r :: Conn a b -> (b -> b -> b) -> a -> a -> a
 conn2r (Conn f g) h a1 a2 = g $ h (f a1) (f a2)
 
--- |
---
--- > (strong id) (ab >>> cd) = (strong id) ab >>> (strong id) cd
--- > (flip strong id) (ab >>> cd) = (flip strong id) ab >>> (flip strong id) cd
---
-strong :: Conn a b -> Conn c d -> Conn (a, c) (b, d)
-strong (Conn ab ba) (Conn cd dc) = Conn (bimap ab cd) (bimap ba dc)
-
--- |
---
--- > (choice id) (ab >>> cd) = (choice id) ab >>> (choice id) cd
--- > (flip choice id) (ab >>> cd) = (flip choice id) ab >>> (flip choice id) cd
---
-choice :: Conn a b -> Conn c d -> Conn (Either a c) (Either b d)
-choice (Conn ab ba) (Conn cd dc) = Conn f g where
-  f = either (Left . ab) (Right . cd)
-  g = either (Left . ba) (Right . dc)
-
-mapped :: Functor f => Conn a b -> Conn (f a) (f b)
-mapped (Conn f g) = Conn (fmap f) (fmap g)
-
---infixr 3 &&&
---(&&&) :: (Join-Semigroup) c => (Meet-Semigroup) c => Conn c a -> Conn c b -> Conn c (a, b)
---f &&& g = tripr forked >>> f `strong` g
-
 ---------------------------------------------------------------------
--- Triple connections
+-- Trip
 ---------------------------------------------------------------------
 
 -- | An adjoint triple of Galois connections.
@@ -172,9 +142,19 @@ tripl (Trip f g _) = Conn f g
 tripr :: Trip a b -> Conn b a
 tripr (Trip _ g h) = Conn g h
 
+-- |
+--
+-- >>> compare P.pi $ unitl f64f32 P.pi
+-- LT
+--
 unitl :: Trip a b -> a -> a
 unitl = unit . tripl
 
+-- |
+--
+-- >>> compare P.pi $ counitr f64f32 P.pi
+-- GT
+--
 unitr :: Trip a b -> b -> b
 unitr = unit . tripr
 
@@ -184,13 +164,20 @@ counitl = counit . tripl
 counitr :: Trip a b -> a -> a
 counitr = counit . tripr
 
--- @ floorOn C.id == id @
-floorOn :: Trip a b -> a -> b
-floorOn = connr . tripr
+---------------------------------------------------------------------
+-- Connections
+---------------------------------------------------------------------
 
--- @ ceilingOn C.id == id @
-ceilingOn :: Trip a b -> a -> b
-ceilingOn = connl . tripl
+dual :: Conn a b -> Conn (Down b) (Down a)
+dual (Conn f g) = Conn (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
+
+-- |
+--
+-- > (strong id) (ab >>> cd) = (strong id) ab >>> (strong id) cd
+-- > (flip strong id) (ab >>> cd) = (flip strong id) ab >>> (flip strong id) cd
+--
+strong :: Conn a b -> Conn c d -> Conn (a, c) (b, d)
+strong (Conn ab ba) (Conn cd dc) = Conn (bimap ab cd) (bimap ba dc)
 
 strong' :: Trip a b -> Trip c d -> Trip (a, c) (b, d)
 strong' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
@@ -198,15 +185,43 @@ strong' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
   g = bimap ba dc
   h = bimap ab' cd'
 
+-- |
+--
+-- > (choice id) (ab >>> cd) = (choice id) ab >>> (choice id) cd
+-- > (flip choice id) (ab >>> cd) = (flip choice id) ab >>> (flip choice id) cd
+--
+choice :: Conn a b -> Conn c d -> Conn (Either a c) (Either b d)
+choice (Conn ab ba) (Conn cd dc) = Conn f g where
+  f = either (Left . ab) (Right . cd)
+  g = either (Left . ba) (Right . dc)
+
 choice' :: Trip a b -> Trip c d -> Trip (Either a c) (Either b d)
 choice' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
   f = either (Left . ab) (Right . cd)
   g = either (Left . ba) (Right . dc)
   h = either (Left . ab') (Right . cd')
 
+mapped :: Functor f => Conn a b -> Conn (f a) (f b)
+mapped (Conn f g) = Conn (fmap f) (fmap g)
+
 mapped' :: Functor f => Trip a b -> Trip (f a) (f b)
 mapped' (Trip f g h) = Trip (fmap f) (fmap g) (fmap h)
 
+stackr :: Bounded a => Trip (Maybe b) (Either a b)
+stackr = Trip f g h where
+  f = maybe (Left bottom) Right
+  g = either (const Nothing) Just
+  h = maybe (Left top) Right
+
+stackl :: Bounded b => Trip (Maybe a) (Either a b)
+stackl = Trip f g h where
+  f = maybe (Right bottom) Left
+  g = either Just (const Nothing)
+  h = maybe (Right top) Left
+
+--infixr 3 &&&
+--(&&&) :: Lattice c => Conn c a -> Conn c b -> Conn c (a, b)
+--f &&& g = tripr forked >>> f `strong` g
 -------------------------------------------------------------------------------
 -- Iterators
 -------------------------------------------------------------------------------
@@ -236,43 +251,3 @@ while pre rel f seed = go seed
 {-# INLINE fixed #-}
 fixed :: (a -> a -> Bool) -> (a -> a) -> a -> a
 fixed = while (\_ -> True)
-
--------------------------------------------------------------------------------
--- Lattice extensions
--------------------------------------------------------------------------------
-
-lifts :: (Join-Monoid) a => Eq a => (a -> b) -> a -> Lifted b
-lifts = liftEitherL (eq bottom)
-
-lifted :: (Join-Monoid) b => (a -> b) -> Lifted a -> b
-lifted f = either (const bottom) f
-
-lowers :: (Meet-Monoid) a => Eq a => (a -> b) -> a -> Lowered b
-lowers = liftEitherR (eq top) 
-
-lowered :: (Meet-Monoid) b => (a -> b) -> Lowered a -> b
-lowered f = either f (const top)
-
-extends :: Bounded b => (a -> b) -> Extended a -> b
-extends f = extended bottom top f
-
-liftMaybe :: (a -> Bool) -> (a -> b) -> a -> Maybe b
-liftMaybe p f = g where
-  g i | p i = Nothing
-      | otherwise = Just $ f i
-
-liftEitherL :: (a -> Bool) -> (a -> b) -> a -> Lifted b
-liftEitherL p f = g where
-  g i | p i = Left ()
-      | otherwise = Right $ f i
-
-liftEitherR :: (a -> Bool) -> (a -> b) -> a -> Lowered b
-liftEitherR p f = g where
-  g i | p i = Right ()
-      | otherwise = Left $ f i
-
-liftExtended :: (a -> Bool) -> (a -> Bool) -> (a -> b) -> a -> Extended b
-liftExtended p q f = g where
-  g i | p i = Bottom
-      | q i = Top
-      | otherwise = Extended $ f i

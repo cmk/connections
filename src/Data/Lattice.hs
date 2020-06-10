@@ -23,17 +23,14 @@ module Data.Lattice (
   , join, meet
   , joinWith, meetWith
   -- ** Bounded lattices
+  , type LowerBounded
+  , type UpperBounded
   , Bounded(..)
   , bottom, top
   , join1, meet1
   , joinWith1, meetWith1
   -- ** Distributive lattices
   , Distributive(..)
-  -- * Lattice extensions
-  , type Lifted
-  , type Lowered
-  , Extended(..)
-  , extended
   -- * Semilattices
   , Join(..), Meet(..)
 ) where
@@ -43,6 +40,7 @@ import safe Data.Bool hiding (not)
 import safe Data.Either
 import safe Data.Foldable
 import safe Data.Functor.Apply
+import safe Data.Functor.Contravariant
 import safe Data.Order
 import safe Data.Int
 import safe Data.Maybe
@@ -115,6 +113,10 @@ class (Preorder a, LatticeLaw a) => Lattice a where
 -- Bounded lattices
 -------------------------------------------------------------------------------
 
+type LowerBounded a = (Lattice a, (Join-Monoid) a)
+
+type UpperBounded a = (Lattice a, (Meet-Monoid) a)
+
 -- | Bounded lattices.
 --
 -- A bounded lattice is a lattice with two neutral elements wrt join and meet
@@ -156,9 +158,8 @@ class (Lattice a, BoundedLaw a) => Bounded a where
 -- @
 --
 -- Distributivity implies < https://en.wikipedia.org/wiki/Modular_lattice modularity >:
---
 -- 
--- > x <= y implies x ∨ (z ∧ y) = (x ∨ z) ∧ y for every z
+-- > x <~ y implies x \/ (z /\ y) = (x \/ z) /\ y for every z
 --
 -- See < https://en.wikipedia.org/wiki/Distributive_lattice >.
 --
@@ -169,6 +170,7 @@ class Lattice a => Distributive a where
     -- If the lattice is distributive then 'glb' has the following properties.
     --
     -- @ 
+    -- 'glb' 'bottom' x 'top' = x
     -- 'glb' x y y = y
     -- 'glb' x y z = 'glb' z x y
     -- 'glb' x y z = 'glb' x z y
@@ -198,77 +200,6 @@ class Lattice a => Distributive a where
     --
     lub :: a -> a -> a -> a
     lub x y z = (x /\ y) \/ (y /\ z) \/ (z /\ x)
-
-
----------------------------------------------------------------------
--- Extensions
----------------------------------------------------------------------
-
-type Lifted a = Either () a
-
-type Lowered a = Either a ()
-
--- | Graft a distinct top and bottom onto an otherwise unbounded lattice.
---
--- The top is the absorbing element for the join, and the bottom is the absorbing
--- element for the meet.
---
-data Extended a = Bottom | Extended a | Top
-  deriving ( Eq, Ord, Show, Generic, Functor, Generic1 )
-
--- | Eliminate an 'Extended'.
-extended :: b -> b -> (a -> b) -> Extended a -> b
-extended b _ _ Bottom       = b
-extended _ t _ Top          = t
-extended _ _ f (Extended x) = f x
-
-instance Preorder a => Preorder (Extended a) where
-  Bottom <~ _ = True
-  Top <~ Bottom = False
-  Extended{} <~ Bottom = False
-
-  Top <~ Extended{} = False
-  Extended x <~ Extended y = x <~ y
-
-  _ <~ Top = True
-
-instance Semigroup (Join a) => Semigroup (Join (Extended a)) where
-  (<>) = liftA2 joinExtended
-
-instance Semigroup (Meet a) => Semigroup (Meet (Extended a)) where
-  (<>) = liftA2 meetExtended
-
-instance Semigroup (Join a) => Monoid (Join (Extended a)) where
-  mempty = pure Bottom
-
-instance Semigroup (Meet a) => Monoid (Meet (Extended a)) where
-  mempty = pure Top
-
-instance Lattice a => Lattice (Extended a)
-instance Lattice a => Bounded (Extended a)
-instance Distributive a => Distributive (Extended a)
-
-{-
-instance Universe a => Universe (Extended a) where
-    universe = Top : Bottom : map Extended universe
-instance Finite a => Finite (Extended a) where
-    universeF = Top : Bottom : map Extended universeF
-    cardinality = fmap (2 +) (retag (cardinality :: Tagged a Natural))
--}
-
-joinExtended :: (Join-Semigroup) a => Extended a -> Extended a -> Extended a
-joinExtended Top          _            = Top
-joinExtended _            Top          = Top
-joinExtended (Extended x) (Extended y) = Extended (x \/ y)
-joinExtended Bottom       y            = y
-joinExtended x            Bottom       = x
-
-meetExtended :: (Meet-Semigroup) a => Extended a -> Extended a -> Extended a
-meetExtended Top          y            = y
-meetExtended x            Top          = x
-meetExtended (Extended x) (Extended y) = Extended (x /\ y)
-meetExtended Bottom       _            = Bottom
-meetExtended _            Bottom       = Bottom
 
 ---------------------------------------------------------------------
 -- Instances
@@ -356,16 +287,13 @@ instance (Finite r, Lattice a) => Lattice (r -> a)
 instance (Finite r, Bounded a) => Bounded (r -> a)
 instance (Finite r, Distributive a) => Distributive (r -> a)
 
-{-
--- TODO: check semimodules paper this may not be the instance you want
 instance (Finite b, Lattice a) => Lattice (Op a b)
-instance Bounded a => Bounded (Op a b)
-instance Distributive a => Distributive (Op a b)
+instance (Finite b, Bounded a) => Bounded (Op a b)
+instance (Finite b, Distributive a) => Distributive (Op a b)
 
-instance Lattice a => Lattice (Predicate a)
-instance Bounded a => Bounded (Predicate a)
-instance Distributive a => Distributive (Predicate a)
--}
+instance Finite a => Lattice (Predicate a)
+instance Finite a => Bounded (Predicate a)
+instance Finite a => Distributive (Predicate a)
 
 instance Lattice a => Lattice (Maybe a)
 instance (Lattice a, Monoid (Meet a)) => Bounded (Maybe a)

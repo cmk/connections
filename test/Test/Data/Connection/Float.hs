@@ -3,42 +3,16 @@ module Test.Data.Connection.Float where
 
 import Data.Connection.Type
 import Data.Connection.Float
+import Data.Connection.Double
+import Data.Int
 import Hedgehog
 import Prelude hiding (Ord(..),Bounded, until)
 import Test.Data.Connection
 import qualified Data.Connection.Property as Prop
+import qualified Hedgehog.Gen as G
 
-prop_connection_f32ord :: Property
-prop_connection_f32ord = withTests 1000 . property $ do
-  x <- forAll f32
-  y <- forAll (gen_lowered ord)
-  x' <- forAll f32
-  y' <- forAll (gen_lowered ord)
-  
-  assert $ Prop.adjoint f32ord x y
-  assert $ Prop.closed f32ord x
-  assert $ Prop.kernel f32ord y
-  assert $ Prop.monotoneL f32ord x x'
-  assert $ Prop.monotoneR f32ord y y'
-  assert $ Prop.projectiveL f32ord x
-  assert $ Prop.projectiveR f32ord y
 
-prop_connection_ordf32 :: Property
-prop_connection_ordf32 = withTests 1000 . property $ do
-  x <- forAll f32
-  y <- forAll (gen_lifted ord)
-  x' <- forAll f32
-  y' <- forAll (gen_lifted ord)
-  
-  assert $ Prop.adjoint ordf32 y x
-  assert $ Prop.closed ordf32 y
-  assert $ Prop.kernel ordf32 x
-  assert $ Prop.monotoneL ordf32 y y'
-  assert $ Prop.monotoneR ordf32 x x'
-  assert $ Prop.projectiveL ordf32 y
-  assert $ Prop.projectiveR ordf32 x
 
-{-
 prop_connection_f32i08 :: Property
 prop_connection_f32i08 = withTests 1000 . property $ do
   x <- forAll f32
@@ -83,59 +57,6 @@ prop_connection_f32i16 = withTests 1000 . property $ do
   assert $ Prop.projectiveR (tripl f32i16) y
   assert $ Prop.projectiveR (tripr f32i16) x
 
-prop_connections_f32 :: Property
-prop_connections_f32 = withTests 1000 . property $ do
-  x <- forAll f32
-  y <- forAll (gen_maybe $ G.integral ri)
-  x' <- forAll f32
-  y' <- forAll (gen_maybe $ G.integral ri)
- 
-  assert $ Prop.adjoint f32i32 x y
-  assert $ Prop.adjoint i32f32 y x
-  assert $ Prop.closed f32i32 x
-  assert $ Prop.closed i32f32 y
-  assert $ Prop.kernel i32f32 x
-  assert $ Prop.kernel f32i32 y
-  assert $ Prop.monotoneL f32i32 x x'
-  assert $ Prop.monotoneL i32f32 y y'
-  assert $ Prop.monotoneR f32i32 y y'
-  assert $ Prop.monotoneR i32f32 x x'
-  assert $ Prop.projectiveL f32i32 x
-  assert $ Prop.projectiveL i32f32 y
-  assert $ Prop.projectiveR i32f32 x
-  assert $ Prop.projectiveR f32i32 y
--}
-
-prop_connection_f64ord :: Property
-prop_connection_f64ord = withTests 1000 . property $ do
-  x <- forAll f64
-  y <- forAll (gen_lowered ord)
-  x' <- forAll f64
-  y' <- forAll (gen_lowered ord)
-  
-  assert $ Prop.adjoint f64ord x y
-  assert $ Prop.closed f64ord x
-  assert $ Prop.kernel f64ord y
-  assert $ Prop.monotoneL f64ord x x'
-  assert $ Prop.monotoneR f64ord y y'
-  assert $ Prop.projectiveL f64ord x
-  assert $ Prop.projectiveR f64ord y
-
-prop_connection_ordf64 :: Property
-prop_connection_ordf64 = withTests 1000 . property $ do
-  x <- forAll f64
-  y <- forAll (gen_lifted ord)
-  x' <- forAll f64
-  y' <- forAll (gen_lifted ord)
-  
-  assert $ Prop.adjoint ordf64 y x
-  assert $ Prop.closed ordf64 y
-  assert $ Prop.kernel ordf64 x
-  assert $ Prop.monotoneL ordf64 y y'
-  assert $ Prop.monotoneR ordf64 x x'
-  assert $ Prop.projectiveL ordf64 y
-  assert $ Prop.projectiveR ordf64 x
-
 prop_connection_f64f32 :: Property
 prop_connection_f64f32 = withTests 1000 . property $ do
   x <- forAll f64
@@ -158,8 +79,6 @@ prop_connection_f64f32 = withTests 1000 . property $ do
   assert $ Prop.projectiveR (tripl f64f32) y
   assert $ Prop.projectiveR (tripr f64f32) x
 
-
-{-
 prop_connection_f64i08 :: Property
 prop_connection_f64i08 = withTests 1000 . property $ do
   x <- forAll f64
@@ -226,6 +145,30 @@ prop_connection_f64i32 = withTests 1000 . property $ do
   assert $ Prop.projectiveR (tripl f64i32) y
   assert $ Prop.projectiveR (tripr f64i32) x
 
+{-
+
+prop_connections_f32 :: Property
+prop_connections_f32 = withTests 1000 . property $ do
+  x <- forAll f32
+  y <- forAll (gen_maybe $ G.integral ri)
+  x' <- forAll f32
+  y' <- forAll (gen_maybe $ G.integral ri)
+ 
+  assert $ Prop.adjoint f32i32 x y
+  assert $ Prop.adjoint i32f32 y x
+  assert $ Prop.closed f32i32 x
+  assert $ Prop.closed i32f32 y
+  assert $ Prop.kernel i32f32 x
+  assert $ Prop.kernel f32i32 y
+  assert $ Prop.monotoneL f32i32 x x'
+  assert $ Prop.monotoneL i32f32 y y'
+  assert $ Prop.monotoneR f32i32 y y'
+  assert $ Prop.monotoneR i32f32 x x'
+  assert $ Prop.projectiveL f32i32 x
+  assert $ Prop.projectiveL i32f32 y
+  assert $ Prop.projectiveR i32f32 x
+  assert $ Prop.projectiveR f32i32 y
+
 prop_connections_f64 :: Property
 prop_connections_f64 = withTests 1000 . property $ do
   x <- forAll f64
@@ -247,12 +190,6 @@ prop_connections_f64 = withTests 1000 . property $ do
   assert $ Prop.projectiveL i64f64 y
   assert $ Prop.projectiveR i64f64 x
   assert $ Prop.projectiveR f64i64 y
--}
-
-
-
-
-{-
 
 prop_prd_u32 :: Property
 prop_prd_u32 = withTests 1000 . property $ do
@@ -310,8 +247,8 @@ prop_connections_f32w08 :: Property
 prop_connections_f32w08 = withTests 10000 . property $ do
   x <- forAll f32
   x' <- forAll f32
-  y <- forAll $ gen_extended $ G.integral (ri @Word8)
-  y' <- forAll $ gen_extended $ G.integral (ri @Word8)
+  y <- forAll $ gen_n5 $ G.integral (ri @Word8)
+  y' <- forAll $ gen_n5 $ G.integral (ri @Word8)
 
   assert $ Prop.adjoint (tripl f32w08) x y
   assert $ Prop.adjoint (tripr f32w08) y x
@@ -330,10 +267,10 @@ prop_connections_f32w64 = withTests 1000 . property $ do
   y <- forAll f32
   x' <- forAll f32
   y' <- forAll f32
-  z <- forAll (gen_extended $ G.integral @_ @Word64 ri)
-  w <- forAll (gen_extended $ G.integral @_ @Word64 ri)
-  z' <- forAll (gen_extended $ G.integral @_ @Word64 ri)
-  w' <- forAll (gen_extended $ G.integral @_ @Word64 ri)
+  z <- forAll (gen_n5 $ G.integral @_ @Word64 ri)
+  w <- forAll (gen_n5 $ G.integral @_ @Word64 ri)
+  z' <- forAll (gen_n5 $ G.integral @_ @Word64 ri)
+  w' <- forAll (gen_n5 $ G.integral @_ @Word64 ri)
   exy <- forAll $ G.element [Left x, Right y]
   exy' <- forAll $ G.element [Left x', Right y']
   ezw <- forAll $ G.element [Left z, Right w]
