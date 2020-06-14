@@ -9,8 +9,8 @@ module Data.Order.Interval (
   , singleton
   , contains
   , endpts
-  , upper
-  , lower
+  , above
+  , below
 ) where
 
 import safe Control.Applicative (liftA2)
@@ -84,13 +84,13 @@ contains (I x y) p = x <~ p && p <~ y
 --
 -- This function is monotone:
 --
--- > x <~ y <=> upper x <~ upper y
+-- > x <~ y <=> above x <~ above y
 --
 -- by the Yoneda lemma for preorders.
 --
-upper :: UpperBounded a => a -> Interval a
-upper x = x ... top
-{-# INLINE upper #-}
+above :: UpperBounded a => a -> Interval a
+above x = x ... top
+{-# INLINE above #-}
 
 -- | \( X_\leq(x) = \{ y \in X | y \leq x \} \)
 --
@@ -98,19 +98,12 @@ upper x = x ... top
 --
 -- This function is antitone:
 --
--- > x <~ y <=> lower x >~ lower y
+-- > x <~ y <=> below x >~ below y
 --
-lower :: LowerBounded a => a -> Interval a
-lower x = bottom ... x
-{-# INLINE lower #-}
+below :: LowerBounded a => a -> Interval a
+below x = bottom ... x
+{-# INLINE below #-}
 
-{-
-indexed :: Index a => Conn (Interval a) (Maybe (Down a, a))
-
-https://en.wikipedia.org/wiki/Locally_finite_poset
-https://en.wikipedia.org/wiki/Incidence_algebra
-
--}
 ---------------------------------------------------------------------
 -- Instances
 ---------------------------------------------------------------------

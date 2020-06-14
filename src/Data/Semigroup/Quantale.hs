@@ -148,8 +148,7 @@ instance Integral a => Quantale (Sum a) where
 --lifted (Conn f g) = Conn (fmap f) (fmap g)
 
 instance (Order a, Bounded a) => Quantale (Min a) where
-  x \\ y | x P.> y = y
-   | otherwise = mempty
+  x \\ y = if x P.> y then y else mempty
 
   (//) = flip (\\)
 

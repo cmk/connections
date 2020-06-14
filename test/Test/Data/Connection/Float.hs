@@ -20,20 +20,20 @@ prop_connection_f32i08 = withTests 1000 . property $ do
   y <- forAll $ gen_extended $ G.integral (ri @Int8)
   y' <- forAll $ gen_extended $ G.integral (ri @Int8)
 
-  assert $ Prop.adjoint (tripl f32i08) x y
-  assert $ Prop.adjoint (tripr f32i08) y x
-  assert $ Prop.closed (tripl f32i08) x
-  assert $ Prop.closed (tripr f32i08) y
-  assert $ Prop.kernel (tripl f32i08) y
-  assert $ Prop.kernel (tripr f32i08) x 
-  assert $ Prop.monotoneL (tripl f32i08) x x'
-  assert $ Prop.monotoneL (tripr f32i08) y y'
-  assert $ Prop.monotoneR (tripl f32i08) y y'
-  assert $ Prop.monotoneR (tripr f32i08) x x'
-  assert $ Prop.projectiveL (tripl f32i08) x
-  assert $ Prop.projectiveL (tripr f32i08) y
-  assert $ Prop.projectiveR (tripl f32i08) y
-  assert $ Prop.projectiveR (tripr f32i08) x
+  assert $ Prop.adjoint (tripr f32i08) x y
+  assert $ Prop.adjoint (tripl f32i08) y x
+  assert $ Prop.closed (tripr f32i08) x
+  assert $ Prop.closed (tripl f32i08) y
+  assert $ Prop.kernel (tripr f32i08) y
+  assert $ Prop.kernel (tripl f32i08) x 
+  assert $ Prop.monotoneL (tripr f32i08) x x'
+  assert $ Prop.monotoneL (tripl f32i08) y y'
+  assert $ Prop.monotoneR (tripr f32i08) y y'
+  assert $ Prop.monotoneR (tripl f32i08) x x'
+  assert $ Prop.projectiveL (tripr f32i08) x
+  assert $ Prop.projectiveL (tripl f32i08) y
+  assert $ Prop.projectiveR (tripr f32i08) y
+  assert $ Prop.projectiveR (tripl f32i08) x
 
 prop_connection_f32i16 :: Property
 prop_connection_f32i16 = withTests 1000 . property $ do
@@ -42,20 +42,20 @@ prop_connection_f32i16 = withTests 1000 . property $ do
   y <- forAll $ gen_extended $ G.integral (ri @Int16)
   y' <- forAll $ gen_extended $ G.integral (ri @Int16)
 
-  assert $ Prop.adjoint (tripl f32i16) x y
-  assert $ Prop.adjoint (tripr f32i16) y x
-  assert $ Prop.closed (tripl f32i16) x
-  assert $ Prop.closed (tripr f32i16) y
-  assert $ Prop.kernel (tripl f32i16) y
-  assert $ Prop.kernel (tripr f32i16) x 
-  assert $ Prop.monotoneL (tripl f32i16) x x'
-  assert $ Prop.monotoneL (tripr f32i16) y y'
-  assert $ Prop.monotoneR (tripl f32i16) y y'
-  assert $ Prop.monotoneR (tripr f32i16) x x'
-  assert $ Prop.projectiveL (tripl f32i16) x
-  assert $ Prop.projectiveL (tripr f32i16) y
-  assert $ Prop.projectiveR (tripl f32i16) y
-  assert $ Prop.projectiveR (tripr f32i16) x
+  assert $ Prop.adjoint (tripr f32i16) x y
+  assert $ Prop.adjoint (tripl f32i16) y x
+  assert $ Prop.closed (tripr f32i16) x
+  assert $ Prop.closed (tripl f32i16) y
+  assert $ Prop.kernel (tripr f32i16) y
+  assert $ Prop.kernel (tripl f32i16) x 
+  assert $ Prop.monotoneL (tripr f32i16) x x'
+  assert $ Prop.monotoneL (tripl f32i16) y y'
+  assert $ Prop.monotoneR (tripr f32i16) y y'
+  assert $ Prop.monotoneR (tripl f32i16) x x'
+  assert $ Prop.projectiveL (tripr f32i16) x
+  assert $ Prop.projectiveL (tripl f32i16) y
+  assert $ Prop.projectiveR (tripr f32i16) y
+  assert $ Prop.projectiveR (tripl f32i16) x
 
 prop_connection_f64f32 :: Property
 prop_connection_f64f32 = withTests 1000 . property $ do
@@ -64,20 +64,20 @@ prop_connection_f64f32 = withTests 1000 . property $ do
   y <- forAll f32
   y' <- forAll f32
 
-  assert $ Prop.adjoint (tripl f64f32) x y
-  assert $ Prop.adjoint (tripr f64f32) y x
-  assert $ Prop.closed (tripl f64f32) x
-  assert $ Prop.closed (tripr f64f32) y
-  assert $ Prop.kernel (tripl f64f32) y
-  assert $ Prop.kernel (tripr f64f32) x
-  assert $ Prop.monotoneL (tripl f64f32) x x'
-  assert $ Prop.monotoneL (tripr f64f32) y y'
-  assert $ Prop.monotoneR (tripl f64f32) y y'
-  assert $ Prop.monotoneR (tripr f64f32) x x'
-  assert $ Prop.projectiveL (tripl f64f32) x
-  assert $ Prop.projectiveL (tripr f64f32) y
-  assert $ Prop.projectiveR (tripl f64f32) y
-  assert $ Prop.projectiveR (tripr f64f32) x
+  assert $ Prop.adjoint (tripr f64f32) x y
+  assert $ Prop.adjoint (tripl f64f32) y x
+  assert $ Prop.closed (tripr f64f32) x
+  assert $ Prop.closed (tripl f64f32) y
+  assert $ Prop.kernel (tripr f64f32) y
+  assert $ Prop.kernel (tripl f64f32) x
+  assert $ Prop.monotoneL (tripr f64f32) x x'
+  assert $ Prop.monotoneL (tripl f64f32) y y'
+  assert $ Prop.monotoneR (tripr f64f32) y y'
+  assert $ Prop.monotoneR (tripl f64f32) x x'
+  assert $ Prop.projectiveL (tripr f64f32) x
+  assert $ Prop.projectiveL (tripl f64f32) y
+  assert $ Prop.projectiveR (tripr f64f32) y
+  assert $ Prop.projectiveR (tripl f64f32) x
 
 prop_connection_f64i08 :: Property
 prop_connection_f64i08 = withTests 1000 . property $ do
@@ -86,20 +86,20 @@ prop_connection_f64i08 = withTests 1000 . property $ do
   y <- forAll $ gen_extended $ G.integral (ri @Int8)
   y' <- forAll $ gen_extended $ G.integral (ri @Int8)
 
-  assert $ Prop.adjoint (tripl f64i08) x y
-  assert $ Prop.adjoint (tripr f64i08) y x
-  assert $ Prop.closed (tripl f64i08) x
-  assert $ Prop.closed (tripr f64i08) y
-  assert $ Prop.kernel (tripl f64i08) y
-  assert $ Prop.kernel (tripr f64i08) x 
-  assert $ Prop.monotoneL (tripl f64i08) x x'
-  assert $ Prop.monotoneL (tripr f64i08) y y'
-  assert $ Prop.monotoneR (tripl f64i08) y y'
-  assert $ Prop.monotoneR (tripr f64i08) x x'
-  assert $ Prop.projectiveL (tripl f64i08) x
-  assert $ Prop.projectiveL (tripr f64i08) y
-  assert $ Prop.projectiveR (tripl f64i08) y
-  assert $ Prop.projectiveR (tripr f64i08) x
+  assert $ Prop.adjoint (tripr f64i08) x y
+  assert $ Prop.adjoint (tripl f64i08) y x
+  assert $ Prop.closed (tripr f64i08) x
+  assert $ Prop.closed (tripl f64i08) y
+  assert $ Prop.kernel (tripr f64i08) y
+  assert $ Prop.kernel (tripl f64i08) x 
+  assert $ Prop.monotoneL (tripr f64i08) x x'
+  assert $ Prop.monotoneL (tripl f64i08) y y'
+  assert $ Prop.monotoneR (tripr f64i08) y y'
+  assert $ Prop.monotoneR (tripl f64i08) x x'
+  assert $ Prop.projectiveL (tripr f64i08) x
+  assert $ Prop.projectiveL (tripl f64i08) y
+  assert $ Prop.projectiveR (tripr f64i08) y
+  assert $ Prop.projectiveR (tripl f64i08) x
 
 prop_connection_f64i16 :: Property
 prop_connection_f64i16 = withTests 1000 . property $ do
@@ -108,20 +108,20 @@ prop_connection_f64i16 = withTests 1000 . property $ do
   y <- forAll $ gen_extended $ G.integral (ri @Int16)
   y' <- forAll $ gen_extended $ G.integral (ri @Int16)
 
-  assert $ Prop.adjoint (tripl f64i16) x y
-  assert $ Prop.adjoint (tripr f64i16) y x
-  assert $ Prop.closed (tripl f64i16) x
-  assert $ Prop.closed (tripr f64i16) y
-  assert $ Prop.kernel (tripl f64i16) y
-  assert $ Prop.kernel (tripr f64i16) x 
-  assert $ Prop.monotoneL (tripl f64i16) x x'
-  assert $ Prop.monotoneL (tripr f64i16) y y'
-  assert $ Prop.monotoneR (tripl f64i16) y y'
-  assert $ Prop.monotoneR (tripr f64i16) x x'
-  assert $ Prop.projectiveL (tripl f64i16) x
-  assert $ Prop.projectiveL (tripr f64i16) y
-  assert $ Prop.projectiveR (tripl f64i16) y
-  assert $ Prop.projectiveR (tripr f64i16) x
+  assert $ Prop.adjoint (tripr f64i16) x y
+  assert $ Prop.adjoint (tripl f64i16) y x
+  assert $ Prop.closed (tripr f64i16) x
+  assert $ Prop.closed (tripl f64i16) y
+  assert $ Prop.kernel (tripr f64i16) y
+  assert $ Prop.kernel (tripl f64i16) x 
+  assert $ Prop.monotoneL (tripr f64i16) x x'
+  assert $ Prop.monotoneL (tripl f64i16) y y'
+  assert $ Prop.monotoneR (tripr f64i16) y y'
+  assert $ Prop.monotoneR (tripl f64i16) x x'
+  assert $ Prop.projectiveL (tripr f64i16) x
+  assert $ Prop.projectiveL (tripl f64i16) y
+  assert $ Prop.projectiveR (tripr f64i16) y
+  assert $ Prop.projectiveR (tripl f64i16) x
 
 prop_connection_f64i32 :: Property
 prop_connection_f64i32 = withTests 1000 . property $ do
@@ -130,20 +130,20 @@ prop_connection_f64i32 = withTests 1000 . property $ do
   y <- forAll $ gen_extended $ G.integral (ri @Int32)
   y' <- forAll $ gen_extended $ G.integral (ri @Int32)
 
-  assert $ Prop.adjoint (tripl f64i32) x y
-  assert $ Prop.adjoint (tripr f64i32) y x
-  assert $ Prop.closed (tripl f64i32) x
-  assert $ Prop.closed (tripr f64i32) y
-  assert $ Prop.kernel (tripl f64i32) y
-  assert $ Prop.kernel (tripr f64i32) x 
-  assert $ Prop.monotoneL (tripl f64i32) x x'
-  assert $ Prop.monotoneL (tripr f64i32) y y'
-  assert $ Prop.monotoneR (tripl f64i32) y y'
-  assert $ Prop.monotoneR (tripr f64i32) x x'
-  assert $ Prop.projectiveL (tripl f64i32) x
-  assert $ Prop.projectiveL (tripr f64i32) y
-  assert $ Prop.projectiveR (tripl f64i32) y
-  assert $ Prop.projectiveR (tripr f64i32) x
+  assert $ Prop.adjoint (tripr f64i32) x y
+  assert $ Prop.adjoint (tripl f64i32) y x
+  assert $ Prop.closed (tripr f64i32) x
+  assert $ Prop.closed (tripl f64i32) y
+  assert $ Prop.kernel (tripr f64i32) y
+  assert $ Prop.kernel (tripl f64i32) x 
+  assert $ Prop.monotoneL (tripr f64i32) x x'
+  assert $ Prop.monotoneL (tripl f64i32) y y'
+  assert $ Prop.monotoneR (tripr f64i32) y y'
+  assert $ Prop.monotoneR (tripl f64i32) x x'
+  assert $ Prop.projectiveL (tripr f64i32) x
+  assert $ Prop.projectiveL (tripl f64i32) y
+  assert $ Prop.projectiveR (tripr f64i32) y
+  assert $ Prop.projectiveR (tripl f64i32) x
 
 {-
 
@@ -250,16 +250,16 @@ prop_connections_f32w08 = withTests 10000 . property $ do
   y <- forAll $ gen_n5 $ G.integral (ri @Word8)
   y' <- forAll $ gen_n5 $ G.integral (ri @Word8)
 
-  assert $ Prop.adjoint (tripl f32w08) x y
-  assert $ Prop.adjoint (tripr f32w08) y x
-  assert $ Prop.monotoneL (tripl f32w08) x x'
-  assert $ Prop.monotoneL (tripr f32w08) y y'
-  assert $ Prop.monotoneR (tripl f32w08) y y'
-  assert $ Prop.monotoneR (tripr f32w08) x x'
-  assert $ Prop.closed (tripl f32w08) x
-  assert $ Prop.closed (tripr f32w08) y
-  assert $ Prop.kernel (tripl f32w08) y
-  assert $ Prop.kernel (tripr f32w08) x
+  assert $ Prop.adjoint (tripr f32w08) x y
+  assert $ Prop.adjoint (tripl f32w08) y x
+  assert $ Prop.monotoneL (tripr f32w08) x x'
+  assert $ Prop.monotoneL (tripl f32w08) y y'
+  assert $ Prop.monotoneR (tripr f32w08) y y'
+  assert $ Prop.monotoneR (tripl f32w08) x x'
+  assert $ Prop.closed (tripr f32w08) x
+  assert $ Prop.closed (tripl f32w08) y
+  assert $ Prop.kernel (tripr f32w08) y
+  assert $ Prop.kernel (tripl f32w08) x
 
 prop_connections_f32w64 :: Property
 prop_connections_f32w64 = withTests 1000 . property $ do

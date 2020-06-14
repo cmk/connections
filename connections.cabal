@@ -24,6 +24,7 @@ library
     , Data.Order.Double
     , Data.Order.Interval
     , Data.Order.Extended
+    , Data.Order.Topology
     , Data.Order.Property
     
     , Data.Semigroup.Join

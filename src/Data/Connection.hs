@@ -1,5 +1,4 @@
-{-# Language TypeFamilies #-}
-{-# Language TypeApplications #-}
+{-# Language TypeApplications    #-}
 {-# Language AllowAmbiguousTypes #-}
 {-# Language ConstraintKinds     #-}
 {-# Language Safe                #-}
@@ -17,6 +16,7 @@ module Data.Connection (
   , ceiling
 ) where
 
+import safe Control.Applicative (liftA2)
 import safe Data.Connection.Type
 import safe Data.Connection.Int
 import safe Data.Connection.Word
@@ -28,7 +28,7 @@ import safe Data.Functor.Rep
 import safe Data.Semigroup.Join
 import safe Data.Semigroup.Foldable
 import safe Data.Lattice
-import safe Data.Ord
+import safe Data.Order
 import safe Data.Order.Extended
 import safe Data.Order.Interval
 import safe Data.Word
@@ -37,9 +37,6 @@ import safe Foreign.C.Types
 import safe Numeric.Natural
 import safe Prelude hiding (Bounded, fromInteger, fromRational, RealFrac(..))
 import safe qualified Control.Category as C
-
-
-
 
 -- $setup
 -- >>> :set -XTypeApplications
@@ -120,7 +117,7 @@ class Triple a b where
 -- -2
 --
 floor :: Triple a b => a -> b
-floor = connr . tripr $ triple 
+floor = connr . tripl $ triple 
 
 -- | A monotonic ceiling function.
 --
@@ -138,7 +135,7 @@ floor = connr . tripr $ triple
 -- -1
 --
 ceiling :: Triple a b => a -> b
-ceiling = connl . tripl $ triple
+ceiling = connl . tripr $ triple
 
 ---------------------------------------------------------------------
 -- Connection instances
@@ -236,7 +233,7 @@ instance Connection a b => Connection (Down b) (Down a) where
 
 instance LowerBounded a => Connection (Interval a) (Maybe a) where
   connection = Conn f g where
-    g = maybe empty lower
+    g = maybe empty below
     f = maybe Nothing (Just . uncurry (\/)) . endpts
 
 instance Lattice a => Connection (Maybe a) (Interval a) where

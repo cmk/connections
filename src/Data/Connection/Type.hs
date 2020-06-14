@@ -12,18 +12,18 @@ module Data.Connection.Type (
   , counit
   , connl
   , connr
-  , conn1l
-  , conn1r
-  , conn2l
-  , conn2r
+  , connl1
+  , connr1
+  , connl2
+  , connr2
   -- * Trip
   , Trip(..)
-  , tripl
   , tripr
-  , unitl
+  , tripl
   , unitr
-  , counitl
+  , unitl
   , counitr
+  , counitl
   -- ** Connections
   , dual
   , strong
@@ -79,14 +79,14 @@ instance Category Conn where
 -- > x <~ unit x
 --
 unit :: Conn a b -> a -> a
-unit c = conn1r c id
+unit c = connr1 c id
 
 -- | Reverse round trip through a connection.
 --
 -- > counit x <~ x
 --
 counit :: Conn a b -> b -> b
-counit c = conn1l c id
+counit c = connl1 c id
 
 -- | Extract the left side of a connection.
 --
@@ -100,23 +100,23 @@ connr (Conn _ g) = g
 
 -- | Map over a connection from the left.
 --
-conn1l :: Conn a b -> (a -> a) -> b -> b
-conn1l (Conn f g) h b = f $ h (g b)
+connl1 :: Conn a b -> (a -> a) -> b -> b
+connl1 (Conn f g) h b = f $ h (g b)
 
 -- | Map over a connection from the right.
 --
-conn1r :: Conn a b -> (b -> b) -> a -> a
-conn1r (Conn f g) h a = g $ h (f a)
+connr1 :: Conn a b -> (b -> b) -> a -> a
+connr1 (Conn f g) h a = g $ h (f a)
 
 -- | Zip over a connection from the left.
 --
-conn2l :: Conn a b -> (a -> a -> a) -> b -> b -> b
-conn2l (Conn f g) h b1 b2 = f $ h (g b1) (g b2)
+connl2 :: Conn a b -> (a -> a -> a) -> b -> b -> b
+connl2 (Conn f g) h b1 b2 = f $ h (g b1) (g b2)
 
 -- | Zip over a connection from the right.
 --
-conn2r :: Conn a b -> (b -> b -> b) -> a -> a -> a
-conn2r (Conn f g) h a1 a2 = g $ h (f a1) (f a2)
+connr2 :: Conn a b -> (b -> b -> b) -> a -> a -> a
+connr2 (Conn f g) h a1 a2 = g $ h (f a1) (f a2)
 
 ---------------------------------------------------------------------
 -- Trip
@@ -136,32 +136,32 @@ instance Category Trip where
   id = Trip id id id
   Trip f' g' h' . Trip f g h = Trip (f' . f) (g . g') (h' . h)
 
-tripl :: Trip a b -> Conn a b
-tripl (Trip f g _) = Conn f g
+tripl :: Trip a b -> Conn b a
+tripl (Trip _ g h) = Conn g h
 
-tripr :: Trip a b -> Conn b a
-tripr (Trip _ g h) = Conn g h
+tripr :: Trip a b -> Conn a b
+tripr (Trip f g _) = Conn f g
 
 -- |
 --
--- >>> compare P.pi $ unitl f64f32 P.pi
+-- >>> compare P.pi $ unitr f64f32 P.pi
 -- LT
 --
+unitr :: Trip a b -> b -> b
+unitr = unit . tripl
+
 unitl :: Trip a b -> a -> a
-unitl = unit . tripl
+unitl = unit . tripr
 
 -- |
 --
--- >>> compare P.pi $ counitr f64f32 P.pi
+-- >>> compare P.pi $ counitl f64f32 P.pi
 -- GT
 --
-unitr :: Trip a b -> b -> b
-unitr = unit . tripr
-
-counitl :: Trip a b -> b -> b
+counitl :: Trip a b -> a -> a
 counitl = counit . tripl
 
-counitr :: Trip a b -> a -> a
+counitr :: Trip a b -> b -> b
 counitr = counit . tripr
 
 ---------------------------------------------------------------------
@@ -221,7 +221,7 @@ stackl = Trip f g h where
 
 --infixr 3 &&&
 --(&&&) :: Lattice c => Conn c a -> Conn c b -> Conn c (a, b)
---f &&& g = tripr forked >>> f `strong` g
+--f &&& g = tripl forked >>> f `strong` g
 -------------------------------------------------------------------------------
 -- Iterators
 -------------------------------------------------------------------------------
