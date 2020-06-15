@@ -305,16 +305,16 @@ instance (Bounded a, Bounded b) => Bounded (Either a b)
 
 
 
---complement :: (Order a, Finite a) => Set.Set a -> Set.Set a
+--complement :: (TotalOrder a, Finite a) => Set.Set a -> Set.Set a
 --complement xs = Set.fromList [ x | x <- universeF, Set.notMember x xs]
 
-instance Order a => Lattice (Set.Set a)
-instance (Order a, Finite a) => Bounded (Set.Set a)
-instance Order a => Distributive (Set.Set a)
+instance TotalOrder a => Lattice (Set.Set a)
+instance (TotalOrder a, Finite a) => Bounded (Set.Set a)
+instance TotalOrder a => Distributive (Set.Set a)
 
-instance (Order k, Lattice a) => Lattice (Map.Map k a)
-instance (Order k, Finite k, Bounded a) => Bounded (Map.Map k a)
-instance (Order k, Distributive a) => Distributive (Map.Map k a)
+instance (TotalOrder k, Lattice a) => Lattice (Map.Map k a)
+instance (TotalOrder k, Finite k, Bounded a) => Bounded (Map.Map k a)
+instance (TotalOrder k, Distributive a) => Distributive (Map.Map k a)
 
 instance Lattice IntSet.IntSet
 instance Bounded IntSet.IntSet
@@ -333,7 +333,7 @@ instance (Join-Semigroup) (Max a) => Semigroup (Additive (Max a)) where
 instance (Join-Monoid) (Max a) => Monoid (Additive (Max a)) where
   mempty = pure bottom
 
--- workaround for poorly specified entailment: instance (Order a, Bounded a) => Monoid (Max a)
+-- workaround for poorly specified entailment: instance (TotalOrder a, Bounded a) => Monoid (Max a)
 instance (Minimal a, Semigroup (Max a)) => Monoid (Join (Max a)) where
   mempty = pure $ Max minimal
 
@@ -378,7 +378,7 @@ instance (Meet-Semigroup) (Min a) => Semigroup (Additive (Min a)) where
 instance (Meet-Monoid) (Min a) => Monoid (Additive (Min a)) where
   mempty = pure top
 
--- workaround for poorly specified entailment: instance (Order a, Bounded a) => Monoid (Min a)
+-- workaround for poorly specified entailment: instance (TotalOrder a, Bounded a) => Monoid (Min a)
 -- >>> bottom :: Min Natural
 -- Min {getMin = 0}
 instance (Maximal a, Semigroup (Min a)) => Monoid (Meet (Min a)) where

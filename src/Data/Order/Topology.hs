@@ -30,28 +30,12 @@ module Data.Order.Topology (
 
 import safe Control.Applicative (liftA2)
 import safe Data.Connection.Type
-import safe Data.Connection.Int
-import safe Data.Connection.Word
-import safe Data.Connection.Float
-import safe Data.Connection.Double
-import safe Data.Connection.Ratio
-import safe Data.Functor.Identity
-import safe Data.Functor.Rep 
 import safe Data.Foldable (foldl')
 import safe Data.Semigroup.Join
-import safe Data.Semigroup.Quantale
 import safe Data.Lattice
-import safe Data.Lattice.Heyting
 import safe Data.Order
-import safe Data.Order.Extended
-import safe Data.Order.Interval
-import safe Data.Word
-import safe Data.Int
 import safe Data.Universe.Class (Finite(..))
-import safe Foreign.C.Types
-import safe Numeric.Natural
 import safe Prelude hiding (Bounded, Ord(..))
-import safe qualified Control.Category as C
 
 -- | Left and right < https://en.wikipedia.org/wiki/Alexandrov_topology Alexandrov topologies >.
 data Topology = L | R

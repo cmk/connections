@@ -126,7 +126,7 @@ instance Finite a => Heyting (Predicate a) where
 
 -- |
 -- Power set: the canonical example of a Boolean algebra
-instance (Order a, Finite a) => Heyting (Set a) where
+instance (TotalOrder a, Finite a) => Heyting (Set a) where
   --neg a = Set.fromList universe `Set.difference` a
   neg = Set.difference top
   x <=> y = Set.fromList
@@ -135,7 +135,7 @@ instance (Order a, Finite a) => Heyting (Set a) where
       , Set.member z x `iff` Set.member z y
       ]
 
-instance (Order k, Finite k, Heyting a) => Heyting (Map.Map k a)
+instance (TotalOrder k, Finite k, Heyting a) => Heyting (Map.Map k a)
 --instance (Heyting a, Quantale (Join a)) => Heyting (Down a)
 
 --complement :: (Order a, Finite a) => Set.Set a -> Set.Set a

@@ -14,15 +14,20 @@
 module Data.Order (
   -- * Preorders
     Preorder(..)
-  -- * Orders
-  , Order
+  -- * Partial orders
+  , PartialOrder
+  , (==),(/=)
+  , (<=),(>=)
+  -- * Total orders
+  , TotalOrder
+  -- * DerivingVia
   , Total(..) 
   -- * Re-exports
-  , Positive
-  , Eq.Eq(..)
-  , Ord.Ord((<=),(>=),min,max,compare)
+  , Eq.Eq()
+  , Ord.Ord()
   , Ordering(..)
   , Down(..)
+  , Positive
 ) where
 
 import safe Control.Applicative
@@ -35,21 +40,20 @@ import safe Data.Functor.Rep
 import safe Data.Int
 import safe Data.List.NonEmpty
 import safe Data.Maybe
-import safe Data.Ord hiding ((<), (>))
+import safe Data.Ord (Down(..))
 import safe Data.Semigroup
 import safe Data.Semigroup.Foldable
 import safe Data.Universe.Class (Finite(..))
 import safe Data.Word
 import safe GHC.Real
 import safe Numeric.Natural
-import safe Prelude hiding (Ord(..),Bounded)
+import safe Prelude hiding (Eq(..), Ord(..), Bounded)
 import safe qualified Data.IntMap as IntMap
 import safe qualified Data.IntSet as IntSet
 import safe qualified Data.Map as Map
 import safe qualified Data.Set as Set
 import safe qualified Data.Ord as Ord
 import safe qualified Data.Eq as Eq
-
 
 -------------------------------------------------------------------------------
 -- Preorders
@@ -67,12 +71,16 @@ import safe qualified Data.Eq as Eq
 --
 -- \( \forall a, b: (a \leq b) \Leftrightarrow \neg (b \leq a) \) (anti-symmetry)
 --
--- then /a/ is a partial order and we may define an 'Eq' instance such that the following holds:
+-- then /a/ is a partial order and we may define an 'Eq' instance such that the
+-- following holds:
 --
 -- @
 -- x '~~' y = x '==' y
 -- x '<~' y = x '<' y '||' x '==' y
 -- @
+--
+-- Minimal complete definition: either 'pcompare' or '<~'. Using 'pcompare' can
+-- be more efficient for complex types.
 --
 class Preorder a where
     {-# MINIMAL (<~) | pcompare #-} 
@@ -220,22 +228,14 @@ class Preorder a where
       | y <~ x    = Just GT
       | otherwise = Nothing
 
-type Positive = Ratio Natural
 
 -------------------------------------------------------------------------------
--- Total orders
+-- Partial orders
 -------------------------------------------------------------------------------
 
--- | A total order on /a/.
--- 
--- Note: ideally this would be a class without instances for /Float/, /Double/
--- , /Rational/, etc. We instead use a constraint kind in order to retain 
--- compatibility with all the downstream users of /Ord/.
--- 
-type Order a = (Ord.Ord a, Preorder a)
+type PartialOrder a = (Eq.Eq a, Preorder a)
 
-{-
-infix 4 ==, /=, <=, >=, `min`, `max`
+infix 4 ==, /=, <=, >=
 
 -- | A version of /==/ that forces /NaN == NaN/.
 --
@@ -245,24 +245,27 @@ infix 4 ==, /=, <=, >=, `min`, `max`
 (/=) :: Eq.Eq a => a -> a -> Bool
 (/=) x y = not (x == y)
 
-(<=) :: Order a => a -> a -> Bool
+-- > x >= y = y <= x
+--
+(<=) :: PartialOrder a => a -> a -> Bool
 (<=) x y = x < y || x == y
 
-(>=) :: Order a => a -> a -> Bool
+(>=) :: PartialOrder a => a -> a -> Bool
 (>=) x y = x > y || x == y
 
-min :: Order a => a -> a -> a
-min x y = if x <= y then x else y
+-------------------------------------------------------------------------------
+-- Total orders
+-------------------------------------------------------------------------------
 
-max :: Order a => a -> a -> a
-max x y = if x >= y then x else y
-
-compare :: Order a => a -> a -> Ordering
-compare x y
-  | x Ord.< y = LT
-  | x == y = EQ
-  | otherwise = GT
--}
+-- | A total order on /a/. See 'Data.Order.Total'.
+-- 
+-- Note: ideally this would be a subclass of /Preorder/, without instances
+-- for /Float/, /Double/, /Rational/, etc.
+--
+-- We instead use a constraint kind in order to retain compatibility with the
+-- downstream users of /Ord/.
+-- 
+type TotalOrder a = (Ord.Ord a, Preorder a)
 
 ---------------------------------------------------------------------
 -- DerivingVia
@@ -271,10 +274,10 @@ compare x y
 newtype Total a = Total { getTotal :: a } deriving stock (Eq.Eq, Ord.Ord, Show, Functor)
   deriving Applicative via Identity
 
-instance Order a => Preorder (Total a) where
-  x <~ y = getTotal $ liftA2 (<=) x y
-  x >~ y = getTotal $ liftA2 (>=) x y
-  pcompare x y = Just . getTotal $ liftA2 compare x y
+instance TotalOrder a => Preorder (Total a) where
+  x <~ y = getTotal $ liftA2 (Ord.<=) x y
+  x >~ y = getTotal $ liftA2 (Ord.>=) x y
+  pcompare x y = Just . getTotal $ liftA2 Ord.compare x y
 
 deriving via (Total ()) instance Preorder ()
 deriving via (Total Bool) instance Preorder Bool
@@ -298,7 +301,7 @@ deriving via (Total Integer) instance Preorder Integer
 ---------------------------------------------------------------------
 
 -- N5 lattice ordering: NInf <= NaN <= PInf
-n5 :: (Order a, Fractional a) => a -> a -> Bool
+n5 :: (TotalOrder a, Fractional a) => a -> a -> Bool
 n5 x y | x Eq./= x && y Eq./= y = True
        | x Eq./= x = y == 1/0
        | y Eq./= y = x == -1/0
@@ -310,7 +313,7 @@ instance Preorder Float where
 instance Preorder Double where
   (<~) = n5
 
--- N5 lattice comparison
+-- N5 lattice ordering: NInf <= NaN <= PInf
 {-
 pinf = 1 :% 0
 ninf = (-1) :% 0
@@ -334,6 +337,12 @@ pcompareRat _ (0:%0) = Nothing
 pcompareRat _ (x:%0) = Just $ Ord.compare 0 x -- guard against div-by-zero exceptions
 pcompareRat (x:%0) _ = Just $ Ord.compare x 0
 pcompareRat x y = Just $ Ord.compare x y
+
+-- | Positive rationals, extended with an absorbing zero.
+--
+-- 'Positive' is the canonical < https://en.wikipedia.org/wiki/Semifield#Examples semifield >.
+--
+type Positive = Ratio Natural
 
 -- N5 lattice comparison
 pcomparePos :: Positive -> Positive -> Maybe Ordering
@@ -417,10 +426,10 @@ instance (Preorder a, Preorder b, Preorder c, Preorder d, Preorder e) => Preorde
 instance (Foldable1 f, Representable f, Preorder a) => Preorder (Co f a) where
   Co f <~ Co g = and $ liftR2 (<~) f g
 
-instance Order a => Preorder (Set.Set a) where
+instance TotalOrder a => Preorder (Set.Set a) where
   (<~) = Set.isSubsetOf
 
-instance (Order k, Preorder a) => Preorder (Map.Map k a) where
+instance (TotalOrder k, Preorder a) => Preorder (Map.Map k a) where
   (<~) = Map.isSubmapOfBy (<~)
 
 instance Preorder a => Preorder (IntMap.IntMap a) where

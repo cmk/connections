@@ -116,7 +116,6 @@ ratf64 = Trip (toFloating f) (fromFloating g) (toFloating h) where
 
   descendf z f1 x = until (\y -> f1 y <~ x) (>~) (F64.shift (-1)) z
 
-
 ---------------------------------------------------------------------
 -- Ratio Natural
 ---------------------------------------------------------------------
@@ -170,6 +169,23 @@ ninf = (-1) :% 0
 
 nan :: Num a => Ratio a
 nan = 0 :% 0
+
+{-
+intnat :: Conn Integer Natural
+intnat = Conn (fromIntegral . max 0) fromIntegral
+
+natint :: Conn Natural (Lifted Integer)
+natint = Conn (lifts P.fromIntegral) (lifted $ P.fromInteger . max 0)
+
+ratpos :: Trip Rational Positive
+ratpos = Trip f g h where
+  
+  f = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) P.ceiling
+
+  g = extended bottom top P.fromIntegral
+
+  h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) P.floor
+-}
 
 unsignedTriple :: (Bounded a, Integral a) => Ratio Natural -> Trip Positive (Lowered a) 
 unsignedTriple high = Trip f g h where

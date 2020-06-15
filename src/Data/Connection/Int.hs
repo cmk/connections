@@ -28,12 +28,13 @@ module Data.Connection.Int (
 import safe Data.Connection.Type
 import safe Data.Int
 import safe Data.Order
+import safe Data.Order.Total
 import safe Data.Order.Extended
 import safe Data.Lattice
 import safe Data.Word
 import safe Foreign.C.Types
 import safe Numeric.Natural
-import safe Prelude hiding (Ord(..), Bounded, fromInteger)
+import safe Prelude hiding (Eq(..), Ord(..), Bounded)
 import safe qualified Prelude as P
 
 i08c08 :: Conn Int8 CChar

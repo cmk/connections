@@ -4,13 +4,11 @@
 {-# Language Safe                #-}
 
 module Data.Connection (
-  -- * Connections
+  -- * Galois connections
     Connection(..)
-  , ConnInteger
   , left
   , right
-  , fromInteger
-  -- * Triples
+  -- * Galois triples
   , Triple(..)
   , floor
   , ceiling
@@ -49,8 +47,6 @@ import safe qualified Control.Category as C
 -- Connection
 ---------------------------------------------------------------------
 
-type ConnInteger a = Connection a (Lifted Integer)
-
 -- | A < https://ncatlab.org/nlab/show/Galois+connection connection > between two monotone functions.
 --
 -- A Galois connection between /f/ and /g/ (often denoted \(f \dashv g \))
@@ -77,13 +73,6 @@ left = connl connection
 --
 right :: Connection a b => b -> a
 right = connr connection
-
--- | A monotone function from the integers to /a/.
---
--- This is a lawful replacement for the version in base.
---
-fromInteger :: ConnInteger a => Integer -> a
-fromInteger = right . Right @()
 
 ---------------------------------------------------------------------
 -- Triple

@@ -495,19 +495,19 @@ instance (Monoid (Join a), Monoid (Join b)) => Monoid (Join (a, b)) where
 instance (Monoid (Meet a), Monoid (Meet b)) => Monoid (Meet (a, b)) where
   mempty = Meet (top, top)
 
-instance Order a => Semigroup (Join (Set.Set a)) where
+instance TotalOrder a => Semigroup (Join (Set.Set a)) where
   (<>) = liftA2 Set.union 
 
-instance Order a => Monoid (Join (Set.Set a)) where
+instance TotalOrder a => Monoid (Join (Set.Set a)) where
   mempty = Join Set.empty
 
-instance Order a => Semigroup (Meet (Set.Set a)) where
+instance TotalOrder a => Semigroup (Meet (Set.Set a)) where
   (<>) = liftA2 Set.intersection 
 
-instance (Order a, Finite a) => Monoid (Meet (Set.Set a)) where
+instance (TotalOrder a, Finite a) => Monoid (Meet (Set.Set a)) where
   mempty = Meet $ Set.fromList universeF
 
-instance (Order k, Semigroup (Join a)) => Semigroup (Join (Map.Map k a)) where
+instance (TotalOrder k, Semigroup (Join a)) => Semigroup (Join (Map.Map k a)) where
   (<>) = liftA2 (Map.unionWith (\/))
 
 instance Semigroup (Join a) => Semigroup (Join (IntMap.IntMap a)) where
@@ -522,13 +522,13 @@ instance Monoid (Join IntSet.IntSet) where
 instance Semigroup (Join a) => Monoid (Join (IntMap.IntMap a)) where
   mempty = Join IntMap.empty
 
-instance (Order k, Semigroup (Join a)) => Monoid (Join (Map.Map k a)) where
+instance (TotalOrder k, Semigroup (Join a)) => Monoid (Join (Map.Map k a)) where
   mempty = Join Map.empty
 
-instance (Order k, Semigroup (Meet a)) => Semigroup (Meet (Map.Map k a)) where
+instance (TotalOrder k, Semigroup (Meet a)) => Semigroup (Meet (Map.Map k a)) where
   (<>) = liftA2 (Map.intersectionWith (/\))
 
-instance (Order k, Finite k, Monoid (Meet a)) => Monoid (Meet (Map.Map k a)) where
+instance (TotalOrder k, Finite k, Monoid (Meet a)) => Monoid (Meet (Map.Map k a)) where
   mempty = pure $ Map.fromList (universeF `zip` repeat top)
 
 instance Semigroup (Meet a) => Semigroup (Meet (IntMap.IntMap a)) where
@@ -544,7 +544,7 @@ instance Monoid (Meet IntSet.IntSet) where
   mempty = Meet $ IntSet.fromList universeF
 
 {-
-instance (Order k, (Meet-Monoid) k, (Meet-Monoid) a) => Monoid (Meet (Map.Map k a)) where
+instance (TotalOrder k, (Meet-Monoid) k, (Meet-Monoid) a) => Monoid (Meet (Map.Map k a)) where
   mempty = Meet $ Map.singleton top top
 
 instance (Meet-Monoid) a => Monoid (Meet (IntMap.IntMap a)) where
@@ -556,7 +556,7 @@ instance Monoid a => Semiring (Seq.Seq a) where
 
   fromBoolean = fromBooleanDef $ Seq.singleton mempty
 
-instance (Order k, Monoid k, Monoid a) => Semiring (Map.Map k a) where
+instance (TotalOrder k, Monoid k, Monoid a) => Semiring (Map.Map k a) where
   xs * ys = foldMap (flip Map.map xs . (<>)) ys
   {-# INLINE (*) #-}
 
@@ -578,7 +578,7 @@ instance (Join-Semigroup) (Max a) => Semigroup (Additive (Max a)) where
 instance (Join-Monoid) (Max a) => Monoid (Additive (Max a)) where
   mempty = pure bottom
 
--- workaround for poorly specified entailment: instance (Order a, Bounded a) => Monoid (Max a)
+-- workaround for poorly specified entailment: instance (TotalOrder a, Bounded a) => Monoid (Max a)
 instance (Minimal a, Semigroup (Max a)) => Monoid (Join (Max a)) where
   mempty = pure $ Max minimal
 
@@ -623,7 +623,7 @@ instance (Meet-Semigroup) (Min a) => Semigroup (Additive (Min a)) where
 instance (Meet-Monoid) (Min a) => Monoid (Additive (Min a)) where
   mempty = pure top
 
--- workaround for poorly specified entailment: instance (Order a, Bounded a) => Monoid (Min a)
+-- workaround for poorly specified entailment: instance (TotalOrder a, Bounded a) => Monoid (Min a)
 -- >>> bottom :: Min Natural
 -- Min {getMin = 0}
 instance (Maximal a, Semigroup (Min a)) => Monoid (Meet (Min a)) where

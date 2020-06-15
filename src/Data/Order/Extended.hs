@@ -23,7 +23,7 @@ import safe Data.Order
 import safe Data.Lattice
 import safe Data.Int
 import safe GHC.Generics
-import safe Prelude hiding (Ord(..),Bounded,ceiling,floor)
+import safe Prelude hiding (Eq(..), Ord(..),Bounded)
 import safe qualified Prelude as P
 
 type Lifted a = Either () a
@@ -43,8 +43,6 @@ extended :: b -> b -> (a -> b) -> Extended a -> b
 extended b _ _ Bottom       = b
 extended _ t _ Top          = t
 extended _ _ f (Extended x) = f x
-
-
 
 -------------------------------------------------------------------------------
 -- Lattice extensions

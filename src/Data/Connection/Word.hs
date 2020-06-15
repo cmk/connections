@@ -32,6 +32,7 @@ module Data.Connection.Word (
 import safe Data.Connection.Type
 import safe Data.Int
 import safe Data.Order
+import safe Data.Order.Total
 import safe Data.Order.Extended
 import safe Data.Word
 import safe Data.Lattice

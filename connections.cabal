@@ -20,6 +20,7 @@ library
   exposed-modules:
 
       Data.Order
+    , Data.Order.Total
     , Data.Order.Float
     , Data.Order.Double
     , Data.Order.Interval

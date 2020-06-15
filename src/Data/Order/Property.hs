@@ -1,14 +1,15 @@
 -- | See <https://en.wikipedia.org/wiki/Binary_relation#Properties>.
 module Data.Order.Property (
     type Rel
-  -- * Partial orders
-  , consistent
-  -- ** Non-strict partial orders
+  -- * Orders
+  , preorder
+  , partialOrder
+  -- ** Non-strict preorders
   , antisymmetric_le
   , reflexive_le
   , transitive_le
   , connex_le
-  -- ** Strict partial orders
+  -- ** Strict preorders
   , asymmetric_lt
   , transitive_lt
   , irreflexive_lt
@@ -54,12 +55,12 @@ type Rel r b = r -> r -> b
 xor3 :: Bool -> Bool -> Bool -> Bool
 xor3 a b c = (a `xor` (b `xor` c)) && not (a && b && c)
 
--- | Check that 'Lattice' methods are internally consistent.
+-- | Check a 'Preorder' is internally consistent.
 --
 -- This is a required property.
 --
-consistent :: Preorder r => r -> r -> Bool
-consistent x y = 
+preorder :: Preorder r => r -> r -> Bool
+preorder x y = 
   ((x <~ y) == le x y) &&
   ((x >~ y) == ge x y) &&
   ((x ?~ y) == cp x y) &&
@@ -92,8 +93,28 @@ consistent x y =
       | y1 <~ x1 = Just GT
       | otherwise = Nothing
 
+-- | Check a 'PartialOrder' is internally consistent.
+--
+-- This is a required property.
+--
+partialOrder :: PartialOrder r => r -> r -> Bool
+partialOrder x y = 
+  ((x <= y) == le x y) &&
+  ((x >= y) == ge x y) &&
+  ((x == y) == eq x y) &&
+  ((x /= y) == ne x y)
+
+  where
+    le x1 y1 = maybe False (<~ EQ) $ pcompare x1 y1
+
+    ge x1 y1 = maybe False (>~ EQ) $ pcompare x1 y1
+
+    eq x1 y1 = maybe False (~~ EQ) $ pcompare x1 y1
+
+    ne x1 y1 = not $ x1 ~~ y1
+
 ---------------------------------------------------------------------
--- Non-strict partial orders
+-- Non-strict preorders
 ---------------------------------------------------------------------
 
 -- | \( \forall a, b: (a \leq b) \wedge (b \leq a) \Rightarrow a = b \)
@@ -131,7 +152,7 @@ connex_le :: Preorder r => r -> r -> Bool
 connex_le = connex (<~)
 
 ---------------------------------------------------------------------
--- Strict partial orders
+-- Strict preorders
 ---------------------------------------------------------------------
 
 -- | \( \forall a, b: (a \lt b) \Rightarrow \neg (b \lt a) \)
@@ -178,7 +199,7 @@ trichotomous_lt :: Preorder r => r -> r -> Bool
 trichotomous_lt = trichotomous (~~) (<)
 
 ---------------------------------------------------------------------
--- Semiorder
+-- Semiorders
 ---------------------------------------------------------------------
 
 -- | \( \forall x, y, z, w: x \lt y \wedge y \sim z \wedge z \lt w \Rightarrow x \lt w \) 
@@ -216,7 +237,7 @@ symmetric_eq = symmetric (~~)
 --
 -- '~~' is a reflexive relation.
 --
--- This is a required property.
+-- This is a required property
 --
 reflexive_eq :: Preorder r => r ->  Bool
 reflexive_eq = reflexive (~~) 

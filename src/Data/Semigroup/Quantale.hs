@@ -24,7 +24,7 @@ import safe Data.Word
 import safe Data.Semigroup
 import safe Data.Semigroup.Join
 import safe Data.Universe.Class (Finite(..))
-import safe Prelude hiding (Ord(..))
+import safe Prelude hiding (Eq(..), Ord(..))
 import safe qualified Data.Map as Map
 import safe qualified Data.Map.Merge.Lazy as Map
 import safe qualified Data.Set as Set
@@ -147,7 +147,7 @@ instance Integral a => Quantale (Sum a) where
 --lifted :: Conn a b -> Conn (Maybe a) (Maybe b)
 --lifted (Conn f g) = Conn (fmap f) (fmap g)
 
-instance (Order a, Bounded a) => Quantale (Min a) where
+instance (TotalOrder a, Bounded a) => Quantale (Min a) where
   x \\ y = if x P.> y then y else mempty
 
   (//) = flip (\\)
@@ -233,11 +233,11 @@ instance Quantale (Meet (Predicate a)) where
   (\\) = liftA2 $ \(Predicate f) (Predicate g) -> Predicate $ \a -> f a <= g a
   (//) = flip (\\)
 
-instance Order a => Quantale (Meet (Set.Set a)) where
+instance TotalOrder a => Quantale (Meet (Set.Set a)) where
   (\\) = liftA2 (Set.\\)
   (//) = flip (\\)
 
-instance (Order k, Finite k, UnitalQuantale (Meet a)) => Quantale (Meet (Map.Map k a)) where
+instance (TotalOrder k, Finite k, UnitalQuantale (Meet a)) => Quantale (Meet (Map.Map k a)) where
   (\\) = liftA2 impliesMap
     where
       impliesMap a b = Map.union x y where
