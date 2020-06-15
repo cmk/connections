@@ -37,12 +37,10 @@ import safe Data.Connection.Conn
 import safe Data.Int
 import safe Data.Order
 import safe Data.Order.Syntax
-import safe Data.Order.Extended
 import safe Data.Word
-import safe Data.Lattice
 import safe Foreign.C.Types
 import safe Numeric.Natural
-import safe Prelude hiding (Ord(..), Eq(..), Bounded)
+import safe Prelude hiding (Ord(..), Eq(..))
 
 c08bin :: ConnL CBool Bool
 c08bin = ConnL f g where
@@ -138,10 +136,10 @@ wxxnat = ConnL fromIntegral (fromIntegral . min 18446744073709551615)
 -- Internal
 ---------------------------------------------------------------------
 signed :: (Bounded b, Integral a, Integral b) => ConnL a b
-signed = ConnL (\x -> fromIntegral x - bottom)
-               (\y -> fromIntegral (y + top + 1))
+signed = ConnL (\x -> fromIntegral x - minBound)
+               (\y -> fromIntegral (y + maxBound + 1))
 
 unsigned :: (Bounded a, Preorder b, Integral a, Integral b) => ConnL a b
 unsigned = ConnL f g where
   f = fromIntegral
-  g = fromIntegral . min (f top)
+  g = fromIntegral . min (f maxBound)

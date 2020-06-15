@@ -7,7 +7,6 @@ import Data.Connection.Ratio
 import Data.Foldable
 import Data.Lattice
 import Data.Order
-import Data.Order.Topology
 import Data.Order.Extended
 import Data.Order.Interval
 import GHC.Real hiding (Fractional(..), (^^), (^), div)
@@ -56,11 +55,11 @@ pos = G.frequency [(49, gen), (1, G.element [1 :% 0, 0 :% 0])]
 gen_ivl :: Preorder a => Gen a -> Gen a -> Gen (Interval a)
 gen_ivl g1 g2 = liftA2 (...) g1 g2 
 
-gen_inf :: Bounded a => Gen a -> Gen (Inf a)
-gen_inf g = liftA2 (foldl' $ flip filterL) (fmap inf g) $ G.list (R.constant 0 20) g
+--gen_inf :: Bounded a => Gen a -> Gen (Inf a)
+--gen_inf g = liftA2 (foldl' $ flip filterL) (fmap inf g) $ G.list (R.constant 0 20) g
 
-gen_sup :: Bounded a => Gen a -> Gen (Sup a)
-gen_sup g = liftA2 (foldl' $ flip filterR) (fmap sup g) $ G.list (R.constant 0 20) g
+--gen_sup :: Bounded a => Gen a -> Gen (Sup a)
+--gen_sup g = liftA2 (foldl' $ flip filterR) (fmap sup g) $ G.list (R.constant 0 20) g
 
 gen_maybe :: Gen a -> Gen (Maybe a)
 gen_maybe gen = G.frequency [(9, Just <$> gen), (1, pure Nothing)]

@@ -1,6 +1,8 @@
+{-# LANGUAGE DataKinds                  #-}
 -- | See <https://en.wikipedia.org/wiki/Binary_relation#Properties>.
 module Data.Order.Property (
     type Rel
+  , (==>), (<=>)
   -- * Orders
   , preorder
   , partialOrder
@@ -40,9 +42,10 @@ module Data.Order.Property (
 -}
 ) where
 
+import Data.Connection.Conn
 import Data.Order
 import Data.Order.Syntax
-import Data.Lattice.Heyting
+import Data.Lattice
 import Prelude hiding (Ord(..), Eq(..))
 
 -- | See <https://en.wikipedia.org/wiki/Binary_relation#Properties>.
@@ -52,6 +55,23 @@ import Prelude hiding (Ord(..), Eq(..))
 -- As an example over the natural numbers, the relation \(a \# b \) defined by 
 -- \( a > 2 \) is neither symmetric nor antisymmetric, let alone asymmetric.
 type Rel r b = r -> r -> b
+
+infix 1 ==>
+
+(==>) :: Heyting 'L a => a -> a -> a
+(==>) = (//)
+
+infix 0 <=>
+
+(<=>) :: Biheyting a => a -> a -> a
+(<=>) = equivL
+
+infixl 4 `xor`
+
+-- | Exclusive or.
+--
+xor :: Bool -> Bool -> Bool
+xor x y = (x \/ y) /\ neg (x /\ y)
 
 xor3 :: Bool -> Bool -> Bool -> Bool
 xor3 a b c = (a `xor` (b `xor` c)) && not (a && b && c)
@@ -95,11 +115,11 @@ preorder x y =
       | otherwise = Nothing
 
 
--- | Check a 'PartialOrder' is internally consistent.
+-- | Check a 'Order' is internally consistent.
 --
 -- This is a required property.
 --
-partialOrder :: PartialOrder r => r -> r -> Bool
+partialOrder :: Order r => r -> r -> Bool
 partialOrder x y = 
   ((x <= y) == le x y) &&
   ((x >= y) == ge x y) &&

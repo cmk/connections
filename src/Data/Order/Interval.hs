@@ -9,19 +9,25 @@ module Data.Order.Interval (
   , singleton
   , contains
   , endpts
-  , above
-  , below
-  , interval
+  --, above
+  --, below
+  --, interval
+  -- * Floating point intervals
+  , open32
+  , open32L
+  , open32R
+  , open64
+  , open64L
+  , open64R
 ) where
 
-import safe Control.Applicative (liftA2)
-import safe Data.Connection.Conn
 import safe Data.Bifunctor (bimap)
-import safe Data.Lattice
 import safe Data.Order
 import safe Data.Order.Syntax
 import safe Prelude hiding (Ord(..), Eq(..), Bounded, until)
 import safe qualified Data.Eq as Eq
+import safe qualified Data.Connection.Float as F32
+import safe qualified Data.Connection.Double as F64
 
 ---------------------------------------------------------------------
 -- Intervals
@@ -54,7 +60,7 @@ infix 3 ...
 x ... y = case pcompare x y of
   Nothing -> Empty
   Just GT -> I y x
-  otherwise -> I x y
+  Just _  -> I x y
 {-# INLINE (...) #-}
 
 -- | The iempty interval.
@@ -86,6 +92,9 @@ contains :: Preorder a => Interval a -> a -> Bool
 contains Empty _ = False
 contains (I x y) p = x <~ p && p <~ y
 
+{-
+
+
 -- | \( X_\geq(x) = \{ y \in X | y \geq x \} \)
 --
 -- Construct the upper set of an element /x/.
@@ -96,8 +105,8 @@ contains (I x y) p = x <~ p && p <~ y
 --
 -- by the Yoneda lemma for preorders.
 --
-above :: UpperBounded a => a -> Interval a
-above x = x ... top
+above :: Maximal a => a -> Interval a
+above x = x ... maximal
 {-# INLINE above #-}
 
 -- | \( X_\leq(x) = \{ y \in X | y \leq x \} \)
@@ -108,15 +117,90 @@ above x = x ... top
 --
 -- > x <~ y <=> below x >~ below y
 --
-below :: LowerBounded a => a -> Interval a
-below x = bottom ... x
+below :: Minimal a => a -> Interval a
+below x = minimal ... x
 {-# INLINE below #-}
 
-interval :: LowerBounded a => Conn k (Maybe a) (Interval a)
-interval = trip f g h where
-  f = maybe iempty singleton
-  g = maybe Nothing (Just . uncurry (\/)) . endpts
-  h = maybe iempty below
+
+-}
+
+---------------------------------------------------------------------
+-- Floating point intervals
+---------------------------------------------------------------------
+
+
+-- | Construnct an open interval.
+--
+-- >>> contains 1 $ open32 1 2
+-- False
+-- >>> contains 2 $ open32 1 2
+-- False
+--
+open32 :: Float -> Float -> Interval Float
+open32 x y = F32.shift 1 x ... F32.shift (-1) y
+
+-- | Construnct a half-open interval.
+--
+-- >>> contains 1 $ open32L 1 2
+-- False
+-- >>> contains 2 $ open32L 1 2
+-- True
+--
+open32L :: Float -> Float -> Interval Float
+open32L x y = F32.shift 1 x ... y
+
+-- | Construnct a half-open interval.
+--
+-- >>> contains 1 $ open32R 1 2
+-- True
+-- >>> contains 2 $ open32R 1 2
+-- False
+--
+open32R :: Float -> Float -> Interval Float
+open32R x y = x ... F32.shift (-1) y
+
+-- | Construnct an open interval.
+--
+-- >>> contains 1 $ open64 1 2
+-- False
+-- >>> contains 2 $ open64 1 2
+-- False
+--
+open64 :: Double -> Double -> Interval Double
+open64 x y = F64.shift 1 x ... F64.shift (-1) y
+
+-- | Construnct a half-open interval.
+--
+-- >>> contains 1 $ open64L 1 2
+-- False
+-- >>> contains 2 $ open64L 1 2
+-- True
+--
+open64L :: Double -> Double -> Interval Double
+open64L x y = F64.shift 1 x ... y
+
+-- | Construnct a half-open interval.
+--
+-- >>> contains 1 $ open64R 1 2
+-- True
+-- >>> contains 2 $ open64R 1 2
+-- False
+--
+open64R :: Double -> Double -> Interval Double
+open64R x y = x ... F64.shift (-1) y
+
+{-
+-- | Generate a list of the contents on an interval.
+--
+-- Returns the list of values in the interval defined by a bounding pair.
+--
+-- Lawful variant of 'enumFromTo'.
+--
+indexFromTo :: Interval Float -> [Float]
+indexFromTo i = case endpts i of
+  Nothing -> []
+  Just (x, y) -> flip unfoldr x $ \i -> if i ~~ y then Nothing else Just (i, shift 1 i)
+-}
 
 ---------------------------------------------------------------------
 -- Instances
@@ -135,12 +219,16 @@ instance Preorder a => Preorder (Interval a) where
   _ <~ Empty = False
   I x y <~ I x' y' = x' <~ x && y <~ y'
 
-instance Lattice a => Semigroup (Join (Interval a)) where
-  (<>) = liftA2 joinInterval
+{-
+instance Lattice a => Lattice (Interval a) where
+  (\/) = joinInterval
+  (/\) = meetInterval
 
 joinInterval Empty i = i
 joinInterval i Empty = i
 joinInterval (I x y) (I x' y') = I (x /\ x') (y \/ y')
 
-instance Lattice a => Monoid (Join (Interval a)) where
-  mempty = pure Empty
+instance Bounded a => Bounded (Interval a) where
+  bottom = Empty
+  top = bottom ... top
+-}

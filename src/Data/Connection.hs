@@ -15,7 +15,7 @@ module Data.Connection (
   , (\|/)
   , (/|\)
   -- * Connection L
-  , ConnL
+  , type ConnL
   , pattern ConnL
   , connL
   , swapL
@@ -23,8 +23,18 @@ module Data.Connection (
   , ceiling
   , ceiling1
   , ceiling2
+  , filterL
+  , minimal
+  , bottom
+  , join
+  , joins
+  , (\/)
+  , (//)
+  , neg
+  , middle
+  , equivL
   -- * Connection R
-  , ConnR
+  , type ConnR
   , pattern ConnR
   , connR
   , swapR
@@ -32,13 +42,23 @@ module Data.Connection (
   , floor1
   , floor2
   , embedR
+  , filterR
+  , maximal
+  , top
+  , meet
+  , meets
+  , (/\)
+  , (\\)
+  , non
+  , boundary
+  , equivR
   -- * Connection
-  , Trip
+  , Triple
+  , Lattice
+  , Biheyting
+  , type Trip
   , pattern Conn
   , half
-  , tied
-  , below
-  , above
   , midpoint
   , round
   , round1
@@ -46,15 +66,26 @@ module Data.Connection (
   , truncate
   , truncate1
   , truncate2
-  -- * Class
-  , Triple
+  , glb, lub
+  -- * Classes
+  , Semilattice
+  , Extremal
+  , Bounded
+  , Heyting(..)
   , Connection(..)
+  , ConnFloat
+  , ConnDouble
+  , ConnInteger
+  , ConnRational
+  , ConnExtended
 ) where
 
 import safe Data.Connection.Conn
 import safe Data.Connection.Class
+import safe Data.Lattice
 import safe Data.Order
-import safe Prelude hiding (fromInteger, fromRational, floor, ceiling, round, truncate)
+import safe Prelude hiding
+  (Bounded,fromInteger, fromRational, floor, ceiling, round, truncate)
 
 -- $setup
 -- >>> :set -XTypeApplications
@@ -70,27 +101,6 @@ import safe Prelude hiding (fromInteger, fromRational, floor, ceiling, round, tr
 half :: (Num a, Preorder a) => Trip a b -> a -> Maybe Ordering
 half t x = pcompare (x - counitR t x) (unitL t x - x) 
 
--- | Determine whether /x/ lies exactly halfway between 2 representations.
--- 
--- @ 'tied' t x = (x - 'counitR' t x) '~~' ('unitL' t x - x) @
---
-tied :: (Num a, Preorder a) => Trip a b -> a -> Bool
-tied t = maybe False (~~ EQ) . half t
-
--- | Determine whether /x/ lies below the halfway point between 2 representations.
--- 
--- @ 'below' t x = (x - 'counitR' t x) '<' ('unitL' t x - x) @
---
-below :: (Num a, Preorder a) => Trip a b -> a -> Bool
-below t = maybe False (~~ LT) . half t
-
--- | Determine whether /x/ lies above the halfway point between 2 representations.
--- 
--- @ 'above' t x = (x - 'counitR' t x) '>' ('unitL' t x - x) @
---
-above :: (Num a, Preorder a) => Trip a b -> a -> Bool
-above t = maybe False (~~ GT) . half t
-
 -- | Return the midpoint of the interval containing x.
 --
 -- >>> midpoint f32i08 4.3
@@ -100,11 +110,7 @@ above t = maybe False (~~ GT) . half t
 -- >>> pi - midpoint f64f32 pi
 -- 3.1786509424591713e-8
 --
--- @ 'tied' t $ 'midpoint' t x = True @
---
--- >>> tied f64f32 $ midpoint f64f32 pi
--- True
--- >>> tied f64f32 $ midpoint f64f32 (0/0)
+-- >>> maybe False (~~ EQ) $ half f64f32 (midpoint f64f32 pi)
 -- True
 --
 midpoint :: Fractional a => Trip a b -> a -> a
@@ -134,17 +140,15 @@ midpoint t x = counitR t x / 2 + unitL t x / 2
 -- NaN
 --
 round :: forall a b. (Num a, Triple a b) => a -> b
-round x =
+round x = case pcompare halfR halfL of
+  Just GT -> ceiling x
+  Just LT -> floor x
+  _       -> truncate x
 
-  case pcompare halfR halfL of
-    Just GT -> ceiling x
-    Just LT -> floor x
-    _       -> truncate x
+  where
+    halfR = x - counitR (connR @a @b) x -- dist from lower bound
 
-    where
-      halfR = x - counitR (connR @a @b) x -- dist from lower bound
-
-      halfL = unitL (connL @a @b) x - x -- dist from upper bound
+    halfL = unitL (connL @a @b) x - x -- dist from upper bound
 
 -- | Lift a unary function over a 'Trip'.
 --

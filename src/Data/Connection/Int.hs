@@ -38,10 +38,7 @@ import safe Control.Monad
 import safe Data.Connection.Conn
 import safe Data.Connection.Word
 import safe Data.Int
-import safe Data.Order
 import safe Data.Order.Syntax
-import safe Data.Order.Extended
-import safe Data.Lattice
 import safe Data.Word
 import safe Foreign.C.Types
 import safe Numeric.Natural
@@ -99,7 +96,7 @@ intnat :: ConnL Integer Natural
 intnat = ConnL (fromIntegral . max 0) fromIntegral
 
 natint :: ConnL Natural (Maybe Integer)
-natint = ConnL (fmap fromIntegral . fromPred (==0)) (maybe bottom $ P.fromInteger . max 0)
+natint = ConnL (fmap fromIntegral . fromPred (==0)) (maybe 0 $ P.fromInteger . max 0)
 
 i08i16 :: ConnL Int8 Int16
 i08i16 = i08w08 >>> w08w16 >>> w16i16
@@ -127,15 +124,15 @@ i32i64 = i32w32 >>> w32w64 >>> w64i64
 fromPred :: Alternative f => (t -> Bool) -> t -> f t
 fromPred p a = a <$ guard (p a)
 
-unsigned :: (Bounded a, Integral a, Integral b) => Conn k a b
+unsigned :: (P.Bounded a, Integral a, Integral b) => Conn k a b
 unsigned = Conn f g f where
-  f y = fromIntegral (y + top + 1)
-  g x = fromIntegral x - bottom
+  f y = fromIntegral (y + P.maxBound + 1)
+  g x = fromIntegral x - P.minBound
 
-signed :: forall a. (Bounded a, Integral a) => ConnL a (Maybe Integer)
+signed :: forall a. (P.Bounded a, Integral a) => ConnL a (Maybe Integer)
 signed = ConnL f g where
-  f = fmap fromIntegral . fromPred (==bottom)
-  g = maybe bottom $ P.fromInteger . min (fromIntegral @a top) . max (fromIntegral @a bottom)
+  f = fmap fromIntegral . fromPred (==P.minBound)
+  g = maybe P.minBound $ P.fromInteger . min (fromIntegral @a P.maxBound) . max (fromIntegral @a P.minBound)
 
 {-
 
@@ -155,13 +152,13 @@ clip64 = min 9223372036854775807 . max (-9223372036854775808)
 unsigned :: (Bounded a, Preorder b, Integral a, Integral b) => ConnL a b
 unsigned = ConnL f g where
   f = fromIntegral . max 0
-  g = fromIntegral . min (f top)
+  g = fromIntegral . min (f P.maxBound)
 
 signed' :: forall a k. (Bounded a, Integral a) => Conn k a (Extended Integer)
 signed' = Conn f g h where
-  f = liftExtended (~~ bottom) (const False) fromIntegral
-  g = extended bottom top $ P.fromInteger . min (fromIntegral @a top) . max (fromIntegral @a bottom)
-  h = liftExtended (const False) (~~ top) fromIntegral
+  f = liftExtended (~~ P.minBound) (const False) fromIntegral
+  g = extended P.minBound P.maxBound $ P.fromInteger . min (fromIntegral @a P.maxBound) . max (fromIntegral @a P.minBound)
+  h = liftExtended (const False) (~~ P.maxBound) fromIntegral
 -}
 
 

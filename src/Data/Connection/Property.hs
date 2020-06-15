@@ -3,6 +3,7 @@
 {-# Language TypeApplications #-}
 {-# Language ConstraintKinds #-}
 {-# Language RankNTypes #-}
+
 -- | Galois connections have the same properties as adjunctions defined over other categories:
 --
 --  \( \forall x, y : f \dashv g \Rightarrow f (x) \leq b \Leftrightarrow x \leq g (y) \)
@@ -27,7 +28,6 @@ module Data.Connection.Property where
 
 import Data.Order
 import Data.Order.Property
-import Data.Lattice.Heyting
 import Data.Connection.Conn
 import Prelude hiding (Num(..),Ord(..))
 
