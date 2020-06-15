@@ -11,7 +11,7 @@ import Data.Connection
 import Data.Connection.Conn
 import Data.Connection.Double
 import Data.Lattice
-import Data.Lattice.Heyting
+import Data.Lattice.Property
 import Test.Data.Connection
 import Data.Int
 import Data.Word
@@ -176,124 +176,6 @@ binord = ConnR g f where
 type Rel r b = r -> r -> b
 
 
--- | \( \forall a \in R: a \/ a = a \)
---
--- @ 'idempotent_join' = 'absorbative' 'top' @
--- 
--- See < https://en.wikipedia.org/wiki/Band_(mathematics) >.
---
--- This is a required property.
---
-idempotent_join :: Lattice r => r -> Bool
-idempotent_join = idempotent_join_on (~~)
-
-idempotent_join_on :: (Join-Semigroup) r => Rel r b -> r -> b
-idempotent_join_on (~~) r = (\/) r r ~~ r
-
--- | \( \forall a, b, c \in R: (a \/ b) \/ c = a \/ (b \/ c) \)
---
--- This is a required property.
---
-associative_join :: Lattice r => r -> r -> r -> Bool
-associative_join = associative_on (~~) (\/) 
-
-associative_join_on :: (Join-Semigroup) r => Rel r b -> r -> r -> r -> b
-associative_join_on (=~) = associative_on (=~) (\/) 
-
--- | \( \forall a, b, c: (a \# b) \# c \doteq a \# (b \# c) \)
---
-associative_on :: Rel r b -> (r -> r -> r) -> (r -> r -> r -> b)
-associative_on (~~) (#) a b c = ((a # b) # c) ~~ (a # (b # c))
-
--- | \( \forall a, b \in R: a \/ b = b \/ a \)
---
--- This is a required property.
---
-commutative_join :: Lattice r => r -> r -> Bool
-commutative_join = commutative_join_on (~~)
-
-commutative_join_on :: (Join-Semigroup) r => Rel r b -> r -> r -> b
-commutative_join_on (=~) = commutative_on (=~) (\/) 
-
-
--- | \( \forall a, b: a \# b \doteq b \# a \)
---
-commutative_on :: Rel r b -> (r -> r -> r) -> r -> r -> b
-commutative_on (=~) (#) a b = (a # b) =~ (b # a)
-
--- | \( \forall a, b \in R: a /\ b \/ b = b \)
---
--- Absorbativity is a generalized form of idempotency:
---
--- @
--- 'absorbative' 'top' a = a \/ a = a
--- @
---
--- This is a required property.
---
-absorbative_on :: Lattice r => Rel r Bool -> r -> r -> Bool
-absorbative_on (=~) x y = (x /\ y \/ y) =~ y
-
--- | \( \forall a, b \in R: a \/ b /\ b = b \)
---
--- Absorbativity is a generalized form of idempotency:
---
--- @
--- 'absorbative'' 'bottom' a = a \/ a = a
--- @
---
--- This is a required property.
---
-absorbative_on' :: Lattice r => Rel r Bool -> r -> r -> Bool
-absorbative_on' (=~) x y = ((x \/ y) /\ y) =~ y
-
-distributive :: Lattice r => r -> r -> r -> Bool
-distributive = distributive_on (~~) (/\) (\/)
-
-codistributive :: Lattice r => r -> r -> r -> Bool
-codistributive = distributive_on (~~) (\/) (/\)
-
-distributive_on :: Rel r b -> (r -> r -> r) -> (r -> r -> r) -> (r -> r -> r -> b)
-distributive_on (=~) (#) (%) a b c = ((a # b) % c) =~ ((a % c) # (b % c))
-
-distributive_on' :: Rel r b -> (r -> r -> r) -> (r -> r -> r) -> (r -> r -> r -> b)
-distributive_on' (=~) (#) (%) a b c = (c % (a # b)) =~ ((c % a) # (c % b))
-
--- | @ 'glb' x x y = x @
---
--- See < https://en.wikipedia.org/wiki/Median_algebra >.
-majority_glb :: Lattice r => r -> r -> Bool
-majority_glb x y = glb x y y ~~ y
-
--- | @ 'glb' x y z = 'glb' z x y @
---
-commutative_glb :: Lattice r => r -> r -> r -> Bool
-commutative_glb x y z = glb x y z ~~ glb z x y
-
--- | @ 'glb' x y z = 'glb' x z y @
---
-commutative_glb' :: Lattice r => r -> r -> r -> Bool
-commutative_glb' x y z = glb x y z ~~ glb x z y
-
--- | @ 'glb' ('glb' x w y) w z = 'glb' x w ('glb' y w z) @
---
-associative_glb :: Lattice r => r -> r -> r -> r -> Bool
-associative_glb x y z w = glb (glb x w y) w z ~~ glb x w (glb y w z)
-
-distributive_glb :: (Bounded r, Lattice r) => r -> r -> r -> Bool
-distributive_glb x y z = glb x y z ~~ lub x y z
-
-interval_glb :: Lattice r => r -> r -> r -> Bool
-interval_glb x y z = glb x y z ~~ y ==> (x <~ y && y <~ z) || (z <~ y && y <~ x)
-
--- |  \( \forall a, b, c: a \leq b \Rightarrow a \/ (c /\ b) \eq (a \/ c) /\ b \)
---
--- See < https://en.wikipedia.org/wiki/Distributivity_(order_theory)#Distributivity_for_semilattices >
---
-modular :: Lattice r => r -> r -> r -> Bool
-modular a b c = a \/ (c /\ b) ~~ (a \/ c) /\ b 
-
-
 eql :: PartialOrder a => [a] -> Inf a -> Inf a -> Bool
 eql as p q = lower p == lower q && and (fmap chk as)
   where chk x = p .? x <=> q .? x
@@ -301,12 +183,6 @@ eql as p q = lower p == lower q && and (fmap chk as)
 eqr :: PartialOrder a => [a] -> Sup a -> Sup a -> Bool
 eqr as p q = upper p == upper q && and (fmap chk as)
   where chk x = x ?. p <=> x ?. q
-
-validL :: Preorder a => Inf a -> Bool
-validL i = i .? lower i && lower i <~ upper i
-
-validR :: Preorder a => Sup a -> Bool
-validR s = upper s ?. s && lower s <~ upper s
 
 prop_alexandrov_float :: Property
 prop_alexandrov_float = withTests 20000 . property $ do

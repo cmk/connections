@@ -15,12 +15,12 @@ module Data.Connection.Conn (
   , Conn()
   , embed
   -- ** Trip
-  , Trip
+  , type Trip
   , pattern Conn
   , trip
   , range
   -- ** ConnL
-  , ConnL
+  , type ConnL
   , pattern ConnL
   , lft
   , lft'
@@ -33,7 +33,7 @@ module Data.Connection.Conn (
   , upperL1
   , upperL2
   -- ** ConnR
-  , ConnR
+  , type ConnR
   , pattern ConnR
   , rgt
   , rgt'
@@ -46,28 +46,25 @@ module Data.Connection.Conn (
   , lowerR1
   , lowerR2
   -- * Connections
-  , bounded
-  , (\|/)
-  , (/|\)
-  , joined
-  , forked
   , choice
   , strong
   , fmapped
 ) where
 
 import safe Control.Arrow
-import safe Control.Category (Category, (>>>))
+import safe Control.Category (Category)
 import safe Data.Bifunctor (bimap)
-import safe Data.Functor.Identity
-import safe Data.Functor.Rep
-import safe Data.Lattice
 import safe Data.Order
-import safe Data.Semigroup.Foldable
-import safe Prelude hiding (Ord(..), Bounded, range, until)
+import safe Prelude hiding (Ord(..), Bounded)
 import safe qualified Control.Category as C
 
 -- | A data kind distinguishing the chirality of a Kan extension.
+--
+-- Here it serves to distinguish the directionality of a preorder:
+--
+-- * /L/-tagged types are 'upwards-directed'
+--
+-- * /R/-tagged types are 'downwards-directed'
 --
 data Kan = L | R
 
@@ -91,7 +88,7 @@ embed (Conn_ _ g) = g
 
 -- | An <https://ncatlab.org/nlab/show/adjoint+triple adjoint triple> of Galois connections.
 --
--- An  adjoint triple is a chain of connections of length 3:
+-- An adjoint triple is a chain of connections of length 3:
 --
 -- \(f \dashv g \dashv h \) 
 --
@@ -99,7 +96,7 @@ embed (Conn_ _ g) = g
 --
 type Trip a b = forall k. Conn k a b
 
--- | A view pattern for a 'Trip'.
+-- | A view pattern for an arbitrary (left or right) 'Conn'.
 --
 -- /Caution/: /Conn f1 g f2/ must obey \(f1 \dashv g \dashv f2\). This condition is not checked.
 --
@@ -192,8 +189,7 @@ swapL (ConnR f g) = ConnL f g
 -- | Round trip through a connection.
 --
 -- > unitL c = upperL1 c id = embed c . lowerL c
---
--- > x <~ unitL c x
+-- > x <= unitL c x
 -- 
 -- >>> compare pi $ unitL f64f32 pi
 -- LT
@@ -203,7 +199,7 @@ unitL c = upperL1 c id
 
 -- | Reverse round trip through a connection.
 --
--- > x >~ counitL c x
+-- > x >= counitL c x
 --
 -- >>> counitL (bounded @Ordering) LT
 -- GT
@@ -217,7 +213,15 @@ counitL c = lowerL1 c id
 
 -- | Extract the lower half of a 'Trip' or 'ConnL'.
 --
--- > upperR c x <~ lowerL c x
+-- When /a/ and /b/ are lattices we have:
+--
+-- > lowerL c (x1 \/ a2) = lowerL c x1 \/ lowerL c x2
+--
+-- This is the adjoint functor theorem for preorders.
+--
+-- Furthermore, when /c/ is a triple adjunction we have:
+--
+-- > upperR c x <= lowerL c x
 --
 -- >>> upperR (bounded @Ordering) ()
 -- LT
@@ -302,8 +306,7 @@ swapR (ConnL f g) = ConnR f g
 -- | Round trip through a connection.
 --
 -- > unitR c = upperR1 c id = upperR c . embed c
---
--- > x <~ unitR c x
+-- > x <= unitR c x
 --
 -- >>> unitR (bounded @Ordering) LT
 -- LT
@@ -317,7 +320,7 @@ unitR c = upperR1 c id
 
 -- | Reverse round trip through a connection.
 --
--- > x >~ counitR c x
+-- > x >= counitR c x
 --
 -- >>> compare pi $ counitR f64f32 pi
 -- GT
@@ -325,7 +328,22 @@ unitR c = upperR1 c id
 counitR :: ConnR a b -> a -> a
 counitR c = lowerR1 c id
 
--- | Extract the upper half of a Connection.
+-- | Extract the upper half of a connection.
+--
+-- When /a/ and /b/ are lattices we have:
+--
+-- > upperR c (x1 /\ x2) = upperR c x1 /\ upperR c x2
+--
+-- This is the adjoint functor theorem for preorders.
+--
+-- Furthermore, when /c/ is a triple adjunction we have:
+--
+-- > upperR c x <= lowerL c x
+--
+-- >>> upperR (bounded @Ordering) ()
+-- LT
+-- >>> lowerL (bounded @Ordering) ()
+-- GT
 --
 upperR :: ConnR a b -> a -> b
 upperR (Conn_ f _) = fst . f
@@ -353,36 +371,6 @@ lowerR2 (ConnR f g) h a1 a2 = f $ h (g a1) (g a2)
 ---------------------------------------------------------------------
 -- Connections
 ---------------------------------------------------------------------
-
--- | Every bounded preorder admits a pair of connections with a single-object preorder.
---
--- >>> upperR (bounded @Ordering) ()
--- LT
--- >>> lowerL (bounded @Ordering) ()
--- GT
--- 
-bounded :: Bounded a => Conn k () a
-bounded = Conn (const top) (const ()) (const bottom)
-
-infixr 3 \|/
-
--- | A preorder variant of 'Control.Arrow.|||'.
---
-(\|/) :: Conn k c a -> Conn k c b -> Conn k c (Either a b)
-f \|/ g = joined >>> f `choice` g
-
-infixr 4 /|\
-
--- | A preorder variant of 'Control.Arrow.&&&'.
---
-(/|\) :: Lattice c => Conn k a c -> Conn k b c -> Conn k (a, b) c
-f /|\ g = f `strong` g >>> forked
-
-joined :: Conn k a (Either a a)
-joined = Conn Left (either id id) Right
-
-forked :: Lattice a => Conn k (a, a) a
-forked = Conn (uncurry (\/)) (\x -> (x,x)) (uncurry (/\))
 
 -- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Category_Theory/Categories_of_ordered_sets coproduct order>
 --
@@ -418,7 +406,6 @@ forked = Conn (uncurry (\/) &&& uncurry (/\)) (\x -> (x,x))
 
 joined :: Conn k a (Either a a)
 joined = Conn (Left &&& Right) (either id id)
-
 
 -- |
 --

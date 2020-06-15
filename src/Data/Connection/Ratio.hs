@@ -6,7 +6,6 @@ module Data.Connection.Ratio (
   , reduce
   , shiftd
   -- * Rational
-  , Rational
   , ratf32
   , ratf64
   , rati08
@@ -16,7 +15,6 @@ module Data.Connection.Ratio (
   , ratixx
   , ratint
   -- * Positive
-  , Positive
   , posw08
   , posw16
   , posw32
@@ -27,17 +25,16 @@ module Data.Connection.Ratio (
 
 import safe Data.Connection.Conn
 import safe Data.Int
-import safe Data.Lattice hiding (reduce)
 import safe Data.Order
 import safe Data.Order.Extended
 import safe Data.Ratio
 import safe Data.Word
 import safe GHC.Real (Ratio(..), Rational)
 import safe Numeric.Natural
-import safe Prelude hiding (Ord(..), until, Bounded)
+import safe Prelude hiding (Ord(..), until)
 import safe qualified Prelude as P
-import safe qualified Data.Order.Float as F32
-import safe qualified Data.Order.Double as F64
+import safe qualified Data.Connection.Float as F32
+import safe qualified Data.Connection.Double as F64
 
 -- | A total version of 'GHC.Real.reduce'.
 --
@@ -76,7 +73,7 @@ ratint = Conn f g h where
   
   f = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) P.ceiling
 
-  g = extended bottom top P.fromIntegral
+  g = extended ninf pinf P.fromIntegral
 
   h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) P.floor
 
@@ -94,9 +91,9 @@ ratf32 = Conn (toFloating f) (fromFloating g) (toFloating h) where
           then est
           else descendf est (fromFloating g) x
 
-  ascendf z g1 y = until (\x -> g1 x >~ y) (<~) (F32.shift 1) z
+  ascendf z g1 y = F64.until (\x -> g1 x >~ y) (<~) (F32.shift 1) z
 
-  descendf z f1 x = until (\y -> f1 y <~ x) (>~) (F32.shift (-1)) z
+  descendf z f1 x = F64.until (\y -> f1 y <~ x) (>~) (F32.shift (-1)) z
 
 ratf64 :: Conn k Rational Double
 ratf64 = Conn (toFloating f) (fromFloating g) (toFloating h) where
@@ -112,9 +109,9 @@ ratf64 = Conn (toFloating f) (fromFloating g) (toFloating h) where
           then est
           else descendf est (fromFloating g) x
 
-  ascendf z g1 y = until (\x -> g1 x >~ y) (<~) (F64.shift 1) z
+  ascendf z g1 y = F64.until (\x -> g1 x >~ y) (<~) (F64.shift 1) z
 
-  descendf z f1 x = until (\y -> f1 y <~ x) (>~) (F64.shift (-1)) z
+  descendf z f1 x = F64.until (\y -> f1 y <~ x) (>~) (F64.shift (-1)) z
 
 ---------------------------------------------------------------------
 -- Ratio Natural
@@ -140,9 +137,9 @@ posnat = Conn f g h where
   
   f = liftEitherR (\x -> x ~~ nan || x ~~ pinf) P.ceiling
 
-  g = either P.fromIntegral (const top)
+  g = either P.fromIntegral (const pinf)
 
-  h = liftEitherR (~~ pinf) $ \x -> if x ~~ nan then bottom else P.floor x
+  h = liftEitherR (~~ pinf) $ \x -> if x ~~ nan then 0 else P.floor x
 
 ---------------------------------------------------------------------
 -- Internal
@@ -182,43 +179,43 @@ ratpos = Conn k f g h where
   
   f = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) P.ceiling
 
-  g = extended bottom top P.fromIntegral
+  g = extended minBound maxBound P.fromIntegral
 
   h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) P.floor
 -}
 
 unsignedTriple :: (Bounded a, Integral a) => Ratio Natural -> Conn k Positive (Lowered a) 
 unsignedTriple high = Conn f g h where
-  f x | x ~~ nan = top
-      | x > high = top
+  f x | x ~~ nan = Right maxBound
+      | x > high = Right maxBound
       | otherwise = Left $ P.ceiling x
 
   g = either P.fromIntegral (const pinf)
 
-  h x | x ~~ nan = Left bottom
-      | x ~~ pinf = top
-      | x > high = Left top
+  h x | x ~~ nan = Left minBound
+      | x ~~ pinf = Right maxBound
+      | x > high = Left maxBound
       | otherwise = Left $ P.floor x
 
 signedTriple :: (Bounded a, Integral a) => Rational -> Conn k Rational (Extended a)
 signedTriple high = Conn f g h where
 
-  f = liftExtended (~~ ninf) (\x -> x ~~ nan || x > high) $ \x -> if x < low then bottom else P.ceiling x
+  f = liftExtended (~~ ninf) (\x -> x ~~ nan || x > high) $ \x -> if x < low then minBound else P.ceiling x
 
-  g = extended bottom top P.fromIntegral
+  g = extended ninf pinf P.fromIntegral
  
-  h = liftExtended (\x -> x ~~ nan || x < low) (~~ pinf) $ \x -> if x > high then top else P.floor x
+  h = liftExtended (\x -> x ~~ nan || x < low) (~~ pinf) $ \x -> if x > high then maxBound else P.floor x
 
   low = -1 - high
 
 
-toFloating :: (Lattice (Ratio a), Eq a, Fractional b, Num a) => (Ratio a -> b) -> Ratio a -> b
+toFloating :: (Order (Ratio a), Fractional b, Num a) => (Ratio a -> b) -> Ratio a -> b
 toFloating f x | x ~~ nan = 0/0
          | x ~~ ninf = (-1)/0
          | x ~~ pinf = 1/0
          | otherwise = f x
 
-fromFloating :: (Lattice a, Eq a, Fractional a, Num b) => (a -> Ratio b) -> a -> Ratio b
+fromFloating :: (Order a, Eq a, Fractional a, Num b) => (a -> Ratio b) -> a -> Ratio b
 fromFloating f x | x ~~ 0/0 = nan
                  | x ~~ (-1)/0 = ninf
                  | x ~~ 1/0 = pinf

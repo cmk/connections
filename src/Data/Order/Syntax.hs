@@ -3,11 +3,11 @@
 -- | Utilities for custom preludes and RebindableSyntax.
 module Data.Order.Syntax (
   -- * Partial orders
-    PartialOrder
+    Order
   , (==),(/=)
   , (<=),(>=)
   -- * Total orders
-  , TotalOrder
+  , Total
   , min ,max
   , compare
   , comparing
@@ -27,14 +27,6 @@ import Prelude hiding (Eq(..),Ord(..))
 -- Partial orders
 -------------------------------------------------------------------------------
 
--- | A < https://en.wikipedia.org/wiki/Partially_ordered_set partial order > on /a/.
---
--- Note: ideally this would be a subclass of /Preorder/.
---
--- We instead use a constraint kind in order to retain compatibility with the
--- downstream users of /Eq/.
--- 
-type PartialOrder a = (Eq.Eq a, Preorder a)
 
 infix 4 ==, /=, <=, >=
 
@@ -46,25 +38,16 @@ infix 4 ==, /=, <=, >=
 (/=) :: Eq.Eq a => a -> a -> Bool
 (/=) x y = not (x == y)
 
-(<=) :: PartialOrder a => a -> a -> Bool
+(<=) :: Order a => a -> a -> Bool
 (<=) x y = x < y || x == y
 
-(>=) :: PartialOrder a => a -> a -> Bool
+(>=) :: Order a => a -> a -> Bool
 (>=) x y = x > y || x == y
 
 -------------------------------------------------------------------------------
 -- Total orders
 -------------------------------------------------------------------------------
 
--- | A < https://en.wikipedia.org/wiki/Total_order total order > on /a/.
--- 
--- Note: ideally this would be a subclass of /PartialOrder/, without instances
--- for /Float/, /Double/, /Rational/, etc.
---
--- We instead use a constraint kind in order to retain compatibility with the
--- downstream users of /Ord/.
--- 
-type TotalOrder a = (Ord.Ord a, Preorder a)
 
 infix 4 `min`, `max`, `compare`, `comparing`
 
@@ -75,7 +58,7 @@ infix 4 `min`, `max`, `compare`, `comparing`
 -- /Note/: this function will throw a /ArithException/ on floats and rationals
 -- if one of the arguments is finite and the other is /NaN/.
 --
-min :: TotalOrder a => a -> a -> a
+min :: Total a => a -> a -> a
 min x y = case compare x y of
   GT -> y
   _  -> x
@@ -87,7 +70,7 @@ min x y = case compare x y of
 -- /Note/: this function will throw a /ArithException/ on floats and rationals
 -- if one of the arguments is finite and the other is /NaN/.
 --
-max :: TotalOrder a => a -> a -> a
+max :: Total a => a -> a -> a
 max x y = case compare x y of
   LT -> y
   _  -> x
@@ -113,7 +96,7 @@ max x y = case compare x y of
 -- >>> compare (0/0 :: Double) 0
 -- *** Exception: divide by zero
 --
-compare :: TotalOrder a => a -> a -> Ordering
+compare :: Total a => a -> a -> Ordering
 compare x y = case pcompare x y of
   Just o -> o
   Nothing -> throw DivideByZero
@@ -122,5 +105,5 @@ compare x y = case pcompare x y of
 --
 -- > comparing p x y = compare (p x) (p y)
 --
-comparing :: TotalOrder a => (b -> a) -> b -> b -> Ordering
+comparing :: Total a => (b -> a) -> b -> b -> Ordering
 comparing p x y = compare (p x) (p y)

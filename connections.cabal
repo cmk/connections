@@ -30,27 +30,19 @@ library
     , Data.Connection.Property
 
     , Data.Lattice
-    , Data.Lattice.Heyting
 
     , Data.Order
-    , Data.Order.Float
-    , Data.Order.Double
-    , Data.Order.Interval
     , Data.Order.Extended
+    , Data.Order.Interval
     , Data.Order.Property
-    , Data.Order.Topology
     , Data.Order.Syntax
-
-    , Data.Semigroup.Join
-    , Data.Semigroup.Quantale
     
   build-depends:       
       base           >= 4.10  && < 5.0
     , containers     >= 0.4.0 && < 1.0
-    , semigroupoids  >= 5.0   && < 6.0
     , universe-base  >= 1.1.1 && < 2.0
-    , adjunctions    >= 4.4   && < 5.0
     , transformers   >= 0.5.5.0 && < 0.6
+    , finite-typelits
 
   default-extensions:
       ScopedTypeVariables
@@ -65,7 +57,7 @@ test-suite test
   type: exitcode-stdio-1.0
   other-modules:
       Test.Data.Order
-    , Test.Data.Order.Topology
+    --, Test.Data.Order.Topology
 
     , Test.Data.Connection
     , Test.Data.Connection.Int
