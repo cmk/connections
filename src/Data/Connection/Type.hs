@@ -8,32 +8,34 @@
 module Data.Connection.Type (
   -- * Conn
     Conn(..)
-  , unit
-  , counit
   , connl
   , connr
   , connl1
   , connr1
   , connl2
   , connr2
+  , unit
+  , counit
+  , (|||)
+  , (&&&)
   -- * Trip
   , Trip(..)
-  , tripr
   , tripl
-  , unitr
-  , unitl
-  , counitr
-  , counitl
+  , tripr
+  , unit'
+  , counit'
   -- ** Connections
   , dual
+  , liftl
+  , liftr
+  , joined
+  , forked
   , strong
   , strong'
   , choice
   , choice'
   , mapped
   , mapped'
-  , stackl
-  , stackr
   -- * Iterators
   , until
   , while
@@ -46,7 +48,6 @@ import safe Data.Functor.Identity
 import safe Data.Functor.Rep
 import safe Data.Order
 import safe Data.Order.Extended
-import safe Data.Order.Interval
 import safe Data.Semigroup.Foldable
 import safe Data.Lattice
 import safe Prelude hiding (Ord(..), Bounded, until)
@@ -73,20 +74,6 @@ data Conn a b = Conn (a -> b) (b -> a)
 instance Category Conn where
   id = Conn id id
   Conn f' g' . Conn f g = Conn (f' . f) (g . g')
-
--- | Round trip through a connection.
---
--- > x <~ unit x
---
-unit :: Conn a b -> a -> a
-unit c = connr1 c id
-
--- | Reverse round trip through a connection.
---
--- > counit x <~ x
---
-counit :: Conn a b -> b -> b
-counit c = connl1 c id
 
 -- | Extract the left side of a connection.
 --
@@ -118,6 +105,30 @@ connl2 (Conn f g) h b1 b2 = f $ h (g b1) (g b2)
 connr2 :: Conn a b -> (b -> b -> b) -> a -> a -> a
 connr2 (Conn f g) h a1 a2 = g $ h (f a1) (f a2)
 
+-- | Round trip through a connection.
+--
+-- > x <~ unit x
+--
+unit :: Conn a b -> a -> a
+unit c = connr1 c id
+
+-- | Reverse round trip through a connection.
+--
+-- > counit x <~ x
+--
+counit :: Conn a b -> b -> b
+counit c = connl1 c id
+
+infixr 3 |||
+
+(|||) :: Conn c a -> Conn c b -> Conn c (Either a b)
+f ||| g = tripl joined C.>>> f `choice` g
+
+infixr 3 &&&
+
+(&&&) :: Lattice c => Conn c a -> Conn c b -> Conn c (a, b)
+f &&& g = tripr forked C.>>> f `strong` g
+
 ---------------------------------------------------------------------
 -- Trip
 ---------------------------------------------------------------------
@@ -136,33 +147,33 @@ instance Category Trip where
   id = Trip id id id
   Trip f' g' h' . Trip f g h = Trip (f' . f) (g . g') (h' . h)
 
-tripl :: Trip a b -> Conn b a
-tripl (Trip _ g h) = Conn g h
-
-tripr :: Trip a b -> Conn a b
-tripr (Trip f g _) = Conn f g
-
--- |
+-- | Extract the first half of a triple.
 --
--- >>> compare P.pi $ unitr f64f32 P.pi
+-- > (connr . tripr) t x < (connl . tripl) t x
+--
+tripl :: Trip a b -> Conn a b
+tripl (Trip f g _) = Conn f g
+
+-- | Extract the second half of a triple.
+--
+tripr :: Trip a b -> Conn b a
+tripr (Trip _ g h) = Conn g h
+
+-- | Return the lesser of the two representations bracketing /a/.
+--
+-- >>> compare P.pi $ unit' f64f32 P.pi
 -- LT
 --
-unitr :: Trip a b -> b -> b
-unitr = unit . tripl
+unit' :: Trip a b -> a -> a
+unit' = unit . tripl
 
-unitl :: Trip a b -> a -> a
-unitl = unit . tripr
-
--- |
+-- | Return the greater of the two representations bracketing /a/.
 --
--- >>> compare P.pi $ counitl f64f32 P.pi
+-- >>> compare P.pi $ counit' f64f32 P.pi
 -- GT
 --
-counitl :: Trip a b -> a -> a
-counitl = counit . tripl
-
-counitr :: Trip a b -> b -> b
-counitr = counit . tripr
+counit' :: Trip a b -> a -> a
+counit' = counit . tripr
 
 ---------------------------------------------------------------------
 -- Connections
@@ -170,6 +181,25 @@ counitr = counit . tripr
 
 dual :: Conn a b -> Conn (Down b) (Down a)
 dual (Conn f g) = Conn (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
+
+
+liftl :: Bounded b => Trip (Maybe a) (Either a b)
+liftl = Trip f g h where
+  f = maybe (Right bottom) Left
+  g = either Just (const Nothing)
+  h = maybe (Right top) Left
+
+liftr :: Bounded a => Trip (Maybe b) (Either a b)
+liftr = Trip f g h where
+  f = maybe (Left bottom) Right
+  g = either (const Nothing) Just
+  h = maybe (Left top) Right
+
+joined :: Trip a (Either a a)
+joined = Trip Left (either id id) Right
+
+forked :: Lattice a => Trip (a, a) a
+forked = Trip (uncurry (\/)) (\x -> (x,x)) (uncurry (/\))
 
 -- |
 --
@@ -207,21 +237,6 @@ mapped (Conn f g) = Conn (fmap f) (fmap g)
 mapped' :: Functor f => Trip a b -> Trip (f a) (f b)
 mapped' (Trip f g h) = Trip (fmap f) (fmap g) (fmap h)
 
-stackr :: Bounded a => Trip (Maybe b) (Either a b)
-stackr = Trip f g h where
-  f = maybe (Left bottom) Right
-  g = either (const Nothing) Just
-  h = maybe (Left top) Right
-
-stackl :: Bounded b => Trip (Maybe a) (Either a b)
-stackl = Trip f g h where
-  f = maybe (Right bottom) Left
-  g = either Just (const Nothing)
-  h = maybe (Right top) Left
-
---infixr 3 &&&
---(&&&) :: Lattice c => Conn c a -> Conn c b -> Conn c (a, b)
---f &&& g = tripl forked >>> f `strong` g
 -------------------------------------------------------------------------------
 -- Iterators
 -------------------------------------------------------------------------------

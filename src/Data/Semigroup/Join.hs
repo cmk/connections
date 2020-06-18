@@ -331,7 +331,7 @@ instance Semigroup (Join Ordering) where
   {-# INLINE (<>) #-}
 
 instance Monoid (Join Ordering) where
-  mempty = pure GT
+  mempty = pure LT
   {-# INLINE mempty #-}
 
 instance Semigroup (Meet Ordering) where

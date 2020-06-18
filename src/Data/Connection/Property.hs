@@ -48,7 +48,7 @@ closed (Conn f g) = invertible (>~) f g
 -- This is a required property.
 --
 closed' :: Preorder a => Preorder b => Trip a b -> a -> Bool
-closed' t x = closed (tripr t) x && kernel (tripl t) x
+closed' t x = closed (tripl t) x && kernel (tripr t) x
 
 -- | \( \forall x : f \dashv g \Rightarrow f \circ g (x) \leq x \)
 --
@@ -62,7 +62,7 @@ kernel (Conn f g) = invertible (<~) g f
 -- This is a required property.
 --
 kernel' :: Preorder a => Preorder b => Trip a b -> b -> Bool
-kernel' t x = closed (tripl t) x && kernel (tripr t) x
+kernel' t x = closed (tripr t) x && kernel (tripl t) x
 
 -- | \( \forall x, y : x \leq y \Rightarrow f (x) \leq f (y) \)
 --

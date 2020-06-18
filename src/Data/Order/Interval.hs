@@ -11,9 +11,11 @@ module Data.Order.Interval (
   , endpts
   , above
   , below
+  , interval
 ) where
 
 import safe Control.Applicative (liftA2)
+import safe Data.Connection.Type
 import safe Data.Bifunctor (bimap)
 import safe Data.Lattice
 import safe Data.Order
@@ -103,6 +105,12 @@ above x = x ... top
 below :: LowerBounded a => a -> Interval a
 below x = bottom ... x
 {-# INLINE below #-}
+
+interval :: LowerBounded a => Trip (Maybe a) (Interval a)
+interval = Trip f g h where
+  f = maybe empty singleton
+  g = maybe Nothing (Just . uncurry (\/)) . endpts
+  h = maybe empty below
 
 ---------------------------------------------------------------------
 -- Instances

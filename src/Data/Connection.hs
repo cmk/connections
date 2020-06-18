@@ -4,14 +4,35 @@
 {-# Language Safe                #-}
 
 module Data.Connection (
-  -- * Galois connections
+  -- * Connection
     Connection(..)
   , left
   , right
-  -- * Galois triples
+  -- * Triple
   , Triple(..)
+  , embed
   , floor
   , ceiling
+  -- * Conn
+  , Conn(..)
+  , connl
+  , connr
+  , connl1
+  , connr1
+  , connl2
+  , connr2
+  , unit
+  , counit
+  , (|||)
+  , (&&&)
+  -- * Trip
+  , Trip(..)
+  , tripl
+  , tripr
+  , unit'
+  , counit'
+  , joined
+  , forked
 ) where
 
 import safe Control.Applicative (liftA2)
@@ -90,6 +111,11 @@ class Triple a b where
 
     triple :: Trip a b
 
+-- | Embed a value into a more refined order.
+--
+embed :: Triple a b => b -> a
+embed = connl . tripr $ triple
+
 -- | A monotonic floor function.
 --
 -- > floor @a @a = id
@@ -106,7 +132,7 @@ class Triple a b where
 -- -2
 --
 floor :: Triple a b => a -> b
-floor = connr . tripl $ triple 
+floor = connr . tripr $ triple 
 
 -- | A monotonic ceiling function.
 --
@@ -124,7 +150,7 @@ floor = connr . tripl $ triple
 -- -1
 --
 ceiling :: Triple a b => a -> b
-ceiling = connl . tripr $ triple
+ceiling = connl . tripl $ triple
 
 ---------------------------------------------------------------------
 -- Connection instances
@@ -220,16 +246,6 @@ instance Connection a b => Connection a (Identity b) where
 instance Connection a b => Connection (Down b) (Down a) where
   connection = dual connection
 
-instance LowerBounded a => Connection (Interval a) (Maybe a) where
-  connection = Conn f g where
-    g = maybe empty below
-    f = maybe Nothing (Just . uncurry (\/)) . endpts
-
-instance Lattice a => Connection (Maybe a) (Interval a) where
-  connection = Conn f g where
-    f = maybe empty singleton
-    g = maybe Nothing (Just . uncurry (\/)) . endpts
-
 instance (Connection a b, Connection c d) => Connection (Either a c) (Either b d) where
   -- |
   -- > connection :: Connection a b => Connection (Lifted a) (Lifted b) 
@@ -318,9 +334,6 @@ instance Triple a b => Triple (Identity a) b where
 instance Triple a b => Triple a (Identity b) where
   triple = triple C.>>> Trip Identity runIdentity Identity
 
-instance Triple a b => Triple a (Either b b) where
-  triple = triple C.>>> Trip Left (either id id) Right
-
 instance (Triple a b, Triple c d) => Triple (Either a c) (Either b d) where
   -- |
   -- > triple :: Triple a b => Triple (Lifted a) (Lifted b) 
@@ -336,11 +349,11 @@ instance Triple a b => Triple (Extended a) (Extended b) where
 instance Triple a b => Triple [a] [b] where
   triple = mapped' triple
 
-instance (Triple a b, Lattice a) => Triple (a, a) b where
-  triple = Trip (uncurry (\/)) (\x -> (x,x)) (uncurry (/\)) C.>>> triple
-
 instance (Triple a b, Triple c d) => Triple (a, c) (b, d) where
   triple = strong' triple triple
+
+--instance LowerBounded a => Triple (Maybe a) (Interval a) where
+--  triple = interval
 
 instance (Triple a b, Foldable1 f, Representable f, Lattice a) => Triple (Co f a) b where
   triple = Trip unCo Co unCo C.>>> Trip join1 pureRep meet1 C.>>> triple
