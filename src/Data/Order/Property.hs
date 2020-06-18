@@ -72,19 +72,19 @@ preorder x y =
   (pcompare x y == pcmp x y)
 
   where
-    le x1 y1 = maybe False (<~ EQ) $ pcompare x1 y1
+    le x1 y1 = x1 < y1 || x1 ~~ y1
 
-    ge x1 y1 = maybe False (>~ EQ) $ pcompare x1 y1
-
-    cp x1 y1 = maybe False (const True) $ pcompare x1 y1
-
-    eq x1 y1 = maybe False (~~ EQ) $ pcompare x1 y1
-
-    ne x1 y1 = not $ x1 ~~ y1
+    ge = flip le
     
-    lt x1 y1 = maybe False (< EQ) $ pcompare x1 y1
+    cp x1 y1 = x1 <~ y1 || x1 >~ y1
 
-    gt x1 y1 = maybe False (> EQ) $ pcompare x1 y1
+    eq x1 y1 = x1 <~ y1 && x1 >~ y1
+
+    ne x1 y1 = not $ eq x1 y1
+    
+    lt x1 y1 = x1 <~ y1 && x1 /~ y1
+
+    gt = flip lt
 
     sm x1 y1 = not (x1 < y1) && not (x1 > y1)
 
@@ -92,6 +92,7 @@ preorder x y =
       | x1 <~ y1 = Just $ if y1 <~ x1 then EQ else LT
       | y1 <~ x1 = Just GT
       | otherwise = Nothing
+
 
 -- | Check a 'PartialOrder' is internally consistent.
 --

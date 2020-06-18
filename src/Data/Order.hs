@@ -14,6 +14,7 @@
 module Data.Order (
   -- * Preorders
     Preorder(..)
+  , pcomparing
   -- * Partial orders
   , PartialOrder
   , (==),(/=)
@@ -33,6 +34,7 @@ module Data.Order (
 import safe Control.Applicative
 import safe Data.Bool hiding (not)
 import safe Data.Either
+import safe Data.Foldable (foldl')
 import safe Data.Functor.Apply
 import safe Data.Functor.Identity
 import safe Data.Functor.Contravariant
@@ -89,6 +91,8 @@ class Preorder a where
 
     -- | Non-strict partial order relation on /a/.
     --
+    -- Is /x/ less than or equal to /y/?
+    --
     -- '<~' is reflexive, anti-symmetric, and transitive.
     --
     -- > x <~ y = x < y || x ~~ y
@@ -97,9 +101,11 @@ class Preorder a where
     -- for all /x/, /y/ in /a/.
     --
     (<~) :: a -> a -> Bool
-    x <~ y = maybe False (<~ EQ) (pcompare x y)
+    x <~ y = maybe False (Ord.<= EQ) (pcompare x y)
 
     -- | Converse non-strict partial order relation on /a/.
+    --
+    -- Is /x/ greater than or equal to /y/?
     --
     -- '>~' is reflexive, anti-symmetric, and transitive.
     --
@@ -113,6 +119,8 @@ class Preorder a where
 
     -- | Strict partial order relation on /a/.
     --
+    -- Is /x/ less than /y/?
+    --
     -- '<' is irreflexive, asymmetric, and transitive.
     --
     -- > x < y = x <~ y && not (y <~ x)
@@ -121,14 +129,16 @@ class Preorder a where
     -- When '<~' is antisymmetric then /a/ is a partial 
     -- order and we have:
     -- 
-    -- > x > y = x >~ y && x /~ y
+    -- > x < y = x <~ y && x /~ y
     --
     -- for all /x/, /y/ in /a/.
     --
     (<) :: a -> a -> Bool
-    x < y = x <~ y && not (y <~ x)
+    x < y = maybe False (Ord.< EQ) (pcompare x y)
 
     -- | Converse strict partial order relation on /a/.
+    --
+    -- Is /x/ greater than /y/?
     --
     -- '>' is irreflexive, asymmetric, and transitive.
     --
@@ -143,18 +153,22 @@ class Preorder a where
     -- for all /x/, /y/ in /a/.
     --
     (>) :: a -> a -> Bool
-    x > y = x >~ y && not (y >~ x)
+    (>) = flip (<)
 
     -- | Comparability relation on /a/. 
+    --
+    -- Are /x/ and /y/ comparable?
     --
     -- '?~' is reflexive, symmetric, and transitive.
     --
     -- If /a/ implements 'Ord' then we should have @x ?~ y = True@.
     --
     (?~) :: a -> a -> Bool
-    x ?~ y = x <~ y || x >~ y
+    x ?~ y = maybe False (const True) (pcompare x y)
     
     -- | Equivalence relation on /a/.
+    --
+    -- Are /x/ and /y/ equivalent?
     --
     -- '~~' is reflexive, symmetric, and transitive.
     --
@@ -167,12 +181,47 @@ class Preorder a where
     -- If /a/ implements 'Eq' then we should have @('~~') = ('==')@.
     --
     (~~) :: a -> a -> Bool
-    (~~) x y = x <~ y && y <~ x
+    x ~~ y = maybe False (Eq.== EQ) (pcompare x y)
 
     -- | Negation of '~~'.
     --
+    -- Are /x/ and /y/ not equivalent?
+    --
     (/~) :: a -> a -> Bool
     x /~ y = not $ x ~~ y
+    
+    -- | Similarity relation on /a/. 
+    --
+    -- Are /x/ and /y/ either equivalent or incomparable?
+    --
+    -- 'similar' is reflexive and symmetric, but not necessarily transitive.
+    --
+    -- Note this is only equivalent to '==' in a total (i.e. linear) order:
+    --
+    -- > similar (0/0 :: Float) 5 = True
+    --
+    -- If /a/ implements 'Ord' then we should have @('~~') = 'similar' = ('==')@.
+    --
+    similar :: a -> a -> Bool
+    similar x y = maybe True (Eq.== EQ) (pcompare x y)
+
+    -- | A partial version of 'Data.Ord.compare'.
+    --
+    -- > x <  y = maybe False (<  EQ) $ pcompare x y
+    -- > x >  y = maybe False (>  EQ) $ pcompare x y
+    -- > x <~ y = maybe False (<~ EQ) $ pcompare x y
+    -- > x >~ y = maybe False (>~ EQ) $ pcompare x y
+    -- > x ~~ y = maybe False (~~ EQ) $ pcompare x y
+    -- > x ?~ y = maybe False (const True) $ pcompare x y
+    -- > similar x y = maybe True (~~ EQ) $ pcompare x y
+    -- 
+    -- If /a/ implements 'Ord' then we should have @'pcompare' x y = 'Just' '$' 'compare' x y@.
+    --
+    pcompare :: a -> a -> Maybe Ordering
+    pcompare x y 
+      | x <~ y    = Just $ if y <~ x then EQ else LT
+      | y <~ x    = Just GT
+      | otherwise = Nothing
 
     -- | A partial version of 'Data.Ord.max'. 
     --
@@ -197,36 +246,16 @@ class Preorder a where
         GT -> Just y
         EQ -> Just x
         LT -> Just x
-    
-    -- | Similarity relation on /a/. 
-    --
-    -- 'similar' is reflexive and symmetric, but not necessarily transitive.
-    --
-    -- Note this is only equivalent to '==' in a total (i.e. linear) order:
-    --
-    -- > similar (0/0 :: Float) 5 = True
-    --
-    -- If /a/ implements 'Ord' then we should have @('~~') = 'similar' = ('==')@.
-    --
-    similar :: a -> a -> Bool
-    similar x y = not (x < y) && not (x > y)
 
-    -- | A partial version of 'Data.Ord.compare'.
-    --
-    -- > x <  y = maybe False (<  EQ) (pcompare x y)
-    -- > x >  y = maybe False (>  EQ) (pcompare x y)
-    -- > x <~ y = maybe False (<~ EQ) (pcompare x y)
-    -- > x >~ y = maybe False (>~ EQ) (pcompare x y)
-    -- > x ~~ y = maybe False (~~ EQ) (pcompare x y)
-    -- > x ?~ y = maybe False (const True) (pcompare x y)
-    -- 
-    -- If /a/ implements 'Ord' then we should have @'pcompare' x y = 'Just' '$' 'compare' x y@.
-    --
-    pcompare :: a -> a -> Maybe Ordering
-    pcompare x y 
-      | x <~ y    = Just $ if y <~ x then EQ else LT
-      | y <~ x    = Just GT
-      | otherwise = Nothing
+-- | A partial version of 'Data.Order.Total.comparing'.
+--
+-- > pcomparing p x y = pcompare (p x) (p y)
+--
+-- The partial application /pcomparing f/ induces a lawful preorder for 
+-- any total function /f/.
+--
+pcomparing :: Preorder a => (b -> a) -> b -> b -> Maybe Ordering
+pcomparing p x y = pcompare (p x) (p y)
 
 
 -------------------------------------------------------------------------------
@@ -438,9 +467,21 @@ instance Preorder a => Preorder (IntMap.IntMap a) where
 instance Preorder IntSet.IntSet where
   (<~) = IntSet.isSubsetOf
 
--- check semimodules paper
+-- | TODO: short-circuiting version.
+--
+-- >>> const 3 <~ (const 4 :: Int8 -> Int8)
+-- True
+-- >>> const 3 <~ (id :: Int8 -> Int8)
+-- False
 instance (Finite a, Preorder b) => Preorder (a -> b) where
-  pcompare f g = mconcat [f x `pcompare` g x | x <- universeF]
+  pcompare f g = foldl' acc (Just EQ) [f x `pcompare` g x | x <- universeF]
+    where acc old new = do
+            m' <- new
+            n' <- old
+            case (m', n') of
+              (x , EQ) -> Just x
+              (EQ, y ) -> Just y
+              (x , y ) -> if x == y then Just x else Nothing
 
 instance (Finite a, Preorder a) => Preorder (Endo a) where
   pcompare (Endo f) (Endo g) = pcompare f g

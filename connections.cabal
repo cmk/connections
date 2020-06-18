@@ -63,6 +63,8 @@ test-suite test
   type: exitcode-stdio-1.0
   other-modules:
       Test.Data.Order
+    , Test.Data.Order.Topology
+
     , Test.Data.Connection
     , Test.Data.Connection.Int
     , Test.Data.Connection.Word

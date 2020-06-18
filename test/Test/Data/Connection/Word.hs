@@ -22,7 +22,6 @@ prop_connections = withTests 1000 . property $ do
   i64 <- forAll $ G.integral (ri @Int64)
   w64 <- forAll $ G.integral (ri @Word64)
   nat <- forAll $ G.integral rn
-  inf <- forAll $ gen_lowered (G.integral rn)
 
   i08' <- forAll $ G.integral (ri @Int8)
   w08' <- forAll $ G.integral (ri @Word8)
@@ -33,7 +32,6 @@ prop_connections = withTests 1000 . property $ do
   i64' <- forAll $ G.integral (ri @Int64)
   w64' <- forAll $ G.integral (ri @Word64)
   nat' <- forAll $ G.integral rn
-  inf' <- forAll $ gen_lowered (G.integral rn)
 
   assert $ Prop.adjoint w64nat w64 nat
   assert $ Prop.adjoint w64i64 w64 i64

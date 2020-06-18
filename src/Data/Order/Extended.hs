@@ -106,7 +106,6 @@ instance Semigroup (Meet a) => Monoid (Meet (Extended a)) where
 
 instance Lattice a => Lattice (Extended a)
 instance Lattice a => Bounded (Extended a)
-instance Distributive a => Distributive (Extended a)
 
 {-
 instance Universe a => Universe (Extended a) where

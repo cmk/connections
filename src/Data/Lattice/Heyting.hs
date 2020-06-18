@@ -70,7 +70,7 @@ type HeytingLaw a = (Meet-Quantale) a
 -- All this means that @x '==>' y@ is an [exponential object](https://ncatlab.org/nlab/show/exptopntial%2Bobject),
 -- which makes any Heyting algebra a [cartesian closed category](https://ncatlab.org/nlab/show/cartesian%2Bclosed%2Bcategory).
 --
-class (Bounded a, Distributive a, HeytingLaw a) => Heyting a where
+class (Bounded a, HeytingLaw a) => Heyting a where
 
     infixr 0 <=>
 
