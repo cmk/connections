@@ -8,6 +8,7 @@ module Data.Order.Extended (
   , type Lowered
   , Extended(..)
   , extended
+  , retract
   -- * Lattice Extensions
   , lifts
   , lifted
@@ -26,7 +27,7 @@ import safe GHC.Generics
 import safe Prelude hiding (Eq(..), Ord(..),Bounded)
 import safe qualified Prelude as P
 
-type Lifted a = Either () a
+type Lifted = Either ()
 
 type Lowered a = Either a ()
 
@@ -43,6 +44,9 @@ extended :: b -> b -> (a -> b) -> Extended a -> b
 extended b _ _ Bottom       = b
 extended _ t _ Top          = t
 extended _ _ f (Extended x) = f x
+
+retract :: Bounded a => Extended a -> a
+retract = extended bottom top id
 
 -------------------------------------------------------------------------------
 -- Lattice extensions

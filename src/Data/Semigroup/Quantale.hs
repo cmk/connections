@@ -24,7 +24,9 @@ import safe Data.Word
 import safe Data.Semigroup
 import safe Data.Semigroup.Join
 import safe Data.Universe.Class (Finite(..))
-import safe Prelude hiding (Eq(..), Ord(..))
+import safe Prelude hiding (Eq(..), Ord(..), until)
+import safe qualified Data.Order.Float as F32
+import safe qualified Data.Order.Double as F64
 import safe qualified Data.Map as Map
 import safe qualified Data.Map.Merge.Lazy as Map
 import safe qualified Data.Set as Set
@@ -45,9 +47,10 @@ type UnitalQuantale a = (Monoid a, Quantale a)
 -- Laws:
 --
 -- > x \\ x = mempty  
+-- > x <~ y iff mempty = x \\ y
 -- > x <> (x \\ y) = y <> (y \\ x)  
 -- > (x <> y) \\ z = y \\ (x \\ z) (currying)
--- > x <= y if and only if mempty = x \\ y
+-- > x <> y <~ z iff y <~ x \\ z iff x <~ z // y.
 --
 -- See < https://ncatlab.org/nlab/show/quantale >.
 --
@@ -138,44 +141,72 @@ instance Quantale a => Quantale (Maybe a) where
   residr = maybe (Conn (Nothing <>) (Nothing\\)) (mapped . residr)
   residl = maybe (Conn (<> Nothing) (//Nothing)) (mapped . residl)
 
--- Due to non-associativity of floating point arithmetic
--- we restrict ourselves to integral quantities.
-instance Integral a => Quantale (Sum a) where
-  (\\) = flip (//)
-  (//) = liftA2 (-) 
-
---lifted :: Conn a b -> Conn (Maybe a) (Maybe b)
---lifted (Conn f g) = Conn (fmap f) (fmap g)
-
 instance (TotalOrder a, Bounded a) => Quantale (Min a) where
   x \\ y = if x P.> y then y else mempty
 
   (//) = flip (\\)
 
 {-
+instance Quantale (Sum Float) where
+  x \\ y = y // x
+  
+  -- |
+  --
+  -- >>> maxOdd32 = Sum 1.6777215e7 :: Sum Float
+  -- >>> (maxOdd32 + 2) - 2
+  -- Sum {getSum = 1.6777214e7}
+  -- >>> (maxOdd32 + 2) // 2
+  -- Sum {getSum = 1.6777215e7}
+  --
+  (//) = liftA2 negFloat
 
--- a \/ b = 1 − [(1 − a) /\ (1 − b)]
--- a /\ b = 1 − [(1 − a) \/ (1 − b)].
-
-instance Quantale (Additive Float) where
+instance Quantale (Sum Double) where
   x \\ y = y // x
 
-  --x <> y <= z iff y <= x \\ z iff x <= z // y.
-  y // x | y =~ x = 0
-   | otherwise = let z = y - x in if z + x <= y then upper' z (x<>) y else lower' z (x<>) y 
+  -- |
+  --
+  -- >>> maxOdd64 = Sum 9.007199254740991e15 :: Sum Double
+  -- >>> (maxOdd64 + 2) - 2
+  -- Sum {getSum = 9.00719925474099e15}
+  -- >>> (maxOdd64 + 2) // 2
+  -- Sum {getSum = 9.007199254740991e15}
+  --
+  (//) = liftA2 negDouble
 
+
+
+negDouble :: Double -> Double -> Double
+negDouble y x = if y ~~ x then 0 else w where
+  z = y - x
+  w = if z + x <~ y then up z (x+) y else F64.lower64 z (x+) y 
+  up z g y = while (\x -> g x <~ y) (<~) (F64.shift 1) z
+
+negFloat :: Float -> Float -> Float
+negFloat y x = if y ~~ x then 0 else w where
+  z = y - x
+  w = if z + x <~ y then upper' z (x+) y else lower' z (x+) y 
 
 -- @'lower'' x@ is the least element /y/ in the descending
 -- chain such that @not $ f y '<~' x@.
 --
 lower' :: Preorder a => Float -> (Float -> a) -> a -> Float
-lower' z f x = until (\y -> f y <~ x) ge (shift $ -1) z
+lower' z f x = until (\y -> f y <~ x) (>~) (F32.shift $ -1) z
 
 -- @'upper' y@ is the greatest element /x/ in the ascending
 -- chain such that @g x '<~' y@.
 --
 upper' :: Preorder a => Float -> (Float -> a) -> a -> Float
-upper' z g y = while (\x -> g x <~ y) le (shift 1) z
+upper' z g y = while (\x -> g x <~ y) (<~) (F32.shift 1) z
+
+
+-}
+
+--lower32 z f x = while (\y -> f y >~ x) (>~) (shift $ -1) z
+--upper32 z g y = while (\x -> g x <~ y) (<~) (shift 1) z
+
+{-
+-- a \/ b = 1 − [(1 − a) /\ (1 − b)]
+-- a /\ b = 1 − [(1 − a) \/ (1 − b)].
 -}
 
 ---------------------------------------------------------------------

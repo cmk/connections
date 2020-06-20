@@ -236,33 +236,3 @@ mapped (Conn f g) = Conn (fmap f) (fmap g)
 
 mapped' :: Functor f => Trip a b -> Trip (f a) (f b)
 mapped' (Trip f g h) = Trip (fmap f) (fmap g) (fmap h)
-
--------------------------------------------------------------------------------
--- Iterators
--------------------------------------------------------------------------------
-
-{-# INLINE until #-}
-until :: (a -> Bool) -> (a -> a -> Bool) -> (a -> a) -> a -> a
-until pre rel f seed = go seed
-  where go x | x' `rel` x = x
-             | pre x = x
-             | otherwise = go x'
-          where x' = f x
-
-{-# INLINE while #-}
-while :: (a -> Bool) -> (a -> a -> Bool) -> (a -> a) -> a -> a
-while pre rel f seed = go seed
-  where go x | x' `rel` x = x
-             | not (pre x') = x
-             | otherwise = go x'
-          where x' = f x
-
--- | Greatest (resp. least) fixed point of a monitone (resp. antitone) function. 
---
--- Does not check that the function is monitone (resp. antitone).
---
--- See also < http://en.wikipedia.org/wiki/Kleene_fixed-point_theorem >.
---
-{-# INLINE fixed #-}
-fixed :: (a -> a -> Bool) -> (a -> a) -> a -> a
-fixed = while (\_ -> True)

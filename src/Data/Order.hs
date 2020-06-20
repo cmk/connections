@@ -21,6 +21,10 @@ module Data.Order (
   , (<=),(>=)
   -- * Total orders
   , TotalOrder
+  -- * Iterators
+  , until
+  , while
+  , fixed
   -- * DerivingVia
   , Total(..) 
   -- * Re-exports
@@ -32,7 +36,10 @@ module Data.Order (
 ) where
 
 import safe Control.Applicative
-import safe Data.Bool hiding (not)
+import safe Control.Monad.Trans.Select
+import safe Control.Monad.Trans.Cont
+import safe Data.Bool
+import safe Data.Complex
 import safe Data.Either
 import safe Data.Foldable (foldl')
 import safe Data.Functor.Apply
@@ -49,7 +56,7 @@ import safe Data.Universe.Class (Finite(..))
 import safe Data.Word
 import safe GHC.Real
 import safe Numeric.Natural
-import safe Prelude hiding (Eq(..), Ord(..), Bounded)
+import safe Prelude hiding (Eq(..), Ord(..), Bounded, until)
 import safe qualified Data.IntMap as IntMap
 import safe qualified Data.IntSet as IntSet
 import safe qualified Data.Map as Map
@@ -282,6 +289,37 @@ infix 4 ==, /=, <=, >=
 (>=) :: PartialOrder a => a -> a -> Bool
 (>=) x y = x > y || x == y
 
+
+-------------------------------------------------------------------------------
+-- Iterators
+-------------------------------------------------------------------------------
+
+{-# INLINE until #-}
+until :: (a -> Bool) -> (a -> a -> Bool) -> (a -> a) -> a -> a
+until pre rel f seed = go seed
+  where go x | x' `rel` x = x
+             | pre x = x
+             | otherwise = go x'
+          where x' = f x
+
+{-# INLINE while #-}
+while :: (a -> Bool) -> (a -> a -> Bool) -> (a -> a) -> a -> a
+while pre rel f seed = go seed
+  where go x | x' `rel` x = x
+             | not (pre x') = x
+             | otherwise = go x'
+          where x' = f x
+
+-- | Greatest (resp. least) fixed point of a monitone (resp. antitone) function. 
+--
+-- Does not check that the function is monitone (resp. antitone).
+--
+-- See also < http://en.wikipedia.org/wiki/Kleene_fixed-point_theorem >.
+--
+{-# INLINE fixed #-}
+fixed :: (a -> a -> Bool) -> (a -> a) -> a -> a
+fixed = while (\_ -> True)
+
 -------------------------------------------------------------------------------
 -- Total orders
 -------------------------------------------------------------------------------
@@ -390,6 +428,9 @@ instance Preorder Rational where
 instance Preorder Positive where
   pcompare = pcomparePos
 
+instance (Preorder a, Num a) => Preorder (Complex a) where
+  pcompare = pcomparing $ \(x :+ y) -> x^2 + y^2
+
 instance Preorder a => Preorder (Down a) where
   (Down x) <~ (Down y) = y <~ x
   pcompare (Down x) (Down y) = pcompare y x
@@ -409,6 +450,9 @@ instance Preorder Any where
 
 instance Preorder All where
   All x <~ All y = y <~ x
+
+instance Preorder a => Preorder (Identity a) where
+  pcompare (Identity x) (Identity y) = pcompare x y
 
 instance Preorder a => Preorder (Maybe a) where
   Nothing <~ _ = True
@@ -455,11 +499,11 @@ instance (Preorder a, Preorder b, Preorder c, Preorder d, Preorder e) => Preorde
 instance (Foldable1 f, Representable f, Preorder a) => Preorder (Co f a) where
   Co f <~ Co g = and $ liftR2 (<~) f g
 
-instance TotalOrder a => Preorder (Set.Set a) where
-  (<~) = Set.isSubsetOf
-
 instance (TotalOrder k, Preorder a) => Preorder (Map.Map k a) where
   (<~) = Map.isSubmapOfBy (<~)
+
+instance TotalOrder a => Preorder (Set.Set a) where
+  (<~) = Set.isSubsetOf
 
 instance Preorder a => Preorder (IntMap.IntMap a) where
   (<~) = IntMap.isSubmapOfBy (<~)
@@ -495,3 +539,63 @@ instance (Finite a) => Preorder (Predicate a) where
   --universe = map (Predicate . flip S.member) universe
   --universe = map Op universe
   pcompare (Predicate f) (Predicate g) = pcompare f g
+
+
+{-
+instance Monad m => Semigroup (Join (SearchT m a)) where
+  (<>) = liftA2 union
+
+instance MonadPlus m => Monoid (Join (SearchT m a)) where
+  mempty = pure empty
+-}
+
+-- |
+-- >>> cont ($ 1) == (cont ($ 2) :: Cont Bool Int8)
+-- False
+-- >>> cont ($ 1) == (cont ($ 2) :: Cont () Int8)
+-- True
+instance (TotalOrder a, Preorder r, Finite r) => Preorder (Cont r a) where
+  (ContT x) <~ (ContT y) = x `contLe` y
+
+instance (TotalOrder a, Preorder r, Finite r) => Preorder (Select r a) where
+  (SelectT x) <~ (SelectT y) = x `contLe` y
+
+contLe :: forall a b c. (Finite b, TotalOrder a, Preorder b, Preorder c) => ((a -> b) -> c) -> ((a -> b) -> c) -> Bool
+contLe x y = if (universeF :: [b]) ~~ [] then True else point $ counter Map.empty
+  where
+    --point :: Preorder b => a -> Bool
+    point ar = x ar <~ y ar
+
+    --counter :: (Finite b, TotalOrder a, Preorder c) => Map.Map a b -> a -> b
+    counter acc a = case Map.lookup a acc of
+      Just b -> b
+
+      Nothing -> case [b | b <- universeF 
+                         , let acc' = Map.insert a b acc
+                               func a' | a' < a = counter acc a'
+                                 | otherwise = counter acc' a'
+                         , not . point $ func
+                      ] of
+                   (b:_) -> b
+                   [] -> Prelude.head universeF -- Return a failed counter-example to be pruned by 'point'
+
+
+{-
+exm1, exm2, exm3 :: Cont Bool Integer
+exm1 = cont $ \ib -> (ib 7 && ib 4) || ib 8
+exm2 = cont $ \ib -> (ib 7 || ib 8) && (ib 4 || ib 8)
+exm3 = cont $ \ib -> (ib 7 || ib 8) && ib 4
+
+-- exm1 ~~ exm2 >~ exm3
+ex1 = (exm1 ~~ exm2, exm1 ~~ exm3, exm2 ~~ exm3) --(True, False, False)
+ex2 = (exm1 ~~ exm2, exm1 >~ exm3, exm2 >~ exm3) --(True, True, True)
+ex3 = (exm1 ~~ exm2 \/ exm3) -- True
+
+-- exm2 >~ exm3
+-- λ> runCont exm2 diff
+-- True
+-- λ> runCont exm3 diff
+-- False
+diff :: Integer -> Bool
+diff i = if i ~~ 7 || i ~~ 8 then True else False
+-}

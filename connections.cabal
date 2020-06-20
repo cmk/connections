@@ -49,6 +49,7 @@ library
     , semigroupoids  >= 5.0   && < 6.0
     , universe-base  >= 1.1.1 && < 2.0
     , adjunctions    >= 4.4   && < 5.0
+    , transformers
 
   default-extensions:
       ScopedTypeVariables

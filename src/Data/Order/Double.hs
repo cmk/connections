@@ -8,6 +8,8 @@ module Data.Order.Double (
   , ulp
   , shift
   , within
+  , lower64
+  , upper64
   , minimal
   , maximal
   , epsilon
@@ -120,6 +122,22 @@ shift n x | x ~~ 0/0 = x
 -- 
 within :: Word64 -> Double -> Double -> Bool
 within tol x y = maybe False ((<= tol) . snd) $ ulp x y
+
+-- |
+--
+-- @'lower64' x@ is the least element /y/ in the descending
+-- chain such that @not $ f y '<~' x@.
+--
+lower64 :: Preorder a => Double -> (Double -> a) -> a -> Double
+lower64 z f x = until (\y -> f y <~ x) (>~) (shift $ -1) z
+
+-- |
+--
+-- @'upper64' y@ is the greatest element /x/ in the ascending
+-- chain such that @g x '<~' y@.
+--
+upper64 :: Preorder a => Double -> (Double -> a) -> a -> Double
+upper64 z g y = until (\x -> g x >~ y) (<~) (shift 1) z
 
 -- | Minimal positive value.
 --

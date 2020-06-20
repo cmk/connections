@@ -9,6 +9,8 @@ module Data.Order.Float (
   , ulp
   , shift
   , within
+  , lower32
+  , upper32
   , minimal
   , maximal
   , epsilon
@@ -123,6 +125,22 @@ shift n x | x ~~ 0/0 = x
 -- 
 within :: Word32 -> Float -> Float -> Bool
 within tol x y = maybe False ((<= tol) . snd) $ ulp x y
+
+-- |
+--
+-- @'lower32' x@ is the least element /y/ in the descending
+-- chain such that @not $ f y '<~' x@.
+--
+lower32 :: Preorder a => Float -> (Float -> a) -> a -> Float
+lower32 z f x = until (\y -> f y <~ x) (>~) (shift $ -1) z
+
+-- |
+--
+-- @'upper32' y@ is the greatest element /x/ in the ascending
+-- chain such that @not $ g x '>~' y@.
+--
+upper32 :: Preorder a => Float -> (Float -> a) -> a -> Float
+upper32 z g y = until (\x -> g x >~ y) (<~) (shift 1) z
 
 -- | Minimal positive value.
 --

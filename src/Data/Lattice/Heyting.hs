@@ -17,12 +17,14 @@ module Data.Lattice.Heyting (
   , Heyting(..)
   , (==>), (<==)
   , iff
+  , heyting
   -- * Re-exports
   , Quantale(..)
   , Meet(..)
 ) where
 
 import safe Data.Bool
+import safe Data.Connection.Type
 import safe Data.Functor.Contravariant
 import safe Data.Int
 import safe Data.Lattice
@@ -100,6 +102,11 @@ class (Bounded a, HeytingLaw a) => Heyting a where
 
 iff :: Heyting a => a -> a -> Bool
 iff x y = top <~ (x <=> y)
+
+-- | Implication from /a/ is the upper adjoint of conjunction with /a/.
+--
+heyting :: Heyting a => a -> Conn a a
+heyting a = Conn (a /\) (a ==>)
 
 instance Heyting Bool where
   neg = P.not

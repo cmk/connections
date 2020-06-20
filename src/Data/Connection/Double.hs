@@ -13,6 +13,7 @@ import safe Data.Lattice
 import safe Data.Int
 import safe Data.Order
 import safe Data.Order.Extended
+import safe Data.Semigroup.Quantale
 import safe GHC.Float as F
 import safe Prelude as P hiding (Ord(..), Bounded, until)
 import safe qualified Data.Order.Float as F32
@@ -79,18 +80,21 @@ f64f32 = Trip f g h where
   f x = let est = F.double2Float x in
           if g est >~ x
           then est
-          else ascendf est g x
+          else F32.upper32 est g x
 
   g = F.float2Double
 
-  h x = let est = double2Float x in
+  h x = let est = F.double2Float x in
           if g est <~ x
           then est
-          else descendf est g x
+          else F32.lower32 est g x
 
+
+{-
   ascendf z g1 y = until (\x -> g1 x >~ y) (<~) (F32.shift 1) z
 
   descendf z f1 x = until (\y -> f1 y <~ x) (>~) (F32.shift (-1)) z
+-}
 
 ---------------------------------------------------------------------
 -- Internal

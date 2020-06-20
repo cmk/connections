@@ -81,7 +81,7 @@ import safe qualified Control.Category as C
 --
 -- For further information see 'Data.Connection.Property'.
 --
-class Connection a b where
+class (Preorder a, Preorder b) => Connection a b where
 
     connection :: Conn a b
 
@@ -107,7 +107,7 @@ right = connr connection
 --
 -- For further information see 'Data.Connection.Property'.
 --
-class Triple a b where
+class (Preorder a, Preorder b) => Triple a b where
 
     triple :: Trip a b
 
@@ -156,7 +156,7 @@ ceiling = connl . tripl $ triple
 -- Connection instances
 ---------------------------------------------------------------------
 
-instance Connection a a where
+instance Preorder a => Connection a a where
   connection = C.id
 
 instance LowerBounded a => Connection () a where
@@ -165,23 +165,11 @@ instance LowerBounded a => Connection () a where
 instance UpperBounded a => Connection a () where
   connection = Conn (const ()) (const top)
 
-instance Connection Bool CBool where
-  connection = binc08
-
-instance Connection CBool Bool where
-  connection = c08bin
-
-instance Connection Word8 CUChar where
-  connection = w08c08
-
 instance Connection Word8 (Lifted Integer) where
   connection = w08nat C.>>> natint
 
 instance Connection Word8 Natural where
   connection = w08nat
-
-instance Connection Word16 CUShort where
-  connection = w16c16
 
 instance Connection Word16 (Lifted Integer) where
   connection = w16nat C.>>> natint
@@ -189,17 +177,11 @@ instance Connection Word16 (Lifted Integer) where
 instance Connection Word16 Natural where
   connection = w16nat
 
-instance Connection Word32 CUInt where
-  connection = w32c32
-
 instance Connection Word32 (Lifted Integer) where
   connection = w32nat C.>>> natint
 
 instance Connection Word32 Natural where
   connection = w32nat
-
-instance Connection Word64 CULong where
-  connection = w64c64
 
 instance Connection Word64 (Lifted Integer) where
   connection = w64nat C.>>> natint
@@ -268,7 +250,7 @@ instance (Connection a b, Connection c d) => Connection (a, c) (b, d) where
 -- Triple instances
 ---------------------------------------------------------------------
 
-instance Triple a a where
+instance Preorder a => Triple a a where
   triple = C.id
 
 instance Bounded a => Triple () a where

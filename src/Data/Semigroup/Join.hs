@@ -47,6 +47,9 @@ module Data.Semigroup.Join (
 ) where
 
 import safe Control.Applicative
+import safe Control.Monad (MonadPlus(..))
+import safe Control.Monad.Trans.Select
+import safe Control.Monad.Trans.Cont
 import safe Data.Bool hiding (not)
 import safe Data.Either
 import safe Data.Foldable
@@ -455,6 +458,27 @@ deriving via (Op (Join Bool) a) instance Semigroup (Join (Predicate a))
 deriving via (Op (Join Bool) a) instance Monoid (Join (Predicate a))
 deriving via (Op (Meet Bool) a) instance Semigroup (Meet (Predicate a))
 deriving via (Op (Meet Bool) a) instance Monoid (Meet (Predicate a))
+
+instance (Monad m, Semigroup (Join r)) => Semigroup (Join (ContT r m a)) where
+  (<>) = liftA2 joinCont
+
+instance (Monad m, Monoid (Join r)) => Monoid (Join (ContT r m a)) where
+  mempty = pure . ContT . const $ pure bottom
+
+instance Monad m => Semigroup (Join (SelectT Bool m a)) where
+  (<>) = liftA2 joinSelect
+
+instance MonadPlus m => Monoid (Join (SelectT Bool m a)) where
+  mempty = pure empty
+
+joinCont :: (Applicative m, Semigroup (Join r)) => ContT r m a -> ContT r m a -> ContT r m a
+joinCont (ContT f) (ContT g) = ContT $ \p -> liftA2 (\/) (f p) (g p) 
+
+joinSelect :: Monad m => SelectT Bool m b -> SelectT Bool m b -> SelectT Bool m b
+joinSelect x y = branch x y >>= id
+  where
+    ifM c x y = c >>= \b -> if b then x else y
+    branch x y = SelectT $ \p -> ifM (p x) (pure x) (pure y)
 
 deriving via (F1 Join (Maybe (Join a))) instance Semigroup (Join a) => Semigroup (Join (Maybe a))
 deriving via (F1 Join (Maybe (Join a))) instance Semigroup (Join a) => Monoid (Join (Maybe a))
