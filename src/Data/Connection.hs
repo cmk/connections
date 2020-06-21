@@ -254,7 +254,7 @@ instance Preorder a => Triple a a where
   triple = C.id
 
 instance Bounded a => Triple () a where
-  triple = Trip (const bottom) (const ()) (const top)
+  triple = Trip (const top) (const ()) (const bottom)
 
 instance Triple Double Float where
   triple = f64f32

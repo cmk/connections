@@ -20,8 +20,8 @@ import safe Data.Bool
 import safe Data.Lattice
 import safe Data.Int
 import safe Data.Order
-import safe Data.Order.Total
 import safe Data.Order.Interval
+import safe Data.Order.Total
 import safe Data.Word
 import safe Data.List (unfoldr)
 import safe Data.Universe.Class

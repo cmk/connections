@@ -29,18 +29,18 @@ library
     , Data.Order.Property
     
     , Data.Semigroup.Join
-    , Data.Semigroup.Quantale
+    --, Data.Semigroup.Quantale
 
     , Data.Lattice
     , Data.Lattice.Heyting
 
-    , Data.Connection
+    --, Data.Connection
     , Data.Connection.Type
-    , Data.Connection.Int
-    , Data.Connection.Word
-    , Data.Connection.Ratio
-    , Data.Connection.Float
-    , Data.Connection.Double
+    --, Data.Connection.Int
+    --, Data.Connection.Word
+    --, Data.Connection.Ratio
+    --, Data.Connection.Float
+    --, Data.Connection.Double
     , Data.Connection.Property
 
   build-depends:       

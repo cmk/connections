@@ -5,9 +5,12 @@
 {-# Language Safe                #-}
 {-# Language DeriveFunctor       #-}
 {-# Language DeriveGeneric       #-}
-module Data.Connection.Type (
+{-# Language DataKinds           #-}
+{-# Language ViewPatterns        #-}
+{-# Language PatternSynonyms     #-}
+module Data.Connection.Type {- (
   -- * Conn
-    Conn(..)
+    Conn()
   , connl
   , connr
   , connl1
@@ -40,18 +43,32 @@ module Data.Connection.Type (
   , until
   , while
   , fixed
-) where
+) -}
+where
 
+import safe Control.Arrow
 import safe Control.Category (Category)
 import safe Data.Bifunctor (bimap)
 import safe Data.Functor.Identity
 import safe Data.Functor.Rep
-import safe Data.Order
-import safe Data.Order.Extended
-import safe Data.Semigroup.Foldable
 import safe Data.Lattice
+import safe Data.Order
+import safe Data.Semigroup.Foldable
 import safe Prelude hiding (Ord(..), Bounded, until)
 import safe qualified Control.Category as C
+
+data Kan = L | R
+
+type ConnL = Conn L
+
+type ConnR = Conn R
+
+data Conn (k :: Kan) a b = Conn (a -> (b , b)) (b -> a)
+
+instance Category (Conn k) where
+  id = Conn (id &&& id) id
+
+  Conn f1 g1 . Conn f2 g2 = Conn ((fst.f1).(fst.f2) &&& (snd.f1).(snd.f2)) (g2 . g1)
 
 
 -- | A Galois connection between two monotone functions.
@@ -65,20 +82,32 @@ import safe qualified Control.Category as C
 --
 --  \( f(x) = \inf \{y \in E \mid g(y) \geq x \} \)
 --
--- For further information see 'Data.Connection.Property' and <https://ncatlab.org/nlab/show/Galois+connection>.
+-- For further information see 'Data.Connection.Property' and <https://ncatlab.org/nlab/show/Conn+connection>.
 --
 -- /Caution/: Monotonicity is not checked.
 --
-data Conn a b = Conn (a -> b) (b -> a)
 
-instance Category Conn where
-  id = Conn id id
-  Conn f' g' . Conn f g = Conn (f' . f) (g . g')
+
+
+-- | A view pattern for a 'Connl'.
+--
+-- /Caution/: /Conn f g/ must obey \(f \dashv g \). This condition is not checked.
+--
+pattern ConnL :: (a -> b) -> (b -> a) -> ConnL a b
+pattern ConnL f g <- (connl &&& connr -> (f, g)) where ConnL f g = connl f g
+
+{-
+-- | Construct a Galois connection between two monotone functions.
+--
+-- /Caution/: /conn f g/ must obey \(f \dashv g \). This condition is not checked.
+--
+conn :: (a -> b) -> (b -> a) -> Conn a b
+conn f g = Conn (f &&& f) g
 
 -- | Extract the left side of a connection.
 --
 connl :: Conn a b -> a -> b
-connl (Conn f _) = f
+connl (Conn f _) = snd . f -- ???
 
 -- | Extract the right side of a connection.
 --
@@ -119,16 +148,6 @@ unit c = connr1 c id
 counit :: Conn a b -> b -> b
 counit c = connl1 c id
 
-infixr 3 |||
-
-(|||) :: Conn c a -> Conn c b -> Conn c (Either a b)
-f ||| g = tripl joined C.>>> f `choice` g
-
-infixr 3 &&&
-
-(&&&) :: Lattice c => Conn c a -> Conn c b -> Conn c (a, b)
-f &&& g = tripr forked C.>>> f `strong` g
-
 ---------------------------------------------------------------------
 -- Trip
 ---------------------------------------------------------------------
@@ -141,23 +160,46 @@ f &&& g = tripr forked C.>>> f `strong` g
 --
 -- For further information see 'Data.Connection.Property' and <https://ncatlab.org/nlab/show/adjoint+triple>.
 --
-data Trip a b = Trip (a -> b) (b -> a) (a -> b)
+type Trip = Conn Triple
 
-instance Category Trip where
-  id = Trip id id id
-  Trip f' g' h' . Trip f g h = Trip (f' . f) (g . g') (h' . h)
+-- /Caution/: /Trip f g h/ must obey \(f \dashv g \dashv h \). This condition is not checked.
+--
+pattern Trip :: (a -> b) -> (b -> a) -> (a -> b) -> Conn n a b
+pattern Trip f1 g f2 <- (ebd &&& clg &&& flr -> (g,(f1,f2))) where Trip f1 g f2 = trip f1 g f2
+
+-- connl . tripr
+ebd (Conn _ g) = g
+-- connl . tripl 
+clg (Conn f _) = fst . f
+-- connr . tripr   
+flr (Conn f _) = snd . f 
+
+-- | Extract the ceiling and floor functions from a 'Trip'.
+--
+-- > fst . range t a <~ snd . range t a
+--
+-- λ> range (bounded @Ordering) ()
+-- (LT,GT)
+-- 
+range :: Trip a b -> a -> (b, b)
+range (Conn f _) = (snd &&& fst) . f
+
+-- /Caution/: /trip f g h/ must obey \(f \dashv g \dashv h \). This condition is not checked.
+--
+trip :: (a -> b) -> (b -> a) -> (a -> b) -> Conn n a b
+trip f1 g f2 = Conn (f1 &&& f2) g
 
 -- | Extract the first half of a triple.
 --
 -- > (connr . tripr) t x < (connl . tripl) t x
 --
 tripl :: Trip a b -> Conn a b
-tripl (Trip f g _) = Conn f g
+tripl (Conn f g) = Conn (snd.f) g
 
 -- | Extract the second half of a triple.
 --
 tripr :: Trip a b -> Conn b a
-tripr (Trip _ g h) = Conn g h
+tripr (Conn f g) = Conn g (fst.f)
 
 -- | Return the lesser of the two representations bracketing /a/.
 --
@@ -175,13 +217,15 @@ unit' = unit . tripl
 counit' :: Trip a b -> a -> a
 counit' = counit . tripr
 
----------------------------------------------------------------------
--- Connections
----------------------------------------------------------------------
+bounded :: Bounded a => Conn n () a
+bounded = Conn (const top &&& const bottom) (const ())
 
-dual :: Conn a b -> Conn (Down b) (Down a)
-dual (Conn f g) = Conn (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
+{-
+instance LowerBounded a => Connection () a where
+  connection = Conn (const bottom) (const ())
 
+instance UpperBounded a => Connection a () where
+  connection = Conn (const ()) (const top)
 
 liftl :: Bounded b => Trip (Maybe a) (Either a b)
 liftl = Trip f g h where
@@ -195,44 +239,59 @@ liftr = Trip f g h where
   g = either (const Nothing) Just
   h = maybe (Left top) Right
 
-joined :: Trip a (Either a a)
-joined = Trip Left (either id id) Right
+instance LowerBounded a => Connection () a where
+  connection = Conn (const bottom) (const ())
 
-forked :: Lattice a => Trip (a, a) a
-forked = Trip (uncurry (\/)) (\x -> (x,x)) (uncurry (/\))
+instance UpperBounded a => Connection a () where
+  connection = Conn (const ()) (const top)
+-}
+
+
+forked :: Lattice a => Conn n (a, a) a
+forked = Conn (uncurry (\/) &&& uncurry (/\)) (\x -> (x,x))
+
+joined :: Conn n a (Either a a)
+joined = Conn (Left &&& Right) (either id id)
+
+infixr 4 /|\
+
+(/|\) :: Lattice c => Conn n a c -> Conn n b c -> Conn n (a, b) c
+f /|\ g = f `strong` g C.>>> forked
+
+infixr 3 \|/
+
+(\|/) :: Conn n c a -> Conn n c b -> Conn n c (Either a b)
+f \|/ g = joined C.>>> f `choice` g
+
+---------------------------------------------------------------------
+-- Connections
+---------------------------------------------------------------------
+
+dual :: Conn a b -> Conn (Down b) (Down a)
+dual (Conn f g) = Conn (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
+
+
 
 -- |
 --
 -- > (strong id) (ab >>> cd) = (strong id) ab >>> (strong id) cd
 -- > (flip strong id) (ab >>> cd) = (flip strong id) ab >>> (flip strong id) cd
 --
-strong :: Conn a b -> Conn c d -> Conn (a, c) (b, d)
-strong (Conn ab ba) (Conn cd dc) = Conn (bimap ab cd) (bimap ba dc)
-
-strong' :: Trip a b -> Trip c d -> Trip (a, c) (b, d)
-strong' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
-  f = bimap ab cd 
+strong :: Conn n a b -> Conn n c d -> Conn n (a, c) (b, d)
+strong (Conn ab ba) (Conn cd dc) = Conn f g where
+  f = bimap (fst.ab) (fst.cd) &&& bimap (snd.ab) (snd.cd)
   g = bimap ba dc
-  h = bimap ab' cd'
 
 -- |
 --
 -- > (choice id) (ab >>> cd) = (choice id) ab >>> (choice id) cd
 -- > (flip choice id) (ab >>> cd) = (flip choice id) ab >>> (flip choice id) cd
 --
-choice :: Conn a b -> Conn c d -> Conn (Either a c) (Either b d)
+choice :: Conn n a b -> Conn n c d -> Conn n (Either a c) (Either b d)
 choice (Conn ab ba) (Conn cd dc) = Conn f g where
-  f = either (Left . ab) (Right . cd)
+  f = either (Left . fst.ab) (Right . fst.cd) &&& either (Left . snd.ab) (Right . snd.cd)
   g = either (Left . ba) (Right . dc)
 
-choice' :: Trip a b -> Trip c d -> Trip (Either a c) (Either b d)
-choice' (Trip ab ba ab') (Trip cd dc cd') = Trip f g h where
-  f = either (Left . ab) (Right . cd)
-  g = either (Left . ba) (Right . dc)
-  h = either (Left . ab') (Right . cd')
-
-mapped :: Functor f => Conn a b -> Conn (f a) (f b)
-mapped (Conn f g) = Conn (fmap f) (fmap g)
-
-mapped' :: Functor f => Trip a b -> Trip (f a) (f b)
-mapped' (Trip f g h) = Trip (fmap f) (fmap g) (fmap h)
+mapped :: Functor f => Conn n a b -> Conn n (f a) (f b)
+mapped (Conn f g) = Conn (fmap (fst.f) &&& fmap (snd.f)) (fmap g)
+-}
