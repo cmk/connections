@@ -1,5 +1,6 @@
 {-# LANGUAGE Safe                       #-}
 {-# LANGUAGE PolyKinds                  #-}
+{-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingVia                #-}
@@ -15,16 +16,17 @@ module Data.Semigroup.Quantale (
 ) where
 
 import safe Control.Applicative
-import safe Data.Connection.Type
+import safe Data.Connection.Conn
 import safe Data.Functor.Contravariant
 import safe Data.Monoid
 import safe Data.Order
+import safe Data.Order.Syntax
 import safe Data.Int
 import safe Data.Word
 import safe Data.Semigroup
 import safe Data.Semigroup.Join
 import safe Data.Universe.Class (Finite(..))
-import safe Prelude hiding (Eq(..), Ord(..), until)
+import safe Prelude hiding (Eq(..), Ord(..), floor, ceiling, until)
 import safe qualified Data.Order.Float as F32
 import safe qualified Data.Order.Double as F64
 import safe qualified Data.Map as Map
@@ -59,19 +61,19 @@ type UnitalQuantale a = (Monoid a, Quantale a)
 -- monoid or semiring.
 --
 class Semigroup a => Quantale a where
-    residl :: a -> Conn a a
-    residl x = Conn (<>x) (//x)
+    residL :: a -> ConnL a a
+    residL x = ConnL (<>x) (//x)
     
-    residr :: a -> Conn a a
-    residr x = Conn (x<>) (x\\)
+    residR :: a -> ConnR a a
+    residR x = ConnR (x<>) (x\\)
 
     infixl 5 // 
     (//) :: a -> a -> a
-    x // y = connl (residl x) y
+    x // y = lowerL (residL x) y
 
     infixr 5 \\
     (\\) :: a -> a -> a
-    x \\ y = connr (residr x) y
+    x \\ y = upperR (residR x) y
 
 infixr 1 ==>
 
@@ -137,9 +139,6 @@ instance Quantale a => Quantale (r -> a) where
   (\\) = flip (//)
   (//) = liftA2 (//) 
 
-instance Quantale a => Quantale (Maybe a) where
-  residr = maybe (Conn (Nothing <>) (Nothing\\)) (mapped . residr)
-  residl = maybe (Conn (<> Nothing) (//Nothing)) (mapped . residl)
 
 instance (TotalOrder a, Bounded a) => Quantale (Min a) where
   x \\ y = if x P.> y then y else mempty
@@ -147,6 +146,10 @@ instance (TotalOrder a, Bounded a) => Quantale (Min a) where
   (//) = flip (\\)
 
 {-
+instance Quantale a => Quantale (Maybe a) where
+  residR = maybe (Conn (Nothing <>) (Nothing\\)) (mapped . residR)
+  residL = maybe (Conn (<> Nothing) (//Nothing)) (mapped . residL)
+
 instance Quantale (Sum Float) where
   x \\ y = y // x
   

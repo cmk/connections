@@ -1,7 +1,10 @@
 {-# Language ConstraintKinds #-}
 {-# Language Safe            #-}
+-- | This module should be imported qualified.
 module Data.Order.Float (
-    open
+    min
+  , max
+  , open
   , openl
   , openr
   , covers
@@ -21,18 +24,42 @@ import safe Data.Lattice
 import safe Data.Int
 import safe Data.Order
 import safe Data.Order.Interval
-import safe Data.Order.Total
+import safe Data.Order.Syntax hiding (min, max)
 import safe Data.Word
 import safe Data.List (unfoldr)
 import safe Data.Universe.Class
 import safe GHC.Float (float2Double,double2Float)
 import safe GHC.Float as F
-import safe Prelude as P hiding (Ord(..), Bounded, until)
+import safe Prelude as P hiding (Eq(..), Ord(..), Bounded, until)
 import safe qualified Prelude as P
 
 ---------------------------------------------------------------------
 -- Float
 ---------------------------------------------------------------------
+
+-- | A /NaN/-handling min function.
+--
+-- > min x NaN = x
+-- > min NaN y = y
+--
+min :: Float -> Float -> Float
+min x y = case (isNaN x, isNaN y) of
+  (False, False) -> if x <= y then x else y
+  (False, True) -> x
+  (True, False) -> y
+  (True, True)  -> x
+
+-- | A /NaN/-handling max function.
+--
+-- > max x NaN = x
+-- > max NaN y = y
+--
+max :: Float -> Float -> Float
+max x y = case (isNaN x, isNaN y) of
+  (False, False) -> if x >= y then x else y
+  (False, True) -> x
+  (True, False) -> y
+  (True, True)  -> x
 
 -- | Construnct an open interval.
 --
@@ -218,7 +245,7 @@ unsigned32 x | x P.>= 0  = fromIntegral x
 
 -- Clamp between the int representations of -1/0 and 1/0 
 clamp32 :: Int32 -> Int32
-clamp32 = max (-2139095041) . min 2139095040
+clamp32 = P.max (-2139095041) . P.min 2139095040
 
 int32Float :: Int32 -> Float
 int32Float = word32Float . unsigned32

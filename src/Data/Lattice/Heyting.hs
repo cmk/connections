@@ -1,5 +1,6 @@
 {-# LANGUAGE Safe                       #-}
 {-# LANGUAGE PolyKinds                  #-}
+{-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DefaultSignatures          #-}
 {-# LANGUAGE DeriveFunctor              #-}
@@ -24,12 +25,13 @@ module Data.Lattice.Heyting (
 ) where
 
 import safe Data.Bool
-import safe Data.Connection.Type
+import safe Data.Connection.Conn
 import safe Data.Functor.Contravariant
 import safe Data.Int
 import safe Data.Lattice
 import safe Data.Maybe
 import safe Data.Order
+import safe Data.Order.Syntax
 import safe Data.Semigroup.Quantale
 import safe Data.Set (Set)
 import safe Data.Universe.Class (Finite(..))
@@ -105,8 +107,8 @@ iff x y = top <~ (x <=> y)
 
 -- | Implication from /a/ is the upper adjoint of conjunction with /a/.
 --
-heyting :: Heyting a => a -> Conn a a
-heyting a = Conn (a /\) (a ==>)
+heyting :: Heyting a => a -> Conn R a a
+heyting a = ConnR (a /\) (a ==>)
 
 instance Heyting Bool where
   neg = P.not

@@ -17,15 +17,15 @@ module Data.Connection.Ratio (
   , ratint
   -- * Positive
   , Positive
-  , ratw08
-  , ratw16
-  , ratw32
-  , ratw64
-  , ratwxx
-  , ratnat
+  , posw08
+  , posw16
+  , posw32
+  , posw64
+  , poswxx
+  , posnat
 ) where
 
-import safe Data.Connection.Type
+import safe Data.Connection.Conn
 import safe Data.Int
 import safe Data.Lattice hiding (reduce)
 import safe Data.Order
@@ -56,23 +56,23 @@ shiftd n (x :% y) = (n + x) :% y
 -- Rational
 ---------------------------------------------------------------------
 
-rati08 :: Trip Rational (Extended Int8)
+rati08 :: Conn k Rational (Extended Int8)
 rati08 = signedTriple 127
 
-rati16 :: Trip Rational (Extended Int16)
+rati16 :: Conn k Rational (Extended Int16)
 rati16 = signedTriple 32767
 
-rati32 :: Trip Rational (Extended Int32)
+rati32 :: Conn k Rational (Extended Int32)
 rati32 = signedTriple 2147483647
 
-rati64 :: Trip Rational (Extended Int64)
+rati64 :: Conn k Rational (Extended Int64)
 rati64 = signedTriple 9223372036854775807
 
-ratixx :: Trip Rational (Extended Int)
+ratixx :: Conn k Rational (Extended Int)
 ratixx = signedTriple 9223372036854775807
 
-ratint :: Trip Rational (Extended Integer)
-ratint = Trip f g h where
+ratint :: Conn k Rational (Extended Integer)
+ratint = Conn f g h where
   
   f = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) P.ceiling
 
@@ -80,8 +80,8 @@ ratint = Trip f g h where
 
   h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) P.floor
 
-ratf32 :: Trip Rational Float
-ratf32 = Trip (toFloating f) (fromFloating g) (toFloating h) where
+ratf32 :: Conn k Rational Float
+ratf32 = Conn (toFloating f) (fromFloating g) (toFloating h) where
   f x = let est = P.fromRational x in --F.fromRat'
           if fromFloating g est >~ x
           then est
@@ -98,8 +98,8 @@ ratf32 = Trip (toFloating f) (fromFloating g) (toFloating h) where
 
   descendf z f1 x = until (\y -> f1 y <~ x) (>~) (F32.shift (-1)) z
 
-ratf64 :: Trip Rational Double
-ratf64 = Trip (toFloating f) (fromFloating g) (toFloating h) where
+ratf64 :: Conn k Rational Double
+ratf64 = Conn (toFloating f) (fromFloating g) (toFloating h) where
   f x = let est = P.fromRational x in
           if fromFloating g est >~ x
           then est
@@ -120,23 +120,23 @@ ratf64 = Trip (toFloating f) (fromFloating g) (toFloating h) where
 -- Ratio Natural
 ---------------------------------------------------------------------
 
-ratw08 :: Trip Positive (Lowered Word8) 
-ratw08 = unsignedTriple 255
+posw08 :: Conn k Positive (Lowered Word8) 
+posw08 = unsignedTriple 255
 
-ratw16 :: Trip Positive (Lowered Word16) 
-ratw16 = unsignedTriple 65535
+posw16 :: Conn k Positive (Lowered Word16) 
+posw16 = unsignedTriple 65535
 
-ratw32 :: Trip Positive (Lowered Word32) 
-ratw32 = unsignedTriple 4294967295
+posw32 :: Conn k Positive (Lowered Word32) 
+posw32 = unsignedTriple 4294967295
 
-ratw64 :: Trip Positive (Lowered Word64) 
-ratw64 = unsignedTriple 18446744073709551615
+posw64 :: Conn k Positive (Lowered Word64) 
+posw64 = unsignedTriple 18446744073709551615
 
-ratwxx :: Trip Positive (Lowered Word) 
-ratwxx = unsignedTriple 18446744073709551615
+poswxx :: Conn k Positive (Lowered Word) 
+poswxx = unsignedTriple 18446744073709551615
 
-ratnat :: Trip Positive (Lowered Natural)
-ratnat = Trip f g h where
+posnat :: Conn k Positive (Lowered Natural)
+posnat = Conn f g h where
   
   f = liftEitherR (\x -> x ~~ nan || x ~~ pinf) P.ceiling
 
@@ -177,8 +177,8 @@ intnat = Conn (fromIntegral . max 0) fromIntegral
 natint :: Conn Natural (Lifted Integer)
 natint = Conn (lifts P.fromIntegral) (lifted $ P.fromInteger . max 0)
 
-ratpos :: Trip Rational Positive
-ratpos = Trip f g h where
+ratpos :: Conn k Rational Positive
+ratpos = Conn k f g h where
   
   f = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) P.ceiling
 
@@ -187,8 +187,8 @@ ratpos = Trip f g h where
   h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) P.floor
 -}
 
-unsignedTriple :: (Bounded a, Integral a) => Ratio Natural -> Trip Positive (Lowered a) 
-unsignedTriple high = Trip f g h where
+unsignedTriple :: (Bounded a, Integral a) => Ratio Natural -> Conn k Positive (Lowered a) 
+unsignedTriple high = Conn f g h where
   f x | x ~~ nan = top
       | x > high = top
       | otherwise = Left $ P.ceiling x
@@ -200,8 +200,8 @@ unsignedTriple high = Trip f g h where
       | x > high = Left top
       | otherwise = Left $ P.floor x
 
-signedTriple :: (Bounded a, Integral a) => Rational -> Trip Rational (Extended a)
-signedTriple high = Trip f g h where
+signedTriple :: (Bounded a, Integral a) => Rational -> Conn k Rational (Extended a)
+signedTriple high = Conn f g h where
 
   f = liftExtended (~~ ninf) (\x -> x ~~ nan || x > high) $ \x -> if x < low then bottom else P.ceiling x
 

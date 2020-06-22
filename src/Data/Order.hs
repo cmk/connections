@@ -15,12 +15,6 @@ module Data.Order (
   -- * Preorders
     Preorder(..)
   , pcomparing
-  -- * Partial orders
-  , PartialOrder
-  , (==),(/=)
-  , (<=),(>=)
-  -- * Total orders
-  , TotalOrder
   -- * Iterators
   , until
   , while
@@ -28,8 +22,6 @@ module Data.Order (
   -- * DerivingVia
   , Total(..) 
   -- * Re-exports
-  , Eq.Eq()
-  , Ord.Ord()
   , Ordering(..)
   , Down(..)
   , Positive
@@ -56,7 +48,7 @@ import safe Data.Universe.Class (Finite(..))
 import safe Data.Word
 import safe GHC.Real
 import safe Numeric.Natural
-import safe Prelude hiding (Eq(..), Ord(..), Bounded, until)
+import safe Prelude hiding (Ord(..), Bounded, until)
 import safe qualified Data.IntMap as IntMap
 import safe qualified Data.IntSet as IntSet
 import safe qualified Data.Map as Map
@@ -185,8 +177,6 @@ class Preorder a where
     -- Use this as a lawful substitute for '==' when comparing
     -- floats, doubles, or rationals.
     --
-    -- If /a/ implements 'Eq' then we should have @('~~') = ('==')@.
-    --
     (~~) :: a -> a -> Bool
     x ~~ y = maybe False (Eq.== EQ) (pcompare x y)
 
@@ -203,7 +193,7 @@ class Preorder a where
     --
     -- 'similar' is reflexive and symmetric, but not necessarily transitive.
     --
-    -- Note this is only equivalent to '==' in a total (i.e. linear) order:
+    -- Note this is only equivalent to '==' in a total order:
     --
     -- > similar (0/0 :: Float) 5 = True
     --
@@ -264,32 +254,6 @@ class Preorder a where
 pcomparing :: Preorder a => (b -> a) -> b -> b -> Maybe Ordering
 pcomparing p x y = pcompare (p x) (p y)
 
-
--------------------------------------------------------------------------------
--- Partial orders
--------------------------------------------------------------------------------
-
-type PartialOrder a = (Eq.Eq a, Preorder a)
-
-infix 4 ==, /=, <=, >=
-
--- | A version of /==/ that forces /NaN == NaN/.
---
-(==) :: Eq.Eq a => a -> a -> Bool
-(==) x y = if x Eq./= x && y Eq./= y then True else x Eq.== y
-
-(/=) :: Eq.Eq a => a -> a -> Bool
-(/=) x y = not (x == y)
-
--- > x >= y = y <= x
---
-(<=) :: PartialOrder a => a -> a -> Bool
-(<=) x y = x < y || x == y
-
-(>=) :: PartialOrder a => a -> a -> Bool
-(>=) x y = x > y || x == y
-
-
 -------------------------------------------------------------------------------
 -- Iterators
 -------------------------------------------------------------------------------
@@ -320,20 +284,6 @@ while pre rel f seed = go seed
 fixed :: (a -> a -> Bool) -> (a -> a) -> a -> a
 fixed = while (\_ -> True)
 
--------------------------------------------------------------------------------
--- Total orders
--------------------------------------------------------------------------------
-
--- | A total order on /a/. See 'Data.Order.Total'.
--- 
--- Note: ideally this would be a subclass of /Preorder/, without instances
--- for /Float/, /Double/, /Rational/, etc.
---
--- We instead use a constraint kind in order to retain compatibility with the
--- downstream users of /Ord/.
--- 
-type TotalOrder a = (Ord.Ord a, Preorder a)
-
 ---------------------------------------------------------------------
 -- DerivingVia
 ---------------------------------------------------------------------
@@ -341,7 +291,7 @@ type TotalOrder a = (Ord.Ord a, Preorder a)
 newtype Total a = Total { getTotal :: a } deriving stock (Eq.Eq, Ord.Ord, Show, Functor)
   deriving Applicative via Identity
 
-instance TotalOrder a => Preorder (Total a) where
+instance Ord.Ord a => Preorder (Total a) where
   x <~ y = getTotal $ liftA2 (Ord.<=) x y
   x >~ y = getTotal $ liftA2 (Ord.>=) x y
   pcompare x y = Just . getTotal $ liftA2 Ord.compare x y
@@ -368,7 +318,7 @@ deriving via (Total Integer) instance Preorder Integer
 ---------------------------------------------------------------------
 
 -- N5 lattice ordering: NInf <= NaN <= PInf
-n5 :: (TotalOrder a, Fractional a) => a -> a -> Bool
+n5 :: (Ord.Ord a, Fractional a) => a -> a -> Bool
 n5 x y | x Eq./= x && y Eq./= y = True
        | x Eq./= x = y == 1/0
        | y Eq./= y = x == -1/0
@@ -499,10 +449,10 @@ instance (Preorder a, Preorder b, Preorder c, Preorder d, Preorder e) => Preorde
 instance (Foldable1 f, Representable f, Preorder a) => Preorder (Co f a) where
   Co f <~ Co g = and $ liftR2 (<~) f g
 
-instance (TotalOrder k, Preorder a) => Preorder (Map.Map k a) where
+instance (Ord.Ord k, Preorder a) => Preorder (Map.Map k a) where
   (<~) = Map.isSubmapOfBy (<~)
 
-instance TotalOrder a => Preorder (Set.Set a) where
+instance Ord.Ord a => Preorder (Set.Set a) where
   (<~) = Set.isSubsetOf
 
 instance Preorder a => Preorder (IntMap.IntMap a) where
@@ -540,33 +490,24 @@ instance (Finite a) => Preorder (Predicate a) where
   --universe = map Op universe
   pcompare (Predicate f) (Predicate g) = pcompare f g
 
-
-{-
-instance Monad m => Semigroup (Join (SearchT m a)) where
-  (<>) = liftA2 union
-
-instance MonadPlus m => Monoid (Join (SearchT m a)) where
-  mempty = pure empty
--}
-
 -- |
 -- >>> cont ($ 1) == (cont ($ 2) :: Cont Bool Int8)
 -- False
 -- >>> cont ($ 1) == (cont ($ 2) :: Cont () Int8)
 -- True
-instance (TotalOrder a, Preorder r, Finite r) => Preorder (Cont r a) where
+instance (Ord.Ord a, Preorder a, Preorder r, Finite r) => Preorder (Cont r a) where
   (ContT x) <~ (ContT y) = x `contLe` y
 
-instance (TotalOrder a, Preorder r, Finite r) => Preorder (Select r a) where
+instance (Ord.Ord a, Preorder a, Preorder r, Finite r) => Preorder (Select r a) where
   (SelectT x) <~ (SelectT y) = x `contLe` y
 
-contLe :: forall a b c. (Finite b, TotalOrder a, Preorder b, Preorder c) => ((a -> b) -> c) -> ((a -> b) -> c) -> Bool
+contLe :: forall a b c. (Finite b, Ord.Ord a, Preorder a, Preorder b, Preorder c) => ((a -> b) -> c) -> ((a -> b) -> c) -> Bool
 contLe x y = if (universeF :: [b]) ~~ [] then True else point $ counter Map.empty
   where
     --point :: Preorder b => a -> Bool
     point ar = x ar <~ y ar
 
-    --counter :: (Finite b, TotalOrder a, Preorder c) => Map.Map a b -> a -> b
+    --counter :: (Finite b, Ord.Ord a, Preorder c) => Map.Map a b -> a -> b
     counter acc a = case Map.lookup a acc of
       Just b -> b
 

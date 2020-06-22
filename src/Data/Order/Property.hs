@@ -41,6 +41,7 @@ module Data.Order.Property (
 ) where
 
 import Data.Order
+import Data.Order.Syntax
 import Data.Lattice.Heyting
 import Prelude hiding (Ord(..), Eq(..))
 

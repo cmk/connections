@@ -4,14 +4,20 @@ module Data.Connection.Int (
   -- * Int8
     i08c08
   , i08w08
+  , i08i16
+  , i08i32
+  , i08i64
   , i08int
   -- * Int16
   , i16c16
   , i16w16
+  , i16i32
+  , i16i64
   , i16int
   -- * Int32
   , i32c32
   , i32w32
+  , i32i64
   , i32int
   -- * Int64
   , i64c64
@@ -19,16 +25,21 @@ module Data.Connection.Int (
   , i64int
   -- * Int
   , ixxwxx
+  , ixxi64
   , ixxint
   -- * Integer
   , intnat
   , natint
   ) where
 
-import safe Data.Connection.Type
+import safe Control.Category ((>>>))
+import safe Control.Applicative
+import safe Control.Monad
+import safe Data.Connection.Conn
+import safe Data.Connection.Word
 import safe Data.Int
 import safe Data.Order
-import safe Data.Order.Total
+import safe Data.Order.Syntax
 import safe Data.Order.Extended
 import safe Data.Lattice
 import safe Data.Word
@@ -37,78 +48,97 @@ import safe Numeric.Natural
 import safe Prelude hiding (Eq(..), Ord(..), Bounded)
 import safe qualified Prelude as P
 
-i08c08 :: Conn Int8 CChar
-i08c08 = Conn CChar $ \(CChar x) -> x
+i08c08 :: ConnL Int8 CChar
+i08c08 = ConnL CChar $ \(CChar x) -> x
 
-i08w08 :: Conn Int8 Word8
+i08w08 :: Conn k Int8 Word8
 i08w08 = unsigned
 
-i08int :: Conn Int8 (Lifted Integer)
+i08int :: ConnL Int8 (Maybe Integer)
 i08int = signed
 
-i16c16 :: Conn Int16 CShort
-i16c16 = Conn CShort $ \(CShort x) -> x
+i16c16 :: ConnL Int16 CShort
+i16c16 = ConnL CShort $ \(CShort x) -> x
 
-i16w16 :: Conn Int16 Word16
+i16w16 :: Conn k Int16 Word16
 i16w16 = unsigned
 
-i16int :: Conn Int16 (Lifted Integer)
+i16int :: ConnL Int16 (Maybe Integer)
 i16int = signed
 
-i32c32 :: Conn Int32 CInt
-i32c32 = Conn CInt $ \(CInt x) -> x
+i32c32 :: ConnL Int32 CInt
+i32c32 = ConnL CInt $ \(CInt x) -> x
 
-i32w32 :: Conn Int32 Word32
+i32w32 :: Conn k Int32 Word32
 i32w32 = unsigned
 
-i32int :: Conn Int32 (Lifted Integer)
+i32int :: ConnL Int32 (Maybe Integer)
 i32int = signed
 
-i64c64 :: Conn Int64 CLong
-i64c64 = Conn CLong $ \(CLong x) -> x
+i64c64 :: ConnL Int64 CLong
+i64c64 = ConnL CLong $ \(CLong x) -> x
 
-i64w64 :: Conn Int64 Word64
+i64w64 :: Conn k Int64 Word64
 i64w64 = unsigned
 
-i64int :: Conn Int64 (Lifted Integer)
+-- | /Caution/: This assumes that 'Int' on your system is 64 bits.
+ixxi64 :: Conn k Int Int64
+ixxi64 = Conn fromIntegral fromIntegral fromIntegral
+
+i64int :: ConnL Int64 (Maybe Integer)
 i64int = signed
 
-ixxwxx :: Conn Int Word
+ixxwxx :: Conn k Int Word
 ixxwxx = unsigned
 
 -- | /Caution/: This assumes that 'Int' on your system is 64 bits.
-ixxint :: Conn Int (Lifted Integer)
+ixxint :: ConnL Int (Maybe Integer)
 ixxint = signed
 
-intnat :: Conn Integer Natural
-intnat = Conn (fromIntegral . max 0) fromIntegral
+intnat :: ConnL Integer Natural
+intnat = ConnL (fromIntegral . max 0) fromIntegral
 
-natint :: Conn Natural (Lifted Integer)
-natint = Conn (lifts P.fromIntegral) (lifted $ P.fromInteger . max 0)
+natint :: ConnL Natural (Maybe Integer)
+natint = ConnL (fmap fromIntegral . fromPred (==0)) (maybe bottom $ P.fromInteger . max 0)
+
+i08i16 :: ConnL Int8 Int16
+i08i16 = i08w08 >>> w08w16 >>> w16i16
+
+i08i32 :: ConnL Int8 Int32
+i08i32 = i08w08 >>> w08w32 >>> w32i32
+
+i08i64 :: ConnL Int8 Int64
+i08i64 = i08w08 >>> w08w64 >>> w64i64
+
+i16i32 :: ConnL Int16 Int32
+i16i32 = i16w16 >>> w16w32 >>> w32i32
+
+i16i64 :: ConnL Int16 Int64
+i16i64 = i16w16 >>> w16w64 >>> w64i64
+
+i32i64 :: ConnL Int32 Int64
+i32i64 = i32w32 >>> w32w64 >>> w64i64
 
 ---------------------------------------------------------------------
 -- Internal
 ---------------------------------------------------------------------
 
 
+fromPred :: Alternative f => (t -> Bool) -> t -> f t
+fromPred p a = a <$ guard (p a)
+
+unsigned :: (Bounded a, Integral a, Integral b) => Conn k a b
+unsigned = Conn f g f where
+  f y = fromIntegral (y + top + 1)
+  g x = fromIntegral x - bottom
+
+signed :: forall a. (Bounded a, Integral a) => ConnL a (Maybe Integer)
+signed = ConnL f g where
+  f = fmap fromIntegral . fromPred (==bottom)
+  g = maybe bottom $ P.fromInteger . min (fromIntegral @a top) . max (fromIntegral @a bottom)
+
 {-
-i08i16 :: Conn Int8 Int16
-i08i16 = i08w08' >>> w08w16 >>> w16i16
 
-i08i32 :: Conn Int8 Int32
-i08i32 = i08w08' >>> w08w32 >>> w32i32
-
-i08i64 :: Conn Int8 Int64
-i08i64 = i08w08' >>> w08w64 >>> w64i64
-
-i16i32 :: Conn Int16 Int32
-i16i32 = i16w16' >>> w16w32 >>> w32i32
-
-i16i64 :: Conn Int16 Int64
-i16i64 = i16w16' >>> w16w64 >>> w64i64
-
-i32i64 :: Conn Int32 Int64
-i32i64 = i32w32' >>> w32w64 >>> w64i64
 
 clip08 :: Integer -> Integer
 clip08 = min 127 . max (-128)
@@ -122,26 +152,16 @@ clip32 = min 2147483647 . max (-2147483648)
 clip64 :: Integer -> Integer
 clip64 = min 9223372036854775807 . max (-9223372036854775808)
 
-signed' :: forall a. (Bounded a, Integral a) => Trip a (Extended Integer)
-signed' = Trip f g h where
+unsigned :: (Bounded a, Preorder b, Integral a, Integral b) => ConnL a b
+unsigned = ConnL f g where
+  f = fromIntegral . max 0
+  g = fromIntegral . min (f top)
+
+signed' :: forall a k. (Bounded a, Integral a) => Conn k a (Extended Integer)
+signed' = Conn f g h where
   f = liftExtended (~~ bottom) (const False) fromIntegral
   g = extended bottom top $ P.fromInteger . min (fromIntegral @a top) . max (fromIntegral @a bottom)
   h = liftExtended (const False) (~~ top) fromIntegral
-
-unsigned' :: (Bounded a, Integral a, Integral b) => Trip a b
-unsigned' = Trip f g f where
-  f y = fromIntegral (y + top + 1)
-  g x = fromIntegral x - bottom
 -}
-
-signed :: forall a. (Bounded a, Integral a) => Conn a (Lifted Integer)
-signed = Conn f g where
-  f = liftEitherL (== bottom) fromIntegral
-  g = lifted $ P.fromInteger . min (fromIntegral @a top) . max (fromIntegral @a bottom)
-
-unsigned :: (Bounded a, Preorder b, Integral a, Integral b) => Conn a b
-unsigned = Conn f g where
-  f = fromIntegral . max 0
-  g = fromIntegral . min (f top)
 
 

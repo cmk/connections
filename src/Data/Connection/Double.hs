@@ -1,5 +1,6 @@
 {-# Language ConstraintKinds #-}
 {-# Language Safe            #-}
+{-# Language RankNTypes      #-}
 module Data.Connection.Double (
     f64f32
   , f64i08
@@ -8,12 +9,11 @@ module Data.Connection.Double (
 ) where
 
 import safe Data.Bool
-import safe Data.Connection.Type
+import safe Data.Connection.Conn
 import safe Data.Lattice
 import safe Data.Int
 import safe Data.Order
 import safe Data.Order.Extended
-import safe Data.Semigroup.Quantale
 import safe GHC.Float as F
 import safe Prelude as P hiding (Ord(..), Bounded, until)
 import safe qualified Data.Order.Float as F32
@@ -23,16 +23,16 @@ import safe qualified Data.Order.Float as F32
 ---------------------------------------------------------------------
 
 -- | All 'Int08' values are exactly representable in a 'Double'.
-f64i08 :: Trip Double (Extended Int8)
-f64i08 = signedTriple 127
+f64i08 :: Conn k Double (Extended Int8)
+f64i08 = triple 127
 
 -- | All 'Int08' values are exactly representable in a 'Double'.
-f64i16 :: Trip Double (Extended Int16)
-f64i16 = signedTriple 32767
+f64i16 :: Conn k Double (Extended Int16)
+f64i16 = triple 32767
 
 -- | All 'Int32' values are exactly representable in a 'Double'.
-f64i32 :: Trip Double (Extended Int32)
-f64i32 = signedTriple 2147483647
+f64i32 :: Conn k Double (Extended Int32)
+f64i32 = triple 2147483647
 
 {-
 
@@ -75,19 +75,19 @@ ixxf64 = Conn (nan g) (nanf f) where
 -}
 
 
-f64f32 :: Trip Double Float
-f64f32 = Trip f g h where
-  f x = let est = F.double2Float x in
+f64f32 :: Conn k Double Float
+f64f32 = Conn f1 g f2 where
+  f1 x = let est = F.double2Float x in
           if g est >~ x
           then est
           else F32.upper32 est g x
 
-  g = F.float2Double
-
-  h x = let est = F.double2Float x in
+  f2 x = let est = F.double2Float x in
           if g est <~ x
           then est
           else F32.lower32 est g x
+
+  g = F.float2Double
 
 
 {-
@@ -100,15 +100,14 @@ f64f32 = Trip f g h where
 -- Internal
 ---------------------------------------------------------------------
 
-signedTriple :: (Bounded a, Integral a) => Double -> Trip Double (Extended a)
-signedTriple high = Trip f g h where
+triple :: (Bounded a, Integral a) => Double -> Conn k Double (Extended a)
+triple high = Conn f1 g f2 where
+  f1 = liftExtended (~~ -1/0) (\x -> x ~~ 0/0 || x > high) $ \x -> if x < low then bottom else P.ceiling x
 
-  f = liftExtended (~~ -1/0) (\x -> x ~~ 0/0 || x > high) $ \x -> if x < low then bottom else P.ceiling x
+  f2 = liftExtended (\x -> x ~~ 0/0 || x < low) (~~ 1/0) $ \x -> if x > high then top else P.floor x
 
   g = extended bottom top P.fromIntegral
  
-  h = liftExtended (\x -> x ~~ 0/0 || x < low) (~~ 1/0) $ \x -> if x > high then top else P.floor x
-
   low = -1 - high
 
 
@@ -146,8 +145,8 @@ u32w64 = Conn f g where
                where fromIntegral = connr conn
 
 --order of magnitude
-f32w08 :: Trip Float (Maybe Word8)
-f32w08 = Trip (nanf f) (nan (0/0) g) (nanf h) where
+f32w08 :: Conn k Float (Maybe Word8)
+f32w08 = Conn (nanf f) (nan (0/0) g) (nanf h) where
   h x = if x > 0 then 0 else connr w08wf $ B.shift (floatWord32 x) (-23)
   g = word32Float . flip B.shift 23 . connl w08w32
   f x = 1 + min 254 (h x)

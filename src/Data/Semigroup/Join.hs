@@ -61,6 +61,7 @@ import safe Data.Int
 import safe Data.Kind
 import safe Data.Maybe
 import safe Data.Order
+import safe Data.Order.Syntax
 import safe Data.Semigroup
 import safe Data.Semigroup.Foldable
 import safe Data.Universe.Class (Finite(..))
@@ -106,11 +107,9 @@ infixr 5 \/
 
 -- | Join operation on a semilattice.
 --
--- >>> (> (0::Int)) ∧ ((< 10) \/ (== 15)) $ 10
+-- >>> (> (0::Int)) /\ ((< 10) \/ (== 15)) $ 10
 -- False
 --
--- >>> IntSet.fromList [1..5] ∧ IntSet.fromList [2..5]
--- fromList [2,3,4,5]
 (\/) :: (Join-Semilattice) a => a -> a -> a
 a \/ b = getJoin (Join a <> Join b)
 {-# INLINE (\/) #-}
@@ -193,8 +192,8 @@ infixr 6 /\ -- comment for the parser
 
 -- | Meet operation on a semilattice.
 --
--- >>> (> (0::Int)) /\ ((< 10) ∨ (== 15)) $ 15
--- True
+-- >>> IntSet.fromList [1..5] /\ IntSet.fromList [2..4]
+-- fromList [2,3,4]
 --
 (/\) :: (Meet-Semilattice) a => a -> a -> a
 a /\ b = getMeet (Meet a <> Meet b)

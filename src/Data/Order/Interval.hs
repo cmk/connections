@@ -5,7 +5,7 @@ module Data.Order.Interval (
     Interval()
   , imap
   , (...)
-  , empty
+  , iempty
   , singleton
   , contains
   , endpts
@@ -15,10 +15,11 @@ module Data.Order.Interval (
 ) where
 
 import safe Control.Applicative (liftA2)
-import safe Data.Connection.Type
+import safe Data.Connection.Conn
 import safe Data.Bifunctor (bimap)
 import safe Data.Lattice
 import safe Data.Order
+import safe Data.Order.Syntax
 import safe Prelude hiding (Ord(..), Eq(..), Bounded, until)
 import safe qualified Data.Eq as Eq
 
@@ -37,28 +38,33 @@ data Interval a = Empty | I !a !a deriving Show
 -- | Map over an interval.
 --
 -- /Note/ this is not a functor, as a non-monotonic map
--- may cause the interval to collapse to the empty interval.
+-- may cause the interval to collapse to the iempty interval.
 --
 imap :: Preorder b => (a -> b) -> Interval a -> Interval b
-imap f = maybe empty (uncurry (...)) . fmap (bimap f f) . endpts
+imap f = maybe iempty (uncurry (...)) . fmap (bimap f f) . endpts
 
 infix 3 ...
 
 -- | Construct an interval from a pair of points.
 --
+-- /Note/: Endpoints are preorder-sorted. If /pcompare x y = Nothing/
+-- then the resulting interval will be empty.
+-- 
 (...) :: Preorder a => a -> a -> Interval a
-x ... y
-  | x <~ y = I x y
-  | otherwise = Empty
+x ... y = case pcompare x y of
+  Nothing -> Empty
+  Just GT -> I y x
+  otherwise -> I x y
 {-# INLINE (...) #-}
 
--- | The empty interval.
+-- | The iempty interval.
 --
--- >>> empty
+-- >>> iempty
 -- Empty
-empty :: Interval a
-empty = Empty
-{-# INLINE empty #-}
+--
+iempty :: Interval a
+iempty = Empty
+{-# INLINE iempty #-}
 
 -- | Construct an interval containing a single point.
 --
@@ -106,11 +112,11 @@ below :: LowerBounded a => a -> Interval a
 below x = bottom ... x
 {-# INLINE below #-}
 
-interval :: LowerBounded a => Trip (Maybe a) (Interval a)
-interval = Trip f g h where
-  f = maybe empty singleton
+interval :: LowerBounded a => Conn k (Maybe a) (Interval a)
+interval = trip f g h where
+  f = maybe iempty singleton
   g = maybe Nothing (Just . uncurry (\/)) . endpts
-  h = maybe empty below
+  h = maybe iempty below
 
 ---------------------------------------------------------------------
 -- Instances

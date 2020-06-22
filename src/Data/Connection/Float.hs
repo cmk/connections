@@ -5,11 +5,10 @@ module Data.Connection.Float (
     f32i08
   , f32i16
   --, f32i32
-  --, i32f32
 ) where
 
 import safe Data.Bool
-import safe Data.Connection.Type
+import safe Data.Connection.Conn
 import safe Data.Lattice
 import safe Data.Int
 import safe Data.Order
@@ -23,18 +22,16 @@ import safe qualified Prelude as P
 ---------------------------------------------------------------------
 
 -- | All 'Int08' values are exactly representable in a 'Float'.
-f32i08 :: Trip Float (Extended Int8)
+f32i08 :: Conn k Float (Extended Int8)
 f32i08 = signedTriple 127
 
 -- | All 'Int16' values are exactly representable in a 'Float'.
-f32i16 :: Trip Float (Extended Int16)
+f32i16 :: Conn k Float (Extended Int16)
 f32i16 = signedTriple 32767
 
-
 {-
-
 -- | Exact embedding up to the largest representable 'Int32'.
-f32i32 :: Conn Float (Maybe Int32)
+f32i32 :: ConnL Float (Maybe Int32)
 f32i32 = Conn (nanf f) (nan g) where
   f x | abs x <~ 2**24-1 = P.ceiling x
       | otherwise = if x >~ 0 then 2^24 else bottom
@@ -42,8 +39,9 @@ f32i32 = Conn (nanf f) (nan g) where
   g i | abs' i <~ 2^24-1 = fromIntegral i
       | otherwise = if i >~ 0 then 1/0 else -2**24
 
+
 -- | Exact embedding up to the largest representable 'Int32'.
-i32f32 :: Conn (Maybe Int32) Float
+i32f32 :: ConnL (Maybe Int32) Float
 i32f32 = Conn (nan g) (nanf f) where
   f x | abs x <~ 2**24-1 = P.floor x
       | otherwise = if x >~ 0 then top else -2^24
@@ -57,8 +55,8 @@ i32f32 = Conn (nan g) (nanf f) where
 -- Internal
 ---------------------------------------------------------------------
 
-signedTriple :: (Bounded a, Integral a) => Float -> Trip Float (Extended a)
-signedTriple high = Trip f g h where
+signedTriple :: (Bounded a, Integral a) => Float -> Conn k Float (Extended a)
+signedTriple high = Conn f g h where
 
   f = liftExtended (~~ -1/0) (\x -> x ~~ 0/0 || x > high) $ \x -> if x < low then bottom else P.ceiling x
 

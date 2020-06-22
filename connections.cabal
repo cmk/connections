@@ -19,37 +19,38 @@ library
   ghc-options:      -Wall -optc-std=c99
   exposed-modules:
 
-      Data.Order
-    , Data.Order.Total
-    , Data.Order.Float
-    , Data.Order.Double
-    , Data.Order.Interval
-    , Data.Order.Extended
-    , Data.Order.Topology
-    , Data.Order.Property
-    
-    , Data.Semigroup.Join
-    --, Data.Semigroup.Quantale
+      Data.Connection
+    , Data.Connection.Conn
+    , Data.Connection.Class
+    , Data.Connection.Int
+    , Data.Connection.Word
+    , Data.Connection.Ratio
+    , Data.Connection.Float
+    , Data.Connection.Double
+    , Data.Connection.Property
 
     , Data.Lattice
     , Data.Lattice.Heyting
 
-    --, Data.Connection
-    , Data.Connection.Type
-    --, Data.Connection.Int
-    --, Data.Connection.Word
-    --, Data.Connection.Ratio
-    --, Data.Connection.Float
-    --, Data.Connection.Double
-    , Data.Connection.Property
+    , Data.Order
+    , Data.Order.Float
+    , Data.Order.Double
+    , Data.Order.Interval
+    , Data.Order.Extended
+    , Data.Order.Property
+    , Data.Order.Topology
+    , Data.Order.Syntax
 
+    , Data.Semigroup.Join
+    , Data.Semigroup.Quantale
+    
   build-depends:       
       base           >= 4.10  && < 5.0
     , containers     >= 0.4.0 && < 1.0
     , semigroupoids  >= 5.0   && < 6.0
     , universe-base  >= 1.1.1 && < 2.0
     , adjunctions    >= 4.4   && < 5.0
-    , transformers
+    , transformers   >= 0.5.5.0 && < 0.6
 
   default-extensions:
       ScopedTypeVariables

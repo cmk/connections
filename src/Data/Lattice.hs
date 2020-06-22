@@ -40,6 +40,7 @@ import safe Data.Foldable
 import safe Data.Functor.Apply
 import safe Data.Functor.Contravariant
 import safe Data.Order
+import safe Data.Order.Syntax
 import safe Data.Int
 import safe Data.Maybe
 import safe Data.Semigroup

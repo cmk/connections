@@ -3,69 +3,54 @@
 {-# Language ConstraintKinds     #-}
 {-# Language DataKinds           #-}
 {-# Language KindSignatures      #-}
+{-# Language RankNTypes          #-}
 {-# Language Safe                #-}
 
 module Data.Order.Topology (
-  -- * Left and right Alexandrov topologies
-    Topology
+  -- * Left and right separated Alexandrov topologies
+    Kan(..)
   , Open()
-  , (?)
-  , base
-  , bound
-  , member
-  , valid
+  , lower
+  , upper
+  , omap
   -- ** The left (/Inf/) topology
   , Inf
   , inf
-  , upper
-  , upper'
-  , lfilter
+  , (.?)
+  , filterL
   -- ** The right (/Sup/) topology
   , Sup 
   , sup
-  , lower
-  , lower'
-  , rfilter
+  , (?.)
+  , filterR
 ) where
 
-import safe Control.Category (id,(.))
 import safe Control.Applicative (liftA2)
-import safe Data.Connection.Type
-import safe Data.Foldable (foldl')
+import safe Data.Connection.Conn
 import safe Data.Semigroup.Join
 import safe Data.Lattice
-import safe Data.Lattice.Heyting
 import safe Data.Order
-import safe Data.Order.Interval
 import safe Data.Universe.Class (Finite(..))
-import safe Prelude hiding (id, (.), Bounded, Eq(..), Ord(..))
-import safe qualified Data.Eq as Eq
+import safe Prelude hiding (Bounded, Eq(..), Ord(..))
 
-import Data.Int
-
--- | A separated left or right < https://en.wikipedia.org/wiki/Alexandrov_topology Alexandrov topology >.
-data Topology = Inf | Sup
-
--- | A pointed open set in a separated Alexandrov topology.
+-- | A pointed open set in a separated left or right < https://en.wikipedia.org/wiki/Alexandrov_topology Alexandrov topology >.
 --
-data Open (t :: Topology) a = Open (a -> Bool) a a
+data Open (k :: Kan) a = Open (a -> Bool) a a
 
-infix 4 ?
+-- | The base point of a pointed lower set (i.e. an 'Inf').
+--
+lower :: Open k a -> a
+lower (Open _ x _) = x
 
-(?) :: Open t a -> a -> Bool
-(?) = flip member
+-- | The base point of a pointed upper set (i.e. a 'Sup').
+-- 
+upper :: Open k a -> a
+upper (Open _ _ y) = y
 
-base :: Open t a -> a
-base (Open _ x _) = x
-
-bound :: Open t a -> a
-bound (Open _ _ y) = y
-
-valid :: Open t a -> Bool
-valid (Open f x _) = f x
-
-member :: a -> Open t a -> Bool
-member a (Open f _ _) = f a
+-- | Map over a pointed open set in either topology.
+--
+omap :: Trip a b -> Open k a -> Open k b
+omap (Conn f g h) (Open p x y) = Open (p . g) (h x) (f y)
 
 -- Up-set ideals
 up :: Preorder a => a -> a -> Bool
@@ -87,114 +72,114 @@ down' a = fmap not (<~ a)
 -- Inf
 ---------------------------------------------------------------------
 
-type Inf = Open 'Inf
+type Inf = Open 'L
 
--- | Create an upper set.
+
+-- | Create an upper set: \( X_\geq(x) = \{ y \in X | y \geq x \} \)
 --
--- > inf = upper id
+-- Upper sets are the < https://en.wikipedia.org/wiki/Ideal_(order_theory) open sets > of the left Alexandrov topology.
+--
+-- This function is monotone:
+--
+-- > x <~ y <=> inf x <~ inf y
+--
+-- by the Yoneda lemma for preorders.
+--
 inf :: UpperBounded a => a -> Inf a
-inf = upper id
+inf a = Open (const True) a top
 
--- | Create an upper set with a connection.
+infix 4 .?
+
+-- | Check for membership in an /Inf/.
 --
--- > upper c = upper' c . singleton
-upper :: UpperBounded a => Conn a b -> a -> Inf b
-upper (Conn f g) x = Open (up x . g) (f x) (f top)
+(.?) :: Preorder a => Inf a -> a -> Bool
+(.?) (Open f l _) a = f a && down a l
 
--- | Map an interval to an open set in the /Inf/ topology with a connection.
+
+infixr 5 `filterL`
+
+-- | Filter an /Inf/ with an anti-filter.
 --
--- >>> upper' (tripl f64f32) $ 0 ... 2*pi
--- 0.0 ... 6.2831855
---
-upper' :: (UpperBounded a, Lattice b) => Conn a b -> Interval a -> Inf b
-upper' c@(Conn f g) i = lfilter (f h) $ upper c l where (l,h) = maybe (top, top) id $ endpts i
-
-infixr 5 `lfilter`
-
--- | Filter an open set with an anti-filter.
+-- The resulting set is open in the separated left Alexandrov topology.
 --
 -- Intersecting with an incomparable element cuts out everything
 -- larger than its join with the base point:
 --
 -- >>> p = inf pi :: Inf Double
--- >>> p ? 1/0
+-- >>> p .? 1/0
 -- True
--- >>> lfilter (0/0) p ? 1/0
+-- >>> filterL (0/0) p .? 1/0
 -- False
 --
 -- An example w/ the set inclusion lattice:
 -- >>> x = Set.fromList [6,40] :: Set.Set Word8
 -- >>> y = Set.fromList [1,6,9] :: Set.Set Word8
--- >>> z = lfilter y $ inf x
+-- >>> z = filterL y $ inf x
 -- fromList [6,40] ... fromList [1,6,9,40]
--- >>> z ? Set.fromList [1,6,40]
+-- >>> z .? Set.fromList [1,6,40]
 -- True
--- >>> z ? Set.fromList [6,9,40]
+-- >>> z .? Set.fromList [6,9,40]
 -- True
--- >>> z ? Set.fromList [1,6,9,40]
+-- >>> z .? Set.fromList [1,6,9,40]
 -- False
 --
-lfilter :: Lattice a => a -> Inf a -> Inf a
-lfilter a p@(Open f l r) = if down' l a then Open (f /\ up' a) l (glb l a r) else p
+filterL :: Lattice a => a -> Inf a -> Inf a
+filterL a p@(Open f l u) = if down' l a then Open (f /\ up' a) l (glb l a u) else p
 
 ---------------------------------------------------------------------
 -- Sup
 ---------------------------------------------------------------------
 
-type Sup = Open 'Sup
+type Sup = Open 'R
 
--- | Create a lower set.
+-- | Create a lower set \( X_\leq(x) = \{ y \in X | y \leq x \} \)
+--
+-- Lower sets are the <https://en.wikipedia.org/wiki/Filter_(mathematics) open sets > of the right Alexandrov topology.
+--
+-- This function is antitone:
+--
+-- > x <~ y <=> sup x >~ sup y
+--
+-- by the Yoneda lemma for preorders.
 --
 sup :: LowerBounded a => a -> Sup a
-sup = lower id
+sup a = Open (const True) bottom a
 
--- | Create a lower set with a connection.
+infix 4 ?.
+
+-- | Check for membership in a /Sup/.
 --
--- > lower c = lower' c . singleton
---
--- >>> valid . pull (tripr f64f32) $ lower pi
--- True
+(?.) :: Preorder a => a -> Sup a -> Bool
+(?.) a (Open f _ u) = f a && up a u
+
+infixl 5 `filterR`
+
+-- | Filter a /Sup/ with an anti-ideal.
 -- 
-lower :: LowerBounded b => Conn a b -> b -> Sup a
-lower (Conn f g) x = Open (down x . f) (g x) (g bottom)
-
--- | Map an interval to an open set in the /Sup/ topology with a connection.
+-- The resulting set is open in the separated right Alexandrov topology.
 --
--- >>> lower' (tripr f64f32) $ 0 ... 2*pi
--- 0.0 ... 6.283185
---
-lower' :: (LowerBounded b, Lattice a) => Conn a b -> Interval b -> Sup a
-lower' c@(Conn f g) i = rfilter (g l) $ lower c h where (l,h) = maybe (bottom, bottom) id $ endpts i
-
-infixl 5 `rfilter`
-
--- | Filter an open set with an anti-ideal.
--- 
 -- >>> p = sup pi :: Sup Double
--- >>> p ? -1/0
+-- >>> -1/0 ?. p
 -- True
--- >>> rfilter (0/0) p ? -1/0
+-- >>> -1/0 ?. filterR (0/0) p
 -- False
 --
-rfilter :: Lattice a => a -> Sup a -> Sup a
-rfilter a p@(Open f r l) = if up' r a then Open (f /\ down' a) r (lub l a r) else p
+filterR :: Lattice a => a -> Sup a -> Sup a
+filterR a p@(Open f l u) = if up' u a then Open (f /\ down' a) (lub l a u) u else p
 
 ---------------------------------------------------------------------
 -- Internal
 ---------------------------------------------------------------------
 
 
---deriving instance Eq a => Eq (Open t a)
-instance Show a => Show (Inf a) where
+--deriving instance Eq a => Eq (Open k a)
+instance Show a => Show (Open k a) where
   show (Open _ l r) = show l ++ " ... " ++ show r
-
-instance Show a => Show (Sup a) where
-  show (Open _ l r) = show r ++ " ... " ++ show l
 
 -- |
 -- Note that '~~' is strictly weaker than '==', as it ignores the 
 -- location of the base point.
-instance Finite a => Preorder (Open t a) where
+instance Finite a => Preorder (Open k a) where
   (Open f _ _) <~ (Open g _ _) = f <~ g
 
 instance Lattice a => Semigroup (Join (Inf a)) where
@@ -261,6 +246,6 @@ instance (Finite a, Bounded a) => Quantale (Meet (Sup a)) where
 negOpen (Open f x) = Open $ \a -> neg (f a)
 iffOpen (Open f x) (Open g x) = Open $ \a -> f a <=> g a
 
-impliesOpen :: Bounded a => Open t a -> Open t a -> Open t a
+impliesOpen :: Bounded a => Open k a -> Open k a -> Open k a
 impliesOpen (Open f x) (Open g y) = Open (\a -> f a <= g a) (if x > y then y else top)
 -}

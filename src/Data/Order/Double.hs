@@ -1,15 +1,18 @@
 {-# Language ConstraintKinds #-}
 {-# Language Safe            #-}
+-- | This module should be imported qualified.
 module Data.Order.Double (
-    open
+    min
+  , max
+  , open
   , openl
   , openr
   , covers
   , ulp
   , shift
   , within
-  , lower64
-  , upper64
+  , lower
+  , upper
   , minimal
   , maximal
   , epsilon
@@ -19,17 +22,42 @@ import safe Data.Bool
 import safe Data.Lattice
 import safe Data.Int
 import safe Data.Order
-import safe Data.Order.Total
+import safe Data.Order.Syntax hiding (min, max)
 import safe Data.Order.Interval
 import safe Data.Word
 import safe Data.List (unfoldr)
 import safe Data.Universe.Class
 import safe GHC.Float as F
-import safe Prelude as P hiding (Ord(..), Bounded, until)
+import safe Prelude hiding (Eq(..), Ord(..), Bounded, until)
+import safe qualified Prelude as P
 
 ---------------------------------------------------------------------
 -- Double
 ---------------------------------------------------------------------
+
+-- | A /NaN/-handling min function.
+--
+-- > min x NaN = x
+-- > min NaN y = y
+--
+min :: Double -> Double -> Double
+min x y = case (isNaN x, isNaN y) of
+  (False, False) -> if x <= y then x else y
+  (False, True) -> x
+  (True, False) -> y
+  (True, True)  -> x
+
+-- | A /NaN/-handling max function.
+--
+-- > max x NaN = x
+-- > max NaN y = y
+--
+max :: Double -> Double -> Double
+max x y = case (isNaN x, isNaN y) of
+  (False, False) -> if x >= y then x else y
+  (False, True) -> x
+  (True, False) -> y
+  (True, True)  -> x
 
 -- | Construnct an open interval.
 --
@@ -128,16 +156,16 @@ within tol x y = maybe False ((<= tol) . snd) $ ulp x y
 -- @'lower64' x@ is the least element /y/ in the descending
 -- chain such that @not $ f y '<~' x@.
 --
-lower64 :: Preorder a => Double -> (Double -> a) -> a -> Double
-lower64 z f x = until (\y -> f y <~ x) (>~) (shift $ -1) z
+lower :: Preorder a => Double -> (Double -> a) -> a -> Double
+lower z f x = until (\y -> f y <~ x) (>~) (shift $ -1) z
 
 -- |
 --
 -- @'upper64' y@ is the greatest element /x/ in the ascending
 -- chain such that @g x '<~' y@.
 --
-upper64 :: Preorder a => Double -> (Double -> a) -> a -> Double
-upper64 z g y = until (\x -> g x >~ y) (<~) (shift 1) z
+upper :: Preorder a => Double -> (Double -> a) -> a -> Double
+upper z g y = until (\x -> g x >~ y) (<~) (shift 1) z
 
 -- | Minimal positive value.
 --
@@ -251,7 +279,7 @@ unsigned64 x | x >~ 0  = fromIntegral x
 
 -- Clamp between the int representations of -1/0 and 1/0 
 clamp64 :: Int64 -> Int64
-clamp64 = max (-9218868437227405313) . min 9218868437227405312 
+clamp64 = P.max (-9218868437227405313) . P.min 9218868437227405312 
 
 int64Double :: Int64 -> Double
 int64Double = word64Double . unsigned64

@@ -21,6 +21,7 @@ module Data.Order.Extended (
 
 import safe Control.Applicative (liftA2)
 import safe Data.Order
+import safe Data.Order.Syntax
 import safe Data.Lattice
 import safe Data.Int
 import safe GHC.Generics
