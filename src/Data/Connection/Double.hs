@@ -34,6 +34,24 @@ import safe qualified Prelude as P
 -- Connections
 ---------------------------------------------------------------------
 
+f64f32 :: Conn k Double Float
+f64f32 = Conn f1 g f2 where
+  f1 x = let est = F.double2Float x in
+          if g est >~ x
+          then est
+          else ascend32 est g x
+
+  f2 x = let est = F.double2Float x in
+          if g est <~ x
+          then est
+          else descend32 est g x
+
+  g = F.float2Double
+
+  ascend32 z g1 y = until (\x -> g1 x >~ y) (<~) (F32.shift 1) z
+
+  descend32 z h1 x = until (\y -> h1 y <~ x) (>~) (F32.shift (-1)) z
+
 -- | All 'Data.Int.Int08' values are exactly representable in a 'Double'.
 f64i08 :: Conn k Double (Extended Int8)
 f64i08 = triple 127
@@ -136,9 +154,6 @@ within tol x y = maybe False ((<= tol) . snd) $ ulp x y
 epsilon :: Double
 epsilon = shift 1 1.0 - 1.0
 
---------------------------------------------------------------------------------
--- Orphans
----------------------------------------------------------------------
 {-
 
 -- | Minimal positive value.
@@ -162,6 +177,11 @@ minimal64 = shift 1 0.0
 -- 
 maximal64 :: Double
 maximal64 = shift (-1) maxBound 
+-}
+--------------------------------------------------------------------------------
+-- Orphans
+---------------------------------------------------------------------
+{-
 instance Universe Double where
   universe = 0/0 : indexFromTo (minBound ... maxBound)
 
@@ -171,58 +191,6 @@ instance Finite Double
 -- Internal
 ---------------------------------------------------------------------
 
-{-
-f32c32 :: Conn Float CFloat
-f32c32 = Conn CFloat $ \(CFloat f) -> f
-
-f64c64 :: Conn Double CDouble
-f64c64 = Conn CDouble $ \(CDouble f) -> f
-
-f32u32 :: Conn Float Ulp32
-f32u32 = Conn (Ulpf . floatInt32) (int32Float . unUlp32)
-
-u32f32 :: Conn Ulpf Float
-u32f32 = Conn (int32Float . unUlp32) (Ulpf . floatInt32)
-
--- correct but maybe replace w/ Graded / Yoneda / Indexed etc
-u32w64 :: Conn Ulpf (Maybe Word64)
-u32w64 = Conn f g where
-  conn = i32wf >>> w32w64
-
-  of32set  = 2139095041 :: Word64
-  of32set' = 2139095041 :: Int32
-
-  f x@(Ulpf y) | ulp32Maybe x = Maybe
-               | neg y = Just $ fromIntegral (y + of32set')
-               | otherwise = Just $ (fromIntegral y) + of32set
-               where fromIntegral = connl conn
-
-  g x = case x of
-          Maybe -> Ulpf of32set'
-          Just y | y < of32set -> Ulpf $ (fromIntegral y) P.- of32set'
-                | otherwise  -> Ulpf $ fromIntegral ((min 4278190081 y) P.- of32set)
-               where fromIntegral = connr conn
-
---order of magnitude
-f32w08 :: Trip Float (Maybe Word8)
-f32w08 = Trip (nanf f) (nan (0/0) g) (nanf h) where
-  h x = if x > 0 then 0 else connr w08wf $ B.shift (floatWord32 x) (-23)
-  g = word32Float . flip B.shift 23 . connl w08w32
-  f x = 1 + min 254 (h x)
-
-abs' :: (Eq a, Bounded a, Num a) => a -> a
-abs' x = if x ~~ minBound then abs (x+1) else abs x
-
-nanf :: (Eq a, Lattice a) => Floating a => (a -> b) -> a -> Maybe b
-nanf f x | x ~~ 0/0 = Nothing
-         | otherwise = Just (f x)
-
-nan :: Fractional b => (a -> b) -> Maybe a -> b
-nan = maybe (0/0)
-
-extf f x | x ~~ 0/0 = Bottom -- ?
-         | otherwise = Extended (f x)
--}
 {-# INLINE until #-}
 until :: (a -> Bool) -> (a -> a -> Bool) -> (a -> a) -> a -> a
 until pre rel f seed = go seed
@@ -304,25 +272,6 @@ ixxf64 = Conn (nan g) (nanf f) where
 -}
 
 
-f64f32 :: Conn k Double Float
-f64f32 = Conn f1 g f2 where
-  f1 x = let est = F.double2Float x in
-          if g est >~ x
-          then est
-          else ascend32 est g x
-
-  f2 x = let est = F.double2Float x in
-          if g est <~ x
-          then est
-          else descend32 est g x
-
-  g = F.float2Double
-
-
-  ascend32 z g1 y = until (\x -> g1 x >~ y) (<~) (F32.shift 1) z
-
-  descend32 z h1 x = until (\y -> h1 y <~ x) (>~) (F32.shift (-1)) z
-
 {-
 -- |
 --
@@ -371,71 +320,3 @@ triple high = Conn f1 g f2 where
   g = extended (-1/0) (1/0) P.fromIntegral
  
   low = -1 - high
-
-
-{-
-
-f32c32 :: Conn Float CFloat
-f32c32 = Conn CFloat $ \(CFloat f) -> f
-
-f64c64 :: Conn Double CDouble
-f64c64 = Conn CDouble $ \(CDouble f) -> f
-
-f32u32 :: Conn Float Ulp32
-f32u32 = Conn (Ulpf . floatInt32) (int32Float . unUlp32)
-
-u32f32 :: Conn Ulpf Float
-u32f32 = Conn (int32Float . unUlp32) (Ulpf . floatInt32)
-
--- correct but maybe replace w/ Graded / Yoneda / Indexed etc
-u32w64 :: Conn Ulpf (Maybe Word64)
-u32w64 = Conn f g where
-  conn = i32wf >>> w32w64
-
-  of32set  = 2139095041 :: Word64
-  of32set' = 2139095041 :: Int32
-
-  f x@(Ulpf y) | ulp32Maybe x = Maybe
-               | neg y = Just $ fromIntegral (y + of32set')
-               | otherwise = Just $ (fromIntegral y) + of32set
-               where fromIntegral = connl conn
-
-  g x = case x of
-          Maybe -> Ulpf of32set'
-          Just y | y < of32set -> Ulpf $ (fromIntegral y) P.- of32set'
-                | otherwise  -> Ulpf $ fromIntegral ((min 4278190081 y) P.- of32set)
-               where fromIntegral = connr conn
-
---order of magnitude
-f32w08 :: Conn k Float (Maybe Word8)
-f32w08 = Conn (nanf f) (nan (0/0) g) (nanf h) where
-  h x = if x > 0 then 0 else connr w08wf $ B.shift (floatWord32 x) (-23)
-  g = word32Float . flip B.shift 23 . connl w08w32
-  f x = 1 + min 254 (h x)
-
-abs' :: (Eq a, Bounded a, Num a) => a -> a
-abs' x = if x ~~ minBound then abs (x+1) else abs x
-
-nanf :: (Eq a, Lattice a) => Floating a => (a -> b) -> a -> Maybe b
-nanf f x | x ~~ 0/0 = Nothing
-         | otherwise = Just (f x)
-
-nan :: Fractional b => (a -> b) -> Maybe a -> b
-nan = maybe (0/0)
-
-extf f x | x ~~ 0/0 = Bottom -- ?
-         | otherwise = Extended (f x)
-
--- Bit-for-bit conversion.
-word64Double :: Word64 -> Double
-word64Double = F.castWord64ToDouble
-
--- TODO force to pos representation?
--- Bit-for-bit conversion.
-doubleWord64 :: Double -> Word64
-doubleWord64 = (+0) . F.castDoubleToWord64
-
--}
-
-
-

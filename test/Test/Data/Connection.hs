@@ -1,22 +1,30 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DataKinds #-}
 module Test.Data.Connection where
 
 import Control.Applicative hiding (empty)
+import Data.Connection
 import Data.Connection.Conn
 import Data.Connection.Ratio
 import Data.Foldable
 import Data.Lattice
+import Data.Word
 import Data.Order
 import Data.Order.Extended
 import Data.Order.Interval
 import GHC.Real hiding (Fractional(..), (^^), (^), div)
 import Hedgehog
 import Numeric.Natural
-import Prelude hiding (Bounded)
+import Prelude hiding (Eq(..),Ord(..),Bounded)
 import qualified Hedgehog.Gen as G
 import qualified Hedgehog.Range as R
+import Data.Connection.Property as Prop
+import Data.Lattice.Property
+import Data.Order.Property
+import Data.Order.Syntax
 
-ri :: (Integral a, Bounded a) => Range a
+ri :: (Integral a, Lattice a) => Range a
 ri = R.linearFrom 0 bottom top
 
 ri' :: Range Integer
@@ -75,6 +83,33 @@ gen_extended gen = G.frequency [(18, Extended <$> gen), (1, pure Bottom), (1, pu
 
 gen_flt :: Floating a => Gen a -> Gen a 
 gen_flt gen = G.frequency [(49, gen), (1, G.element [(-1/0), 1/0, 0/0])]
+
+prop_connection_extremal :: Property
+prop_connection_extremal = withTests 1000 . property $ do
+  x <- forAll f32
+  x' <- forAll f32
+  o <- forAll ord
+  o' <- forAll ord
+  r <- forAll rat
+  r' <- forAll rat
+
+  assert $ Prop.adjoint (conn @_ @() @Ordering) () o
+  assert $ Prop.closed (conn @_ @() @Ordering) ()
+  assert $ Prop.kernel (conn @_ @() @Ordering) o
+  assert $ Prop.monotonic (conn @_ @() @Ordering) () () o o'
+  assert $ Prop.idempotent (conn @_ @() @Ordering) () o
+
+  assert $ Prop.adjoint (conn @_ @() @Float) () x
+  assert $ Prop.closed (conn @_ @() @Float) ()
+  assert $ Prop.kernel (conn @_ @() @Float) x
+  assert $ Prop.monotonic (conn @_ @() @Float) () () x x'
+  assert $ Prop.idempotent (conn @_ @() @Float) () x
+
+  assert $ Prop.adjoint (conn @_ @() @Rational) () r
+  assert $ Prop.closed (conn @_ @() @Rational) ()
+  assert $ Prop.kernel (conn @_ @() @Rational) r
+  assert $ Prop.monotonic (conn @_ @() @Rational) () () r r'
+  assert $ Prop.idempotent (conn @_ @() @Rational) () r
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

@@ -17,7 +17,7 @@ prop_order_i08 = withTests 1000 . property $ do
   z <- forAll $ G.integral (ri @Int8)
   w <- forAll $ G.integral (ri @Int8) 
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -37,7 +37,7 @@ prop_order_i16 = withTests 1000 . property $ do
   z <- forAll $ G.integral (ri @Int16)
   w <- forAll $ G.integral (ri @Int16) 
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -57,7 +57,7 @@ prop_order_i32 = withTests 1000 . property $ do
   z <- forAll $ G.integral (ri @Int32)
   w <- forAll $ G.integral (ri @Int32) 
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -77,7 +77,7 @@ prop_order_i64 = withTests 1000 . property $ do
   z <- forAll $ G.integral (ri @Int64)
   w <- forAll $ G.integral (ri @Int64) 
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -97,7 +97,7 @@ prop_order_ixx = withTests 1000 . property $ do
   z <- forAll $ G.integral (ri @Int)
   w <- forAll $ G.integral (ri @Int) 
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -117,7 +117,7 @@ prop_order_int = withTests 1000 . property $ do
   z <- forAll $ G.integral ri'
   w <- forAll $ G.integral ri'
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -137,7 +137,7 @@ prop_order_w08 = withTests 1000 . property $ do
   z <- forAll $ G.integral (ri @Word8)
   w <- forAll $ G.integral (ri @Word8) 
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -157,7 +157,7 @@ prop_order_w16 = withTests 1000 . property $ do
   z <- forAll $ G.integral (ri @Word16)
   w <- forAll $ G.integral (ri @Word16) 
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -177,7 +177,7 @@ prop_order_w32 = withTests 1000 . property $ do
   z <- forAll $ G.integral (ri @Word32)
   w <- forAll $ G.integral (ri @Word32) 
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -197,7 +197,7 @@ prop_order_w64 = withTests 1000 . property $ do
   z <- forAll $ G.integral (ri @Word64)
   w <- forAll $ G.integral (ri @Word64) 
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -217,7 +217,7 @@ prop_order_wxx = withTests 1000 . property $ do
   z <- forAll $ G.integral (ri @Word)
   w <- forAll $ G.integral (ri @Word) 
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -236,7 +236,7 @@ prop_order_nat = withTests 1000 . property $ do
   z <- forAll $ G.integral rn
   w <- forAll $ G.integral rn
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -255,7 +255,7 @@ prop_order_rat = withTests 1000 . property $ do
   z <- forAll rat
   w <- forAll rat
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -274,7 +274,7 @@ prop_order_pos = withTests 1000 . property $ do
   z <- forAll pos
   w <- forAll pos
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -293,7 +293,7 @@ prop_order_f32 = withTests 1000 . property $ do
   z <- forAll f32
   w <- forAll f32
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -312,7 +312,7 @@ prop_order_f64 = withTests 1000 . property $ do
   z <- forAll f64
   w <- forAll f64
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x
@@ -331,7 +331,7 @@ prop_order_extended = withTests 1000 . property $ do
   z <- forAll . gen_extended $ G.integral (ri @Int8)
   w <- forAll . gen_extended $ G.integral (ri @Int8) 
   assert $ Prop.preorder x y
-  assert $ Prop.partialOrder z w
+  assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
   assert $ Prop.reflexive_le x
   assert $ Prop.irreflexive_lt x

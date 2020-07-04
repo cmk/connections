@@ -13,8 +13,6 @@ module Data.Connection.Class (
   -- * Types
     Kan(..)
   , Conn()
-  , (\|/)
-  , (/|\)
   -- * Connection L
   , ConnL
   , pattern ConnL
@@ -39,13 +37,19 @@ module Data.Connection.Class (
   , filterR
   , maximal
   , (/\)
-  -- * Connection
+  -- * Connection k
   , Trip
-  , Triple
   , pattern Conn
-  -- * Class
-  , Extremal
-  , Semilattice
+  , glb
+  , lub
+  , maybeL
+  , maybeR
+  , choice
+  , strong
+  , fmapped
+  -- * Connection
+  , Bounded
+  , Triple
   , Connection(..)
   , ConnFloat
   , ConnDouble
@@ -63,6 +67,7 @@ import safe Data.Connection.Word
 import safe Data.Connection.Float
 import safe Data.Connection.Double
 import safe Data.Connection.Ratio
+import safe Data.Functor.Contravariant
 import safe Data.Functor.Identity
 import safe Data.Monoid
 import safe Data.Order
@@ -72,7 +77,7 @@ import safe Data.Word
 import safe Data.Int
 import safe GHC.TypeNats
 import safe Numeric.Natural
-import safe Prelude hiding (floor, ceiling, fromInteger, fromRational)
+import safe Prelude hiding (Bounded, floor, ceiling, fromInteger, fromRational)
 import safe qualified Control.Category as C
 import safe qualified Data.IntMap as IntMap
 import safe qualified Data.IntSet as IntSet
@@ -80,6 +85,7 @@ import safe qualified Data.Map as Map
 import safe qualified Data.Set as Set
 import safe qualified Data.Finite as F
 import safe qualified Data.Universe.Class as U
+import safe qualified Prelude as P
 
 -- $setup
 -- >>> :set -XTypeApplications
@@ -93,6 +99,25 @@ import safe qualified Data.Universe.Class as U
 -- | A constraint kind representing an <https://ncatlab.org/nlab/show/adjoint+triple adjoint triple> of Galois connections.
 --
 type Triple a b = (Connection 'L a b, Connection 'R a b)
+
+-- | Bounded lattices.
+--
+-- A bounded lattice is a lattice with two neutral elements wrt join and meet
+-- operations:
+--
+-- @
+-- x '\/' 'bottom' = x
+-- x '/\' 'top' = x
+-- 'glb' 'bottom' x 'top' = x
+-- 'lub' 'bottom' x 'top' = x
+-- @
+--
+-- The least and greatest elements of a lattice /a/ are given by the unique
+-- upper and lower adjoints to the function /a -> ()/.
+--
+--type Bounded a = (Order a, Triple (a,a) a, Triple () a)
+type Bounded k a = (Order a, Connection k (a,a) a, Connection k () a)
+
 
 -- | An < https://ncatlab.org/nlab/show/adjoint+string adjoint string > of Galois connections of length 2 or 3.
 --
@@ -109,8 +134,6 @@ class (Preorder a, Preorder b) => Connection k a b where
     --
     conn :: Conn k a b
 
-type Extremal k = Connection k ()
-
 type ConnInteger k = Connection k (Maybe Integer)
 
 type ConnFloat k = Connection k Float
@@ -120,23 +143,6 @@ type ConnDouble k = Connection k Double
 type ConnRational k = Connection k Rational
 
 type ConnExtended k a b = Connection k a (Extended b)
-
-type Semilattice k a = (Order a, Connection k (a,a) a)
-
-
-infixr 3 \|/
-
--- | A preorder variant of 'Control.Arrow.|||'.
---
-(\|/) :: Conn k c a -> Conn k c b -> Conn k c (Either a b)
-f \|/ g = Conn Left (either id id) Right >>> f `choice` g
-
-infixr 4 /|\
-
--- | A preorder variant of 'Control.Arrow.&&&'.
---
-(/|\) :: Semilattice k c => Conn k a c -> Conn k b c -> Conn k (a, b) c
-f /|\ g = f `strong` g >>> conn
 
 ---------------------------------------------------------------------
 -- Connection L
@@ -204,19 +210,12 @@ filterL a b = ceiling a <~ b
 
 -- | A minimal element of a preorder defined by a connection with '()'.
 --
--- >>> upperR (conn @Ordering) ()
--- LT
--- >>> lowerL (conn @Ordering) ()
--- GT
--- 
---
 -- 'minimal' needn't be unique, but we must have:
 --
--- > x >~ minimal => x ~~ minimal
+-- > x <~ minimal => x ~~ minimal
 --
-minimal :: Extremal 'L a => a
+minimal :: Connection 'L () a => a
 minimal = lowerL connL ()
-
 
 infixr 5 \/
 
@@ -224,7 +223,7 @@ infixr 5 \/
 --
 -- > (\/) = curry $ lowerL forked
 --
-(\/) :: Semilattice 'L a => a -> a -> a
+(\/) :: Connection 'L (a, a) a => a -> a -> a
 (\/) = curry $ lowerL connL
 
 ---------------------------------------------------------------------
@@ -289,9 +288,9 @@ filterR a b = b <~ floor a
 --
 -- 'maximal' needn't be unique, but we must have:
 --
--- > x <~ maximal => x ~~ maximal
+-- > x >~ maximal => x ~~ maximal
 --
-maximal :: Extremal 'R a => a
+maximal :: Connection 'R () a => a
 maximal = upperR connR ()
 
 infixr 6 /\ -- comment for the parser
@@ -300,8 +299,64 @@ infixr 6 /\ -- comment for the parser
 --
 -- > (/\) = curry $ upperR forked
 --
-(/\) :: Semilattice 'R a => a -> a -> a
+(/\) :: Connection 'R (a, a) a => a -> a -> a
 (/\) = curry $ upperR connR
+
+---------------------------------------------------------------------
+-- Connection
+---------------------------------------------------------------------
+
+-- | Greatest lower bound operator.
+--
+-- > glb x x y = x
+-- > glb x y z = glb z x y
+-- > glb x x y = x
+-- > glb x y z = glb x z y
+-- > glb (glb x w y) w z = glb x w (glb y w z)
+--
+-- >>> glb 1.0 9.0 7.0
+-- 7.0
+-- >>> glb 1.0 9.0 (0.0 / 0.0)
+-- 9.0
+-- >>> glb (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
+-- fromList [3,5]
+--
+glb :: Triple (a, a) a => a -> a -> a -> a
+glb x y z = (x \/ y) /\ (y \/ z) /\ (z \/ x)
+
+-- | Least upper bound operator.
+--
+-- The order dual of 'glb'.
+--
+-- >>> lub 1.0 9.0 7.0
+-- 7.0
+-- >>> lub 1.0 9.0 (0.0 / 0.0)
+-- 1.0
+--
+lub :: Triple (a, a) a => a -> a -> a -> a
+lub x y z = (x /\ y) \/ (y /\ z) \/ (z /\ x)
+
+maybeL :: Triple () b => Trip (Maybe a) (Either a b)
+maybeL = trip f g h where
+  f = maybe (Right minimal) Left
+  g = either Just (const Nothing)
+  h = maybe (Right maximal) Left
+
+maybeR :: Triple () a => Trip (Maybe b) (Either a b)
+maybeR = trip f g h where
+  f = maybe (Left minimal) Right
+  g = either (const Nothing) Just
+  h = maybe (Left maximal) Right
+
+--integer :: forall a k. ConnInteger k a => Conn k (Maybe Integer) a
+--integer = conn
+
+--extended :: ConnExtended k a b => Conn k a (Extended b)
+--extended = conn
+
+--extremal :: forall a k. Extremal k a => Conn k () a
+--extremal = conn
+
 
 ---------------------------------------------------------------------
 -- Instances
@@ -483,30 +538,18 @@ instance Connection k a b => Connection k (Identity a) b where
 instance Connection k a b => Connection k a (Identity b) where
   conn = conn >>> Conn Identity runIdentity Identity
 
-instance (Connection k a b, Connection k c d) => Connection k (Either a c) (Either b d) where
-  -- |
-  -- > conn :: Connection k a b => Connection k (Lifted a) (Lifted b) 
-  -- > conn :: Connection k a b => Connection k (Lowered a) (Lowered b) 
-  conn = choice conn conn
-
-instance Connection k a b => Connection k (Maybe a) (Maybe b) where
-  conn = fmapped conn
-
-instance Connection k a b => Connection k (Extended a) (Extended b) where
-  conn = fmapped conn
-
-instance Connection k a b => Connection k [a] [b] where
-  conn = fmapped conn
-
-instance (Connection k a b, Connection k c d) => Connection k (a, c) (b, d) where
-  conn = strong conn conn
-
 {-
-instance (Extremal 'R a, Semilattice 'L a) => Connection k (Maybe a) (Interval a) where
-  conn = trip f g h where
+instance Bounded 'L a => Connection k (Maybe a) (Interval a) where
+  conn = Conn f g h where
     f = maybe iempty singleton
-    g = maybe Nothing (Just . uncurry join) . endpts
+    g = maybe Nothing (Just . uncurry (\/)) . endpts
     h = maybe iempty $ \x -> minimal ... x
+
+instance Lattice a => Connection k (Interval a) (Maybe a) where
+  conn = Conn f g h where
+    f = maybe Nothing (Just . uncurry (\/)) . endpts
+    g = maybe iempty singleton
+    h = maybe Nothing (Just . uncurry (/\)) . endpts
 -}
 ---------------------------------------------------------------------
 -- 
@@ -527,9 +570,8 @@ extremalN5 = Conn (const $ -1/0) (const ()) (const $ 1/0)
 semilatticeOrd :: (Total a) => Conn k (a, a) a
 semilatticeOrd = Conn (uncurry max) fork (uncurry min)
 
-extremalOrd :: (Total a, Bounded a) => Conn k () a
+extremalOrd :: (Total a, P.Bounded a) => Conn k () a
 extremalOrd = Conn (const minBound) (const ()) (const maxBound)
-
 
 instance Connection k ((),()) () where conn = semilatticeOrd
 instance Connection k (Bool, Bool) Bool where conn = semilatticeOrd
@@ -581,101 +623,170 @@ instance Connection k () Double where conn = extremalN5
 instance Total a => Connection k (Set.Set a, Set.Set a) (Set.Set a) where
   conn = Conn (uncurry Set.union) fork (uncurry Set.intersection)
 
-instance (Total a, U.Finite a) => Connection k () (Set.Set a) where
-  conn = Conn (const Set.empty) (const ()) (const $ Set.fromList U.universeF)
+--instance (Total a, U.Finite a) => Connection k () (Set.Set a) where
+--  conn = Conn (const Set.empty) (const ()) (const $ Set.fromList U.universeF)
+instance (Total a) => Connection 'L () (Set.Set a) where
+  conn = ConnL (const Set.empty) (const ())
 
-instance (Total a, Preorder b) => Connection k (Map.Map a b, Map.Map a b) (Map.Map a b) where
-  conn = Conn (uncurry Map.union) fork (uncurry Map.intersection)
+instance (Total a, U.Finite a) => Connection 'R () (Set.Set a) where
+  conn = ConnR (const ()) (const $ Set.fromList U.universeF)
 
-instance (Total a, Preorder b) => Connection 'L () (Map.Map a b) where
-  conn = ConnL (const Map.empty) (const ()) 
-
-instance Preorder a => Connection k (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
-  conn = Conn (uncurry IntMap.union) fork (uncurry IntMap.intersection)
-
-instance Preorder a => Connection 'L () (IntMap.IntMap a) where
-  conn = ConnL (const IntMap.empty) (const ())
+instance Connection k (IntSet.IntSet, IntSet.IntSet) IntSet.IntSet where
+  conn = Conn (uncurry IntSet.union) fork (uncurry IntSet.intersection)
 
 instance Connection k () IntSet.IntSet where
   conn = Conn (const IntSet.empty) (const ()) (const $ IntSet.fromList U.universeF)
 
-joinMaybe :: Semilattice 'L  a => Maybe a -> Maybe a -> Maybe a
+instance (Total a, Connection 'L (b,b) b) => Connection 'L (Map.Map a b, Map.Map a b) (Map.Map a b) where
+  conn = ConnL (uncurry $ Map.unionWith (\/)) fork
+
+instance (Total a, Connection 'R (b,b) b) => Connection 'R (Map.Map a b, Map.Map a b) (Map.Map a b) where
+  conn = ConnR fork (uncurry $ Map.intersectionWith (/\))
+
+instance (Total a, Preorder b) => Connection 'L () (Map.Map a b) where
+  conn = ConnL (const Map.empty) (const ()) 
+
+instance (Total a, U.Finite a, Connection 'R () b) => Connection 'R () (Map.Map a b) where
+  conn = ConnR (const ()) (const . Map.fromList $ U.universeF `zip` repeat maximal)
+
+instance Connection 'L (a,a) a => Connection 'L (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
+  conn = ConnL (uncurry $ IntMap.unionWith (\/)) fork
+
+instance Connection 'R (a,a) a => Connection 'R (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
+  conn = ConnR fork (uncurry $ IntMap.intersectionWith (/\))
+
+instance Preorder a => Connection 'L () (IntMap.IntMap a) where
+  conn = ConnL (const IntMap.empty) (const ())
+
+instance Connection 'R () a => Connection 'R () (IntMap.IntMap a) where
+  conn = ConnR (const ()) (const . IntMap.fromList $ U.universeF `zip` repeat maximal)
+
+joinMaybe :: Connection 'L (a, a) a => Maybe a -> Maybe a -> Maybe a
 joinMaybe (Just x) (Just y) = Just (x \/ y)
 joinMaybe u@(Just _) _ = u
 joinMaybe _ u@(Just _) = u
 joinMaybe Nothing Nothing = Nothing
 
-meetMaybe :: Semilattice 'R  a => Maybe a -> Maybe a -> Maybe a
+meetMaybe :: Connection 'R (a, a) a => Maybe a -> Maybe a -> Maybe a
 meetMaybe Nothing Nothing = Nothing
 meetMaybe Nothing _ = Nothing
 meetMaybe _ Nothing = Nothing
 meetMaybe (Just x) (Just y) = Just (x /\ y)
 
-instance (Eq a, Triple (a, a) a) => Connection k (Maybe a, Maybe a) (Maybe a) where
-  conn = Conn (uncurry joinMaybe) fork (uncurry meetMaybe)
+instance Connection 'L (a, a) a => Connection 'L (Maybe a, Maybe a) (Maybe a) where
+  conn = ConnL (uncurry joinMaybe) fork
 
-instance (Extremal 'R a) => Connection k () (Maybe a) where
-  conn = Conn (const Nothing) (const ()) (const $ Just maximal)
+instance Connection 'R (a, a) a => Connection 'R (Maybe a, Maybe a) (Maybe a) where
+  conn = ConnR fork (uncurry meetMaybe)
 
-joinEither :: (Semilattice 'L a, Semilattice 'L b) => Either a b -> Either a b -> Either a b
+instance Preorder a => Connection 'L () (Maybe a) where
+  conn = ConnL (const Nothing) (const ())
+
+instance Connection 'R () a => Connection 'R () (Maybe a) where
+  conn = ConnR (const ()) (const $ Just maximal)
+
+joinExtended :: Connection 'L (a, a) a => Extended a -> Extended a -> Extended a
+joinExtended Top          _            = Top
+joinExtended _            Top          = Top
+joinExtended (Extended x) (Extended y) = Extended (x \/ y)
+joinExtended Bottom       y            = y
+joinExtended x            Bottom       = x
+
+meetExtended :: Connection 'R (a, a) a => Extended a -> Extended a -> Extended a
+meetExtended Top          y            = y
+meetExtended x            Top          = x
+meetExtended (Extended x) (Extended y) = Extended (x /\ y)
+meetExtended Bottom       _            = Bottom
+meetExtended _            Bottom       = Bottom
+
+instance Connection 'L (a, a) a => Connection 'L (Extended a, Extended a) (Extended a) where
+  conn = ConnL (uncurry joinExtended) fork
+
+instance Connection 'R (a, a) a => Connection 'R (Extended a, Extended a) (Extended a) where
+  conn = ConnR fork (uncurry meetExtended)
+
+instance Preorder a => Connection k () (Extended a) where
+  conn = Conn (const Bottom) (const ()) (const Top)
+
+joinEither :: (Connection 'L (a, a) a, Connection 'L (b, b) b) => Either a b -> Either a b -> Either a b
 joinEither (Right x) (Right y) = Right (x \/ y)
 joinEither u@(Right _) _ = u
 joinEither _ u@(Right _) = u
 joinEither (Left x) (Left y) = Left (x \/ y)
 
-meetEither :: (Semilattice 'R a, Semilattice 'R b) => Either a b -> Either a b -> Either a b
+meetEither :: (Connection 'R (a, a) a, Connection 'R (b, b) b) => Either a b -> Either a b -> Either a b
 meetEither (Left x) (Left y) = Left (x /\ y)
 meetEither l@(Left _) _ = l
 meetEither _ l@(Left _) = l
 meetEither (Right x) (Right y) = Right (x /\ y)
 
 -- | All minimal elements of the upper lattice cover all maximal elements of the lower lattice.
-instance (Eq a, Eq b, Triple (a,a) a, Triple (b,b) b) => Connection k (Either a b, Either a b) (Either a b) where
-  conn = Conn (uncurry joinEither) fork (uncurry meetEither)
+instance (Connection 'L (a,a) a, Connection 'L (b,b) b) => Connection 'L (Either a b, Either a b) (Either a b) where
+  conn = ConnL (uncurry joinEither) fork
 
-instance (Extremal 'L a, Extremal 'R b) => Connection k () (Either a b) where
-  conn = Conn (const $ Left minimal) (const ()) (const $ Right maximal)
+instance (Connection 'R (a,a) a, Connection 'R (b,b) b) => Connection 'R (Either a b, Either a b) (Either a b) where
+  conn = ConnR fork (uncurry meetEither)
 
-joinTuple :: (Semilattice 'L  a, Semilattice 'L  b) => (a, b) -> (a, b) -> (a, b)
+instance (Connection 'L () a, Preorder b) => Connection 'L () (Either a b) where
+  conn = ConnL (const $ Left minimal) (const ())
+
+instance (Preorder a, Connection 'R () b) => Connection 'R () (Either a b) where
+  conn = ConnR (const ()) (const $ Right maximal)
+
+joinTuple :: (Connection 'L (a, a) a, Connection 'L (b, b) b) => (a, b) -> (a, b) -> (a, b)
 joinTuple (x1, y1) (x2, y2) = (x1 \/ x2, y1 \/ y2)
 
-meetTuple :: (Semilattice 'R a, Semilattice 'R  b) => (a, b) -> (a, b) -> (a, b)
+meetTuple :: (Connection 'R (a, a) a, Connection 'R (b, b) b) => (a, b) -> (a, b) -> (a, b)
 meetTuple (x1, y1) (x2, y2) = (x1 /\ x2, y1 /\ y2)
 
-instance (Eq a, Eq b, Triple (a, a) a, Triple (b, b) b) => Connection k ((a, b), (a, b)) (a, b) where
+instance (Triple (a, a) a, Triple (b, b) b) => Connection k ((a, b), (a, b)) (a, b) where
   conn = Conn (uncurry joinTuple) fork (uncurry meetTuple)
 
 instance (Triple () a, Triple () b) => Connection k () (a, b) where
   conn = Conn (const (minimal, minimal)) (const ()) (const (maximal, maximal))
 
-instance (Eq b, U.Finite a, Triple (b, b) b) => Connection k (a -> b, a -> b) (a -> b) where
+instance (U.Finite a, Triple (b, b) b) => Connection k (a -> b, a -> b) (a -> b) where
   conn = Conn (uncurry $ liftA2 (\/)) fork (uncurry $ liftA2 (/\))
 
-instance (Eq b, U.Finite a, Triple () b) => Connection k () (a -> b) where
+instance (U.Finite a, Triple () b) => Connection k () (a -> b) where
   conn = Conn (const $ pure minimal) (const ()) (const $ pure maximal)
 
+instance (U.Finite a, Triple (a, a) a) => Connection k (Endo a, Endo a) (Endo a) where
+  conn = Conn (\(Endo x, Endo y) -> Endo $ x\/y) fork (\(Endo x, Endo y) -> Endo $ x/\y)
 
---instance (U.Finite a, Triple (a, a) a) => Connection k (Endo a, Endo a) (Endo a) where
---  conn = Conn (uncurry $ liftA2 join) fork (uncurry $ liftA2 meet)
+instance (U.Finite a, Triple () a) => Connection k () (Endo a) where
+  conn = Conn (const $ Endo minimal) (const ()) (const $ Endo maximal)
+
+instance (U.Finite a, Triple (b, b) b) => Connection k (Op b a, Op b a) (Op b a) where
+  conn = Conn (\(Op x, Op y) -> Op $ x\/y) fork (\(Op x, Op y) -> Op $ x/\y)
+
+instance (U.Finite a, Triple () b) => Connection k () (Op b a) where
+  conn = Conn (const $ Op minimal) (const ()) (const $ Op maximal)
+
+instance U.Finite a => Connection k (Predicate a, Predicate a) (Predicate a) where
+  conn = Conn (\(Predicate x, Predicate y) -> Predicate $ x\/y) fork (\(Predicate x, Predicate y) -> Predicate $ x/\y)
+
+instance U.Finite a => Connection k () (Predicate a) where
+  conn = Conn (const $ Predicate minimal) (const ()) (const $ Predicate maximal)
 
 {-
-instance (Applicative m, Semilattice k r) => Semilattice k (ContT r m a) where
+instance (Applicative m, Connection k r) => Connection k (ContT r m a) where
   (<>) = liftA2 joinCont
 
-instance (Applicative m, Extremal k r) => Extremal k (ContT r m a) where
+instance (Applicative m, Connection k () r) => Connection k () (ContT r m a) where
   mempty = pure . ContT . const $ pure bottom
 
-instance Monad m => Semilattice k (SelectT r m a) where
+instance Monad m => Connection k (SelectT r m a) where
   (<>) = liftA2 joinSelect
 
-instance MonadPlus m => Extremal k (SelectT r m a)) where
+instance MonadPlus m => Connection k () (SelectT r m a)) where
   bottom = pure empty
 instance (Ord.Ord a, Preorder a, Preorder r, Finite r) => Preorder (Cont r a) where
   (ContT x) <~ (ContT y) = x `contLe` y
 
 instance (Ord.Ord a, Preorder a, Preorder r, Finite r) => Preorder (Select r a) where
   (SelectT x) <~ (SelectT y) = x `contLe` y
-instance (Applicative m, Total a, Preorder r, Finite r, Semilattice 'L r) => Connection 'L (ContT r m a, ContT r m a) (ContT r m a) where
+instance (Applicative m, Total a, Preorder r, Finite r, Connection 'L r) => Connection 'L (ContT r m a, ContT r m a) (ContT r m a) where
   conn = ConnL (uncurry joinCont) fork
 
 joinCont :: (Applicative m, Connection 'L (r,r) r) => ContT r m a -> ContT r m a -> ContT r m a
@@ -690,40 +801,4 @@ joinSelect x y = branch x y >>= id
     ifM c x y = c >>= \b -> if b then x else y
     branch x y = SelectT $ \p -> ifM ((~~ maximal) <$> p x) (pure x) (pure y)
   
-deriving via (a -> a) instance (F.Finite a, Extremal k a) => Extremal k (Endo a)
-deriving via (a -> a) instance (Finite a, Heyting a) => Heyting (Endo a)
-
-deriving via (a -> b) instance (Finite a, Connection k (a, a) b) => Connection k (Op b a)
-deriving via (a -> b) instance (Finite a, Extremal k b) => Extremal k (Op b a)
-deriving via (a -> b) instance (Finite a, Heyting b) => Heyting (Op b a)
-
-deriving via (Op Bool a) instance (Finite a) => Connection k (Predicate a)
-deriving via (Op Bool a) instance (Finite a) => Extremal k (Predicate a)
-deriving via (Op Bool a) instance (Finite a) => Heyting (Predicate a)
-
-
-instance Connection k IntSet.IntSet where
-  (\/) = IntSet.union 
-  (/\) = IntSet.intersection 
-
-instance Extremal k IntSet.IntSet where
-  bottom = IntSet.empty
-  top = IntSet.fromList universeF
-
-instance (Total k, Connection k (a, a) a) => Connection k (Map.Map k a, Map.Map k a) (Map.Map k a) where
-  (\/) = Map.unionWith (\/)
-  (/\) = Map.intersectionWith (/\)
-
-instance (Total k, Finite k, Extremal k a) => Extremal k (Map.Map k a) where
-  bottom = Map.empty
-  top = Map.fromList (universeF `zip` repeat top)
-
-instance (Connection k (a, a) a) => Connection k (IntMap.IntMap a, IntMap.IntMap a) where
-  (\/) = IntMap.unionWith (\/)
-  (/\) = IntMap.intersectionWith (/\)
-
-instance (Extremal k a) => Extremal k (IntMap.IntMap a) where
-  bottom = IntMap.empty
-  top = IntMap.fromList (universeF `zip` repeat top)
-
 -}

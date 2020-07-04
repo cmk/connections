@@ -43,6 +43,7 @@ import safe Data.Ord (Down(..))
 import safe Data.Semigroup
 import safe Data.Universe.Class (Finite(..))
 import safe Data.Word
+import safe Data.Void
 import safe GHC.Real
 import safe Numeric.Natural
 import safe Prelude hiding (Ord(..), Bounded, until)
@@ -297,6 +298,8 @@ instance Ord.Ord a => Preorder (Base a) where
   x >~ y = getBase $ liftA2 (Ord.>=) x y
   pcompare x y = Just . getBase $ liftA2 Ord.compare x y
 
+--instance Preorder Void where  _ <~ _ = True
+deriving via (Base Void) instance Preorder Void
 deriving via (Base ()) instance Preorder ()
 deriving via (Base Bool) instance Preorder Bool
 deriving via (Base Ordering) instance Preorder Ordering
@@ -320,7 +323,7 @@ newtype N5 a = N5 { getN5 :: a } deriving stock (Eq, Show, Functor)
   deriving Applicative via Identity
 
 instance (Ord.Ord a, Fractional a) => Preorder (N5 a) where
-  (<~) x y = getN5 $ liftA2 n5Le x y
+  x <~ y = getN5 $ liftA2 n5Le x y
 
 -- N5 lattice ordering: NInf <= NaN <= PInf
 n5Le :: (Ord.Ord a, Fractional a) => a -> a -> Bool
@@ -336,6 +339,7 @@ deriving via (N5 Double) instance Preorder Double
 ---------------------------------------------------------------------
 -- Instances
 ---------------------------------------------------------------------
+
 
 
 -- N5 lattice ordering: NInf <= NaN <= PInf
@@ -419,18 +423,16 @@ instance Preorder a => Preorder (Maybe a) where
 
 instance Preorder a => Preorder [a] where
   {-# SPECIALISE instance Preorder [Char] #-}
-  [] <~ _     = True
-  (_:_) <~ [] = False
-  (x:xs) <~ (y:ys) = x <~ y && xs <~ ys
+  --[] <~ _     = True
+  --(_:_) <~ [] = False
+  --(x:xs) <~ (y:ys) = x <~ y && xs <~ ys
 
-{-
   pcompare []     []     = Just EQ
   pcompare []     (_:_)  = Just LT
   pcompare (_:_)  []     = Just GT
   pcompare (x:xs) (y:ys) = case pcompare x y of
                               Just EQ -> pcompare xs ys
                               other   -> other
--}
 
 instance Preorder a => Preorder (NonEmpty a) where
   (x :| xs) <~ (y :| ys) = x <~ y && xs <~ ys

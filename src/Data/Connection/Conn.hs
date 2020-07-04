@@ -22,9 +22,8 @@ module Data.Connection.Conn (
   -- ** ConnL
   , type ConnL
   , pattern ConnL
-  , lft
-  , lft'
   , swapL
+  , downL
   , unitL
   , counitL
   , lowerL
@@ -35,9 +34,8 @@ module Data.Connection.Conn (
   -- ** ConnR
   , type ConnR
   , pattern ConnR
-  , rgt
-  , rgt'
   , swapR
+  , downR
   , unitR
   , counitR
   , upperR
@@ -82,6 +80,14 @@ instance Category (Conn k) where
 embed :: Conn k a b -> b -> a
 embed (Conn_ _ g) = g
 
+-- Internal floor function. When \(f \dashv g \dashv h \) this is h.
+_1 :: Conn k a b -> a -> b
+_1 (Conn_ f _) = fst . f
+
+-- Internal ceiling function. When \(f \dashv g \dashv h \) this is f.
+_2 :: Conn k a b -> a -> b
+_2 (Conn_ f _) = snd . f
+
 ---------------------------------------------------------------------
 -- Trip
 ---------------------------------------------------------------------
@@ -98,13 +104,13 @@ type Trip a b = forall k. Conn k a b
 
 -- | A view pattern for an arbitrary (left or right) 'Conn'.
 --
--- /Caution/: /Conn f1 g f2/ must obey \(f1 \dashv g \dashv f2\). This condition is not checked.
+-- /Caution/: /Conn f g h/ must obey \(f \dashv g \dashv h\). This condition is not checked.
 --
 -- For detailed properties see 'Data.Connection.Property'.
 --
 pattern Conn :: (a -> b) -> (b -> a) -> (a -> b) -> Conn k a b
-pattern Conn f1 g f2 <- (embed &&& _2 &&& _1 -> (g,(f1,f2)))
-  where Conn f1 g f2 = Conn_ (f2 &&& f1) g
+pattern Conn f g h <- (embed &&& _1 &&& _2 -> (g, (h, f)))
+  where Conn f g h = Conn_ (h &&& f) g
 {-# COMPLETE Conn #-}
 
 -- | Obtain a /forall k. Conn k/ from an adjoint triple of monotone functions.
@@ -112,25 +118,19 @@ pattern Conn f1 g f2 <- (embed &&& _2 &&& _1 -> (g,(f1,f2)))
 -- /Caution/: @Conn f g h@ must obey \(f \dashv g \dashv h\). This condition is not checked.
 --
 trip :: (a -> b) -> (b -> a) -> (a -> b) -> Trip a b
-trip f1 g f2 = Conn_ (f2 &&& f1) g
+trip f g h = Conn_ (h &&& f) g
 
 -- | Obtain the lower and upper functions from a 'Trip'.
 --
 -- > range c = upperR c &&& lowerL c
 --
--- >>> range (bounded @Ordering) ()
--- (LT,GT)
 -- >>> range f64f32 pi
 -- (3.1415925,3.1415927)
+-- >>> range f64f32 (0/0)
+-- (NaN,NaN)
 --
 range :: Trip a b -> a -> (b, b)
-range c = _1 c &&& _2 c 
-
-_1 :: Conn k a b -> a -> b
-_1 (Conn_ f _) = fst . f
-
-_2 :: Conn k a b -> a -> b
-_2 (Conn_ f _) = snd . f
+range c = upperR c &&& lowerL c 
 
 ---------------------------------------------------------------------
 -- ConnL
@@ -158,25 +158,8 @@ type ConnL = Conn 'L
 -- /Caution/: /ConnL f g/ must obey \(f \dashv g \). This condition is not checked.
 --
 pattern ConnL :: (a -> b) -> (b -> a) -> ConnL a b
-pattern ConnL f g <- (lowerL &&& embed -> (f, g)) where ConnL f g = Conn_ (f &&& f) g
+pattern ConnL f g <- (_2 &&& embed -> (f, g)) where ConnL f g = Conn_ (f &&& f) g
 {-# COMPLETE ConnL #-}
-
--- | Convert an arbitrary 'Conn' to a 'ConnL'.
---
-lft :: Conn k a b -> ConnL a b
-lft (Conn_ f g) = ConnL (snd.f) g
-
--- | Convert an arbitrary 'Conn' to an inverted 'ConnL'.
---
--- >>> unitL (lft' $ bounded @Ordering) (Down LT)
--- Down LT
--- >>> unitL (lft' $ bounded @Ordering) (Down EQ)
--- Down LT
--- >>> unitL (lft' $ bounded @Ordering) (Down GT)
--- Down LT
---
-lft' :: Conn k a b -> ConnL (Down b) (Down a)
-lft' (Conn_ f g) = ConnL (\(Down x) -> Down $ g x) (\(Down x) -> Down $ (snd.f) x)
 
 -- | Witness to the symmetry between 'ConnL' and 'ConnR'.
 --
@@ -185,6 +168,16 @@ lft' (Conn_ f g) = ConnL (\(Down x) -> Down $ g x) (\(Down x) -> Down $ (snd.f) 
 --
 swapL :: ConnR a b -> ConnL b a
 swapL (ConnR f g) = ConnL f g
+
+-- | Convert an arbitrary 'Conn' to an inverted 'ConnL'.
+--
+-- >>> unitL (downL $ conn @_ @() @Ordering) (Down LT)
+-- Down LT
+-- >>> unitL (downL $ conn @_ @() @Ordering) (Down GT)
+-- Down LT
+--
+downL :: ConnL a b -> ConnL (Down b) (Down a)
+downL (ConnL f g) = ConnL (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
 
 -- | Round trip through a connection.
 --
@@ -201,12 +194,10 @@ unitL c = upperL1 c id
 --
 -- > x >= counitL c x
 --
--- >>> counitL (bounded @Ordering) LT
--- GT
--- >>> counitL (bounded @Ordering) EQ
--- GT
--- >>> counitL (bounded @Ordering) GT
--- GT
+-- >>> counitL (conn @_ @() @Ordering) LT
+-- LT
+-- >>> counitL (conn @_ @() @Ordering) GT
+-- LT
 --
 counitL :: ConnL a b -> b -> b
 counitL c = lowerL1 c id
@@ -219,17 +210,13 @@ counitL c = lowerL1 c id
 --
 -- This is the adjoint functor theorem for preorders.
 --
--- Furthermore, when /c/ is a triple adjunction we have:
---
--- > upperR c x <= lowerL c x
---
--- >>> upperR (bounded @Ordering) ()
--- LT
--- >>> lowerL (bounded @Ordering) ()
--- GT
+-- >>> upperR f64f32 pi
+-- 3.1415925
+-- >>> lowerL f64f32 pi
+-- 3.1415927
 --
 lowerL :: ConnL a b -> a -> b
-lowerL (Conn_ f _) = snd . f
+lowerL (ConnL f _) = f
 
 -- | Map over a connection from the left.
 --
@@ -275,25 +262,18 @@ type ConnR = Conn 'R
 -- /Caution/: /ConnR f g/ must obey \(f \dashv g \). This condition is not checked.
 --
 pattern ConnR :: (b -> a) -> (a -> b) -> ConnR a b
-pattern ConnR f g <- (embed &&& upperR -> (f, g)) where ConnR f g = Conn_ (g &&& g) f
+pattern ConnR f g <- (embed &&& _1 -> (f, g)) where ConnR f g = Conn_ (g &&& g) f
 {-# COMPLETE ConnR #-}
-
--- | Convert an arbitrary 'Conn' to a 'ConnR'.
---
-rgt :: Conn k a b -> ConnR a b
-rgt (Conn_ f g) = ConnR g (fst.f)
 
 -- | Convert an arbitrary 'Conn' to an inverted 'ConnR'.
 --
--- >>> counitR (rgt' $ bounded @Ordering) (Down LT)
+-- >>> counitR (downR $ conn @_ @() @Ordering) (Down LT)
 -- Down GT
--- >>> counitR (rgt' $ bounded @Ordering) (Down EQ)
--- Down GT
--- >>> counitR (rgt' $ bounded @Ordering) (Down GT)
+-- >>> counitR (downR $ conn @_ @() @Ordering) (Down GT)
 -- Down GT
 --
-rgt' :: Conn k a b -> ConnR (Down b) (Down a)
-rgt' (Conn_ f g) = ConnR (\(Down x) -> Down $ (fst.f) x) (\(Down x) -> Down $ g x)
+downR :: ConnR a b -> ConnR (Down b) (Down a)
+downR (ConnR f g) = ConnR (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
 
 -- | Witness to the symmetry between 'ConnL' and 'ConnR'.
 --
@@ -308,12 +288,10 @@ swapR (ConnL f g) = ConnR f g
 -- > unitR c = upperR1 c id = upperR c . embed c
 -- > x <= unitR c x
 --
--- >>> unitR (bounded @Ordering) LT
--- LT
--- >>> unitR (bounded @Ordering) EQ
--- LT
--- >>> unitR (bounded @Ordering) GT
--- LT
+-- >>> unitR (conn @_ @() @Ordering) LT
+-- GT
+-- >>> unitR (conn @_ @() @Ordering) GT
+-- GT
 --
 unitR :: ConnR a b -> b -> b
 unitR c = upperR1 c id
@@ -336,17 +314,13 @@ counitR c = lowerR1 c id
 --
 -- This is the adjoint functor theorem for preorders.
 --
--- Furthermore, when /c/ is a triple adjunction we have:
---
--- > upperR c x <= lowerL c x
---
--- >>> upperR (bounded @Ordering) ()
--- LT
--- >>> lowerL (bounded @Ordering) ()
--- GT
+-- >>> upperR f64f32 pi
+-- 3.1415925
+-- >>> lowerL f64f32 pi
+-- 3.1415927
 --
 upperR :: ConnR a b -> a -> b
-upperR (Conn_ f _) = fst . f
+upperR (ConnR _ g) = g
 
 -- | Map over a connection from the left.
 --
@@ -396,91 +370,8 @@ strong (Conn ab ba ab') (Conn cd dc cd') = Conn f g h where
 
 -- | Lift a 'Conn' into a functor.
 --
-fmapped :: Functor f => Conn k a b -> Conn k (f a) (f b)
-fmapped (Conn f g h) = Conn (fmap f) (fmap g) (fmap h)
-
-{-
-
-forked :: Lattice a => Conn k (a, a) a
-forked = Conn (uncurry (\/) &&& uncurry (/\)) (\x -> (x,x))
-
-joined :: Conn k a (Either a a)
-joined = Conn (Left &&& Right) (either id id)
-
--- |
---
--- > (strong id) (ab >>> cd) = (strong id) ab >>> (strong id) cd
--- > (flip strong id) (ab >>> cd) = (flip strong id) ab >>> (flip strong id) cd
---
-strong :: Conn k a b -> Conn k c d -> Conn k (a, c) (b, d)
-strong (Conn_ ab ba) (Conn_ cd dc) = Conn_ f g where
-  f = bimap (fst.ab) (fst.cd) &&& bimap (snd.ab) (snd.cd)
-  g = bimap ba dc
-
--- |
---
--- > (choice id) (ab >>> cd) = (choice id) ab >>> (choice id) cd
--- > (flip choice id) (ab >>> cd) = (flip choice id) ab >>> (flip choice id) cd
---
-choice :: Conn k a b -> Conn k c d -> Conn k (Either a c) (Either b d)
-choice (Conn_ ab ba) (Conn_ cd dc) = Conn_ f g where
-  f = either (Left . fst.ab) (Right . fst.cd) &&& either (Left . snd.ab) (Right . snd.cd)
-  g = either (Left . ba) (Right . dc)
-
-fmapped :: Functor f => Conn k a b -> Conn k (f a) (f b)
-fmapped (Conn_ f g) = Conn_ (fmap (fst.f) &&& fmap (snd.f)) (fmap g)
--}
-
-{-
--- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Category_Theory/Categories_of_ordered_sets coproduct order>
---
--- > (choice id) (ab >>> cd) = (choice id) ab >>> (choice id) cd
--- > (flip choice id) (ab >>> cd) = (flip choice id) ab >>> (flip choice id) cd
---
-choice :: Trip a b -> Trip c d -> Conn k (Either a c) (Either b d)
-choice (Conn ab ba ab') (Conn cd dc cd') = Conn f g h where
-  f = either (Left . ab) (Right . cd)
-  g = either (Left . ba) (Right . dc)
-  h = either (Left . ab') (Right . cd')
-
--- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
---
--- > (strong id) (ab >>> cd) = (strong id) ab >>> (strong id) cd
--- > (flip strong id) (ab >>> cd) = (flip strong id) ab >>> (flip strong id) cd
---
-strong :: Trip a b -> Trip c d -> Conn k (a, c) (b, d)
-strong (Conn ab ba ab') (Conn cd dc cd') = Conn f g h where
-  f = bimap ab cd 
-  g = bimap ba dc
-  h = bimap ab' cd'
-
--- | Lift a 'Conn' into a functor.
---
-
--- | Lift a 'Conn' into a functor.
+-- /Caution/: This function will result in an invalid connection
+-- if the functor alters the internal preorder (i.e. 'Data.Ord.Down').
 --
 fmapped :: Functor f => Conn k a b -> Conn k (f a) (f b)
 fmapped (Conn f g h) = Conn (fmap f) (fmap g) (fmap h)
--}
-
-{-
-
-instance LowerBounded a => Connection () a where
-  connection = Conn (const bottom) (const ())
-
-instance UpperBounded a => Connection a () where
-  connection = Conn (const ()) (const top)
-
-liftl :: Bounded b => Conn k (Maybe a) (Either a b)
-liftl = Conn k f g h where
-  f = maybe (Right bottom) Left
-  g = either Just (const Nothing)
-  h = maybe (Right top) Left
-
-liftr :: Bounded a => Conn k (Maybe b) (Either a b)
-liftr = Conn k f g h where
-  f = maybe (Left bottom) Right
-  g = either (const Nothing) Just
-  h = maybe (Left top) Right
-
--}
