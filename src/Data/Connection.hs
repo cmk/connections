@@ -12,8 +12,6 @@ module Data.Connection (
   -- * Types
     Kan(..)
   , Conn()
-  , (\|/)
-  , (/|\)
   -- * Connection L
   , type ConnL
   , pattern ConnL
@@ -27,12 +25,12 @@ module Data.Connection (
   , minimal
   , bottom
   , join
-  , joins
   , (\/)
   , (//)
   , neg
   , middle
   , equivL
+  , regularL
   -- * Connection R
   , type ConnR
   , pattern ConnR
@@ -46,16 +44,13 @@ module Data.Connection (
   , maximal
   , top
   , meet
-  , meets
   , (/\)
   , (\\)
   , non
   , boundary
   , equivR
+  , regularR
   -- * Connection
-  , Triple
-  , Lattice
-  , Biheyting
   , type Trip
   , pattern Conn
   , half
@@ -66,12 +61,22 @@ module Data.Connection (
   , truncate
   , truncate1
   , truncate2
-  , glb, lub
-  -- * Classes
-  , Semilattice
-  , Extremal
-  , Bounded
+  , glb
+  , lub
+  , maybeL
+  , maybeR
+  , choice
+  , strong
+  , fmapped
+  -- * Semilattice
+  , Lattice
+  , Semilattice(..)
+  -- * Heyting
+  , Biheyting
   , Heyting(..)
+  -- * Connection
+  , Triple
+  , Bounded
   , Connection(..)
   , ConnFloat
   , ConnDouble

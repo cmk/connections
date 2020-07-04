@@ -10,6 +10,7 @@ module Data.Order.Extended (
   , extended
   --, retract
   -- * Lattice Extensions
+  , liftMaybe
   , liftEitherL
   , liftEitherR
   , liftExtended
@@ -55,12 +56,12 @@ lowered f = either f (const maximal)
 
 lowers :: Maximal a => Eq a => (a -> b) -> a -> Lowered b
 lowers = liftEitherR (== maximal) 
+-}
 
 liftMaybe :: (a -> Bool) -> (a -> b) -> a -> Maybe b
 liftMaybe p f = g where
   g i | p i = Nothing
       | otherwise = Just $ f i
--}
 
 liftEitherL :: (a -> Bool) -> (a -> b) -> a -> Lifted b
 liftEitherL p f = g where

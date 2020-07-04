@@ -3,9 +3,10 @@
 module Data.Order.Property (
     type Rel
   , (==>), (<=>)
+  , xor, xor3
   -- * Orders
   , preorder
-  , partialOrder
+  , order
   -- ** Non-strict preorders
   , antisymmetric_le
   , reflexive_le
@@ -24,22 +25,20 @@ module Data.Order.Property (
   , symmetric_eq
   , reflexive_eq
   , transitive_eq
-{-
   -- * Properties of generic relations
   , reflexive
   , irreflexive
   , coreflexive
   , quasireflexive
   , transitive
-  , euclidean
-  , euclidean'
+  , euclideanL
+  , euclideanR
   , connex
   , semiconnex
   , trichotomous
   , symmetric
   , asymmetric
   , antisymmetric
--}
 ) where
 
 import Data.Connection.Conn
@@ -115,12 +114,12 @@ preorder x y =
       | otherwise = Nothing
 
 
--- | Check a 'Order' is internally consistent.
+-- | Check that an 'Order' is internally consistent.
 --
 -- This is a required property.
 --
-partialOrder :: Order r => r -> r -> Bool
-partialOrder x y = 
+order :: Order r => r -> r -> Bool
+order x y = 
   ((x <= y) == le x y) &&
   ((x >= y) == ge x y) &&
   ((x == y) == eq x y) &&
@@ -291,7 +290,6 @@ reflexive (#) a = a # a
 irreflexive :: Rel r Bool -> r -> Bool
 irreflexive (#) a = not $ a # a
 
-{-
 -- | \( \forall a, b: ((a \# b) \wedge (b \# a)) \Rightarrow (a \equiv b) \)
 --
 -- For example, the relation over the integers in which each odd number is 
@@ -320,7 +318,6 @@ euclideanR (#) a b c = (a # b) && (a # c) ==> b # c
 --
 euclideanL :: Rel r Bool -> r -> Rel r Bool
 euclideanL (#) a b c = (b # a) && (c # a) ==> b # c
--}
 
 -- | \( \forall a, b, c: ((a \# b) \wedge (b \# c)) \Rightarrow (a \# c) \)
 --

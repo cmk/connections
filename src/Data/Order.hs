@@ -419,18 +419,16 @@ instance Preorder a => Preorder (Maybe a) where
 
 instance Preorder a => Preorder [a] where
   {-# SPECIALISE instance Preorder [Char] #-}
-  [] <~ _     = True
-  (_:_) <~ [] = False
-  (x:xs) <~ (y:ys) = x <~ y && xs <~ ys
+  --[] <~ _     = True
+  --(_:_) <~ [] = False
+  --(x:xs) <~ (y:ys) = x <~ y && xs <~ ys
 
-{-
   pcompare []     []     = Just EQ
   pcompare []     (_:_)  = Just LT
   pcompare (_:_)  []     = Just GT
   pcompare (x:xs) (y:ys) = case pcompare x y of
                               Just EQ -> pcompare xs ys
                               other   -> other
--}
 
 instance Preorder a => Preorder (NonEmpty a) where
   (x :| xs) <~ (y :| ys) = x <~ y && xs <~ ys

@@ -4,16 +4,16 @@ Galois connections
 For example:
 
 ```
-ordbin :: Conn Ordering Bool
-ordbin = Conn f g where
+ordbin :: Conn 'L Ordering Bool
+ordbin = ConnL f g where
   f GT = True
   f _  = False
 
   g True = GT
   g _    = EQ
 
-binord :: Conn Bool Ordering
-binord = Conn f g where
+binord :: Conn 'R Ordering Bool
+binord = ConnR f g where
   f False = LT
   f _     = EQ
 

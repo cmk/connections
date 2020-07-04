@@ -135,7 +135,7 @@ minimal32 = shift 1 0.0
 -- -Infinity
 --
 maximal32 :: Float
-maximal32 = shift (-1) maxBound 
+maximal32 = shift (-1) (1/0) 
 
 -}
 
@@ -214,52 +214,3 @@ word32Float = F.castWord32ToFloat
 -- Bit-for-bit conversion.
 floatWord32 :: Float -> Word32
 floatWord32 = (+0) .  F.castFloatToWord32
-
-
-{-
-
-f32u32 :: Conn Float Ulp32
-f32u32 = Conn (Ulpf . floatInt32) (int32Float . unUlp32)
-
-u32f32 :: Conn Ulpf Float
-u32f32 = Conn (int32Float . unUlp32) (Ulpf . floatInt32)
-
--- correct but maybe replace w/ Graded / Yoneda / Indexed etc
-u32w64 :: Conn Ulpf (Maybe Word64)
-u32w64 = Conn f g where
-  conn = i32wf >>> w32w64
-
-  of32set  = 2139095041 :: Word64
-  of32set' = 2139095041 :: Int32
-
-  f x@(Ulpf y) | ulp32Maybe x = Maybe
-               | neg y = Just $ fromIntegral (y + of32set')
-               | otherwise = Just $ (fromIntegral y) + of32set
-               where fromIntegral = connl conn
-
-  g x = case x of
-          Maybe -> Ulpf of32set'
-          Just y | y < of32set -> Ulpf $ (fromIntegral y) P.- of32set'
-                | otherwise  -> Ulpf $ fromIntegral ((min32 4278190081 y) P.- of32set)
-               where fromIntegral = connr conn
-
---order of magnitude
-f32w08 :: Trip Float (Maybe Word8)
-f32w08 = Trip (nanf f) (nan (0/0) g) (nanf h) where
-  h x = if x > 0 then 0 else connr w08wf $ B.shift (floatWord32 x) (-23)
-  g = word32Float . flip B.shift 23 . connl w08w32
-  f x = 1 + min32 254 (h x)
-
-abs' :: (Eq a, Bounded a, Num a) => a -> a
-abs' x = if x ~~ minBound then abs (x+1) else abs x
-
--- Bit-for-bit conversion.
-word32Float :: Word32 -> Float
-word32Float = F.castWord32ToFloat
-
--- TODO force to pos representation?
--- Bit-for-bit conversion.
-floatWord32 :: Float -> Word32
-floatWord32 = (+0) .  F.castFloatToWord32
--}
-
