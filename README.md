@@ -1,4 +1,5 @@
 # connections
+
 Galois connections
 
 For example:
@@ -20,3 +21,5 @@ binord = ConnR f g where
   g LT = False
   g _  = True
 ```
+
+Hosted on [Hackage](https://hackage.haskell.org/package/connections)
