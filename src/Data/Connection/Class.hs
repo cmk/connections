@@ -13,6 +13,13 @@ module Data.Connection.Class (
   -- * Types
     Kan(..)
   , Conn()
+  , Semilattice
+  , Extremal
+  , ConnFloat
+  , ConnDouble
+  , ConnInteger
+  , ConnRational
+  , ConnExtended
   -- * Connection L
   , ConnL
   , pattern ConnL
@@ -25,6 +32,7 @@ module Data.Connection.Class (
   , filterL
   , minimal
   , (\/)
+  , glb
   -- * Connection R
   , ConnR
   , pattern ConnR
@@ -37,25 +45,18 @@ module Data.Connection.Class (
   , filterR
   , maximal
   , (/\)
+  , lub
   -- * Connection k
   , Trip
   , pattern Conn
-  , glb
-  , lub
   , maybeL
   , maybeR
   , choice
   , strong
   , fmapped
   -- * Connection
-  , Bounded
-  , Triple
   , Connection(..)
-  , ConnFloat
-  , ConnDouble
-  , ConnInteger
-  , ConnRational
-  , ConnExtended
+  , Triple
 ) where
 
 import safe Control.Applicative (liftA2)
@@ -95,29 +96,66 @@ import safe qualified Prelude as P
 -- >>> :load Data.Connection
 
 
-
--- | A constraint kind representing an <https://ncatlab.org/nlab/show/adjoint+triple adjoint triple> of Galois connections.
+-- | Semilattices.
 --
-type Triple a b = (Connection 'L a b, Connection 'R a b)
-
--- | Bounded lattices.
+-- A complete is a partially ordered set in which every two elements have a unique join 
+-- (least upper bound or supremum) and a unique meet (greatest lower bound or infimum). 
 --
--- A bounded lattice is a lattice with two neutral elements wrt join and meet
--- operations:
+-- These operations may in turn be defined by the lower and upper adjoints to the unique
+-- function /a -> (a, a)/.
+--
+-- /Associativity/
 --
 -- @
--- x '\/' 'bottom' = x
--- x '/\' 'top' = x
--- 'glb' 'bottom' x 'top' = x
--- 'lub' 'bottom' x 'top' = x
+-- x '\/' (y '\/' z) = (x '\/' y) '\/' z
+-- x '/\' (y '/\' z) = (x '/\' y) '/\' z
 -- @
 --
--- The least and greatest elements of a lattice /a/ are given by the unique
--- upper and lower adjoints to the function /a -> ()/.
+-- /Commutativity/
 --
---type Bounded a = (Order a, Triple (a,a) a, Triple () a)
-type Bounded k a = (Order a, Connection k (a,a) a, Connection k () a)
+-- @
+-- x '\/' y = y '\/' x
+-- x '/\' y = y '/\' x
+-- @
+--
+-- /Idempotency/
+--
+-- @
+-- x '\/' x = x
+-- x '/\' x = x
+-- @
+--
+-- /Absorption/
+--
+-- @
+-- (x '\/' y) '/\' y = y
+-- (x '/\' y) '\/' y = y
+-- @
+--
+-- See < https://en.wikipedia.org/wiki/Absorption_law Absorption >.
+--
+-- Note that distributivity is _not_ a requirement for a complete.
+-- However when /a/ is distributive we have;
+-- 
+-- @
+-- 'glb' x y z = 'lub' x y z
+-- @
+--
+-- See < https://en.wikipedia.org/wiki/Lattice_(order) >.
+--
+type Semilattice k a = Connection k (a, a) a
 
+type Extremal k = Connection k ()
+
+type ConnInteger k = Connection k (Maybe Integer)
+
+type ConnFloat k = Connection k Float
+
+type ConnDouble k = Connection k Double
+
+type ConnRational k = Connection k Rational
+
+type ConnExtended k a b = Connection k a (Extended b)
 
 -- | An < https://ncatlab.org/nlab/show/adjoint+string adjoint string > of Galois connections of length 2 or 3.
 --
@@ -134,15 +172,11 @@ class (Preorder a, Preorder b) => Connection k a b where
     --
     conn :: Conn k a b
 
-type ConnInteger k = Connection k (Maybe Integer)
+-- | A constraint kind representing an <https://ncatlab.org/nlab/show/adjoint+triple adjoint triple> of Galois connections.
+--
+type Triple a b = (Connection 'L a b, Connection 'R a b)
 
-type ConnFloat k = Connection k Float
 
-type ConnDouble k = Connection k Double
-
-type ConnRational k = Connection k Rational
-
-type ConnExtended k a b = Connection k a (Extended b)
 
 ---------------------------------------------------------------------
 -- Connection L
@@ -214,7 +248,7 @@ filterL a b = ceiling a <~ b
 --
 -- > x <~ minimal => x ~~ minimal
 --
-minimal :: Connection 'L () a => a
+minimal :: Extremal 'L a => a
 minimal = lowerL connL ()
 
 infixr 5 \/
@@ -223,8 +257,26 @@ infixr 5 \/
 --
 -- > (\/) = curry $ lowerL forked
 --
-(\/) :: Connection 'L (a, a) a => a -> a -> a
+(\/) :: Semilattice 'L a => a -> a -> a
 (\/) = curry $ lowerL connL
+
+-- | Greatest lower bound operator.
+--
+-- > glb x x y = x
+-- > glb x y z = glb z x y
+-- > glb x x y = x
+-- > glb x y z = glb x z y
+-- > glb (glb x w y) w z = glb x w (glb y w z)
+--
+-- >>> glb 1.0 9.0 7.0
+-- 7.0
+-- >>> glb 1.0 9.0 (0.0 / 0.0)
+-- 9.0
+-- >>> glb (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
+-- fromList [3,5]
+--
+glb :: Triple (a, a) a => a -> a -> a -> a
+glb x y z = (x \/ y) /\ (y \/ z) /\ (z \/ x)
 
 ---------------------------------------------------------------------
 -- Connection R
@@ -290,7 +342,7 @@ filterR a b = b <~ floor a
 --
 -- > x >~ maximal => x ~~ maximal
 --
-maximal :: Connection 'R () a => a
+maximal :: Extremal 'R a => a
 maximal = upperR connR ()
 
 infixr 6 /\ -- comment for the parser
@@ -299,30 +351,8 @@ infixr 6 /\ -- comment for the parser
 --
 -- > (/\) = curry $ upperR forked
 --
-(/\) :: Connection 'R (a, a) a => a -> a -> a
+(/\) :: Semilattice 'R a => a -> a -> a
 (/\) = curry $ upperR connR
-
----------------------------------------------------------------------
--- Connection
----------------------------------------------------------------------
-
--- | Greatest lower bound operator.
---
--- > glb x x y = x
--- > glb x y z = glb z x y
--- > glb x x y = x
--- > glb x y z = glb x z y
--- > glb (glb x w y) w z = glb x w (glb y w z)
---
--- >>> glb 1.0 9.0 7.0
--- 7.0
--- >>> glb 1.0 9.0 (0.0 / 0.0)
--- 9.0
--- >>> glb (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
--- fromList [3,5]
---
-glb :: Triple (a, a) a => a -> a -> a -> a
-glb x y z = (x \/ y) /\ (y \/ z) /\ (z \/ x)
 
 -- | Least upper bound operator.
 --
@@ -336,6 +366,10 @@ glb x y z = (x \/ y) /\ (y \/ z) /\ (z \/ x)
 lub :: Triple (a, a) a => a -> a -> a -> a
 lub x y z = (x /\ y) \/ (y /\ z) \/ (z /\ x)
 
+---------------------------------------------------------------------
+-- Connection
+---------------------------------------------------------------------
+
 maybeL :: Triple () b => Trip (Maybe a) (Either a b)
 maybeL = trip f g h where
   f = maybe (Right minimal) Left
@@ -347,16 +381,6 @@ maybeR = trip f g h where
   f = maybe (Left minimal) Right
   g = either (const Nothing) Just
   h = maybe (Left maximal) Right
-
---integer :: forall a k. ConnInteger k a => Conn k (Maybe Integer) a
---integer = conn
-
---extended :: ConnExtended k a b => Conn k a (Extended b)
---extended = conn
-
---extremal :: forall a k. Extremal k a => Conn k () a
---extremal = conn
-
 
 ---------------------------------------------------------------------
 -- Instances
@@ -538,19 +562,6 @@ instance Connection k a b => Connection k (Identity a) b where
 instance Connection k a b => Connection k a (Identity b) where
   conn = conn >>> Conn Identity runIdentity Identity
 
-{-
-instance Bounded 'L a => Connection k (Maybe a) (Interval a) where
-  conn = Conn f g h where
-    f = maybe iempty singleton
-    g = maybe Nothing (Just . uncurry (\/)) . endpts
-    h = maybe iempty $ \x -> minimal ... x
-
-instance Lattice a => Connection k (Interval a) (Maybe a) where
-  conn = Conn f g h where
-    f = maybe Nothing (Just . uncurry (\/)) . endpts
-    g = maybe iempty singleton
-    h = maybe Nothing (Just . uncurry (/\)) . endpts
--}
 ---------------------------------------------------------------------
 -- 
 ---------------------------------------------------------------------

@@ -11,7 +11,13 @@
 module Data.Connection (
   -- * Types
     Kan(..)
-  , Conn()
+  , Semilattice
+  , Extremal
+  , ConnFloat
+  , ConnDouble
+  , ConnInteger
+  , ConnRational
+  , ConnExtended
   -- * Connection L
   , type ConnL
   , pattern ConnL
@@ -23,15 +29,8 @@ module Data.Connection (
   , ceiling2
   , filterL
   , minimal
-  , type SemilatticeL
-  , bottom
-  , join
   , (\/)
-  , type HeytingL
-  , (//)
-  , neg
-  , middle
-  , equivL
+  , glb
   -- * Connection R
   , type ConnR
   , pattern ConnR
@@ -43,15 +42,8 @@ module Data.Connection (
   , embedR
   , filterR
   , maximal
-  , type SemilatticeR
-  , top
-  , meet
   , (/\)
-  , type HeytingR
-  , (\\)
-  , non
-  , boundary
-  , equivR
+  , lub
   -- * Connection
   , type Trip
   , pattern Conn
@@ -63,34 +55,19 @@ module Data.Connection (
   , truncate
   , truncate1
   , truncate2
-  , glb
-  , lub
   , maybeL
   , maybeR
   , choice
   , strong
   , fmapped
-  -- * Semilattice
-  , Lattice
-  , Semilattice(..)
-  -- * Algebra
-  , Biheyting
-  , Heyting(..)
-  , Boolean(..)
-  -- * Connection
+  -- * Class
+  , Conn()
   , Triple
-  , Bounded
   , Connection(..)
-  , ConnFloat
-  , ConnDouble
-  , ConnInteger
-  , ConnRational
-  , ConnExtended
 ) where
 
 import safe Data.Connection.Conn
 import safe Data.Connection.Class
-import safe Data.Lattice
 import safe Data.Order
 import safe Prelude hiding
   (Bounded,fromInteger, fromRational, floor, ceiling, round, truncate)

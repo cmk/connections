@@ -25,7 +25,7 @@ import Data.Order.Property
 import Data.Order.Syntax
 
 ri :: (Integral a, Lattice a) => Range a
-ri = R.linearFrom 0 bottom top
+ri = R.linearFrom 0 false true
 
 ri' :: Range Integer
 ri' = R.linearFrom 0 (- 2^127) (2^127)

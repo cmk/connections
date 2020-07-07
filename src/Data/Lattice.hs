@@ -10,49 +10,46 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TypeOperators              #-}
+-- | Lattices & algebras
 module Data.Lattice (
-  -- * Lattices
+  -- * Types
     Lattice
-  , Semilattice(..)
-  -- ** SemilatticeL
-  , type SemilatticeL
-  , bottom
-  , (\/)
-  , glb
-  , join
-  -- ** SemilatticeR
-  , type SemilatticeR
-  , top
-  , (/\)
-  , lub
-  , meet
-  -- * Heyting algebras
-  , Biheyting
-  , Heyting(..)
-  -- ** HeytingL
+  , Semilattice
+  -- * HeytingL
   , type HeytingL
   , (\\)
   , non
+  , equiv
   , boundary
-  , equivL
-  , regularL
-  , heytingL
   , booleanL
-  -- ** HeytingR
+  , heytingL
+  -- * HeytingR
   , type HeytingR
   , (//)
   , neg
+  , iff
   , middle
-  , equivR
-  , regularR
-  , heytingR
   , booleanR
-  -- * Boolean algebras
+  , heytingR
+  -- * Heyting
+  , (\/)
+  , (/\)
+  , glb
+  , lub
+  , true
+  , false
+  , Heyting(..)
+  -- * Symmetric
+  , Biheyting
+  , Symmetric(..)
+  , symmetricL
+  , symmetricR
+  -- * Boolean
   , Boolean(..)
 ) where
 
 import safe Control.Applicative
-import safe Control.Monad.Logic hiding (join)
+import safe Data.Bifunctor (bimap)
 import safe Data.Bool hiding (not)
 import safe Data.Connection.Conn
 import safe Data.Connection.Class
@@ -61,6 +58,7 @@ import safe Data.Functor.Contravariant
 import safe Data.Foldable
 import safe Data.Order
 import safe Data.Order.Extended
+import safe Data.Order.Interval
 import safe Data.Order.Syntax
 import safe Data.Int
 import safe Data.Maybe
@@ -68,7 +66,7 @@ import safe Data.Monoid
 import safe Data.Word
 import safe GHC.TypeNats
 --import safe Numeric.Natural
-import safe Prelude hiding (Eq(..),Ord(..),Bounded)
+import safe Prelude hiding (Eq(..),Ord(..),Bounded, not)
 import safe qualified Data.IntMap as IntMap
 import safe qualified Data.IntSet as IntSet
 import safe qualified Data.Map as Map
@@ -82,112 +80,49 @@ import safe qualified Prelude as P
 -- Lattices
 -------------------------------------------------------------------------------
 
--- | Lattices.
+-- | Bounded < https://ncatlab.org/nlab/show/lattice lattices >.
 --
--- A lattice is a partially ordered set in which every two elements have a unique join 
--- (least upper bound or supremum) and a unique meet (greatest lower bound or infimum). 
+-- /Neutrality/:
 --
--- These operations may in turn be defined by the lower and upper adjoints to the unique
--- function /a -> (a, a)/.
---
--- /Associativity/
+-- The least and greatest elements of a complete /a/ are given by the unique
+-- upper and lower adjoints to the function /a -> ()/.
 --
 -- @
--- x '\/' (y '\/' z) = (x '\/' y) '\/' z
--- x '/\' (y '/\' z) = (x '/\' y) '/\' z
+-- x '\/' 'false' = x
+-- x '/\' 'true' = x
+-- 'glb' 'false' x 'true' = x
+-- 'lub' 'false' x 'true' = x
 -- @
 --
--- /Commutativity/
---
--- @
--- x '\/' y = y '\/' x
--- x '/\' y = y '/\' x
--- @
---
--- /Idempotency/
---
--- @
--- x '\/' x = x
--- x '/\' x = x
--- @
---
--- /<http://en.wikipedia.org/wiki/Absorption_law Absorption>/
---
--- @
--- (x '\/' y) '/\' y = y
--- (x '/\' y) '\/' y = y
--- @
---
--- Note that distributivity is _not_ a requirement for a lattice.
--- However when /a/ is distributive we have;
--- 
--- @
--- 'glb' x y z = 'lub' x y z
--- @
---
--- See <http://en.wikipedia.org/wiki/Lattice_(order)>.
---
-type Lattice a = (SemilatticeL a, SemilatticeR a)
+type Lattice a = (Eq a, Semilattice 'L a, Extremal 'L a, Semilattice 'R a, Extremal 'R a)
 
--- | A convenience alias for a join semilattice.
-type SemilatticeL = Semilattice 'L
-
--- | A convenience alias for a meet semilattice.
-type SemilatticeR = Semilattice 'R
-
---class (Bounded k a, Directed k a) => Semilattice k a where
--- \( x \wedge (\vee_i y_i) \leq \vee_i (x \wedge y_i) \)
-
-class Bounded k a => Semilattice k a where
-
-    --lattice :: Conn k (Open k a) a
-    --lattice = ConnL (foldr (\/) minimal) upper
-   
-    --TODO: g should be injecting upper/lower sets of a, not just a
-    lattice :: Conn k (Logic a) a
-    default lattice :: (Bounded 'L a, Bounded 'R a) => Conn k (Logic a) a
-    lattice = Conn (foldr (\/) minimal) pure (foldr (/\) maximal)
-
--- | The minimal element of a lattice.
+-- | The unique top element of a bounded lattice
 --
--- > bottom \/ x = x
--- > bottom /\ x = bottom
+-- > x /\ true = x
+-- > x \/ true = true
 --
-bottom :: SemilatticeL a => a
-bottom = join $ logic (const id)
+true :: Lattice a => a
+true = maximal
 
--- | Take the lattice supremum of a collection.
--- 
-join :: (SemilatticeL a, Foldable f) => f a -> a
-join = lowerL lattice . forwards
-
--- | The maximal element of a lattice.
+-- | The unique bottom element of a bounded lattice
 --
-top :: SemilatticeR a => a
-top = meet $ logic (const id)
-
--- | Take the lattice infimum of a collection.
--- 
-meet :: (SemilatticeR a, Foldable f) => f a -> a
-meet = upperR lattice . forwards
-
--- | Obtain an 'Logic' using a 'Data.Foldable.foldr'.
+-- > x /\ false = false
+-- > x \/ false = x
 --
--- >>> observeAll $ forwards [0..4]
--- [0,1,2,3,4]
--- >>> F.foldl' (flip (:)) [] $ forwards [0..4]
--- [4,3,2,1,0]
---
-forwards :: Foldable f => f a -> Logic a
-forwards f = logic (\ h z -> foldr h z f)
-{-# INLINE forwards #-}
-
+false :: Lattice a => a
+false = minimal
 
 -------------------------------------------------------------------------------
 -- Heyting algebras
 -------------------------------------------------------------------------------
 
 -- | A < https://ncatlab.org/nlab/show/co-Heyting+algebra bi-Heyting algebra >.
+--
+-- /Laws/:
+--
+-- > neg x <= non x
+--
+-- with equality occurring iff /a/ is a 'Boolean' algebra.
 --
 type Biheyting a = (HeytingL a, HeytingR a)
 
@@ -199,7 +134,16 @@ type HeytingL = Heyting 'L
 --
 type HeytingR = Heyting 'R
 
--- | A Heyting algebra is a bounded, distributive lattice equipped with an implication operation.
+-- | Heyting algebras
+--
+-- A Heyting algebra is a bounded, distributive complete equipped with an
+-- implication operation.
+--
+-- * The complete of closed subsets of a trueological space is the primordial
+-- example of a /HeytingL/ (co-Heyting) algebra.
+--
+-- * The dual complete of open subsets of a trueological space is likewise
+-- the primordial example of a /HeytingR/ algebra.
 --
 -- /Heyting 'L/:
 -- 
@@ -229,14 +173,14 @@ class Lattice a => Heyting k a where
     
     -- | The defining connection of a (co-)Heyting algebra.
     --
-    -- /Laws/:
-    --
-    -- > heyting @'L a = ConnL (\\ a) (\/ a) 
-    -- > heyting @'R a = ConnR (a /\) (a //)
+    -- > heyting @'L x = ConnL (\\ x) (\/ x) 
+    -- > heyting @'R x = ConnR (x /\) (x //)
     --
     heyting :: a -> Conn k a a
 
-
+-------------------------------------------------------------------------------
+-- HeytingL
+-------------------------------------------------------------------------------
 
 infixl 8 \\
 
@@ -250,7 +194,7 @@ infixl 8 \\
 -- > x \\ y >= (x /\ z) \\ y
 -- > x >= y => x \\ z >= y \\ z
 -- > x >= x \\ y
--- > x >= y <=> y \\ x = bottom
+-- > x >= y <=> y \\ x = false
 -- > x \\ (y /\ z) >= x \\ y
 -- > z \\ (x \/ y) = z \\ x \\ y
 -- > (y \/ z) \\ x = y \\ x \/ z \\ x
@@ -273,27 +217,32 @@ infixl 8 \\
 -- >>> [GT,EQ] \\ [LT]
 -- fromList [EQ,GT]
 -- 
-(\\) :: HeytingL a => a -> a -> a
+(\\) :: Heyting 'L a => a -> a -> a
 (\\) = flip $ lowerL . heyting
 
 -- | Logical < https://ncatlab.org/nlab/show/co-Heyting+negation co-negation >.
 --
--- @ 'non' x = 'top' '\\' x @
+-- @ 'non' x = 'true' '\\' x @
 --
 -- /Laws/:
 -- 
--- > non bottom = top
--- > non top = bottom
+-- > non false = true
+-- > non true = false
 -- > x >= non (non x)
 -- > non (x /\ y) >= non x
 -- > non (y \\ x) = non (non x) \/ non y
 -- > non (x /\ y) = non x \/ non y
--- > x \/ non x = top
+-- > x \/ non x = true
 -- > non (non (non x)) = non x
--- > non (non (x /\ non x)) = bottom
+-- > non (non (x /\ non x)) = false
 --
-non :: HeytingL a => a -> a
-non x = top \\ x
+non :: Heyting 'L a => a -> a
+non x = true \\ x
+
+-- | Intuitionistic co-equivalence.
+--
+equiv :: Heyting 'L a => a -> a -> a
+equiv x y = (x \\ y) \/ (y \\ x)
 
 -- | The co-Heyting < https://ncatlab.org/nlab/show/co-Heyting+boundary boundary > operator.    
 --
@@ -301,35 +250,31 @@ non x = top \\ x
 -- > boundary (x /\ y) = (boundary x /\ y) \/ (x /\ boundary y)  -- (Leibniz rule)
 -- > boundary (x \/ y) \/ boundary (x /\ y) = boundary x \/ boundary y
 --
-boundary :: HeytingL a => a -> a
+boundary :: Heyting 'L a => a -> a
 boundary x = x /\ non x
-
--- | Intuitionistic co-equivalence.
---
-equivL :: HeytingL a => a -> a -> a
-equivL x y = (x \\ y) \/ (y \\ x)
-
--- | Check that /x/ is a < https://ncatlab.org/nlab/show/regular+element co-regular element >.
---
-regularL :: HeytingL a => a -> Bool
-regularL x = x == (non . non) x
 
 -- | An adjunction between a co-Heyting algebra and its Boolean sub-algebra.
 --
 -- Double negation is a join-preserving comonad.
 --
-booleanL :: HeytingL a => Conn 'L a a
+booleanL :: Heyting 'L a => Conn 'L a a
 booleanL =
   let 
-    inj x = if regularL x then x else top
+    -- Check that /x/ is a regular element
+    -- See https://ncatlab.org/nlab/show/regular+element
+    inj x = if x == (non . non) x then x else true
 
   in
     ConnL inj (non . non)
 
 -- | Default constructor for a co-Heyting algebra.
 --
-heytingL :: Lattice a => (a -> a -> a) -> a -> ConnL a a
+heytingL :: Lattice a => (a -> a -> a) -> a -> Conn 'L a a
 heytingL f a = ConnL (`f` a) (\/ a)
+
+-------------------------------------------------------------------------------
+-- HeytingR
+-------------------------------------------------------------------------------
 
 infixr 8 // -- same as ^
 
@@ -343,7 +288,7 @@ infixr 8 // -- same as ^
 -- > x // y <= x // (y \/ z)
 -- > x <= y => z // x <= z // y
 -- > y <= x // (x /\ y)
--- > x <= y <=> x // y = top
+-- > x <= y <=> x // y = true
 -- > (x \/ z) // y <= x // y
 -- > (x /\ y) // z = x // y // z
 -- > x // (y /\ z) = x // y /\ x // z
@@ -358,123 +303,163 @@ infixr 8 // -- same as ^
 -- >>> True // True
 -- True
 --
-(//) :: HeytingR a => a -> a -> a
+(//) :: Heyting 'R a => a -> a -> a
 (//) x = upperR $ heyting x
 
 -- | Logical negation.
 --
--- @ 'neg' x = x '//' 'bottom' @
+-- @ 'neg' x = x '//' 'false' @
 --
 -- /Laws/:
 --
--- > neg bottom = top
--- > neg top = bottom
+-- > neg false = true
+-- > neg true = false
 -- > x <= neg (neg x)
 -- > neg (x \/ y) <= neg x
 -- > neg (x // y) = neg (neg x) /\ neg y
 -- > neg (x \/ y) = neg x /\ neg y
--- > x /\ neg x = bottom
+-- > x /\ neg x = false
 -- > neg (neg (neg x)) = neg x
--- > neg (neg (x \/ neg x)) = top
+-- > neg (neg (x \/ neg x)) = true
 --
 -- Some logics may in addition obey < https://ncatlab.org/nlab/show/De+Morgan+Heyting+algebra De Morgan conditions >.
 --
-neg :: HeytingR a => a -> a
-neg x = x // bottom
-
--- | The Heyting (< https://ncatlab.org/nlab/show/excluded+middle not necessarily excluded>) middle operator.
---
-middle :: HeytingR a => a -> a
-middle x = x \/ neg x
+neg :: Heyting 'R a => a -> a
+neg x = x // false
 
 -- | Intuitionistic equivalence.
 --
 -- When /a=Bool/ this is 'if-and-only-if'.
 --
-equivR :: HeytingR a => a -> a -> a
-equivR x y = (x // y) /\ (y // x)
+iff :: Heyting 'R a => a -> a -> a
+iff x y = (x // y) /\ (y // x)
 
--- | Check that /x/ is a < https://ncatlab.org/nlab/show/regular+element regular element >.
+-- | The Heyting (< https://ncatlab.org/nlab/show/excluded+middle not necessarily excluded>) middle operator.
 --
-regularR :: HeytingR a => a -> Bool
-regularR x = x == (neg . neg) x
+middle :: Heyting 'R a => a -> a
+middle x = x \/ neg x
 
 -- | An adjunction between a Heyting algebra and its Boolean sub-algebra.
 --
 -- Double negation is a meet-preserving monad.
 --
-booleanR :: HeytingR a => Conn 'R a a
+booleanR :: Heyting 'R a => Conn 'R a a
 booleanR = 
   let
-    inj x = if regularR x then x else bottom
+    -- Check that /x/ is a regular element
+    -- See https://ncatlab.org/nlab/show/regular+element
+    inj x = if x == (neg . neg) x then x else false
 
   in 
     ConnR (neg . neg) inj
 
 -- | Default constructor for a Heyting algebra.
 --
-heytingR :: Lattice a => (a -> a -> a) -> a -> ConnR a a
-heytingR f a = ConnR (a /\) (f a)
+heytingR :: Lattice a => (a -> a -> a) -> a -> Conn 'R a a
+heytingR f a = ConnR (a /\) (a `f`)
 
 -------------------------------------------------------------------------------
--- Boolean algebras
+-- Symmetric
 -------------------------------------------------------------------------------
 
+-- | Symmetric Heyting algebras
+--
+-- A symmetric Heyting algebra is a <https://ncatlab.org/nlab/show/De+Morgan+Heyting+algebra De Morgan >
+-- bi-Heyting algebra with an idempotent, antitone negation operator.
+--
+-- /Laws/:
+--
+-- > x <= y => not y <= not x -- antitone
+-- > not . not = id           -- idempotence
+-- > x \\ y = not (not y // not x)
+-- > x // y = not (not y \\ not x)
+--
+-- and:
+--
+-- > converseR x <= converseL x
+--
+-- with equality occurring iff /a/ is a 'Boolean' algebra.
+--
+class Biheyting a => Symmetric a where
 
--- | < https://ncatlab.org/nlab/show/Boolean+algebra Boolean algebras >.
---
--- A Boolean algebra is a Bi-Heyting algebra which negation satisfies the law of
--- excluded middle:
---
--- > x \/ neg x = top
--- > x /\ non x = bottom 
--- > neg (neg x) = x
--- > non (non x) = x
--- > x <= y => neg y <= neg x
---
-class Biheyting a => Boolean a where
+    -- | Symmetric negation.
+    --
+    -- > not . not = id
+    -- > neg . neg = converseR . converseL
+    -- > non . non = converseL . converseR
+    -- > neg . non = converseR . converseR
+    -- > non . neg = converseL . converseL
+    --
+    -- > neg = converseR . not = not . converseL
+    -- > non = not . converseR = converseL . not
+    -- > x \\ y = not (not y // not x)
+    -- > x // y = not (not y \\ not x)
+    --
+    not :: a -> a
 
-    -- |
-    -- > boolean :: ConnL a a = booleanL
-    -- > boolean :: ConnR a a = booleanR
+    infixl 4 `xor`
+
+    -- | Exclusive or.
+    --
+    -- > xor x y = (x \/ y) /\ (not x \/ not y)
+    --
+    xor :: a -> a -> a
+    xor x y = (x \/ y) /\ not (x /\ y)
+
+    -- | Left converse operator.
+    --    
+    converseL :: a -> a
+    converseL x = true \\ not x
+
+    -- | Right converse operator.
+    --    
+    converseR :: a -> a
+    converseR x = not x // false
+
+-- | Default constructor for a co-Heyting algebra.
+--
+symmetricL :: Symmetric a => a -> ConnL a a
+symmetricL = heytingL $ \x y -> not (not y // not x)
+
+-- | Default constructor for a Heyting algebra.
+--
+symmetricR :: Symmetric a => a -> ConnR a a
+symmetricR = heytingR $ \x y -> not (not y \\ not x)
+
+-------------------------------------------------------------------------------
+-- Boolean
+-------------------------------------------------------------------------------
+
+-- | Boolean algebras.
+--
+-- < https://ncatlab.org/nlab/show/Boolean+algebra Boolean algebras > are 
+-- symmetric Heyting algebras that satisfy both the law of excluded middle
+-- and the law of law of non-contradiction:
+--
+-- > x \/ neg x = true
+-- > x /\ non x = false
+--
+-- If /a/ is Boolean we also have:
+--
+-- > non = not = neg
+--
+class Symmetric a => Boolean a where
+
+    -- | A witness to the lawfulness of a boolean algebra.
     --
     boolean :: Trip a a
-    boolean = Conn (neg . neg) id (non . non)
+    boolean = Conn (converseR . converseL) id (converseL . converseR)
 
 -------------------------------------------------------------------------------
 -- Instances
 -------------------------------------------------------------------------------
 
-latticeL :: Bounded 'L a => ConnL (Logic a) a
-latticeL = ConnL (foldr (\/) minimal) pure
-
-latticeR :: Bounded 'R a => ConnR (Logic a) a
-latticeR = ConnR pure (foldr (/\) maximal)
 
 impliesL :: (Total a, P.Bounded a) => a -> a -> a
 impliesL x y = if y < x then x else P.minBound
 
 impliesR :: (Total a, P.Bounded a) => a -> a -> a
 impliesR x y = if x > y then y else P.maxBound
-
-instance Semilattice k ()
-instance Semilattice k Bool
-instance Semilattice k Ordering
-instance Semilattice k Word8
-instance Semilattice k Word16
-instance Semilattice k Word32
-instance Semilattice k Word64
-instance Semilattice k Word
-instance Semilattice k Int8
-instance Semilattice k Int16
-instance Semilattice k Int32
-instance Semilattice k Int64
-instance Semilattice k Int
-instance Semilattice k Float
-instance Semilattice k Double
-instance Semilattice k Rational
-instance Semilattice k Positive
-instance KnownNat n => Semilattice k (F.Finite n)
 
 instance Heyting 'L () where heyting = heytingL impliesL
 instance Heyting 'L Bool where heyting = heytingL impliesL
@@ -484,28 +469,37 @@ instance Heyting 'L Word16 where heyting = heytingL impliesL
 instance Heyting 'L Word32 where heyting = heytingL impliesL
 instance Heyting 'L Word64 where heyting = heytingL impliesL
 instance Heyting 'L Word where heyting = heytingL impliesL
-instance Heyting 'L Int8 where heyting = heytingL impliesL
-instance Heyting 'L Int16 where heyting = heytingL impliesL
-instance Heyting 'L Int32 where heyting = heytingL impliesL
-instance Heyting 'L Int64 where heyting = heytingL impliesL
-instance Heyting 'L Int where heyting = heytingL impliesL
 instance KnownNat n => Heyting 'L (F.Finite n) where heyting = heytingL impliesL
 
 instance Heyting 'R () where heyting = heytingR impliesR
 instance Heyting 'R Bool where heyting = heytingR impliesR
-instance Heyting 'R Ordering where heyting = heytingR impliesR
+--instance Heyting 'R Ordering where heyting = heytingR impliesR
 instance Heyting 'R Word8 where heyting = heytingR impliesR
 instance Heyting 'R Word16 where heyting = heytingR impliesR
 instance Heyting 'R Word32 where heyting = heytingR impliesR
 instance Heyting 'R Word64 where heyting = heytingR impliesR
 instance Heyting 'R Word where heyting = heytingR impliesR
+instance KnownNat n => Heyting 'R (F.Finite n) where heyting = heytingR impliesR
+
+instance Heyting 'L Int8 where heyting = heytingL impliesL
+instance Heyting 'L Int16 where heyting = heytingL impliesL
+instance Heyting 'L Int32 where heyting = heytingL impliesL
+instance Heyting 'L Int64 where heyting = heytingL impliesL
+instance Heyting 'L Int where heyting = heytingL impliesL
 instance Heyting 'R Int8 where heyting = heytingR impliesR
 instance Heyting 'R Int16 where heyting = heytingR impliesR
 instance Heyting 'R Int32 where heyting = heytingR impliesR
 instance Heyting 'R Int64 where heyting = heytingR impliesR
 instance Heyting 'R Int where heyting = heytingR impliesR
-instance KnownNat n => Heyting 'R (F.Finite n) where heyting = heytingR impliesR
 
+instance Symmetric () where not _ = ()
+instance Symmetric Bool where not = P.not
+instance Symmetric Ordering where
+  not LT = GT
+  not EQ = EQ
+  not GT = LT
+ 
+instance Heyting 'R Ordering where heyting = symmetricR
 
 instance Boolean ()
 instance Boolean Bool
@@ -515,50 +509,30 @@ instance Boolean Bool
 -------------------------------------------------------------------------------
 
 
---instance (Semilattice 'L a) => Semilattice 'L (Maybe a) where lattice = latticeL
---instance (Semilattice 'R a) => Semilattice 'R (Maybe a) where lattice = latticeR
-instance (Eq a, Connection 'L (a,a) a) => Semilattice 'L (Maybe a) where
-  lattice = latticeL
-
-instance (Eq a, Bounded 'R a) => Semilattice 'R (Maybe a) where
-  lattice = latticeR
-
-instance (Eq a, Connection 'L (a,a) a) => Semilattice 'L (Extended a) where
-  lattice = ConnL (foldr (\/) minimal) pure
-
-instance (Eq a, Connection 'R (a,a) a) => Semilattice 'R (Extended a) where
-  lattice = ConnR pure (foldr (/\) maximal)
-
---instance (Lattice a, Lattice b) => Semilattice k (Either a b) 
-instance (Eq a, Eq b, Bounded 'L a, Connection 'L (b,b) b) => Semilattice 'L (Either a b) where 
-  lattice = ConnL (foldr (\/) minimal) pure
-
-instance (Eq a, Eq b, Connection 'R (a,a) a, Bounded 'R b) => Semilattice 'R (Either a b) where
-  lattice = ConnR pure (foldr (/\) maximal)
 
 -- |
 -- Subdirectly irreducible Heyting algebra.
 instance Heyting 'R a => Heyting 'R (Lowered a) where
   heyting = heytingR f where
 
-    (Left a)  `f` (Left b) | a <= b    = top
+    (Left a)  `f` (Left b) | a <= b    = true
                            | otherwise = Left (a // b)
     (Right _) `f` a                    = a
-    _         `f` (Right _)            = top
+    _         `f` (Right _)            = true
 
 instance Heyting 'R a => Heyting 'R (Lifted a) where
   heyting = heytingR f where
     f (Right a) (Right b) = Right (a // b)
-    f (Left _)   _        = Right top
-    f _         (Left _)  = bottom
+    f (Left _)   _        = Right true
+    f _         (Left _)  = false
 
 instance Heyting 'R a => Heyting 'R (Maybe a) where
   heyting = heytingR f where
     f (Just a) (Just b)   = Just (a // b)
-    f Nothing  _          = Just top
+    f Nothing  _          = Just true
     f _        Nothing    = Nothing
 
---instance Semilattice k a => Semilattice k (Extended a)
+--instance Complete k a => Complete k (Extended a)
 instance Heyting 'R a => Heyting 'R (Extended a) where
   heyting = heytingR f where
 
@@ -569,77 +543,77 @@ instance Heyting 'R a => Heyting 'R (Extended a) where
     Bottom     `f` _          = Top
     _          `f` Bottom     = Bottom
 
+--instance Symmetric a => Symmetric (Extended a) where
 
 -------------------------------------------------------------------------------
 -- Instances: product types
 -------------------------------------------------------------------------------
 
-instance (Lattice a, Lattice b) => Semilattice k (a, b)
-
 instance (Heyting k a, Heyting k b) => Heyting k (a, b) where
   heyting (a,b) = heyting a `strong` heyting b
 
-instance (Boolean a, Boolean b) => Boolean (a, b)
+instance (Symmetric a, Symmetric b) => Symmetric (a, b) where
+  not = bimap not not
+
+instance (Boolean a, Boolean b) => Boolean (a, b) where
 
 -------------------------------------------------------------------------------
 -- Instances: function types
 -------------------------------------------------------------------------------
 
-instance (U.Finite a, Lattice b) => Semilattice k (a -> b)
- 
+
 instance (U.Finite a, Biheyting b) => Heyting 'L (a -> b) where
   heyting = heytingL $ liftA2 (\\)
 
 instance (U.Finite a, Biheyting b) => Heyting 'R (a -> b) where
   heyting = heytingR $ liftA2 (//)
 
+instance (U.Finite a, Symmetric b) => Symmetric (a -> b) where not = fmap not
+
 instance (U.Finite a, Boolean b) => Boolean (a -> b)
 
-deriving via (a -> a) instance (U.Finite a, Lattice a) => Semilattice k (Endo a)
 deriving via (a -> a) instance (U.Finite a, Biheyting a) => Heyting 'L (Endo a)
 deriving via (a -> a) instance (U.Finite a, Biheyting a) => Heyting 'R (Endo a)
+instance (U.Finite a, Symmetric a) => Symmetric (Endo a)
 instance (U.Finite a, Boolean a) => Boolean (Endo a)
 
-deriving via (a -> b) instance (U.Finite a, Lattice b) => Semilattice k (Op b a)
 deriving via (a -> b) instance (U.Finite a, Biheyting b) => Heyting 'L (Op b a)
 deriving via (a -> b) instance (U.Finite a, Biheyting b) => Heyting 'R (Op b a)
+instance (U.Finite a, Symmetric b) => Symmetric (Op b a)
 instance (U.Finite a, Boolean b) => Boolean (Op b a)
 
-deriving via (Op Bool a) instance (U.Finite a) => Semilattice k (Predicate a)
 deriving via (Op Bool a) instance (U.Finite a) => Heyting 'L (Predicate a)
 deriving via (Op Bool a) instance (U.Finite a) => Heyting 'R (Predicate a)
+instance (U.Finite a) => Symmetric (Predicate a)
 instance (U.Finite a) => Boolean (Predicate a)
 
 -------------------------------------------------------------------------------
 -- Instances: collections
 -------------------------------------------------------------------------------
 
-instance (Total a) => Semilattice 'L (Set.Set a) where lattice = latticeL
-instance (Total a, U.Finite a) => Semilattice 'R (Set.Set a) where lattice = latticeR
-
-instance Semilattice k IntSet.IntSet
-
-instance (Total a, Semilattice 'L b) => Semilattice 'L (Map.Map a b) where lattice = latticeL
-instance (Total a, U.Finite a, Semilattice 'R b) => Semilattice 'R (Map.Map a b) where lattice = latticeR
-
-instance (Semilattice 'L a) => Semilattice 'L (IntMap.IntMap a) where lattice = latticeL
-instance (Semilattice 'R a) => Semilattice 'R (IntMap.IntMap a) where lattice = latticeR
-
 
 instance (Total a, U.Finite a) => Heyting 'L (Set.Set a) where
   heyting = heytingL (Set.\\)
 
 instance (Total a, U.Finite a) => Heyting 'R (Set.Set a) where
-  heyting = heytingR $ \x y -> non x \/ y
+  heyting = symmetricR
+
+instance (Total a, U.Finite a) => Symmetric (Set.Set a) where
+  not = non --(U.universe Set.\\)
+
+instance (Total a, U.Finite a) => Boolean (Set.Set a) where
 
 instance Heyting 'L IntSet.IntSet where
   heyting = heytingL (IntSet.\\)
 
 instance Heyting 'R IntSet.IntSet where
-  heyting = heytingR $ \x y -> non x \/ y
+  --heyting = heytingR $ \x y -> non x \/ y
+  heyting = symmetricR
 
-instance (Total a, U.Finite a) => Boolean (Set.Set a)
-instance Boolean IntSet.IntSet
+instance Symmetric IntSet.IntSet where
+  not = non --(U.universe IntSet.\\)
+
+instance Boolean IntSet.IntSet where
 
 {- TODO pick an instance either key-aware or no
 instance (Total a, U.Finite a, Lattice b) => Heyting 'L (Map.Map a b) where
@@ -651,21 +625,72 @@ instance (Total a, U.Finite a, Heyting 'R b) => Heyting 'R (Map.Map a b) where
     let
       x = Map.merge
             Map.dropMissing                    -- drop if an element is missing in @b@
-            (Map.mapMissing (\_ _ -> top))     -- put @top@ if an element is missing in @a@
+            (Map.mapMissing (\_ _ -> true))     -- put @true@ if an element is missing in @a@
             (Map.zipWithMatched (\_ -> (//) )) -- merge  matching elements with @`implies`@
             a b
 
-      y = Map.fromList [(k, top) | k <- U.universeF, not (Map.member k a), not (Map.member k b) ]
+      y = Map.fromList [(k, true) | k <- U.universeF, not (Map.member k a), not (Map.member k b) ]
         -- for elements which are not in a, nor in b add
-        -- a @top@ key
+        -- a @true@ key
     in
       Map.union x y
 {-
 -- TODO: compare performance
 impliesMap a b =
   Map.intersection (`implies`) a b
-    `Map.union` Map.map (const top) (Map.difference b a)
-    `Map.union` Map.fromList [(k, top) | k <- universeF, not (Map.member k a), not (Map.member k b)]
+    `Map.union` Map.map (const true) (Map.difference b a)
+    `Map.union` Map.fromList [(k, true) | k <- universeF, not (Map.member k a), not (Map.member k b)]
 -}
 -}
+
+
+{-
+
+-- A symmetric Heyting algebra
+-- 
+-- λ> implies (False ... True) (False ... True)
+-- Interval True True
+-- λ> implies (False ... True) (singleton False)
+-- Interval False False
+-- λ> implies (singleton True) (False ... True)
+-- Interval False True
+-- 
+-- λ> implies ([EQ,GT] ... [EQ,GT]) ([LT] ... [LT,EQ])  :: Interval (Set.Set Ordering)
+-- Interval (fromList [LT]) (fromList [LT,EQ])
+-- 
+-- TODO: may need /a/ to be boolean here.
+implies :: Symmetric a => Interval a -> Interval a -> Interval a
+implies i1 i2 = maybe iempty (uncurry (...)) $ liftA2 f (endpts i1) (endpts i2) where
+  f (x1,x2) (y1,y2) = (x1 // y1 /\ x2 // y2, x2 // y2)
+
+  --TODO: would this work for interval orders?
+  f (x1,x2) (y1,y2) = (x1 // y1 /\ x2 // y2, x1 // y1 \/ x2 // y2)
+
+coimplies i1 i2 = not (not i1 `implies` not i2)
+
+-- The symmetry
+-- neg x = true \\ not x
+-- non x = not x // false
+-- λ> not ([LT] ... [LT,GT]) :: Interval (Set.Set Ordering)
+-- Interval (fromList [EQ]) (fromList [EQ,GT])
+-- 
+not :: Symmetric a => Interval a -> Interval a
+not = maybe iempty (\(x1, x2) -> neg x2 ... neg x1) . endpts
+
+-- λ> neg' (False ... True)
+-- Interval False False
+-- λ> (False ... True) `implies` (singleton False)
+-- Interval False False
+-- 
+neg' x = (false ... true) `coimplies` (not x)
+
+-- λ> non' (False ... True)
+-- Interval False False
+-- λ> (singleton True) `coimplies` (False ... True)
+-- Interval False False
+-- 
+non' x = not x `implies` (singleton false)
+
+-}
+
 

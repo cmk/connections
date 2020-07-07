@@ -126,7 +126,6 @@ prop_heytingL = withTests 1000 . property $ do
   assert $ heytingL19 w1 w2
   assert $ heytingL20 w1 w2
 
-
 prop_heytingR :: Property
 prop_heytingR = withTests 1000 . property $ do
   b1 <- forAll G.bool
@@ -232,6 +231,55 @@ prop_heytingR = withTests 1000 . property $ do
   assert $ heytingR16 w1
   assert $ heytingR17 w1
 
+prop_symmetric :: Property
+prop_symmetric = withTests 1000 . property $ do
+  b1 <- forAll G.bool
+  b2 <- forAll G.bool
+  b3 <- forAll G.bool
+  o1 <- forAll ord
+  o2 <- forAll ord
+ 
+  assert $ symmetric1 b1
+  assert $ symmetric2 b1
+  assert $ symmetric3 b1
+  assert $ symmetric4 b1
+  assert $ symmetric5 b1
+  assert $ symmetric6 b1
+  assert $ symmetric7 b1 b2
+  assert $ symmetric8 b1 b2
+  assert $ symmetric9 b1 b2
+  assert $ symmetric10 b1 b2
+  assert $ symmetric11 b1 b2
+  assert $ symmetric12 b1 b2
+  assert $ symmetric13 b1 b2
+ 
+  assert $ adjoint boolean b1 b2
+  assert $ closed boolean b1
+  assert $ kernel boolean b2
+  assert $ monotonic boolean b1 b2 b3 b2
+  assert $ idempotent boolean b1 b3
+
+  assert $ boolean0 b1
+  assert $ boolean1 b1
+  assert $ boolean2 b1
+  assert $ boolean3 b1
+  assert $ boolean4 b1 b2
+  assert $ boolean5 b1 b2
+  assert $ boolean6 b1 b2
+  
+  assert $ symmetric1 o1
+  assert $ symmetric2 o1
+  assert $ symmetric3 o1
+  assert $ symmetric4 o1
+  assert $ symmetric5 o1
+  assert $ symmetric6 o1
+  assert $ symmetric7 o1 o2
+  assert $ symmetric8 o1 o2
+  assert $ symmetric9 o1 o2
+  assert $ symmetric10 o1 o2
+  assert $ symmetric11 o1 o2
+  assert $ symmetric12 o1 o2
+  assert $ symmetric13 o1 o2
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

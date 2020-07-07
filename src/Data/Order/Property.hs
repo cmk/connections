@@ -44,7 +44,7 @@ module Data.Order.Property (
 import Data.Connection.Conn
 import Data.Order
 import Data.Order.Syntax
-import Data.Lattice
+import Data.Lattice hiding (not)
 import Prelude hiding (Ord(..), Eq(..))
 
 -- | See <https://en.wikipedia.org/wiki/Binary_relation#Properties>.
@@ -65,12 +65,7 @@ infix 0 <=>
 (<=>) :: Bool -> Bool -> Bool
 (<=>) x y = (x ==> y) && (y ==> x)
 
-infixl 4 `xor`
 
--- | Exclusive or.
---
-xor :: Bool -> Bool -> Bool
-xor x y = (x \/ y) /\ neg (x /\ y)
 
 xor3 :: Bool -> Bool -> Bool -> Bool
 xor3 a b c = (a `xor` (b `xor` c)) && not (a && b && c)

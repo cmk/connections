@@ -7,12 +7,12 @@ import Data.Order
 import Data.Order.Property
 import Data.Order.Syntax
 import Data.Lattice
-import Prelude hiding (Eq(..), Ord(..), Bounded)
+import Prelude hiding (Eq(..), Ord(..), Bounded, not)
 
 --foo x y z = x // y <= x // y /\ z
 --foo x z y = x /\ z // y <= x // y
 -- 
--- x '\\' x           = 'top'
+-- x '\\' x           = 'true'
 -- x '/\' (x '\\' y)  = x '/\' y
 -- y '/\' (x '\\' y)  = y
 -- x '\\' (y '\\' z) = (x '/\' y) '\\' z
@@ -23,10 +23,35 @@ import Prelude hiding (Eq(..), Ord(..), Bounded)
 -- y '<=' (x '\\' x '/\' y)
 -- x '<=' y => (z '\\' x) '<=' (z '\\' y)
 -- x '<=' y => (x '\\' z) '<=' (y '\\' z)
--- x '<=' y <=> x '\\' y '==' 'top'
+-- x '<=' y <=> x '\\' y '==' 'true'
 -- x '/\' y '<=' z <=> x '<=' (y '\\' z) <=> y '<=' (x '\\' z)
 -- 
 --
+
+
+-- adjointL $ ConnL (\x -> y \\ not x) (\z -> not z // not y)
+symmetric1 x = neg x <= non x
+symmetric2 x = (neg . neg) x == (converseR . converseL) x
+symmetric3 x = (non . non) x == (converseL . converseR) x
+symmetric4 x = non x == (converseL . not) x && neg x == (not . converseL) x
+symmetric5 x = non x == (not . converseR) x && neg x == (converseR . not) x
+symmetric6 x = neg x \/ neg (neg x) == true
+symmetric7 x y = not (x /\ y) == not x \/ not y
+symmetric8 x y = (not . not) (x \/ y) == not (not x) \/ not (not y)
+symmetric9 x y = not (x \/ y) == not x /\ not y
+symmetric10 x y = converseL (x \/ y) == converseL x \/ converseL y
+symmetric11 x y = converseR (x /\ y) == converseR x /\ converseR y
+symmetric12 x y = converseL (x /\ y) == (non . non) (converseL x /\ converseL y)
+symmetric13 x y = converseR (x \/ y) == (neg . neg) (converseR x \/ converseR y)
+ 
+boolean0 x = neg x == non x
+boolean1 x = neg (neg x) == x
+boolean2 x = x \/ neg x == true
+boolean3 x = x /\ non x == false 
+boolean4 x y = (x <= y) // (neg y <= neg x)
+boolean5 x y = x \\ y == neg (neg y // neg x)
+boolean6 x y = x // y == non (non y \\ non x)
+
 
 heytingL0 :: Heyting 'L a => a -> a -> a -> Bool
 heytingL0 x y z = x \\ y <= z <=> x <= y \/ z
@@ -53,14 +78,14 @@ heytingL7 :: Heyting 'L a => a -> a -> Bool
 heytingL7 x y = x \/ y \\ x == x \/ y
 
 heytingL8 :: forall a. Heyting 'L a => a -> Bool
-heytingL8 _ = non bottom == top @a && non top == bottom @a
+heytingL8 _ = non false == true @a && non true == false @a
 
 -- Double co-negation is a co-monad.
 heytingL9 :: Heyting 'L a => a -> a -> Bool
 heytingL9 x y = x /\ non y >= x \\ y
 
 heytingL10 :: Heyting 'L a => a -> a -> Bool
-heytingL10 x y = x >= y <=> y \\ x == bottom
+heytingL10 x y = x >= y <=> y \\ x == false
 
 heytingL11 :: Heyting 'L a => a -> a -> Bool
 heytingL11 x y = non (x /\ y) >= non x
@@ -72,13 +97,13 @@ heytingL13 :: Heyting 'L a => a -> a -> Bool
 heytingL13 x y = non (x /\ y) == non x \/ non y
 
 heytingL14 :: Heyting 'L a => a -> Bool
-heytingL14 x = x \/ non x == top
+heytingL14 x = x \/ non x == true
 
 heytingL15 :: Heyting 'L a => a -> Bool
 heytingL15 x = non (non (non x)) == non x
 
 heytingL16 :: Heyting 'L a => a -> Bool
-heytingL16 x = non (non (x /\ non x)) == bottom
+heytingL16 x = non (non (x /\ non x)) == false
 
 heytingL17 :: Heyting 'L a => a -> Bool
 heytingL17 x = x >= non (non x)
@@ -118,14 +143,14 @@ heytingR7 :: Heyting 'R a => a -> a -> Bool
 heytingR7 x y = x /\ x // y == x /\ y
 
 heytingR8 :: forall a. Heyting 'R a => a -> Bool
-heytingR8 _ = neg bottom == top @a && neg top == bottom @a
+heytingR8 _ = neg false == true @a && neg true == false @a
 
 -- Double negation is a monad.
 heytingR9 :: Heyting 'R a => a -> a -> Bool
 heytingR9 x y = neg x \/ y <= x // y
 
 heytingR10 :: Heyting 'R a => a -> a -> Bool
-heytingR10 x y = x <= y <=> x // y == top
+heytingR10 x y = x <= y <=> x // y == true
 
 heytingR11 :: Heyting 'R a => a -> a -> Bool
 heytingR11 x y = neg (x \/ y) <= neg x
@@ -137,13 +162,13 @@ heytingR13 :: Heyting 'R a => a -> a -> Bool
 heytingR13 x y = neg (x \/ y) == neg x /\ neg y
 
 heytingR14 :: Heyting 'R a => a -> Bool
-heytingR14 x = x /\ neg x == bottom
+heytingR14 x = x /\ neg x == false
 
 heytingR15 :: Heyting 'R a => a -> Bool
 heytingR15 x = neg (neg (neg x)) == neg x
 
 heytingR16 :: Heyting 'R a => a -> Bool
-heytingR16 x = neg (neg (x \/ neg x)) == top
+heytingR16 x = neg (neg (x \/ neg x)) == true
 
 heytingR17 :: Heyting 'R a => a -> Bool
 heytingR17 x = x <= neg (neg x)
@@ -212,7 +237,7 @@ pcompareMeet x y
 
 -- | \( \forall a \in R: a \/ a = a \)
 --
--- @ 'idempotent_join' = 'absorbative' 'top' @
+-- @ 'idempotent_join' = 'absorbative' 'true' @
 -- 
 -- See < https:\\en.wikipedia.org/wiki/Band_(mathematics) >.
 --
@@ -260,7 +285,7 @@ commutative_on (=~) (#) a b = (a # b) =~ (b # a)
 -- Absorbativity is a generalized form of idempotency:
 --
 -- @
--- 'absorbative' 'top' a = a \/ a = a
+-- 'absorbative' 'true' a = a \/ a = a
 -- @
 --
 -- This is a required property.
@@ -273,7 +298,7 @@ absorbative_on (=~) x y = (x /\ y \/ y) =~ y
 -- Absorbativity is a generalized form of idempotency:
 --
 -- @
--- 'absorbative'' 'bottom' a = a \/ a = a
+-- 'absorbative'' 'false' a = a \/ a = a
 -- @
 --
 -- This is a required property.

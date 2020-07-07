@@ -1,7 +1,7 @@
 name:                connections
 version:             0.1.0
 synopsis:            Orders, Galois connections, and lattices.
-description:         A library for numerical conversions using Galois connections.
+description:         A library for order manipulation using Galois connections.
 homepage:            https://github.com/cmk/connections
 license:             BSD3
 license-file:        LICENSE
@@ -33,21 +33,17 @@ library
     , Data.Lattice.Property
 
     , Data.Order
-    --, Data.Order.Logic
-    --, Data.Order.Directed
     , Data.Order.Extended
     , Data.Order.Interval
     , Data.Order.Property
     , Data.Order.Syntax
     
   build-depends:       
-      base           >= 4.10  && < 5.0
-    , containers     >= 0.4.0 && < 1.0
-    , transformers   >= 0.5.5.0 && < 0.6
-    , finite-typelits
-    , logict
-
-    , universe-base  >= 1.1.1 && < 2.0
+      base            >= 4.10  && < 5.0
+    , containers      >= 0.4.0 && < 1.0
+    , transformers    >= 0.5.5 && < 0.6
+    , universe-base   >= 1.1.1 && < 2.0
+    , finite-typelits >= 0.1.4.2 && < 0.1.5
 
   default-extensions:
       ScopedTypeVariables

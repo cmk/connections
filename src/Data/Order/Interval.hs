@@ -39,7 +39,7 @@ import safe qualified Data.Connection.Double as F64
 --
 -- \( \forall x, y \in I, z \in P: x \leq z \leq y \Rightarrow z \in I \)
 --
-data Interval a = Empty | I !a !a deriving Show
+data Interval a = Empty | Interval !a !a deriving Show
 
 -- | Map over an interval.
 --
@@ -58,9 +58,9 @@ infix 3 ...
 -- 
 (...) :: Preorder a => a -> a -> Interval a
 x ... y = case pcompare x y of
-  Nothing -> Empty
-  Just GT -> I y x
-  Just _  -> I x y
+  Just LT -> Interval x y
+  Just EQ -> Interval x y
+  _ -> Empty
 {-# INLINE (...) #-}
 
 -- | The iempty interval.
@@ -78,19 +78,19 @@ iempty = Empty
 -- 1 ... 1
 --
 singleton :: a -> Interval a
-singleton a = I a a
+singleton a = Interval a a
 {-# INLINE singleton #-}
 
 -- | Obtain the endpoints of an interval.
 --
 endpts :: Interval a -> Maybe (a, a)
 endpts Empty = Nothing
-endpts (I x y) = Just (x, y)
+endpts (Interval x y) = Just (x, y)
 {-# INLINE endpts #-}
 
 contains :: Preorder a => Interval a -> a -> Bool
 contains Empty _ = False
-contains (I x y) p = x <~ p && p <~ y
+contains (Interval x y) p = x <~ p && p <~ y
 
 {-
 
@@ -210,14 +210,29 @@ instance Eq a => Eq (Interval a) where
   Empty == Empty = True
   Empty == _ = False
   _ == Empty = False
-  I x y == I x' y' = x == x' && y == y'
+  Interval x y == Interval x' y' = x == x' && y == y'
 
 -- | A < https://en.wikipedia.org/wiki/Containment_order containment order >
 --
 instance Preorder a => Preorder (Interval a) where
   Empty <~ _ = True
   _ <~ Empty = False
-  I x y <~ I x' y' = x' <~ x && y <~ y'
+  Interval x y <~ Interval x' y' = x' <~ x && y <~ y'
+
+{-
+instance Bounded 'L a => Connection k (Maybe a) (Interval a) where
+  conn = Conn f g h where
+    f = maybe iempty singleton
+    g = maybe Nothing (Just . uncurry (\/)) . endpts
+    h = maybe iempty $ \x -> minimal ... x
+
+instance Lattice a => Connection k (Interval a) (Maybe a) where
+  conn = Conn f g h where
+    f = maybe Nothing (Just . uncurry (\/)) . endpts
+    g = maybe iempty singleton
+    h = maybe Nothing (Just . uncurry (/\)) . endpts
+-}
+
 
 {-
 instance Lattice a => Lattice (Interval a) where
