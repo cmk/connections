@@ -1,5 +1,7 @@
 # connections
 
+[![Build Status](https://travis-ci.com/cmk/connections.svg?branch=master)](https://travis-ci.com/cmk/connections)
+
 Galois connections
 
 For example:
