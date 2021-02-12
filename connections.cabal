@@ -1,5 +1,5 @@
 name:                connections
-version:             0.1.0
+version:             0.2.0
 synopsis:            Orders, Galois connections, and lattices.
 description:         A library for order manipulation using Galois connections.
 homepage:            https://github.com/cmk/connections
@@ -26,7 +26,6 @@ library
     , Data.Connection.Word
     , Data.Connection.Ratio
     , Data.Connection.Float
-    , Data.Connection.Double
     , Data.Connection.Property
 
     , Data.Lattice
@@ -41,9 +40,6 @@ library
   build-depends:       
       base            >= 4.10  && < 5.0
     , containers      >= 0.4.0 && < 1.0
-    , transformers    >= 0.5.5 && < 0.6
-    , universe-base   >= 1.1.1 && < 2.0
-    , finite-typelits >= 0.1.4.2 && < 0.1.5
 
   default-extensions:
       ScopedTypeVariables

@@ -36,7 +36,7 @@ import Prelude hiding (Num(..),Ord(..), floor, ceiling)
 --
 -- A Galois connection is an adjunction of preorders. This is a required property.
 --
-adjoint :: (Preorder a, Preorder b) => Trip a b -> a -> b -> Bool
+adjoint :: (Preorder a, Preorder b) => ConnK a b -> a -> b -> Bool
 adjoint t a b = adjointL t a b &&
                 adjointR t a b &&
                 adjointL (swapL t) b a &&
@@ -52,7 +52,7 @@ adjointR (ConnR f g) = adjunction (>~) (>~) g f
 --
 -- This is a required property.
 --
-closed :: (Preorder a, Preorder b) => Trip a b -> a -> Bool
+closed :: (Preorder a, Preorder b) => ConnK a b -> a -> Bool
 closed t a = closedL t a && closedR t a
 
 closedL :: (Preorder a, Preorder b) => ConnL a b -> a -> Bool
@@ -65,7 +65,7 @@ closedR (ConnR f g) = invertible (<~) g f
 --
 -- This is a required property.
 --
-kernel :: (Preorder a, Preorder b) => Trip a b -> b -> Bool
+kernel :: (Preorder a, Preorder b) => ConnK a b -> b -> Bool
 kernel t b = kernelL t b && kernelR t b
 
 kernelL :: (Preorder a, Preorder b) => ConnL a b -> b -> Bool
@@ -78,7 +78,7 @@ kernelR (ConnR f g) = invertible (>~) f g
 --
 -- This is a required property.
 --
-monotonic :: (Preorder a, Preorder b) => Trip a b -> a -> a -> b -> b -> Bool
+monotonic :: (Preorder a, Preorder b) => ConnK a b -> a -> a -> b -> b -> Bool
 monotonic t a1 a2 b1 b2 = monotonicL t a1 a2 b1 b2 && monotonicR t a1 a2 b1 b2
 
 monotonicR :: (Preorder a, Preorder b) => ConnR a b -> a -> a -> b -> b -> Bool
@@ -91,14 +91,14 @@ monotonicL (ConnL f g) a1 a2 b1 b2 = monotone (<~) (<~) f a1 a2 && monotone (<~)
 --
 -- See <https://ncatlab.org/nlab/show/idempotent+adjunction>
 --
-idempotent :: (Preorder a, Preorder b) => Trip a b -> a -> b -> Bool
+idempotent :: (Preorder a, Preorder b) => ConnK a b -> a -> b -> Bool
 idempotent t a b = idempotentL t a b && idempotentR t a b
 
 idempotentL :: (Preorder a, Preorder b) => ConnL a b -> a -> b -> Bool
-idempotentL c@(ConnL f g) a b = projective (~~) g (unitL c) b && projective (~~) f (counitL c) a
+idempotentL c@(ConnL f g) a b = projective (~~) g (upper c) b && projective (~~) f (counit c) a
 
 idempotentR :: (Preorder a, Preorder b) => ConnR a b -> a -> b -> Bool
-idempotentR c@(ConnR f g) a b = projective (~~) g (unitR c) a && projective (~~) f (counitR c) b
+idempotentR c@(ConnR f g) a b = projective (~~) g (unit c) a && projective (~~) f (lower c) b
 
 ---------------------------------------------------------------------
 -- Properties of general relations
@@ -121,14 +121,6 @@ antitone (#) (%) f a b = a # b ==> f b % f a
 --
 adjunction :: Rel r Bool -> Rel s Bool -> (s -> r) -> (r -> s) -> s -> r -> Bool
 adjunction (#) (%) f g a b = f a # b <=> a % g b
-
-range' :: Triple () a => (a, a)
-range' = (floor (), ceiling ())
-
-ordering :: Trip () Ordering
-ordering = trip (const GT) (const ()) (const LT)
---extremalOrd :: (Total a, P.Bounded a) => Conn k () a
---extremalOrd = Conn (const minBound) (const ()) (const maxBound)
 
 -- | \( \forall a: f (g a) \sim a \)
 --
