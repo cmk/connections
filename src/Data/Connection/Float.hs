@@ -1,17 +1,27 @@
 {-# Language ConstraintKinds #-}
 {-# Language Safe            #-}
+{-# Language RankNTypes      #-}
 module Data.Connection.Float (
   -- * Connections
     f32i08
   , f32i16
-  --, f32i32
+  , f64i08
+  , f64i16
+  , f64i32
+  , f64f32
+  -- * Float
   , min32
   , max32
-  , covers
-  , ulp
-  , shift
-  , within
-  , epsilon
+  , ulp32
+  , near32
+  , shift32
+  -- * Double
+  , min64
+  , max64
+  , ulp64
+  , near64
+  , shift64
+  , until
 ) where
 
 import safe Data.Bool
@@ -19,11 +29,58 @@ import safe Data.Connection.Conn
 import safe Data.Int
 import safe Data.Order
 import safe Data.Order.Extended
-import safe Data.Order.Syntax
+import safe Data.Order.Syntax hiding (min, max)
 import safe Data.Word
 import safe GHC.Float as F
 import safe Prelude hiding (Eq(..), Ord(..), until)
-import safe qualified Prelude as P 
+import safe qualified Prelude as P
+
+---------------------------------------------------------------------
+-- Connections
+---------------------------------------------------------------------
+
+-- | All 'Data.Int.Int08' values are exactly representable in a 'Float'.
+f32i08 :: Conn k Float (Extended Int8)
+f32i08 = triple 127
+
+-- | All 'Data.Int.Int16' values are exactly representable in a 'Float'.
+-- 
+--  > ceilingWith f32i16 32767.0
+--  Extended 32767
+--  > ceilingWith f32i16 32767.1
+--  Top
+f32i16 :: Conn k Float (Extended Int16)
+f32i16 = triple 32767
+
+-- | All 'Data.Int.Int08' values are exactly representable in a 'Double'.
+f64i08 :: Conn k Double (Extended Int8)
+f64i08 = triple 127
+
+-- | All 'Data.Int.Int16' values are exactly representable in a 'Double'.
+f64i16 :: Conn k Double (Extended Int16)
+f64i16 = triple 32767
+
+-- | All 'Data.Int.Int32' values are exactly representable in a 'Double'.
+f64i32 :: Conn k Double (Extended Int32)
+f64i32 = triple 2147483647
+
+f64f32 :: Conn k Double Float
+f64f32 = Conn f1 g f2 where
+  f1 x = let est = F.double2Float x in
+          if g est >~ x
+          then est
+          else ascend32 est g x
+
+  f2 x = let est = F.double2Float x in
+          if g est <~ x
+          then est
+          else descend32 est g x
+
+  g = F.float2Double
+
+  ascend32 z g1 y = until (\x -> g1 x >~ y) (<~) (shift32 1) z
+
+  descend32 z h1 x = until (\y -> h1 y <~ x) (>~) (shift32 (-1)) z
 
 ---------------------------------------------------------------------
 -- Float
@@ -53,47 +110,20 @@ max32 x y = case (isNaN x, isNaN y) of
   (True, False) -> y
   (True, True)  -> x
 
--- | Covering relation on the /N5/ lattice of floats.
---
--- < https://en.wikipedia.org/wiki/Covering_relation >
---
--- >>> covers 1 (shift 1 1)
--- True
--- >>> covers 1 (shift 2 1)
--- False
---
-covers :: Float -> Float -> Bool
-covers x y = x ~~ shift (-1) y
-
 -- | Compute the signed distance between two floats in units of least precision.
 --
--- >>> ulp 1.0 (shift 1 1.0)
+-- >>> ulp32 1.0 (shift32 1 1.0)
 -- Just (LT,1)
--- >>> ulp (0.0/0.0) 1.0
+-- >>> ulp32 (0.0/0.0) 1.0
 -- Nothing
 --
-ulp :: Float -> Float -> Maybe (Ordering, Word32)
-ulp x y = fmap f $ pcompare x y
+ulp32 :: Float -> Float -> Maybe (Ordering, Word32)
+ulp32 x y = fmap f $ pcompare x y
   where  x' = floatInt32 x
          y' = floatInt32 y
          f LT = (LT, fromIntegral . abs $ y' - x')
          f EQ = (EQ, 0)
          f GT = (GT, fromIntegral . abs $ x' - y')
-
--- | Shift a float by /n/ units of least precision.
---
--- >>> shift 1 0
--- 1.0e-45
--- >>> shift 1 $ 0/0
--- NaN
--- >>> shift (-1) $ 0/0
--- NaN
--- >>> shift 1 $ 1/0
--- Infinity
---
-shift :: Int32 -> Float -> Float
-shift n x | x ~~ 0/0 = x
-          | otherwise = int32Float . clamp32 . (+ n) . floatInt32 $ x
 
 -- | Compare two floats for approximate equality.
 --
@@ -101,55 +131,160 @@ shift n x | x ~~ 0/0 = x
 --
 -- See also <https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/>.
 -- 
-within :: Word32 -> Float -> Float -> Bool
-within tol x y = maybe False ((<= tol) . snd) $ ulp x y
+near32 :: Word32 -> Float -> Float -> Bool
+near32 tol x y = maybe False ((<= tol) . snd) $ ulp32 x y
 
--- | Difference between 1 and the smallest representable value greater than 1.
+-- | Shift a float by /n/ units of least precision.
 --
--- > epsilon = shift 1 1 - 1
---
--- >>> epsilon
--- 1.1920929e-7
---
-epsilon :: Float
-epsilon = shift 1 1.0 - 1.0
-
-{-
--- | Minimal32 positive value.
---
--- >>> minimal32
+-- >>> shift32 1 0
 -- 1.0e-45
--- >>> shift (-1) minimal32
--- 0
---
-minimal32 :: Float
-minimal32 = shift 1 0.0
-
--- | Maximum finite value.
---
--- >>> maximal32
--- 3.4028235e38
--- >>> shift 1 maximal32
+-- >>> shift32 1 1 - 1
+-- 1.1920929e-7
+-- >>> shift32 1 $ 0/0
+-- NaN
+-- >>> shift32 (-1) $ 0/0
+-- NaN
+-- >>> shift32 1 $ 1/0
 -- Infinity
--- >>> shift (-1) $ negate maximal32
--- -Infinity
 --
-maximal32 :: Float
-maximal32 = shift (-1) (1/0) 
-
--}
+shift32 :: Int32 -> Float -> Float
+shift32 n x | x ~~ 0/0 = x
+            | otherwise = int32Float . clamp32 . (+ n) . floatInt32 $ x
 
 ---------------------------------------------------------------------
--- Float
+-- Double
 ---------------------------------------------------------------------
 
--- | All 'Data.Int.Int08' values are exactly representable in a 'Float'.
-f32i08 :: Conn k Float (Extended Int8)
-f32i08 = signedTriple 127
+-- | A /NaN/-handling min function.
+--
+-- > min64 x NaN = x
+-- > min64 NaN y = y
+--
+min64 :: Double -> Double -> Double
+min64 x y = case (isNaN x, isNaN y) of
+  (False, False) -> if x <= y then x else y
+  (False, True) -> x
+  (True, False) -> y
+  (True, True)  -> x
 
--- | All 'Data.Int.Int16' values are exactly representable in a 'Float'.
-f32i16 :: Conn k Float (Extended Int16)
-f32i16 = signedTriple 32767
+-- | A /NaN/-handling max function.
+--
+-- > max64 x NaN = x
+-- > max64 NaN y = y
+--
+max64 :: Double -> Double -> Double
+max64 x y = case (isNaN x, isNaN y) of
+  (False, False) -> if x >= y then x else y
+  (False, True) -> x
+  (True, False) -> y
+  (True, True)  -> x
+
+-- | Compute the signed distance between two doubles in units of least precision.
+--
+-- >>> ulp64 1.0 (shift64 1 1.0)
+-- Just (LT,1)
+-- >>> ulp64 (0.0/0.0) 1.0
+-- Nothing
+--
+ulp64 :: Double -> Double -> Maybe (Ordering, Word64)
+ulp64 x y = fmap f $ pcompare x y
+  where  x' = doubleInt64 x
+         y' = doubleInt64 y
+         f LT = (LT, fromIntegral . abs $ y' - x')
+         f EQ = (EQ, 0)
+         f GT = (GT, fromIntegral . abs $ x' - y')
+
+-- | Compare two double-precision floats for approximate equality.
+--
+-- Required accuracy is specified in units of least precision.
+--
+-- See also <https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/>.
+-- 
+near64 :: Word64 -> Double -> Double -> Bool
+near64 tol x y = maybe False ((<= tol) . snd) $ ulp64 x y
+
+-- | Shift by /n/ units of least precision.
+--
+-- >>> shift64 1 0
+-- 1.0e-45
+-- >>> shift64 1 1 - 1
+-- 2.220446049250313e-16
+-- >>> shift64 1 $ 0/0
+-- NaN
+-- >>> shift64 (-1) $ 0/0
+-- NaN
+-- >>> shift64 1 $ 1/0
+-- Infinity
+--
+shift64 :: Int64 -> Double -> Double
+shift64 n x | x ~~ 0/0 = x
+          | otherwise = int64Double . clamp64 . (+ n) . doubleInt64 $ x
+
+---------------------------------------------------------------------
+-- Internal
+---------------------------------------------------------------------
+
+{-# INLINE until #-}
+until :: (a -> Bool) -> (a -> a -> Bool) -> (a -> a) -> a -> a
+until pre rel f seed = go seed
+  where go x | x' `rel` x = x
+             | pre x = x
+             | otherwise = go x'
+          where x' = f x
+
+
+-- Non-monotonic function 
+signed32 :: Word32 -> Int32
+signed32 x | x < 0x80000000 = fromIntegral x
+           | otherwise      = fromIntegral (maxBound - (x - 0x80000000))
+
+
+-- Non-monotonic function 
+signed64 :: Word64 -> Int64
+signed64 x | x < 0x8000000000000000 = fromIntegral x
+           | otherwise      = fromIntegral (maxBound P.- (x P.- 0x8000000000000000))
+
+-- Non-monotonic function converting from 2s-complement format.
+unsigned32 :: Int32 -> Word32
+unsigned32 x | x >= 0  = fromIntegral x
+             | otherwise = 0x80000000 + (maxBound - (fromIntegral x))
+
+-- Non-monotonic function converting from 2s-complement format.
+unsigned64 :: Int64 -> Word64
+unsigned64 x | x >~ 0  = fromIntegral x
+             | otherwise = 0x8000000000000000 + (maxBound P.- (fromIntegral x))
+
+int32Float :: Int32 -> Float
+int32Float = F.castWord32ToFloat . unsigned32
+
+floatInt32 :: Float -> Int32
+floatInt32 = signed32 . (+0) .  F.castFloatToWord32
+
+int64Double :: Int64 -> Double
+int64Double = F.castWord64ToDouble . unsigned64
+
+doubleInt64 :: Double -> Int64
+doubleInt64 = signed64 . (+0) . F.castDoubleToWord64
+ 
+
+-- Clamp between the int representations of -1/0 and 1/0 
+clamp32 :: Int32 -> Int32
+clamp32 = P.max (-2139095041) . P.min 2139095040
+
+-- Clamp between the int representations of -1/0 and 1/0 
+clamp64 :: Int64 -> Int64
+clamp64 = P.max (-9218868437227405313) . P.min 9218868437227405312 
+
+triple :: (RealFrac a, Preorder a, Bounded b, Integral b) => a -> Conn k a (Extended b)
+triple high = Conn f g h where
+
+  f = liftExtended (~~ -1/0) (\x -> x ~~ 0/0 || x > high) $ \x -> if x < low then minBound else P.ceiling x
+
+  g = extended (-1/0) (1/0) P.fromIntegral
+ 
+  h = liftExtended (\x -> x ~~ 0/0 || x < low) (~~ 1/0) $ \x -> if x > high then maxBound else P.floor x
+
+  low = -1 - high
 
 {-
 -- | Exact embedding up to the largest representable 'Int32'.
@@ -170,47 +305,23 @@ i32f32 = Conn (nan g) (nanf f) where
 
   g i | abs i <~ 2^24-1 = fromIntegral i
       | otherwise = if i >~ 0 then 2**24 else -1/0
+
+-- | Exact embedding up to the largest representable 'Int64'.
+f64i64 :: Conn Double (Maybe Int64)
+f64i64 = Conn (nanf f) (nan g) where
+  f x | abs x <~ 2**53-1 = P.ceiling x
+      | otherwise = if x >~ 0 then 2^53 else minBound
+
+  g i | abs' i <~ 2^53-1 = fromIntegral i
+      | otherwise = if i >~ 0 then 1/0 else -2**53
+
+-- | Exact embedding up to the largest representable 'Int64'.
+f64ixx :: Conn Double (Maybe Int)
+f64ixx = Conn (nanf f) (nan g) where
+  f x | abs x <~ 2**53-1 = P.ceiling x
+      | otherwise = if x >~ 0 then 2^53 else minBound
+
+  g i | abs' i <~ 2^53-1 = fromIntegral i
+      | otherwise = if i >~ 0 then 1/0 else -2**53
 -}
 
----------------------------------------------------------------------
--- Internal
----------------------------------------------------------------------
-
-signedTriple :: (Bounded a, Integral a) => Float -> Conn k Float (Extended a)
-signedTriple high = Conn f g h where
-
-  f = liftExtended (~~ -1/0) (\x -> x ~~ 0/0 || x > high) $ \x -> if x < low then minBound else P.ceiling x
-
-  g = extended (-1/0) (1/0) P.fromIntegral
- 
-  h = liftExtended (\x -> x ~~ 0/0 || x < low) (~~ 1/0) $ \x -> if x > high then maxBound else P.floor x
-
-  low = -1 - high
-
--- Non-monotonic function 
-signed32 :: Word32 -> Int32
-signed32 x | x < 0x80000000 = fromIntegral x
-           | otherwise      = fromIntegral (maxBound - (x - 0x80000000))
-
--- Non-monotonic function converting from 2s-complement format.
-unsigned32 :: Int32 -> Word32
-unsigned32 x | x >= 0  = fromIntegral x
-             | otherwise = 0x80000000 + (maxBound - (fromIntegral x))
-
--- Clamp between the int representations of -1/0 and 1/0 
-clamp32 :: Int32 -> Int32
-clamp32 = P.max (-2139095041) . P.min 2139095040
-
-int32Float :: Int32 -> Float
-int32Float = word32Float . unsigned32
-
-floatInt32 :: Float -> Int32
-floatInt32 = signed32 . floatWord32 
-
--- Bit-for-bit conversion.
-word32Float :: Word32 -> Float
-word32Float = F.castWord32ToFloat
-
--- Bit-for-bit conversion.
-floatWord32 :: Float -> Word32
-floatWord32 = (+0) .  F.castFloatToWord32

@@ -2,8 +2,10 @@
 {-# LANGUAGE ConstraintKinds #-}
 -- | Utilities for custom preludes and RebindableSyntax.
 module Data.Order.Syntax (
+  -- * Preorders
+    (<), (>)
   -- * Partial orders
-    Order
+  , Order
   , (==),(/=)
   , (<=),(>=)
   -- * Total orders
@@ -22,6 +24,46 @@ import safe qualified Data.Eq as Eq
 import safe qualified Data.Ord as Ord
 
 import Prelude hiding (Eq(..),Ord(..))
+
+infix 4 <, >
+
+-- | A strict preorder relation on /a/.
+--
+-- Is /x/ less than /y/?
+--
+-- '<' is irreflexive, asymmetric, and transitive.
+--
+-- > x < y = x <~ y && not (y <~ x)
+-- > x < y = maybe False (< EQ) (pcompare x y)
+--
+-- When '<~' is antisymmetric then /a/ is a partial 
+-- order and we have:
+-- 
+-- > x < y = x <~ y && x /~ y
+--
+-- for all /x/, /y/ in /a/.
+--
+(<) :: Preorder a => a -> a -> Bool
+(<) = plt
+
+-- | A converse strict preorder relation on /a/.
+--
+-- Is /x/ greater than /y/?
+--
+-- '>' is irreflexive, asymmetric, and transitive.
+--
+-- > x > y = x >~ y && not (y >~ x)
+-- > x > y = maybe False (> EQ) (pcompare x y)
+-- 
+-- When '<~' is antisymmetric then /a/ is a partial 
+-- order and we have:
+-- 
+-- > x > y = x >~ y && x /~ y
+--
+-- for all /x/, /y/ in /a/.
+--
+(>) :: Preorder a => a -> a -> Bool
+(>) = flip (<)
 
 -------------------------------------------------------------------------------
 -- Partial orders

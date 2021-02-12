@@ -1,18 +1,134 @@
 {-# LANGUAGE DataKinds                  #-}
 module Data.Lattice.Property where
 
-import Data.Connection.Conn
-import Data.Connection.Property
-import Data.Order
 import Data.Order.Property
 import Data.Order.Syntax
 import Data.Lattice
 import Prelude hiding (Eq(..), Ord(..), Bounded, not)
 
---foo x y z = x // y <= x // y /\ z
---foo x z y = x /\ z // y <= x // y
+
+coheyting0 :: Coheyting a => a -> a -> a -> Bool
+coheyting0 x y z = x \\ y <= z <=> x <= y \/ z
+
+coheyting1 :: Coheyting a => a -> a -> a -> Bool
+coheyting1 x y z = x \\ y >= (x /\ z) \\ y
+
+coheyting2 :: Coheyting a => a -> a -> a -> Bool
+coheyting2 x y z = x \\ (y /\ z) >= x \\ y
+
+coheyting3 :: Coheyting a => a -> a -> a -> Bool
+coheyting3 x y z = x >= y ==> x \\ z >= y \\ z
+
+coheyting4 :: Coheyting a => a -> a -> a -> Bool
+coheyting4 x y z = z \\ (x \/ y) == z \\ x \\ y
+
+coheyting5 :: Coheyting a => a -> a -> a -> Bool
+coheyting5 x y z = (y \/ z) \\ x == y \\ x \/ z \\ x
+
+coheyting6 :: Coheyting a => a -> a -> Bool
+coheyting6 x y = x >= x \\ y
+
+coheyting7 :: Coheyting a => a -> a -> Bool
+coheyting7 x y = x \/ y \\ x == x \/ y
+
+coheyting8 :: forall a. Coheyting a => a -> Bool
+coheyting8 _ = non bottom == top @a && non top == bottom @a
+
+-- Double co-negation is a co-monad.
+coheyting9 :: Coheyting a => a -> a -> Bool
+coheyting9 x y = x /\ non y >= x \\ y
+
+coheyting10 :: Coheyting a => a -> a -> Bool
+coheyting10 x y = x >= y <=> y \\ x == bottom
+
+coheyting11 :: Coheyting a => a -> a -> Bool
+coheyting11 x y = non (x /\ y) >= non x
+
+coheyting12 :: Coheyting a => a -> a -> Bool
+coheyting12 x y = non (y \\ x) == non (non x) \/ non y
+
+coheyting13 :: Coheyting a => a -> a -> Bool
+coheyting13 x y = non (x /\ y) == non x \/ non y
+
+coheyting14 :: Coheyting a => a -> Bool
+coheyting14 x = x \/ non x == top
+
+coheyting15 :: Coheyting a => a -> Bool
+coheyting15 x = non (non (non x)) == non x
+
+coheyting16 :: Coheyting a => a -> Bool
+coheyting16 x = non (non (x /\ non x)) == bottom
+
+coheyting17 :: Coheyting a => a -> Bool
+coheyting17 x = x >= non (non x)
+
+coheyting18 :: Coheyting c => c -> Bool
+coheyting18 x = x == boundary x \/ (non . non) x
+
+coheyting19 :: Coheyting a => a -> a -> Bool
+coheyting19 x y = boundary (x /\ y) == (boundary x /\ y) \/ (x /\ boundary y)  -- (Leibniz rule)
+
+coheyting20 :: Coheyting a => a -> a -> Bool
+coheyting20 x y = boundary (x \/ y) \/ boundary (x /\ y) == boundary x \/ boundary y
+
+
+heyting0 :: Heyting a => a -> a -> a -> Bool
+heyting0 x y z = x /\ y <= z <=> x <= y // z
+
+heyting1 :: Heyting a => a -> a -> a -> Bool
+heyting1 x y z = x // y <= x // (y \/ z)
+
+heyting2 :: Heyting a => a -> a -> a -> Bool
+heyting2 x y z = (x \/ z) // y <= x // y
+
+heyting3 :: Heyting a => a -> a -> a -> Bool
+heyting3 x y z = x <= y ==> z // x <= z // y
+
+heyting4 :: Heyting a => a -> a -> a -> Bool
+heyting4 x y z = (x /\ y) // z == x // y // z
+
+heyting5 :: Heyting a => a -> a -> a -> Bool
+heyting5 x y z = x // (y /\ z) == x // y /\ x // z
+
+heyting6 :: Heyting a => a -> a -> Bool
+heyting6 x y = y <= x // (x /\ y)
+
+heyting7 :: Heyting a => a -> a -> Bool
+heyting7 x y = x /\ x // y == x /\ y
+
+heyting8 :: forall a. Heyting a => a -> Bool
+heyting8 _ = neg bottom == top @a && neg top == bottom @a
+
+-- Double negation is a monad.
+heyting9 :: Heyting a => a -> a -> Bool
+heyting9 x y = neg x \/ y <= x // y
+
+heyting10 :: Heyting a => a -> a -> Bool
+heyting10 x y = x <= y <=> x // y == top
+
+heyting11 :: Heyting a => a -> a -> Bool
+heyting11 x y = neg (x \/ y) <= neg x
+
+heyting12 :: Heyting a => a -> a -> Bool
+heyting12 x y = neg (x // y) == neg (neg x) /\ neg y
+
+heyting13 :: Heyting a => a -> a -> Bool
+heyting13 x y = neg (x \/ y) == neg x /\ neg y
+
+heyting14 :: Heyting a => a -> Bool
+heyting14 x = x /\ neg x == bottom
+
+heyting15 :: Heyting a => a -> Bool
+heyting15 x = neg (neg (neg x)) == neg x
+
+heyting16 :: Heyting a => a -> Bool
+heyting16 x = neg (neg (x \/ neg x)) == top
+
+heyting17 :: Heyting a => a -> Bool
+heyting17 x = x <= neg (neg x)
+
 -- 
--- x '\\' x           = 'true'
+-- x '\\' x           = 'top'
 -- x '/\' (x '\\' y)  = x '/\' y
 -- y '/\' (x '\\' y)  = y
 -- x '\\' (y '\\' z) = (x '/\' y) '\\' z
@@ -23,155 +139,73 @@ import Prelude hiding (Eq(..), Ord(..), Bounded, not)
 -- y '<=' (x '\\' x '/\' y)
 -- x '<=' y => (z '\\' x) '<=' (z '\\' y)
 -- x '<=' y => (x '\\' z) '<=' (y '\\' z)
--- x '<=' y <=> x '\\' y '==' 'true'
+-- x '<=' y <=> x '\\' y '==' 'top'
 -- x '/\' y '<=' z <=> x '<=' (y '\\' z) <=> y '<=' (x '\\' z)
 -- 
 --
 
 
 -- adjointL $ ConnL (\x -> y \\ not x) (\z -> not z // not y)
+symmetric1 :: Biheyting a => a -> Bool
 symmetric1 x = neg x <= non x
+
+symmetric2 :: Symmetric a => a -> Bool
 symmetric2 x = (neg . neg) x == (converseR . converseL) x
+
+symmetric3 :: Symmetric a => a -> Bool
 symmetric3 x = (non . non) x == (converseL . converseR) x
+
+symmetric4 :: Symmetric a => a -> Bool
 symmetric4 x = non x == (converseL . not) x && neg x == (not . converseL) x
+
+symmetric5 :: Symmetric a => a -> Bool
 symmetric5 x = non x == (not . converseR) x && neg x == (converseR . not) x
-symmetric6 x = neg x \/ neg (neg x) == true
+
+symmetric6 :: Heyting a => a -> Bool
+symmetric6 x = neg x \/ neg (neg x) == top
+
+symmetric7 :: Symmetric a => a -> a -> Bool
 symmetric7 x y = not (x /\ y) == not x \/ not y
+
+symmetric8 :: Symmetric a => a -> a -> Bool
 symmetric8 x y = (not . not) (x \/ y) == not (not x) \/ not (not y)
+
+symmetric9 :: Symmetric a => a -> a -> Bool
 symmetric9 x y = not (x \/ y) == not x /\ not y
+
+symmetric10 :: Symmetric a => a -> a -> Bool
 symmetric10 x y = converseL (x \/ y) == converseL x \/ converseL y
+
+symmetric11 :: Symmetric a => a -> a -> Bool
 symmetric11 x y = converseR (x /\ y) == converseR x /\ converseR y
+
+symmetric12 :: Symmetric a => a -> a -> Bool
 symmetric12 x y = converseL (x /\ y) == (non . non) (converseL x /\ converseL y)
+
+symmetric13 :: Symmetric a => a -> a -> Bool
 symmetric13 x y = converseR (x \/ y) == (neg . neg) (converseR x \/ converseR y)
- 
+
+
+boolean0 :: Biheyting a => a -> Bool
 boolean0 x = neg x == non x
+
+boolean1 :: Heyting a => a -> Bool
 boolean1 x = neg (neg x) == x
-boolean2 x = x \/ neg x == true
-boolean3 x = x /\ non x == false 
+
+boolean2 :: Heyting a => a -> Bool
+boolean2 x = x \/ neg x == top
+
+boolean3 :: Coheyting a => a -> Bool
+boolean3 x = x /\ non x == bottom 
+
+boolean4 :: Heyting a => a -> a -> Bool
 boolean4 x y = (x <= y) // (neg y <= neg x)
+
+boolean5 :: Biheyting a => a -> a -> Bool
 boolean5 x y = x \\ y == neg (neg y // neg x)
+
+boolean6 :: Biheyting a => a -> a -> Bool
 boolean6 x y = x // y == non (non y \\ non x)
-
-
-heytingL0 :: Heyting 'L a => a -> a -> a -> Bool
-heytingL0 x y z = x \\ y <= z <=> x <= y \/ z
-
-heytingL1 :: Heyting 'L a => a -> a -> a -> Bool
-heytingL1 x y z = x \\ y >= (x /\ z) \\ y
-
-heytingL2 :: Heyting 'L a => a -> a -> a -> Bool
-heytingL2 x y z = x \\ (y /\ z) >= x \\ y
-
-heytingL3 :: Heyting 'L a => a -> a -> a -> Bool
-heytingL3 x y z = x >= y ==> x \\ z >= y \\ z
-
-heytingL4 :: Heyting 'L a => a -> a -> a -> Bool
-heytingL4 x y z = z \\ (x \/ y) == z \\ x \\ y
-
-heytingL5 :: Heyting 'L a => a -> a -> a -> Bool
-heytingL5 x y z = (y \/ z) \\ x == y \\ x \/ z \\ x
-
-heytingL6 :: Heyting 'L a => a -> a -> Bool
-heytingL6 x y = x >= x \\ y
-
-heytingL7 :: Heyting 'L a => a -> a -> Bool
-heytingL7 x y = x \/ y \\ x == x \/ y
-
-heytingL8 :: forall a. Heyting 'L a => a -> Bool
-heytingL8 _ = non false == true @a && non true == false @a
-
--- Double co-negation is a co-monad.
-heytingL9 :: Heyting 'L a => a -> a -> Bool
-heytingL9 x y = x /\ non y >= x \\ y
-
-heytingL10 :: Heyting 'L a => a -> a -> Bool
-heytingL10 x y = x >= y <=> y \\ x == false
-
-heytingL11 :: Heyting 'L a => a -> a -> Bool
-heytingL11 x y = non (x /\ y) >= non x
-
-heytingL12 :: Heyting 'L a => a -> a -> Bool
-heytingL12 x y = non (y \\ x) == non (non x) \/ non y
-
-heytingL13 :: Heyting 'L a => a -> a -> Bool
-heytingL13 x y = non (x /\ y) == non x \/ non y
-
-heytingL14 :: Heyting 'L a => a -> Bool
-heytingL14 x = x \/ non x == true
-
-heytingL15 :: Heyting 'L a => a -> Bool
-heytingL15 x = non (non (non x)) == non x
-
-heytingL16 :: Heyting 'L a => a -> Bool
-heytingL16 x = non (non (x /\ non x)) == false
-
-heytingL17 :: Heyting 'L a => a -> Bool
-heytingL17 x = x >= non (non x)
-
-heytingL18 :: Heyting 'L c => c -> Bool
-heytingL18 x = x == boundary x \/ (non . non) x
-
-heytingL19 :: Heyting 'L a => a -> a -> Bool
-heytingL19 x y = boundary (x /\ y) == (boundary x /\ y) \/ (x /\ boundary y)  -- (Leibniz rule)
-
-heytingL20 :: Heyting 'L a => a -> a -> Bool
-heytingL20 x y = boundary (x \/ y) \/ boundary (x /\ y) == boundary x \/ boundary y
-
-
-heytingR0 :: Heyting 'R a => a -> a -> a -> Bool
-heytingR0 x y z = x /\ y <= z <=> x <= y // z
-
-heytingR1 :: Heyting 'R a => a -> a -> a -> Bool
-heytingR1 x y z = x // y <= x // (y \/ z)
-
-heytingR2 :: Heyting 'R a => a -> a -> a -> Bool
-heytingR2 x y z = (x \/ z) // y <= x // y
-
-heytingR3 :: Heyting 'R a => a -> a -> a -> Bool
-heytingR3 x y z = x <= y ==> z // x <= z // y
-
-heytingR4 :: Heyting 'R a => a -> a -> a -> Bool
-heytingR4 x y z = (x /\ y) // z == x // y // z
-
-heytingR5 :: Heyting 'R a => a -> a -> a -> Bool
-heytingR5 x y z = x // (y /\ z) == x // y /\ x // z
-
-heytingR6 :: Heyting 'R a => a -> a -> Bool
-heytingR6 x y = y <= x // (x /\ y)
-
-heytingR7 :: Heyting 'R a => a -> a -> Bool
-heytingR7 x y = x /\ x // y == x /\ y
-
-heytingR8 :: forall a. Heyting 'R a => a -> Bool
-heytingR8 _ = neg false == true @a && neg true == false @a
-
--- Double negation is a monad.
-heytingR9 :: Heyting 'R a => a -> a -> Bool
-heytingR9 x y = neg x \/ y <= x // y
-
-heytingR10 :: Heyting 'R a => a -> a -> Bool
-heytingR10 x y = x <= y <=> x // y == true
-
-heytingR11 :: Heyting 'R a => a -> a -> Bool
-heytingR11 x y = neg (x \/ y) <= neg x
-
-heytingR12 :: Heyting 'R a => a -> a -> Bool
-heytingR12 x y = neg (x // y) == neg (neg x) /\ neg y
-
-heytingR13 :: Heyting 'R a => a -> a -> Bool
-heytingR13 x y = neg (x \/ y) == neg x /\ neg y
-
-heytingR14 :: Heyting 'R a => a -> Bool
-heytingR14 x = x /\ neg x == false
-
-heytingR15 :: Heyting 'R a => a -> Bool
-heytingR15 x = neg (neg (neg x)) == neg x
-
-heytingR16 :: Heyting 'R a => a -> Bool
-heytingR16 x = neg (neg (x \/ neg x)) == true
-
-heytingR17 :: Heyting 'R a => a -> Bool
-heytingR17 x = x <= neg (neg x)
 
 {-
 infix 4 `joinLe`
@@ -237,7 +271,7 @@ pcompareMeet x y
 
 -- | \( \forall a \in R: a \/ a = a \)
 --
--- @ 'idempotent_join' = 'absorbative' 'true' @
+-- @ 'idempotent_join' = 'absorbative' 'top' @
 -- 
 -- See < https:\\en.wikipedia.org/wiki/Band_(mathematics) >.
 --
@@ -285,7 +319,7 @@ commutative_on (=~) (#) a b = (a # b) =~ (b # a)
 -- Absorbativity is a generalized form of idempotency:
 --
 -- @
--- 'absorbative' 'true' a = a \/ a = a
+-- 'absorbative' 'top' a = a \/ a = a
 -- @
 --
 -- This is a required property.
@@ -298,7 +332,7 @@ absorbative_on (=~) x y = (x /\ y \/ y) =~ y
 -- Absorbativity is a generalized form of idempotency:
 --
 -- @
--- 'absorbative'' 'false' a = a \/ a = a
+-- 'absorbative'' 'bottom' a = a \/ a = a
 -- @
 --
 -- This is a required property.
