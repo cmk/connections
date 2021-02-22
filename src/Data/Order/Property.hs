@@ -50,7 +50,6 @@ module Data.Order.Property (
     antisymmetric,
 ) where
 
-import Data.Connection.Conn
 import Data.Lattice hiding (not)
 import Data.Order
 import Data.Order.Syntax

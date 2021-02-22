@@ -85,9 +85,9 @@ import safe Prelude hiding (Ord (..))
 
 -- | A data kind distinguishing the directionality of a Galois connection:
 --
--- * /L/-tagged types are low / increasing (e.g. 'Data.Connection.Class.minimal', 'Data.Connection.Class.upper', 'Data.Connection.Class.ceiling', 'Data.Connection.Class.join')
+-- * /L/-tagged types are low / increasing (e.g. 'Data.Connection.Class.minimal', 'Data.Connection.Class.ceiling', 'Data.Connection.Class.join')
 --
--- * /R/-tagged types are high / decreasing (e.g. 'Data.Connection.Class.maximal', 'Data.Connection.Class.lower', 'Data.Connection.Class.floor', 'Data.Connection.Class.meet')
+-- * /R/-tagged types are high / decreasing (e.g. 'Data.Connection.Class.maximal', 'Data.Connection.Class.floor', 'Data.Connection.Class.meet')
 data Kan = L | R
 
 -- | An < https://ncatlab.org/nlab/show/adjoint+string adjoint string > of Galois connections of length 2 or 3.

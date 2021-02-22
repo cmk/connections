@@ -26,7 +26,6 @@
 module Data.Connection.Property where
 
 import Data.Connection
-import Data.Connection.Conn
 import Data.Order
 import Data.Order.Property
 import Prelude hiding (Num (..), Ord (..), ceiling, floor)

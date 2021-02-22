@@ -513,7 +513,6 @@ instance Symmetric Ordering where
     not LT = GT
     not EQ = EQ
     not GT = LT
-instance Boolean Ordering
 
 instance Semilattice k Word8
 instance Algebra 'L Word8 where algebra = coheyting impliesL

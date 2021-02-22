@@ -46,15 +46,12 @@ module Data.Connection.Int (
 ) where
 
 import safe Control.Applicative
-import safe Control.Category ((>>>))
 import safe Control.Monad
 import safe Data.Connection.Conn
-import safe Data.Connection.Word
 import safe Data.Int
 import safe Data.Word
 import safe Numeric.Natural
 import safe Prelude
-import safe qualified Prelude as P
 
 -- Int16
 w08i16 :: ConnL Word8 (Maybe Int16)
@@ -135,7 +132,7 @@ wxxint :: ConnL Word (Maybe Integer)
 wxxint = signed
 
 natint :: ConnL Natural (Maybe Integer)
-natint = ConnL (fmap fromIntegral . fromPred (/= 0)) (maybe 0 $ P.fromInteger . max 0)
+natint = ConnL (fmap fromIntegral . fromPred (/= 0)) (maybe 0 $ fromInteger . max 0)
 
 i08int :: ConnL Int8 (Maybe Integer)
 i08int = signed
