@@ -1,72 +1,79 @@
-{-# Language MultiParamTypeClasses  #-}
-{-# Language ConstraintKinds     #-}
-{-# Language DataKinds           #-}
-{-# LANGUAGE DefaultSignatures   #-}
-{-# Language FlexibleContexts    #-}
-{-# Language FlexibleInstances   #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# Language Safe                #-}
-{-# Language ScopedTypeVariables #-}
-{-# Language TypeApplications    #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE Safe #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- | Lattices & algebras
 module Data.Lattice (
-  -- * Semilattice
-    Lattice
-  , Semilattice(..)
-  -- ** Meet
-  , Meet
-  , (/\)
-  , top
-  -- ** Join
-  , Join
-  , (\/)
-  , bottom
-  -- * Algebra
-  , Biheyting
-  , Algebra(..)
-  -- ** Heyting
-  , Heyting
-  , (//)
-  , iff
-  , neg
-  , middle
-  , heyting
-  , booleanR
-  -- ** Coheyting
-  , Coheyting
-  , (\\)
-  , equiv
-  , non
-  , boundary
-  , coheyting
-  , booleanL
-  -- ** Symmetric
-  , Symmetric(..)
-  , converseL
-  , converseR
-  , symmetricL
-  , symmetricR
-  -- ** Boolean
-  , Boolean(..)
+    -- * Semilattice
+    Lattice,
+    Semilattice (..),
+
+    -- ** Meet
+    Meet,
+    (/\),
+    top,
+
+    -- ** Join
+    Join,
+    (\/),
+    bottom,
+
+    -- * Algebra
+    Biheyting,
+    Algebra (..),
+
+    -- ** Heyting
+    Heyting,
+    (//),
+    iff,
+    neg,
+    middle,
+    heyting,
+    booleanR,
+
+    -- ** Coheyting
+    Coheyting,
+    (\\),
+    equiv,
+    non,
+    boundary,
+    coheyting,
+    booleanL,
+
+    -- ** Symmetric
+    Symmetric (..),
+    converseL,
+    converseR,
+    symmetricL,
+    symmetricR,
+
+    -- ** Boolean
+    Boolean (..),
 ) where
 
 import safe Data.Bifunctor (bimap)
 import safe Data.Bool hiding (not)
-import safe Data.Connection.Conn
 import safe Data.Connection.Class
+import safe Data.Connection.Conn
 import safe Data.Either
-import safe Data.Order
-import safe Data.Order.Extended
-import safe Data.Order.Syntax
 import safe Data.Int
-import safe Data.Word
-import safe Prelude hiding (Eq(..),Ord(..), not)
-import safe qualified Prelude as P
 import safe qualified Data.IntMap as IntMap
 import safe qualified Data.IntSet as IntSet
 import safe qualified Data.Map as Map
+import safe Data.Order
+import safe Data.Order.Extended
+import safe Data.Order.Syntax
 import safe qualified Data.Set as Set
+import safe Data.Word
+import safe Prelude hiding (Eq (..), Ord (..), not)
+import safe qualified Prelude as P
 
 -------------------------------------------------------------------------------
 -- Lattices
@@ -75,17 +82,15 @@ import safe qualified Data.Set as Set
 type Lattice a = (Join a, Meet a)
 
 -- | A convenience alias for a join semilattice
---
 type Join = Semilattice 'L
 
 -- | A convenience alias for a meet semilattice
---
 type Meet = Semilattice 'R
 
 -- | Bounded < https://ncatlab.org/nlab/show/lattice lattices >.
 --
--- A lattice is a partially ordered set in which every two elements have a unique join 
--- (least upper bound or supremum) and a unique meet (greatest lower bound or infimum). 
+-- A lattice is a partially ordered set in which every two elements have a unique join
+-- (least upper bound or supremum) and a unique meet (greatest lower bound or infimum).
 --
 -- A bounded lattice adds unique elements 'top' and 'bottom', which serve as
 -- identities to '\/' and '/\', respectively.
@@ -130,36 +135,33 @@ type Meet = Semilattice 'R
 -- See < https://en.wikipedia.org/wiki/Absorption_law Absorption >.
 --
 -- Note that distributivity is _not_ a requirement for a complete.
--- However when /a/ is distributive we have;
--- 
+-- However when /a/ is distributive we have:
+--
 -- @
 -- 'glb' x y z = 'lub' x y z
 -- @
 --
 -- See < https://en.wikipedia.org/wiki/Lattice_(order) >.
---
 class Order a => Semilattice (k :: Kan) a where
-  
-  -- | The defining connection of a bounded semilattice.
-  -- 
-  -- 'bottom' and 'top' are defined by the left and right adjoints to /a -> ()/.
-  bounded :: Conn k () a
-  default bounded :: Connection k () a => Conn k () a
-  bounded = conn
+    -- | The defining connection of a bounded semilattice.
+    --
+    -- 'bottom' and 'top' are defined by the left and right adjoints to /a -> ()/.
+    bounded :: Conn k () a
+    default bounded :: Connection k () a => Conn k () a
+    bounded = conn
 
-  -- | The defining connection of a semilattice.
-  --
-  -- '\/' and '/\' are defined by the left and right adjoints to /a -> (a, a)/.
-  semilattice :: Conn k (a, a) a
-  default semilattice :: Connection k (a, a) a => Conn k (a, a) a
-  semilattice = conn
+    -- | The defining connection of a semilattice.
+    --
+    -- '\/' and '/\' are defined by the left and right adjoints to /a -> (a, a)/.
+    semilattice :: Conn k (a, a) a
+    default semilattice :: Connection k (a, a) a => Conn k (a, a) a
+    semilattice = conn
 
 infixr 6 /\ -- comment for the parser
 
 -- | Lattice meet.
 --
 -- > (/\) = curry $ floorWith semilattice
---
 (/\) :: Meet a => a -> a -> a
 (/\) = curry $ floorWith semilattice
 
@@ -167,7 +169,6 @@ infixr 6 /\ -- comment for the parser
 --
 -- > x /\ top = x
 -- > x \/ top = top
---
 top :: Meet a => a
 top = floorWith bounded ()
 
@@ -176,7 +177,6 @@ infixr 5 \/
 -- | Lattice join.
 --
 -- > (\/) = curry $ ceilingWith semilattice
---
 (\/) :: Join a => a -> a -> a
 (\/) = curry $ ceilingWith semilattice
 
@@ -184,7 +184,6 @@ infixr 5 \/
 --
 -- > x /\ bottom = bottom
 -- > x \/ bottom = x
---
 bottom :: Join a => a
 bottom = ceilingWith bounded ()
 
@@ -193,11 +192,9 @@ bottom = ceilingWith bounded ()
 -------------------------------------------------------------------------------
 
 -- | A convenience alias for a Heyting algebra.
---
 type Heyting a = (Lattice a, Algebra 'R a)
 
 -- | A convenience alias for a < https://ncatlab.org/nlab/show/co-Heyting+algebra co-Heyting algebra >.
---
 type Coheyting a = (Lattice a, Algebra 'L a)
 
 -- | A < https://ncatlab.org/nlab/show/co-Heyting+algebra bi-Heyting algebra >.
@@ -207,7 +204,6 @@ type Coheyting a = (Lattice a, Algebra 'L a)
 -- > neg x <= non x
 --
 -- with equality occurring iff /a/ is a 'Boolean' algebra.
---
 type Biheyting a = (Coheyting a, Heyting a)
 
 -- | Heyting and co-Heyting algebras
@@ -222,7 +218,7 @@ type Biheyting a = (Coheyting a, Heyting a)
 -- the primordial example of a /Heyting/ algebra.
 --
 -- /Coheyting/:
--- 
+--
 -- Co-implication to /a/ is the lower adjoint of disjunction with /a/:
 --
 -- > x \\ a <= y <=> x <= y \/ a
@@ -236,7 +232,7 @@ type Biheyting a = (Coheyting a, Heyting a)
 -- /Heyting/:
 --
 -- Implication from /a/ is the upper adjoint of conjunction with /a/:
--- 
+--
 -- > x <= a // y <=> a /\ x <= y
 --
 -- Similarly, Heyting algebras needn't obey the law of the excluded middle:
@@ -244,14 +240,11 @@ type Biheyting a = (Coheyting a, Heyting a)
 -- > EQ \/ neg EQ = EQ \/ EQ // LT = EQ \/ LT = EQ /= GT
 --
 -- See < https://ncatlab.org/nlab/show/Heyting+algebra >
---
 class Semilattice k a => Algebra k a where
-    
     -- | The defining connection of a (co-)Heyting algebra.
     --
-    -- > algebra @'L x = ConnL (\\ x) (\/ x) 
+    -- > algebra @'L x = ConnL (\\ x) (\/ x)
     -- > algebra @'R x = ConnR (x /\) (x //)
-    --
     algebra :: a -> Conn k a a
 
 -------------------------------------------------------------------------------
@@ -284,14 +277,12 @@ infixr 8 // -- same as ^
 -- False
 -- >>> True // True
 -- True
---
 (//) :: Algebra 'R a => a -> a -> a
 (//) = floorWith . algebra
 
 -- | Intuitionistic equivalence.
 --
 -- When @a@ is /Bool/ this is 'if-and-only-if'.
---
 iff :: Algebra 'R a => a -> a -> a
 iff x y = (x // y) /\ (y // x)
 
@@ -312,33 +303,26 @@ iff x y = (x // y) /\ (y // x)
 -- > neg (neg (x \/ neg x)) = top
 --
 -- Some logics may in addition obey < https://ncatlab.org/nlab/show/De+Morgan+Algebra+algebra De Morgan conditions >.
---
 neg :: Heyting a => a -> a
 neg x = x // bottom
 
 -- | The Algebra (< https://ncatlab.org/nlab/show/excluded+middle not necessarily excluded>) middle operator.
---
 middle :: Heyting a => a -> a
 middle x = x \/ neg x
 
 -- | Default constructor for a Algebra algebra.
---
 heyting :: Meet a => (a -> a -> a) -> a -> ConnR a a
 heyting f a = ConnR (a /\) (a `f`)
 
 -- | An adjunction between a Algebra algebra and its Boolean sub-algebra.
 --
 -- Double negation is a meet-preserving monad.
---
 booleanR :: Heyting a => ConnR a a
-booleanR = 
-  let
-    -- Check that /x/ is a regular element
-    -- See https://ncatlab.org/nlab/show/regular+element
-    inj x = if x ~~ (neg . neg) x then x else bottom
-
-  in 
-    ConnR (neg . neg) inj
+booleanR =
+    let -- Check that /x/ is a regular element
+        -- See https://ncatlab.org/nlab/show/regular+element
+        inj x = if x ~~ (neg . neg) x then x else bottom
+     in ConnR (neg . neg) inj
 
 -------------------------------------------------------------------------------
 -- Coheyting
@@ -351,7 +335,7 @@ infixl 8 \\
 -- \( a \Rightarrow b = \wedge \{x \mid a \leq b \vee x \} \)
 --
 -- /Laws/:
--- 
+--
 -- > x \\ y <= z <=> x <= y \/ z
 -- > x \\ y >= (x /\ z) \\ y
 -- > x >= y => x \\ z >= y \\ z
@@ -378,12 +362,10 @@ infixl 8 \\
 -- fromList [EQ,GT]
 -- >>> [GT,EQ] \\ [LT]
 -- fromList [EQ,GT]
--- 
 (\\) :: Algebra 'L a => a -> a -> a
 (\\) = flip $ ceilingWith . algebra
 
 -- | Intuitionistic co-equivalence.
---
 equiv :: Algebra 'L a => a -> a -> a
 equiv x y = (x \\ y) \/ (y \\ x)
 
@@ -392,7 +374,7 @@ equiv x y = (x \\ y) \/ (y \\ x)
 -- @ 'non' x = 'top' '\\' x @
 --
 -- /Laws/:
--- 
+--
 -- > non bottom = top
 -- > non top = bottom
 -- > x >= non (non x)
@@ -402,38 +384,30 @@ equiv x y = (x \\ y) \/ (y \\ x)
 -- > x \/ non x = top
 -- > non (non (non x)) = non x
 -- > non (non (x /\ non x)) = bottom
---
 non :: Coheyting a => a -> a
 non x = top \\ x
 
--- | The co-Heyting < https://ncatlab.org/nlab/show/co-Heyting+boundary boundary > operator.    
+-- | The co-Heyting < https://ncatlab.org/nlab/show/co-Heyting+boundary boundary > operator.
 --
 -- > x = boundary x \/ (non . non) x
 -- > boundary (x /\ y) = (boundary x /\ y) \/ (x /\ boundary y)  -- (Leibniz rule)
 -- > boundary (x \/ y) \/ boundary (x /\ y) = boundary x \/ boundary y
---
 boundary :: Coheyting a => a -> a
 boundary x = x /\ non x
 
 -- | Default constructor for a co-Heyting algebra.
---
 coheyting :: Join a => (a -> a -> a) -> a -> ConnL a a
 coheyting f a = ConnL (`f` a) (\/ a)
 
 -- | An adjunction between a co-Heyting algebra and its Boolean sub-algebra.
 --
 -- Double negation is a join-preserving comonad.
---
 booleanL :: Coheyting a => ConnL a a
 booleanL =
-  let 
-    -- Check that /x/ is a regular element
-    -- See https://ncatlab.org/nlab/show/regular+element
-    inj x = if x ~~ (non . non) x then x else top
-
-  in
-    ConnL inj (non . non)
-
+    let -- Check that /x/ is a regular element
+        -- See https://ncatlab.org/nlab/show/regular+element
+        inj x = if x ~~ (non . non) x then x else top
+     in ConnL inj (non . non)
 
 -------------------------------------------------------------------------------
 -- Symmetric
@@ -456,9 +430,7 @@ booleanL =
 -- > converseR x <= converseL x
 --
 -- with equality occurring iff /a/ is a 'Boolean' algebra.
---
 class Biheyting a => Symmetric a where
-
     -- | Symmetric negation.
     --
     -- > not . not = id
@@ -471,7 +443,6 @@ class Biheyting a => Symmetric a where
     -- > non = not . converseR = converseL . not
     -- > x \\ y = not (not y // not x)
     -- > x // y = not (not y \\ not x)
-    --
     not :: a -> a
 
     infixl 4 `xor`
@@ -479,27 +450,22 @@ class Biheyting a => Symmetric a where
     -- | Exclusive or.
     --
     -- > xor x y = (x \/ y) /\ (not x \/ not y)
-    --
     xor :: a -> a -> a
     xor x y = (x \/ y) /\ not (x /\ y)
 
 -- | Left converse operator.
---    
 converseL :: Symmetric a => a -> a
 converseL x = top \\ not x
 
 -- | Right converse operator.
---    
 converseR :: Symmetric a => a -> a
 converseR x = not x // bottom
 
 -- | Default constructor for a Heyting algebra.
---
 symmetricR :: Symmetric a => a -> ConnR a a
 symmetricR = heyting $ \x y -> not (not y \\ not x)
 
 -- | Default constructor for a co-Heyting algebra.
---
 symmetricL :: Symmetric a => a -> ConnL a a
 symmetricL = coheyting $ \x y -> not (not y // not x)
 
@@ -509,7 +475,7 @@ symmetricL = coheyting $ \x y -> not (not y // not x)
 
 -- | Boolean algebras.
 --
--- < https://ncatlab.org/nlab/show/Boolean+algebra Boolean algebras > are 
+-- < https://ncatlab.org/nlab/show/Boolean+algebra Boolean algebras > are
 -- symmetric Algebra algebras that satisfy both the law of excluded middle
 -- and the law of law of non-contradiction:
 --
@@ -519,11 +485,8 @@ symmetricL = coheyting $ \x y -> not (not y // not x)
 -- If /a/ is Boolean we also have:
 --
 -- > non = not = neg
---
 class Symmetric a => Boolean a where
-
     -- | A witness to the lawfulness of a boolean algebra.
-    --
     boolean :: Conn k a a
     boolean = Conn (converseR . converseL) id (converseL . converseR)
 
@@ -547,9 +510,9 @@ instance Semilattice k Ordering
 instance Algebra 'L Ordering where algebra = coheyting impliesL
 instance Algebra 'R Ordering where algebra = heyting impliesR
 instance Symmetric Ordering where
-  not LT = GT
-  not EQ = EQ
-  not GT = LT
+    not LT = GT
+    not EQ = EQ
+    not GT = LT
 instance Boolean Ordering
 
 instance Semilattice k Word8
@@ -597,17 +560,17 @@ instance Algebra 'R Int where algebra = heyting impliesR
 -------------------------------------------------------------------------------
 
 instance (Lattice a, Lattice b) => Semilattice k (a, b) where
-  bounded = Conn (const (bottom, bottom)) (const ()) (const (top, top))
-  semilattice = Conn (uncurry joinTuple) fork (uncurry meetTuple)
+    bounded = Conn (const (bottom, bottom)) (const ()) (const (top, top))
+    semilattice = Conn (uncurry joinTuple) fork (uncurry meetTuple)
 
 instance (Heyting a, Heyting b) => Algebra 'R (a, b) where
-  algebra (a,b) = algebra a `strong` algebra b
+    algebra (a, b) = algebra a `strong` algebra b
 
 instance (Coheyting a, Coheyting b) => Algebra 'L (a, b) where
-  algebra (a,b) = algebra a `strong` algebra b
+    algebra (a, b) = algebra a `strong` algebra b
 
 instance (Symmetric a, Symmetric b) => Symmetric (a, b) where
-  not = bimap not not
+    not = bimap not not
 
 instance (Boolean a, Boolean b) => Boolean (a, b)
 
@@ -616,63 +579,65 @@ instance (Boolean a, Boolean b) => Boolean (a, b)
 -------------------------------------------------------------------------------
 
 instance Join a => Semilattice 'L (Maybe a) where
-  bounded = ConnL (const Nothing) (const ())
-  semilattice = ConnL (uncurry joinMaybe) fork
+    bounded = ConnL (const Nothing) (const ())
+    semilattice = ConnL (uncurry joinMaybe) fork
 
 instance Meet a => Semilattice 'R (Maybe a) where
-  bounded = ConnR (const ()) (const $ Just top)
-  semilattice = ConnR fork (uncurry meetMaybe)
+    bounded = ConnR (const ()) (const $ Just top)
+    semilattice = ConnR fork (uncurry meetMaybe)
 
 instance Heyting a => Algebra 'R (Maybe a) where
-  algebra = heyting f where
-    f (Just a) (Just b)   = Just (a // b)
-    f Nothing  _          = Just top
-    f _        Nothing    = Nothing
+    algebra = heyting f
+      where
+        f (Just a) (Just b) = Just (a // b)
+        f Nothing _ = Just top
+        f _ Nothing = Nothing
 
 instance Join a => Semilattice 'L (Extended a) where
-  bounded = Conn (const Bottom) (const ()) (const Top)
-  semilattice = ConnL (uncurry joinExtended) fork
+    bounded = Conn (const Bottom) (const ()) (const Top)
+    semilattice = ConnL (uncurry joinExtended) fork
 
 instance Meet a => Semilattice 'R (Extended a) where
-  bounded = Conn (const Bottom) (const ()) (const Top)
-  semilattice = ConnR fork (uncurry meetExtended)
+    bounded = Conn (const Bottom) (const ()) (const Top)
+    semilattice = ConnR fork (uncurry meetExtended)
 
 instance Heyting a => Algebra 'R (Extended a) where
-  algebra = heyting f where
-
-    Extended a `f` Extended b | a <~ b    = Top
-                              | otherwise = Extended (a // b)
-    Top        `f` a          = a
-    _          `f` Top        = Top
-    Bottom     `f` _          = Top
-    _          `f` Bottom     = Bottom
-
+    algebra = heyting f
+      where
+        Extended a `f` Extended b
+            | a <~ b = Top
+            | otherwise = Extended (a // b)
+        Top `f` a = a
+        _ `f` Top = Top
+        Bottom `f` _ = Top
+        _ `f` Bottom = Bottom
 
 -- | All minimal elements of the upper lattice cover all maximal elements of the lower lattice.
 instance (Join a, Join b) => Semilattice 'L (Either a b) where
-  bounded = ConnL (const $ Left bottom) (const ())
-  semilattice = ConnL (uncurry joinEither) fork
+    bounded = ConnL (const $ Left bottom) (const ())
+    semilattice = ConnL (uncurry joinEither) fork
 
 instance (Meet a, Meet b) => Semilattice 'R (Either a b) where
-  bounded = ConnR (const ()) (const $ Right top)
-  semilattice = ConnR fork (uncurry meetEither)
+    bounded = ConnR (const ()) (const $ Right top)
+    semilattice = ConnR fork (uncurry meetEither)
 
 -- |
 -- Subdirectly irreducible Algebra algebra.
 instance Heyting a => Algebra 'R (Lowered a) where
-  algebra = heyting f where
-
-    (Left a)  `f` (Left b) | a <~ b    = top
-                           | otherwise = Left (a // b)
-    (Right _) `f` a                    = a
-    _         `f` (Right _)            = top
+    algebra = heyting f
+      where
+        (Left a) `f` (Left b)
+            | a <~ b = top
+            | otherwise = Left (a // b)
+        (Right _) `f` a = a
+        _ `f` (Right _) = top
 
 instance Heyting a => Algebra 'R (Lifted a) where
-  algebra = heyting f where
-    f (Right a) (Right b) = Right (a // b)
-    f (Left _)   _        = Right top
-    f _         (Left _)  = bottom
-
+    algebra = heyting f
+      where
+        f (Right a) (Right b) = Right (a // b)
+        f (Left _) _ = Right top
+        f _ (Left _) = bottom
 
 -------------------------------------------------------------------------------
 -- Instances: collections
@@ -681,7 +646,7 @@ instance Heyting a => Algebra 'R (Lifted a) where
 instance Total a => Semilattice 'L (Set.Set a)
 
 instance Total a => Algebra 'L (Set.Set a) where
-  algebra = coheyting (Set.\\)
+    algebra = coheyting (Set.\\)
 
 --instance (Total a, U.Finite a) => Algebra 'R (Set.Set a) where
 --  algebra = symmetricR
@@ -694,7 +659,8 @@ instance Total a => Algebra 'L (Set.Set a) where
 instance Semilattice 'L IntSet.IntSet
 
 instance Algebra 'L IntSet.IntSet where
-  algebra = coheyting (IntSet.\\)
+    algebra = coheyting (IntSet.\\)
+
 {-
 instance Algebra 'R IntSet.IntSet where
   --heyting = heyting $ \x y -> non x \/ y
@@ -708,22 +674,24 @@ instance Boolean IntSet.IntSet where
 -}
 
 instance (Total k, Join a) => Semilattice 'L (Map.Map k a) where
-  bounded = ConnL (const Map.empty) (const ())
+    bounded = ConnL (const Map.empty) (const ())
 
-  semilattice = ConnL f fork where
-    f = uncurry $ Map.unionWith (curry $ ceilingWith semilattice)
+    semilattice = ConnL f fork
+      where
+        f = uncurry $ Map.unionWith (curry $ ceilingWith semilattice)
 
 instance (Total k, Join a) => Algebra 'L (Map.Map k a) where
-  algebra = coheyting (Map.\\)
+    algebra = coheyting (Map.\\)
 
 instance (Join a) => Semilattice 'L (IntMap.IntMap a) where
-  bounded = ConnL (const IntMap.empty) (const ())
+    bounded = ConnL (const IntMap.empty) (const ())
 
-  semilattice = ConnL f fork where
-    f = uncurry $ IntMap.unionWith (curry $ ceilingWith semilattice)
+    semilattice = ConnL f fork
+      where
+        f = uncurry $ IntMap.unionWith (curry $ ceilingWith semilattice)
 
 instance (Join a) => Algebra 'L (IntMap.IntMap a) where
-  algebra = coheyting (IntMap.\\)
+    algebra = coheyting (IntMap.\\)
 
 {- TODO pick an instance either key-aware or no
 
@@ -751,21 +719,20 @@ impliesMap a b =
 
 -}
 
-
 {-
 
 -- A symmetric Heyting algebra
--- 
+--
 -- λ> implies (False ... True) (False ... True)
 -- Interval True True
 -- λ> implies (False ... True) (singleton False)
 -- Interval False False
 -- λ> implies (singleton True) (False ... True)
 -- Interval False True
--- 
+--
 -- λ> implies ([EQ,GT] ... [EQ,GT]) ([LT] ... [LT,EQ])  :: Interval (Set.Set Ordering)
 -- Interval (fromList [LT]) (fromList [LT,EQ])
--- 
+--
 -- TODO: may need /a/ to be boolean here.
 implies :: Symmetric a => Interval a -> Interval a -> Interval a
 implies i1 i2 = maybe iempty (uncurry (...)) $ liftA2 f (endpts i1) (endpts i2) where
@@ -781,7 +748,7 @@ coimplies i1 i2 = not (not i1 `implies` not i2)
 -- non x = not x // bottom
 -- λ> not ([LT] ... [LT,GT]) :: Interval (Set.Set Ordering)
 -- Interval (fromList [EQ]) (fromList [EQ,GT])
--- 
+--
 not :: Symmetric a => Interval a -> Interval a
 not = maybe iempty (\(x1, x2) -> neg x2 ... neg x1) . endpts
 
@@ -789,14 +756,14 @@ not = maybe iempty (\(x1, x2) -> neg x2 ... neg x1) . endpts
 -- Interval False False
 -- λ> (False ... True) `implies` (singleton False)
 -- Interval False False
--- 
+--
 neg' x = (bottom ... top) `coimplies` (not x)
 
 -- λ> non' (False ... True)
 -- Interval False False
 -- λ> (singleton True) `coimplies` (False ... True)
 -- Interval False False
--- 
+--
 non' x = not x `implies` (singleton bottom)
 
 -}
@@ -832,18 +799,18 @@ meetMaybe _ Nothing = Nothing
 meetMaybe (Just x) (Just y) = Just (x /\ y)
 
 joinExtended :: Join a => Extended a -> Extended a -> Extended a
-joinExtended Top          _            = Top
-joinExtended _            Top          = Top
+joinExtended Top _ = Top
+joinExtended _ Top = Top
 joinExtended (Extended x) (Extended y) = Extended (x \/ y)
-joinExtended Bottom       y            = y
-joinExtended x            Bottom       = x
+joinExtended Bottom y = y
+joinExtended x Bottom = x
 
 meetExtended :: Meet a => Extended a -> Extended a -> Extended a
-meetExtended Top          y            = y
-meetExtended x            Top          = x
+meetExtended Top y = y
+meetExtended x Top = x
 meetExtended (Extended x) (Extended y) = Extended (x /\ y)
-meetExtended Bottom       _            = Bottom
-meetExtended _            Bottom       = Bottom
+meetExtended Bottom _ = Bottom
+meetExtended _ Bottom = Bottom
 
 joinEither :: (Join a, Join b) => Either a b -> Either a b -> Either a b
 joinEither (Right x) (Right y) = Right (x \/ y)
@@ -856,5 +823,3 @@ meetEither (Left x) (Left y) = Left (x /\ y)
 meetEither l@(Left _) _ = l
 meetEither _ l@(Left _) = l
 meetEither (Right x) (Right y) = Right (x /\ y)
-
-
