@@ -1,7 +1,7 @@
 name:                connections
 version:             0.2.0
 synopsis:            Orders, Galois connections, and lattices.
-description:         A library for order manipulation using Galois connections.
+description:         A library for order manipulation using Galois connections. See the README for a brief overview.
 homepage:            https://github.com/cmk/connections
 license:             BSD3
 license-file:        LICENSE
