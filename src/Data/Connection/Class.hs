@@ -11,34 +11,32 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Data.Connection.Class (
-    -- * Types
+    -- * Conn
     Conn (),
     identity,
-    choice,
-    strong,
-    (/|\),
-    (\|/),
 
     -- * Connection k
     Triple,
-    ConnK,
     pattern Conn,
+    ConnK,
+    embed,
+    extremal,
+    lub,
+    glb,
     half,
     midpoint,
+    range,
     round,
     round1,
     round2,
     truncate,
     truncate1,
     truncate2,
-    extremal,
-    lub,
-    glb,
 
     -- * Connection L
     Left,
-    ConnL,
     pattern ConnL,
+    ConnL,
     connL,
     embedL,
     minimal,
@@ -49,8 +47,8 @@ module Data.Connection.Class (
 
     -- * Connection R
     Right,
-    ConnR,
     pattern ConnR,
+    ConnR,
     connR,
     embedR,
     maximal,
@@ -58,6 +56,14 @@ module Data.Connection.Class (
     floor,
     floor1,
     floor2,
+
+    -- * Combinators
+    (>>>),
+    (<<<),
+    (/|\),
+    (\|/),
+    choice,
+    strong,
 
     -- * Connection
     Kan (..),
@@ -143,70 +149,7 @@ f /|\ g = f `strong` g >>> conn
 -- Connection k
 ---------------------------------------------------------------------
 
--- | Return the nearest value to x.
---
--- > round @a @a = id
---
--- If x lies halfway between two finite values, then return the value
--- with the larger absolute value (i.e. round away from zero).
---
--- See <https://en.wikipedia.org/wiki/Rounding>.
-round :: forall a b. (Num a, Triple a b) => a -> b
-round x = case pcompare halfR halfL of
-    Just GT -> ceiling x
-    Just LT -> floor x
-    _ -> truncate x
-  where
-    halfR = x - lower (connR @a @b) x -- dist from lower bound
-    halfL = upper (connL @a @b) x - x -- dist from upper bound
-
--- | Lift a unary function over a 'Conn'.
---
--- Results are rounded to the nearest value with ties away from 0.
-round1 :: (Num a, Triple a b) => (a -> a) -> b -> b
-round1 f x = round $ f (g x) where Conn _ g _ = connL
-{-# INLINE round1 #-}
-
--- | Lift a binary function over a 'Conn'.
---
--- Results are rounded to the nearest value with ties away from 0.
---
--- Example avoiding loss of precision:
--- >>> f x y = (x + y) - x
--- >>> maxOdd32 = 1.6777215e7
--- >>> maxOdd64 = 9.007199254740991e15
--- >>> f maxOdd32 2.0 :: Float
--- 1.0
--- >>> round2 @Rational @Float f maxOdd32 2.0
--- 2.0
--- >>> f maxOdd64 2.0 :: Double
--- 1.0
--- >>> round2 @Rational @Double f maxOdd64 2.0
--- 2.0
-round2 :: (Num a, Triple a b) => (a -> a -> a) -> b -> b -> b
-round2 f x y = round $ f (g x) (g y) where Conn _ g _ = connL
-{-# INLINE round2 #-}
-
--- | Truncate towards zero.
---
--- > truncate @a @a = id
-truncate :: (Num a, Triple a b) => a -> b
-truncate x = if x >~ 0 then floor x else ceiling x
-
--- | Lift a unary function over a 'Conn'.
---
--- Results are truncated towards 0.
-truncate1 :: (Num a, Triple a b) => (a -> a) -> b -> b
-truncate1 f x = truncate $ f (g x) where Conn _ g _ = connL
-{-# INLINE truncate1 #-}
-
--- | Lift a binary function over a 'Conn'.
---
--- Results are truncated towards 0.
-truncate2 :: (Num a, Triple a b) => (a -> a -> a) -> b -> b -> b
-truncate2 f x y = truncate $ f (g x) (g y) where Conn _ g _ = connL
-{-# INLINE truncate2 #-}
-
+-- | The canonical connections against a 'Bool'.
 extremal :: Triple () a => Conn k a Bool
 extremal = Conn f g h
   where
@@ -247,6 +190,71 @@ lub x y z = (x `meet` y) `join` (y `meet` z) `join` (z `meet` x)
 -- fromList [3,5]
 glb :: Triple (a, a) a => a -> a -> a -> a
 glb x y z = (x `join` y) `meet` (y `join` z) `meet` (z `join` x)
+
+-- | Return the nearest value to x.
+--
+-- > round @a @a = id
+--
+-- If x lies halfway between two finite values, then return the value
+-- with the larger absolute value (i.e. round away from zero).
+--
+-- See <https://en.wikipedia.org/wiki/Rounding>.
+round :: forall a b. (Num a, Triple a b) => a -> b
+round x = case pcompare halfR halfL of
+    Just GT -> ceiling x
+    Just LT -> floor x
+    _ -> truncate x
+  where
+    halfR = x - lower (connR @a @b) x -- dist from lower bound
+    halfL = upper (connL @a @b) x - x -- dist from upper bound
+
+-- | Lift a unary function over a 'Conn'.
+--
+-- Results are rounded to the nearest value with ties away from 0.
+round1 :: (Num a, Triple a b) => (a -> a) -> b -> b
+round1 f x = round $ f (g x) where Conn _ g _ = connL
+{-# INLINE round1 #-}
+
+-- | Lift a binary function over a 'Conn'.
+--
+-- Results are rounded to the nearest value with ties away from 0.
+--
+-- Example avoiding loss-of-precision:
+--
+-- >>> f x y = (x + y) - x
+-- >>> maxOdd32 = 1.6777215e7
+-- >>> f maxOdd32 2.0 :: Float
+-- 1.0
+-- >>> round2 @Rational @Float f maxOdd32 2.0
+-- 2.0
+-- >>> maxOdd64 = 9.007199254740991e15
+-- >>> f maxOdd64 2.0 :: Double
+-- 1.0
+-- >>> round2 @Rational @Double f maxOdd64 2.0
+-- 2.0
+round2 :: (Num a, Triple a b) => (a -> a -> a) -> b -> b -> b
+round2 f x y = round $ f (g x) (g y) where Conn _ g _ = connL
+{-# INLINE round2 #-}
+
+-- | Truncate towards zero.
+--
+-- > truncate @a @a = id
+truncate :: (Num a, Triple a b) => a -> b
+truncate x = if x >~ 0 then floor x else ceiling x
+
+-- | Lift a unary function over a 'Conn'.
+--
+-- Results are truncated towards 0.
+truncate1 :: (Num a, Triple a b) => (a -> a) -> b -> b
+truncate1 f x = truncate $ f (g x) where Conn _ g _ = connL
+{-# INLINE truncate1 #-}
+
+-- | Lift a binary function over a 'Conn'.
+--
+-- Results are truncated towards 0.
+truncate2 :: (Num a, Triple a b) => (a -> a -> a) -> b -> b -> b
+truncate2 f x y = truncate $ f (g x) (g y) where Conn _ g _ = connL
+{-# INLINE truncate2 #-}
 
 ---------------------------------------------------------------------
 -- Connection L
@@ -566,13 +574,13 @@ instance (Total a) => Connection 'L () (Set.Set a) where
     conn = ConnL (const Set.empty) (const ())
 
 instance Total a => Connection k (Set.Set a, Set.Set a) (Set.Set a) where
-    conn = set
+    conn = Conn (uncurry Set.union) fork (uncurry Set.intersection)
 
 instance Connection 'L () IntSet.IntSet where
     conn = ConnL (const IntSet.empty) (const ())
 
 instance Connection k (IntSet.IntSet, IntSet.IntSet) IntSet.IntSet where
-    conn = intSet
+    conn = Conn (uncurry IntSet.union) fork (uncurry IntSet.intersection)
 
 instance (Total a, Preorder b) => Connection 'L () (Map.Map a b) where
     conn = ConnL (const Map.empty) (const ())
