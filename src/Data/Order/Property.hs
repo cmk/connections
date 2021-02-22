@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds                  #-}
 -- | See <https://en.wikipedia.org/wiki/Binary_relation#Properties>.
 module Data.Order.Property (
-    type Rel
+    Rel
   , (==>), (<=>)
   , xor, xor3
   -- * Orders

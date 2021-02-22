@@ -10,17 +10,17 @@
 {-# Language PatternSynonyms     #-}
 {-# Language RankNTypes          #-}
 module Data.Connection.Conn (
-    Kan(..)
   -- * Conn
+    Kan(..)
   , Conn()
   , pattern Conn
-  , (>>>)
-  , (<<<)
+  , identity
   , embed
   , range
-  , identity
+  , (>>>)
+  , (<<<)
   -- * Connection k
-  , type ConnK
+  , ConnK
   , half
   , midpoint
   , roundWith
@@ -30,7 +30,7 @@ module Data.Connection.Conn (
   , truncateWith1
   , truncateWith2
   -- * Connection L
-  , type ConnL
+  , ConnL
   , pattern ConnL
   , swapL
   , counit
@@ -42,7 +42,7 @@ module Data.Connection.Conn (
   , ceilingWith1
   , ceilingWith2
   -- * Connection R
-  , type ConnR
+  , ConnR
   , pattern ConnR
   , swapR
   , unit
@@ -58,8 +58,6 @@ module Data.Connection.Conn (
   , strong
   , set
   , intSet
-  --, map
-  --, intMap
   -- * Down
   , upL
   , downL
@@ -81,24 +79,30 @@ import safe qualified Data.IntSet as IntSet
 -- $setup
 -- >>> :set -XTypeApplications
 -- >>> import Data.Int
--- >>> import Prelude hiding (Ord(..), Bounded, fromInteger, fromRational, RealFrac(..))
--- >>> import qualified Prelude as P
+-- >>> import Data.Ord (Down(..))
+-- >>> import GHC.Real (Ratio(..))
 -- >>> :load Data.Connection
+-- >>> ratf32 = conn @_ @Rational @Float
+-- >>> f64f32 = conn @_ @Double @Float
 
-
--- | A data kind distinguishing the chirality of a Kan extension.
+-- | A data kind distinguishing the directionality of a Galois connection:
 --
--- Here it serves to distinguish the directionality of a preorder:
+-- * /L/-tagged types are low / increasing (e.g. 'Data.Connection.Class.minimal', 'Data.Connection.Class.upper', 'Data.Connection.Class.ceiling', 'Data.Connection.Class.join')
 --
--- * /L/-tagged types are 'upwards-directed' (e.g. 'minimal', 'upper', 'ceiling', 'join')
---
--- * /R/-tagged types are 'downwards-directed' (e.g. 'maximal', 'lower', 'floor', 'meet')
+-- * /R/-tagged types are high / decreasing (e.g. 'Data.Connection.Class.maximal', 'Data.Connection.Class.lower', 'Data.Connection.Class.floor', 'Data.Connection.Class.meet')
 --
 data Kan = L | R
 
 -- | An < https://ncatlab.org/nlab/show/adjoint+string adjoint string > of Galois connections of length 2 or 3.
 --
-data Conn (k :: Kan) a b = Conn_ (a -> (b , b)) (b -> a)
+-- Connections have many nice properties wrt numerical conversion:
+--
+-- >>> range (conn @_ @Rational @Float) (1 :% 8) -- eighths are exactly representable in a float
+-- (0.125,0.125)
+-- >>> range (conn @_ @Rational @Float) (1 :% 7) -- sevenths are not
+-- (0.14285713,0.14285715)
+--
+data Conn (k :: Kan) a b = Galois (a -> (b , b)) (b -> a)
 
 -- | Obtain a /Conn/ from an adjoint triple of monotone functions.
 --
@@ -110,21 +114,21 @@ data Conn (k :: Kan) a b = Conn_ (a -> (b , b)) (b -> a)
 --  For detailed properties see 'Data.Connection.Property'.
 --
 pattern Conn :: (a -> b) -> (b -> a) -> (a -> b) -> Conn k a b
-pattern Conn f g h <- (embed &&& _1 &&& _2 -> (g, (h, f))) where Conn f g h = Conn_ (h &&& f) g
+pattern Conn f g h <- (embed &&& _1 &&& _2 -> (g, (h, f))) where Conn f g h = Galois (h &&& f) g
 {-# COMPLETE Conn #-}
 
 -- Internal floor function. When \(f \dashv g \dashv h \) this is h.
 _1 :: Conn k a b -> a -> b
-_1 (Conn_ f _) = fst . f
+_1 (Galois f _) = fst . f
 
 -- Internal ceiling function. When \(f \dashv g \dashv h \) this is f.
 _2 :: Conn k a b -> a -> b
-_2 (Conn_ f _) = snd . f
+_2 (Galois f _) = snd . f
 
 -- | Obtain the center of a /ConnK/, upper half of a /ConnL/, or the lower half of a /ConnR/.
 --
 embed :: Conn k a b -> b -> a
-embed (Conn_ _ g) = g
+embed (Galois _ g) = g
 
 -- | Obtain the lower and upper functions from a 'ConnK'.
 --
@@ -136,17 +140,17 @@ embed (Conn_ _ g) = g
 -- (NaN,NaN)
 --
 range :: Conn k a b -> a -> (b, b)
-range (Conn_ f _) = f
+range (Galois f _) = f
 
 -- | The identity 'Conn'.
 --
 identity :: Conn k a a
-identity = Conn_ (id &&& id) id
+identity = Galois (id &&& id) id
 
 instance Category (Conn k) where
   id = identity
 
-  Conn_ f1 g1 . Conn_ f2 g2 = Conn_ ((fst.f1).(fst.f2) &&& (snd.f1).(snd.f2)) (g2 . g1)
+  Galois f1 g1 . Galois f2 g2 = Galois ((fst.f1).(fst.f2) &&& (snd.f1).(snd.f2)) (g2 . g1)
 
 ---------------------------------------------------------------------
 -- ConnK
@@ -166,23 +170,19 @@ type ConnK a b = forall k. Conn k a b
 -- 
 -- @ 'half' t x = 'pcompare' (x - 'lower' t x) ('upper' t x - x) @
 --
+-- >>> maybe False (== EQ) $ half f64f32 (midpoint f64f32 pi)
+-- True
+--
 half :: (Num a, Preorder a) => ConnK a b -> a -> Maybe Ordering
-half t x = pcompare (x - lower t x) (upper t x - x) 
+half c x = pcompare (x - lower c x) (upper c x - x) 
 
 -- | Return the midpoint of the interval containing x.
 --
--- >>> midpoint f32i08 4.3
--- 4.5
--- >>> midpoint f64i08 4.3
--- 4.5
 -- >>> pi - midpoint f64f32 pi
 -- 3.1786509424591713e-8
 --
--- >>> maybe False (~~ EQ) $ half f64f32 (midpoint f64f32 pi)
--- True
---
 midpoint :: Fractional a => ConnK a b -> a -> a
-midpoint t x = lower t x / 2 + upper t x / 2
+midpoint c x = lower c x / 2 + upper c x / 2
 
 -- | Return the nearest value to x.
 --
@@ -194,15 +194,11 @@ midpoint t x = lower t x / 2 + upper t x / 2
 -- See <https://en.wikipedia.org/wiki/Rounding>.
 --
 roundWith :: forall a b. (Num a, Preorder a) => ConnK a b -> a -> b
-roundWith c x = case pcompare halfR halfL of
+roundWith c x = case half c x of
   Just GT -> ceilingWith c x
   Just LT -> floorWith c x
   _       -> truncateWith c x
-
-  where
-    halfR = x - lower c x -- dist from lower bound
-
-    halfL = upper c x - x -- dist from upper bound
+{-# INLINE roundWith #-}
 
 -- | Lift a unary function over a 'ConnK'.
 --
@@ -279,7 +275,7 @@ type ConnL = Conn 'L
 -- /Caution/: /ConnL f g/ must obey \(f \dashv g \). This condition is not checked.
 --
 pattern ConnL :: (a -> b) -> (b -> a) -> ConnL a b
-pattern ConnL f g <- (_2 &&& embed -> (f, g)) where ConnL f g = Conn_ (f &&& f) g
+pattern ConnL f g <- (_2 &&& embed -> (f, g)) where ConnL f g = Galois (f &&& f) g
 {-# COMPLETE ConnL #-}
 
 -- | Witness to the symmetry between 'ConnL' and 'ConnR'.
@@ -391,7 +387,7 @@ type ConnR = Conn 'R
 -- /Caution/: /ConnR f g/ must obey \(f \dashv g \). This condition is not checked.
 --
 pattern ConnR :: (b -> a) -> (a -> b) -> ConnR a b
-pattern ConnR f g <- (embed &&& _1 -> (f, g)) where ConnR f g = Conn_ (g &&& g) f
+pattern ConnR f g <- (embed &&& _1 -> (f, g)) where ConnR f g = Galois (g &&& g) f
 {-# COMPLETE ConnR #-}
 
 -- | Witness to the symmetry between 'ConnL' and 'ConnR'.

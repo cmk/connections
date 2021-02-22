@@ -1,5 +1,7 @@
-{-# Language ConstraintKinds #-}
-{-# Language Safe            #-}
+{-# Language ConstraintKinds     #-}
+{-# Language Safe                #-}
+{-# Language ScopedTypeVariables #-}
+{-# Language TypeApplications    #-}
 module Data.Connection.Int (
   -- * Int16
     w08i16
@@ -44,7 +46,6 @@ import safe Control.Monad
 import safe Data.Connection.Conn
 import safe Data.Connection.Word
 import safe Data.Int
-import safe Data.Order.Extended
 import safe Data.Word
 import safe Numeric.Natural
 import safe Prelude

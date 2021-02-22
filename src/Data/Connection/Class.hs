@@ -1,26 +1,26 @@
-{-# Language TypeApplications    #-}
-{-# Language AllowAmbiguousTypes #-}
+{-# Language MultiParamTypeClasses  #-}
 {-# Language ConstraintKinds     #-}
 {-# Language DataKinds           #-}
-{-# Language Safe                #-}
-{-# Language ViewPatterns        #-}
+{-# Language FlexibleContexts    #-}
+{-# Language FlexibleInstances   #-}
 {-# Language PatternSynonyms     #-}
 {-# Language RankNTypes          #-}
-{-# LANGUAGE DerivingVia         #-}
-{-# LANGUAGE StandaloneDeriving  #-}
+{-# Language Safe                #-}
+{-# Language ScopedTypeVariables #-}
+{-# Language TypeApplications    #-}
+{-# Language ViewPatterns        #-}
 
 module Data.Connection.Class (
   -- * Types
-    Kan(..)
-  , Conn()
+    Conn()
   , identity
   , choice
   , strong
   , (/|\)
   , (\|/)
   -- * Connection k
-  , type Triple
-  , type ConnK
+  , Triple
+  , ConnK
   , pattern Conn
   , half
   , midpoint
@@ -34,8 +34,8 @@ module Data.Connection.Class (
   , lub
   , glb
   -- * Connection L
-  , type Left
-  , type ConnL
+  , Left
+  , ConnL
   , pattern ConnL
   , connL
   , embedL
@@ -45,8 +45,8 @@ module Data.Connection.Class (
   , ceiling1
   , ceiling2
   -- * Connection R
-  , type Right
-  , type ConnR
+  , Right
+  , ConnR
   , pattern ConnR
   , connR
   , embedR
@@ -56,9 +56,10 @@ module Data.Connection.Class (
   , floor1
   , floor2
   -- * Connection
-  , type ConnInteger
-  , type ConnRational
-  , type ConnExtended
+  , Kan(..)
+  , ConnInteger
+  , ConnRational
+  , ConnExtended
   , Connection(..)
 ) where
 
@@ -84,10 +85,11 @@ import safe Prelude hiding (floor, ceiling, round, truncate)
 
 -- $setup
 -- >>> :set -XTypeApplications
--- >>> import Data.Int
--- >>> import Prelude hiding (Ord(..), Bounded, fromInteger, fromRational, RealFrac(..))
--- >>> import qualified Prelude as P
+-- >>> :set -XFlexibleContexts
+-- >>> import GHC.Real (Ratio(..))
+-- >>> import Data.Set (Set,fromList)
 -- >>> :load Data.Connection
+-- >>> import Prelude hiding (round, floor, ceiling, truncate)
 
 type Left = Connection 'L
 
@@ -95,22 +97,7 @@ type Right = Connection 'R
 
 -- | A constraint kind representing an <https://ncatlab.org/nlab/show/adjoint+triple adjoint triple> of Galois connections.
 --
-type Triple a b = (Connection 'L a b, Connection 'R a b)
-
--- | An < https://ncatlab.org/nlab/show/adjoint+string adjoint string > of Galois connections of length 2 or 3.
---
-class (Preorder a, Preorder b) => Connection k a b where
-
-    -- |
-    --
-    -- >>> range (conn @_ @Double @Float) pi
-    -- (3.1415925,3.1415927)
-    -- >>> range (conn @_ @Rational @Float) (1 :% 7)
-    -- (0.14285713,0.14285715)
-    -- >>> range (conn @_ @Rational @Float) (1 :% 8)
-    -- (0.125,0.125)
-    --
-    conn :: Conn k a b
+type Triple a b = (Left a b, Right a b)
 
 -- | A constraint kind for 'Integer' conversions.
 --
@@ -124,17 +111,24 @@ type ConnInteger a = Left a (Maybe Integer)
 --
 -- Usable in conjunction with /RebindableSyntax/:
 --
---  >>> fromRational = round :: ConnRational a => Rational -> a
---  >>> fromRational @Float 1.3
---  1.3
---  >>> fromRational @Float (1 :% 0)
---  Infinity
---  >>> fromRational @Float (0 :% 0)
---  NaN
+--  > fromRational = round :: ConnRational a => Rational -> a
 --
 type ConnRational a = Triple Rational a
 
 type ConnExtended a b = Triple a (Extended b)
+
+-- | An < https://ncatlab.org/nlab/show/adjoint+string adjoint string > of Galois connections of length 2 or 3.
+--
+class (Preorder a, Preorder b) => Connection k a b where
+
+    -- |
+    --
+    -- >>> range (conn @_ @Rational @Float) (22 :% 7)
+    -- (3.142857,3.1428573)
+    -- >>> range (conn @_ @Double @Float) pi
+    -- (3.1415925,3.1415927)
+    --
+    conn :: Conn k a b
 
 infixr 3 \|/
 
@@ -163,7 +157,6 @@ f /|\ g = f `strong` g >>> conn
 --
 -- See <https://en.wikipedia.org/wiki/Rounding>.
 --
---
 round :: forall a b. (Num a, Triple a b) => a -> b
 round x = case pcompare halfR halfL of
   Just GT -> ceiling x
@@ -175,7 +168,7 @@ round x = case pcompare halfR halfL of
 
     halfL = upper (connL @a @b) x - x -- dist from upper bound
 
--- | Lift a unary function over a 'Trip'.
+-- | Lift a unary function over a 'Conn'.
 --
 -- Results are rounded to the nearest value with ties away from 0.
 --
@@ -183,10 +176,11 @@ round1 :: (Num a, Triple a b) => (a -> a) -> b -> b
 round1 f x = round $ f (g x) where Conn _ g _ = connL
 {-# INLINE round1 #-}
 
--- | Lift a binary function over a 'Trip'.
+-- | Lift a binary function over a 'Conn'.
 --
 -- Results are rounded to the nearest value with ties away from 0.
 --
+-- Example avoiding loss of precision:
 -- >>> f x y = (x + y) - x 
 -- >>> maxOdd32 = 1.6777215e7
 -- >>> maxOdd64 = 9.007199254740991e15
@@ -210,7 +204,7 @@ round2 f x y = round $ f (g x) (g y) where Conn _ g _ = connL
 truncate :: (Num a, Triple a b) => a -> b
 truncate x = if x >~ 0 then floor x else ceiling x
 
--- | Lift a unary function over a 'Trip'.
+-- | Lift a unary function over a 'Conn'.
 --
 -- Results are truncated towards 0.
 --
@@ -218,7 +212,7 @@ truncate1 :: (Num a, Triple a b) => (a -> a) -> b -> b
 truncate1 f x = truncate $ f (g x) where Conn _ g _ = connL
 {-# INLINE truncate1 #-}
 
--- | Lift a binary function over a 'Trip'.
+-- | Lift a binary function over a 'Conn'.
 --
 -- Results are truncated towards 0.
 --
@@ -253,7 +247,6 @@ lub x y z = (x `meet` y) `join` (y `meet` z) `join` (z `meet` x)
 --
 -- > glb x x y = x
 -- > glb x y z = glb z x y
--- > glb x x y = x
 -- > glb x y z = glb x z y
 -- > glb (glb x w y) w z = glb x w (glb y w z)
 --
@@ -279,7 +272,7 @@ glb x y z = (x `join` y) `meet` (y `join` z) `meet` (z `join` x)
 connL :: Left a b => ConnL a b
 connL = conn @'L
 
--- | Extract the center of a 'Trip' or upper half of a 'ConnL'.
+-- | Extract the center of a 'Conn' or upper half of a 'ConnL'.
 --
 embedL :: Left a b => b -> a
 embedL = embed connL
@@ -300,18 +293,18 @@ infixr 5 `join`
 join :: Left (a, a) a => a -> a -> a
 join = curry ceiling
 
--- | Extract the ceiling of a 'Trip' or lower half of a 'ConnL'.
+-- | Extract the ceiling of a 'Conn' or lower half of a 'ConnL'.
 --
 -- > ceiling @a @a = id
 -- > ceiling (x1 `join` a2) = ceiling x1 `join` ceiling x2
 --
 -- The latter law is the adjoint functor theorem for preorders.
 --
--- >>> ceiling @Rational @Float (0 :% 0)
+-- >>> Data.Connection.ceiling @Rational @Float (0 :% 0)
 -- NaN
--- >>> ceiling @Rational @Float (1 :% 0)
+-- >>> Data.Connection.ceiling @Rational @Float (1 :% 0)
 -- Infinity
--- >>> ceiling @Rational @Float (13 :% 10)
+-- >>> Data.Connection.ceiling @Rational @Float (13 :% 10)
 -- 1.3000001
 --
 ceiling :: Left a b => a -> b
@@ -367,11 +360,11 @@ meet = curry floor
 --
 -- The latter law is the adjoint functor theorem for preorders.
 --
--- >>> floor @Rational @Float (0 :% 0)
+-- >>> Data.Connection.floor @Rational @Float (0 :% 0)
 -- NaN
--- >>> floor @Rational @Float (1 :% 0)
+-- >>> Data.Connection.floor @Rational @Float (1 :% 0)
 -- Infinity
--- >>> floor @Rational @Float (13 :% 10)
+-- >>> Data.Connection.floor @Rational @Float (13 :% 10)
 -- 1.3
 --
 floor :: Right a b => a -> b

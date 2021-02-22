@@ -206,7 +206,7 @@ near64 tol x y = maybe False ((<= tol) . snd) $ ulp64 x y
 -- | Shift by /n/ units of least precision.
 --
 -- >>> shift64 1 0
--- 1.0e-45
+-- 5.0e-324
 -- >>> shift64 1 1 - 1
 -- 2.220446049250313e-16
 -- >>> shift64 1 $ 0/0
