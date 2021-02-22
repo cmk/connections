@@ -15,11 +15,9 @@ module Data.Connection.Conn (
     Kan (..),
     Conn (),
     pattern Conn,
-    identity,
     embed,
     range,
-    (>>>),
-    (<<<),
+    identity,
 
     -- * Connection k
     ConnK,
@@ -35,6 +33,8 @@ module Data.Connection.Conn (
     -- * Connection L
     ConnL,
     pattern ConnL,
+    upL,
+    downL,
     swapL,
     counit,
     upper,
@@ -48,6 +48,8 @@ module Data.Connection.Conn (
     -- * Connection R
     ConnR,
     pattern ConnR,
+    upR,
+    downR,
     swapR,
     unit,
     lower,
@@ -59,27 +61,17 @@ module Data.Connection.Conn (
     floorWith2,
 
     -- * Combinators
+    (>>>),
+    (<<<),
     choice,
     strong,
-    set,
-    intSet,
-
-    -- * Down
-    upL,
-    downL,
-    upR,
-    downR,
 ) where
 
 import safe Control.Arrow
 import safe Control.Category (Category, (<<<), (>>>))
 import safe qualified Control.Category as C
 import safe Data.Bifunctor (bimap)
-import safe Data.IntSet (IntSet)
-import safe qualified Data.IntSet as IntSet
 import safe Data.Order
-import safe Data.Set (Set)
-import safe qualified Data.Set as Set
 import safe Prelude hiding (Ord (..))
 
 -- $setup
@@ -108,6 +100,13 @@ data Kan = L | R
 -- (0.14285713,0.14285715)
 data Conn (k :: Kan) a b = Galois (a -> (b, b)) (b -> a)
 
+instance Category (Conn k) where
+    id = identity
+    {-# INLINE id #-}
+
+    Galois f1 g1 . Galois f2 g2 = Galois ((fst . f1) . (fst . f2) &&& (snd . f1) . (snd . f2)) (g2 . g1)
+    {-# INLINE (.) #-}
+
 -- | Obtain a /Conn/ from an adjoint triple of monotone functions.
 --
 --  This is a view pattern for an arbitrary 'Conn'. When applied to a 'ConnL'
@@ -124,16 +123,24 @@ pattern Conn f g h <- (embed &&& _1 &&& _2 -> (g, (h, f))) where Conn f g h = Ga
 -- Internal floor function. When \(f \dashv g \dashv h \) this is h.
 _1 :: Conn k a b -> a -> b
 _1 (Galois f _) = fst . f
+{-# INLINE _1 #-}
 
 -- Internal ceiling function. When \(f \dashv g \dashv h \) this is f.
 _2 :: Conn k a b -> a -> b
 _2 (Galois f _) = snd . f
+{-# INLINE _2 #-}
 
--- | Obtain the center of a /ConnK/, upper half of a /ConnL/, or the lower half of a /ConnR/.
+-- | The identity 'Conn'.
+identity :: Conn k a a
+identity = Galois (id &&& id) id
+{-# INLINE identity #-}
+
+-- | Obtain the center of a 'ConnK', upper adjoint of a 'ConnL', or lower adjoint of a 'ConnR'.
 embed :: Conn k a b -> b -> a
 embed (Galois _ g) = g
+{-# INLINE embed #-}
 
--- | Obtain the lower and upper functions from a 'ConnK'.
+-- | Obtain the upper and/or lower adjoints of a connection.
 --
 -- > range c = floorWith c &&& ceilingWith c
 --
@@ -143,15 +150,7 @@ embed (Galois _ g) = g
 -- (NaN,NaN)
 range :: Conn k a b -> a -> (b, b)
 range (Galois f _) = f
-
--- | The identity 'Conn'.
-identity :: Conn k a a
-identity = Galois (id &&& id) id
-
-instance Category (Conn k) where
-    id = identity
-
-    Galois f1 g1 . Galois f2 g2 = Galois ((fst . f1) . (fst . f2) &&& (snd . f1) . (snd . f2)) (g2 . g1)
+{-# INLINE range #-}
 
 ---------------------------------------------------------------------
 -- ConnK
@@ -174,6 +173,7 @@ type ConnK a b = forall k. Conn k a b
 -- True
 half :: (Num a, Preorder a) => ConnK a b -> a -> Maybe Ordering
 half c x = pcompare (x - lower c x) (upper c x - x)
+{-# INLINE half #-}
 
 -- | Return the midpoint of the interval containing x.
 --
@@ -181,6 +181,7 @@ half c x = pcompare (x - lower c x) (upper c x - x)
 -- 3.1786509424591713e-8
 midpoint :: Fractional a => ConnK a b -> a -> a
 midpoint c x = lower c x / 2 + upper c x / 2
+{-# INLINE midpoint #-}
 
 -- | Return the nearest value to x.
 --
@@ -208,16 +209,13 @@ roundWith1 c f x = roundWith c $ f (g x) where Conn _ g _ = c
 --
 -- Results are rounded to the nearest value with ties away from 0.
 --
+-- Example avoiding loss-of-precision:
+--
 -- >>> f x y = (x + y) - x
 -- >>> maxOdd32 = 1.6777215e7
--- >>> maxOdd64 = 9.007199254740991e15
 -- >>> f maxOdd32 2.0 :: Float
 -- 1.0
--- >>> round2 @Rational @Float f maxOdd32 2.0
--- 2.0
--- >>> f maxOdd64 2.0 :: Double
--- 1.0
--- >>> round2 @Rational @Double f maxOdd64 2.0
+-- >>> roundWith2 ratf32 f maxOdd32 2.0
 -- 2.0
 roundWith2 :: (Num a, Preorder a) => ConnK a b -> (a -> a -> a) -> b -> b -> b
 roundWith2 c f x y = roundWith c $ f (g x) (g y) where Conn _ g _ = c
@@ -228,12 +226,13 @@ roundWith2 c f x y = roundWith c $ f (g x) (g y) where Conn _ g _ = c
 -- > truncateWith identity = id
 truncateWith :: (Num a, Preorder a) => ConnK a b -> a -> b
 truncateWith c x = if x >~ 0 then floorWith c x else ceilingWith c x
+{-# INLINE truncateWith #-}
 
 -- | Lift a unary function over a 'ConnK'.
 --
 -- Results are truncated towards zero.
 --
--- > truncateWith identity = id
+-- > truncateWith1 identity = id
 truncateWith1 :: (Num a, Preorder a) => ConnK a b -> (a -> a) -> b -> b
 truncateWith1 c f x = truncateWith c $ f (g x) where Conn _ g _ = c
 {-# INLINE truncateWith1 #-}
@@ -270,14 +269,37 @@ pattern ConnL f g <- (_2 &&& embed -> (f, g)) where ConnL f g = Galois (f &&& f)
 
 {-# COMPLETE ConnL #-}
 
+-- | Convert an inverted 'ConnL' to a 'ConnL'.
+--
+-- > upL . downL = downL . upL = id
+upL :: ConnL (Down a) (Down b) -> ConnL b a
+upL (ConnL f g) = ConnL g' f'
+  where
+    f' x = let (Down y) = f (Down x) in y
+    g' x = let (Down y) = g (Down x) in y
+{-# INLINE upL #-}
+
+-- | Convert a 'ConnL' to an inverted 'ConnL'.
+--
+-- >>> upper (downL $ conn @_ @() @Ordering) (Down LT)
+-- Down LT
+-- >>> upper (downL $ conn @_ @() @Ordering) (Down GT)
+-- Down LT
+downL :: ConnL a b -> ConnL (Down b) (Down a)
+downL (ConnL f g) = ConnL (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
+{-# INLINE downL #-}
+
 -- | Witness to the symmetry between 'ConnL' and 'ConnR'.
 --
 -- > swapL . swapR = id
 -- > swapR . swapL = id
 swapL :: ConnR a b -> ConnL b a
 swapL (ConnR f g) = ConnL f g
+{-# INLINE swapL #-}
 
 -- | Reverse round trip through a 'ConnK' or 'ConnL'.
+--
+-- This is the counit of the resulting comonad:
 --
 -- > x >~ counit c x
 --
@@ -287,6 +309,7 @@ swapL (ConnR f g) = ConnL f g
 -- LT
 counit :: ConnL a b -> b -> b
 counit c = ceilingWith1 c id
+{-# INLINE counit #-}
 
 -- | Round trip through a 'ConnK' or 'ConnL'.
 --
@@ -297,14 +320,17 @@ counit c = ceilingWith1 c id
 -- LT
 upper :: ConnL a b -> a -> a
 upper c = upper1 c id
+{-# INLINE upper #-}
 
 -- | Map over a 'ConnK' or 'ConnL' from the right.
 upper1 :: ConnL a b -> (b -> b) -> a -> a
 upper1 (ConnL f g) h a = g $ h (f a)
+{-# INLINE upper1 #-}
 
 -- | Zip over a 'ConnK' or 'ConnL' from the right.
 upper2 :: ConnL a b -> (b -> b -> b) -> a -> a -> a
 upper2 (ConnL f g) h a1 a2 = g $ h (f a1) (f a2)
+{-# INLINE upper2 #-}
 
 -- | Obtain the principal filter in /B/ generated by an element of /A/.
 --
@@ -327,9 +353,9 @@ upper2 (ConnL f g) h a1 a2 = g $ h (f a1) (f a2)
 -- See <https://en.wikipedia.org/wiki/Filter_(mathematics)>
 filterWith :: Preorder b => ConnL a b -> a -> b -> Bool
 filterWith c a b = ceilingWith c a <~ b
+{-# INLINE filterWith #-}
 
 -- | Extract the left half of a 'ConnK' or 'ConnL'.
---
 --
 -- >>> floorWith f64f32 pi
 -- 3.1415925
@@ -337,14 +363,17 @@ filterWith c a b = ceilingWith c a <~ b
 -- 3.1415927
 ceilingWith :: ConnL a b -> a -> b
 ceilingWith (ConnL f _) = f
+{-# INLINE ceilingWith #-}
 
 -- | Map over a 'ConnK' or 'ConnL' from the left.
 ceilingWith1 :: ConnL a b -> (a -> a) -> b -> b
 ceilingWith1 (ConnL f g) h b = f $ h (g b)
+{-# INLINE ceilingWith1 #-}
 
 -- | Zip over a 'ConnK' or 'ConnL' from the left.
 ceilingWith2 :: ConnL a b -> (a -> a -> a) -> b -> b -> b
 ceilingWith2 (ConnL f g) h b1 b2 = f $ h (g b1) (g b2)
+{-# INLINE ceilingWith2 #-}
 
 ---------------------------------------------------------------------
 -- ConnR
@@ -372,14 +401,37 @@ pattern ConnR f g <- (embed &&& _1 -> (f, g)) where ConnR f g = Galois (g &&& g)
 
 {-# COMPLETE ConnR #-}
 
+-- | Convert an inverted 'ConnR' to a 'ConnR'.
+--
+-- > upR . downR = downR . upR = id
+upR :: ConnR (Down a) (Down b) -> ConnR b a
+upR (ConnR f g) = ConnR g' f'
+  where
+    f' x = let (Down y) = f (Down x) in y
+    g' x = let (Down y) = g (Down x) in y
+{-# INLINE upR #-}
+
+-- | Convert a 'ConnR' to an inverted 'ConnR'.
+--
+-- >>> lower (downR $ conn @_ @() @Ordering) (Down LT)
+-- Down GT
+-- >>> lower (downR $ conn @_ @() @Ordering) (Down GT)
+-- Down GT
+downR :: ConnR a b -> ConnR (Down b) (Down a)
+downR (ConnR f g) = ConnR (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
+{-# INLINE downR #-}
+
 -- | Witness to the symmetry between 'ConnL' and 'ConnR'.
 --
 -- > swapL . swapR = id
 -- > swapR . swapL = id
 swapR :: ConnL a b -> ConnR b a
 swapR (ConnL f g) = ConnR f g
+{-# INLINE swapR #-}
 
 -- | Round trip through a 'ConnK' or 'ConnR'.
+--
+-- This is the unit of the resulting monad:
 --
 -- > x <~ unit c x
 -- > unit c = floorWith1 c id = floorWith c . embed c
@@ -390,6 +442,7 @@ swapR (ConnL f g) = ConnR f g
 -- GT
 unit :: ConnR a b -> b -> b
 unit c = floorWith1 c id
+{-# INLINE unit #-}
 
 -- | Reverse round trip through a 'ConnK' or 'ConnR'.
 --
@@ -399,14 +452,17 @@ unit c = floorWith1 c id
 -- GT
 lower :: ConnR a b -> a -> a
 lower c = lower1 c id
+{-# INLINE lower #-}
 
 -- | Map over a 'ConnK' or 'ConnR' from the left.
 lower1 :: ConnR a b -> (b -> b) -> a -> a
 lower1 (ConnR f g) h a = f $ h (g a)
+{-# INLINE lower1 #-}
 
 -- | Zip over a 'ConnK' or 'ConnR' from the left.
 lower2 :: ConnR a b -> (b -> b -> b) -> a -> a -> a
 lower2 (ConnR f g) h a1 a2 = f $ h (g a1) (g a2)
+{-# INLINE lower2 #-}
 
 -- | Obtain the principal ideal in /B/ generated by an element of /A/.
 --
@@ -423,6 +479,7 @@ lower2 (ConnR f g) h a1 a2 = f $ h (g a1) (g a2)
 -- See <https://en.wikipedia.org/wiki/Ideal_(order_theory)>
 idealWith :: Preorder b => ConnR a b -> a -> b -> Bool
 idealWith c a b = b <~ floorWith c a
+{-# INLINE idealWith #-}
 
 -- | Extract the right half of a 'ConnK' or 'ConnR'
 --
@@ -434,14 +491,17 @@ idealWith c a b = b <~ floorWith c a
 -- 3.1415927
 floorWith :: ConnR a b -> a -> b
 floorWith (ConnR _ g) = g
+{-# INLINE floorWith #-}
 
 -- | Map over a 'ConnK' or 'ConnR' from the right.
 floorWith1 :: ConnR a b -> (a -> a) -> b -> b
 floorWith1 (ConnR f g) h b = g $ h (f b)
+{-# INLINE floorWith1 #-}
 
 -- | Zip over a 'ConnK' or 'ConnR' from the right.
 floorWith2 :: ConnR a b -> (a -> a -> a) -> b -> b -> b
 floorWith2 (ConnR f g) h b1 b2 = g $ h (f b1) (f b2)
+{-# INLINE floorWith2 #-}
 
 ---------------------------------------------------------------------
 -- Combinators
@@ -457,6 +517,7 @@ choice (Conn ab ba ab') (Conn cd dc cd') = Conn f g h
     f = either (Left . ab) (Right . cd)
     g = either (Left . ba) (Right . dc)
     h = either (Left . ab') (Right . cd')
+{-# INLINE choice #-}
 
 -- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
 --
@@ -468,48 +529,4 @@ strong (Conn ab ba ab') (Conn cd dc cd') = Conn f g h
     f = bimap ab cd
     g = bimap ba dc
     h = bimap ab' cd'
-
-fork :: a -> (a, a)
-fork x = (x, x)
-
-set :: Total a => Conn k (Set a, Set a) (Set a)
-set = Conn (uncurry Set.union) fork (uncurry Set.intersection)
-
-intSet :: Conn k (IntSet, IntSet) IntSet
-intSet = Conn (uncurry IntSet.union) fork (uncurry IntSet.intersection)
-
--- | Convert an inverted 'ConnL' to a 'ConnL'.
---
--- > upL . downL = downL . upL = id
-upL :: ConnL (Down a) (Down b) -> ConnL b a
-upL (ConnL f g) = ConnL g' f'
-  where
-    f' x = let (Down y) = f (Down x) in y
-    g' x = let (Down y) = g (Down x) in y
-
--- | Convert a 'ConnL' to an inverted 'ConnL'.
---
--- >>> upper (downL $ conn @_ @() @Ordering) (Down LT)
--- Down LT
--- >>> upper (downL $ conn @_ @() @Ordering) (Down GT)
--- Down LT
-downL :: ConnL a b -> ConnL (Down b) (Down a)
-downL (ConnL f g) = ConnL (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
-
--- | Convert an inverted 'ConnR' to a 'ConnR'.
---
--- > upR . downR = downR . upR = id
-upR :: ConnR (Down a) (Down b) -> ConnR b a
-upR (ConnR f g) = ConnR g' f'
-  where
-    f' x = let (Down y) = f (Down x) in y
-    g' x = let (Down y) = g (Down x) in y
-
--- | Convert a 'ConnR' to an inverted 'ConnR'.
---
--- >>> lower (downR $ conn @_ @() @Ordering) (Down LT)
--- Down GT
--- >>> lower (downR $ conn @_ @() @Ordering) (Down GT)
--- Down GT
-downR :: ConnR a b -> ConnR (Down b) (Down a)
-downR (ConnR f g) = ConnR (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
+{-# INLINE strong #-}
