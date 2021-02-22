@@ -1,8 +1,8 @@
-{-# Language DataKinds #-}
-{-# Language TypeFamilies #-}
-{-# Language TypeApplications #-}
-{-# Language ConstraintKinds #-}
-{-# Language RankNTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | Galois connections have the same properties as adjunctions defined over other categories:
 --
@@ -23,24 +23,23 @@
 --  \( \forall x : counit \circ f (x) \sim f (x) \)
 --
 --  \( \forall x : unit \circ g (x) \sim g (x) \)
---
 module Data.Connection.Property where
 
-import Data.Order
-import Data.Order.Property
 import Data.Connection
 import Data.Connection.Conn
-import Prelude hiding (Num(..),Ord(..), floor, ceiling)
+import Data.Order
+import Data.Order.Property
+import Prelude hiding (Num (..), Ord (..), ceiling, floor)
 
 -- | \( \forall x, y : f \dashv g \Rightarrow f (x) \leq y \Leftrightarrow x \leq g (y) \)
 --
 -- A Galois connection is an adjunction of preorders. This is a required property.
---
 adjoint :: (Preorder a, Preorder b) => ConnK a b -> a -> b -> Bool
-adjoint t a b = adjointL t a b &&
-                adjointR t a b &&
-                adjointL (swapL t) b a &&
-                adjointR (swapR t) b a
+adjoint t a b =
+    adjointL t a b
+        && adjointR t a b
+        && adjointL (swapL t) b a
+        && adjointR (swapR t) b a
 
 adjointL :: (Preorder a, Preorder b) => ConnL a b -> a -> b -> Bool
 adjointL (ConnL f g) = adjunction (<~) (<~) f g
@@ -51,7 +50,6 @@ adjointR (ConnR f g) = adjunction (>~) (>~) g f
 -- | \( \forall x : f \dashv g \Rightarrow x \leq g \circ f (x) \)
 --
 -- This is a required property.
---
 closed :: (Preorder a, Preorder b) => ConnK a b -> a -> Bool
 closed t a = closedL t a && closedR t a
 
@@ -64,7 +62,6 @@ closedR (ConnR f g) = invertible (<~) g f
 -- | \( \forall x : f \dashv g \Rightarrow x \leq g \circ f (x) \)
 --
 -- This is a required property.
---
 kernel :: (Preorder a, Preorder b) => ConnK a b -> b -> Bool
 kernel t b = kernelL t b && kernelR t b
 
@@ -77,7 +74,6 @@ kernelR (ConnR f g) = invertible (>~) f g
 -- | \( \forall x, y : x \leq y \Rightarrow f (x) \leq f (y) \)
 --
 -- This is a required property.
---
 monotonic :: (Preorder a, Preorder b) => ConnK a b -> a -> a -> b -> b -> Bool
 monotonic t a1 a2 b1 b2 = monotonicL t a1 a2 b1 b2 && monotonicR t a1 a2 b1 b2
 
@@ -90,7 +86,6 @@ monotonicL (ConnL f g) a1 a2 b1 b2 = monotone (<~) (<~) f a1 a2 && monotone (<~)
 -- | \( \forall x: f \dashv g \Rightarrow counit \circ f (x) \sim f (x) \wedge unit \circ g (x) \sim g (x) \)
 --
 -- See <https://ncatlab.org/nlab/show/idempotent+adjunction>
---
 idempotent :: (Preorder a, Preorder b) => ConnK a b -> a -> b -> Bool
 idempotent t a b = idempotentL t a b && idempotentR t a b
 
@@ -105,12 +100,10 @@ idempotentR c@(ConnR f g) a b = projective (~~) g (unit c) a && projective (~~) 
 ---------------------------------------------------------------------
 
 -- | \( \forall a, b: a \leq b \Rightarrow f(a) \leq f(b) \)
---
 monotone :: Rel r Bool -> Rel s Bool -> (r -> s) -> r -> r -> Bool
 monotone (#) (%) f a b = a # b ==> f a % f b
 
 -- | \( \forall a, b: a \leq b \Rightarrow f(b) \leq f(a) \)
---
 antitone :: Rel r Bool -> Rel s Bool -> (r -> s) -> r -> r -> Bool
 antitone (#) (%) f a b = a # b ==> f b % f a
 
@@ -118,18 +111,15 @@ antitone (#) (%) f a b = a # b ==> f b % f a
 --
 -- For example, a monotone Galois connection is defined by @adjunction (<~) (<~)@,
 -- and an antitone Galois connection is defined by @adjunction (>~) (<~)@.
---
 adjunction :: Rel r Bool -> Rel s Bool -> (s -> r) -> (r -> s) -> s -> r -> Bool
 adjunction (#) (%) f g a b = f a # b <=> a % g b
 
 -- | \( \forall a: f (g a) \sim a \)
---
 invertible :: Rel s b -> (s -> r) -> (r -> s) -> s -> b
 invertible (#) f g a = g (f a) # a
 
 -- | \( \forall a: g \circ f (a) \sim f (a) \)
 --
 -- > idempotent (#) f = projective (#) f f
---
 projective :: Rel s b -> (r -> s) -> (s -> s) -> r -> b
 projective (#) f g r = g (f r) # f r

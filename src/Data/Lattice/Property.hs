@@ -1,14 +1,14 @@
-{-# Language ScopedTypeVariables #-}
-{-# Language TypeApplications    #-}
-{-# Language FlexibleContexts    #-}
-{-# Language FlexibleInstances   #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+
 module Data.Lattice.Property where
 
+import Data.Lattice
 import Data.Order.Property
 import Data.Order.Syntax
-import Data.Lattice
-import Prelude hiding (Eq(..), Ord(..), Bounded, not)
-
+import Prelude hiding (Bounded, Eq (..), Ord (..), not)
 
 coheyting0 :: Coheyting a => a -> a -> a -> Bool
 coheyting0 x y z = x \\ y <= z <=> x <= y \/ z
@@ -69,11 +69,10 @@ coheyting18 :: Coheyting c => c -> Bool
 coheyting18 x = x == boundary x \/ (non . non) x
 
 coheyting19 :: Coheyting a => a -> a -> Bool
-coheyting19 x y = boundary (x /\ y) == (boundary x /\ y) \/ (x /\ boundary y)  -- (Leibniz rule)
+coheyting19 x y = boundary (x /\ y) == (boundary x /\ y) \/ (x /\ boundary y) -- (Leibniz rule)
 
 coheyting20 :: Coheyting a => a -> a -> Bool
 coheyting20 x y = boundary (x \/ y) \/ boundary (x /\ y) == boundary x \/ boundary y
-
 
 heyting0 :: Heyting a => a -> a -> a -> Bool
 heyting0 x y z = x /\ y <= z <=> x <= y // z
@@ -130,7 +129,7 @@ heyting16 x = neg (neg (x \/ neg x)) == top
 heyting17 :: Heyting a => a -> Bool
 heyting17 x = x <= neg (neg x)
 
--- 
+--
 -- x '\\' x           = 'top'
 -- x '/\' (x '\\' y)  = x '/\' y
 -- y '/\' (x '\\' y)  = y
@@ -144,9 +143,8 @@ heyting17 x = x <= neg (neg x)
 -- x '<=' y => (x '\\' z) '<=' (y '\\' z)
 -- x '<=' y <=> x '\\' y '==' 'top'
 -- x '/\' y '<=' z <=> x '<=' (y '\\' z) <=> y '<=' (x '\\' z)
--- 
 --
-
+--
 
 -- adjointL $ ConnL (\x -> y \\ not x) (\z -> not z // not y)
 symmetric1 :: Biheyting a => a -> Bool
@@ -188,7 +186,6 @@ symmetric12 x y = converseL (x /\ y) == (non . non) (converseL x /\ converseL y)
 symmetric13 :: Symmetric a => a -> a -> Bool
 symmetric13 x y = converseR (x \/ y) == (neg . neg) (converseR x \/ converseR y)
 
-
 boolean0 :: Biheyting a => a -> Bool
 boolean0 x = neg x == non x
 
@@ -199,7 +196,7 @@ boolean2 :: Heyting a => a -> Bool
 boolean2 x = x \/ neg x == top
 
 boolean3 :: Coheyting a => a -> Bool
-boolean3 x = x /\ non x == bottom 
+boolean3 x = x /\ non x == bottom
 
 boolean4 :: Heyting a => a -> a -> Bool
 boolean4 x y = (x <= y) // (neg y <= neg x)
@@ -275,7 +272,7 @@ pcompareMeet x y
 -- | \( \forall a \in R: a \/ a = a \)
 --
 -- @ 'idempotent_join' = 'absorbative' 'top' @
--- 
+--
 -- See < https:\\en.wikipedia.org/wiki/Band_(mathematics) >.
 --
 -- This is a required property.
@@ -291,10 +288,10 @@ idempotent_join_on (~~) r = (\/) r r ~~ r
 -- This is a required property.
 --
 associative_join :: Lattice r => r -> r -> r -> Bool
-associative_join = associative_on (~~) (\/) 
+associative_join = associative_on (~~) (\/)
 
 associative_join_on :: Semilattice 'L r => Rel r b -> r -> r -> r -> b
-associative_join_on (=~) = associative_on (=~) (\/) 
+associative_join_on (=~) = associative_on (=~) (\/)
 
 -- | \( \forall a, b, c: (a \# b) \# c \doteq a \# (b \# c) \)
 --
@@ -309,8 +306,7 @@ commutative_join :: Lattice r => r -> r -> Bool
 commutative_join = commutative_join_on (~~)
 
 commutative_join_on :: Semilattice 'L r => Rel r b -> r -> r -> b
-commutative_join_on (=~) = commutative_on (=~) (\/) 
-
+commutative_join_on (=~) = commutative_on (=~) (\/)
 
 -- | \( \forall a, b: a \# b \doteq b \# a \)
 --
@@ -387,7 +383,6 @@ interval_glb x y z = glb x y z ~~ y ==> (x <~ y && y <~ z) || (z <~ y && y <~ x)
 -- See < https:\\en.wikipedia.org/wiki/Distributivity_(order_theory)#Distributivity_for_semilattices >
 --
 modular :: Lattice r => r -> r -> r -> Bool
-modular a b c = a \/ (c /\ b) ~~ (a \/ c) /\ b 
-
+modular a b c = a \/ (c /\ b) ~~ (a \/ c) /\ b
 
 -}

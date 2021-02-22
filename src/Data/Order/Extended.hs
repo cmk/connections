@@ -1,25 +1,26 @@
-{-# Language Safe                #-}
-{-# Language DeriveFunctor       #-}
-{-# Language DeriveGeneric       #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE Safe #-}
 
 module Data.Order.Extended (
-  -- * Lattice extensions
-    Lifted
-  , Lowered
-  , Extended(..)
-  , extended
-  --, retract
-  -- * Lattice Extensions
-  , liftMaybe
-  , liftEitherL
-  , liftEitherR
-  , liftExtended
+    -- * Lattice extensions
+    Lifted,
+    Lowered,
+    Extended (..),
+    extended,
+    --, retract
+
+    -- * Lattice Extensions
+    liftMaybe,
+    liftEitherL,
+    liftEitherR,
+    liftExtended,
 ) where
 
 import safe Data.Order
 import safe Data.Order.Syntax
 import safe GHC.Generics
-import safe Prelude hiding (Eq(..), Ord(..),Bounded)
+import safe Prelude hiding (Bounded, Eq (..), Ord (..))
 
 type Lifted = Either ()
 
@@ -29,20 +30,18 @@ type Lowered a = Either a ()
 --
 -- The top is the absorbing element for the join, and the bottom is the absorbing
 -- element for the meet.
---
 data Extended a = Bottom | Extended a | Top
-  deriving ( Eq, Ord, Show, Generic, Functor, Generic1 )
+    deriving (Eq, Ord, Show, Generic, Functor, Generic1)
 
 -- | Eliminate an 'Extended'.
 extended :: b -> b -> (a -> b) -> Extended a -> b
-extended b _ _ Bottom       = b
-extended _ t _ Top          = t
+extended b _ _ Bottom = b
+extended _ t _ Top = t
 extended _ _ f (Extended x) = f x
 
 -------------------------------------------------------------------------------
 -- Lattice extensions
 -------------------------------------------------------------------------------
-
 
 {-
 lifts :: Minimal a => Eq a => (a -> b) -> a -> Lifted b
@@ -55,40 +54,48 @@ lowered :: Maximal b => (a -> b) -> Lowered a -> b
 lowered f = either f (const maximal)
 
 lowers :: Maximal a => Eq a => (a -> b) -> a -> Lowered b
-lowers = liftEitherR (== maximal) 
+lowers = liftEitherR (== maximal)
 -}
 
 liftMaybe :: (a -> Bool) -> (a -> b) -> a -> Maybe b
-liftMaybe p f = g where
-  g i | p i = Nothing
-      | otherwise = Just $ f i
+liftMaybe p f = g
+  where
+    g i
+        | p i = Nothing
+        | otherwise = Just $ f i
 
 liftEitherL :: (a -> Bool) -> (a -> b) -> a -> Lifted b
-liftEitherL p f = g where
-  g i | p i = Left ()
-      | otherwise = Right $ f i
+liftEitherL p f = g
+  where
+    g i
+        | p i = Left ()
+        | otherwise = Right $ f i
 
 liftEitherR :: (a -> Bool) -> (a -> b) -> a -> Lowered b
-liftEitherR p f = g where
-  g i | p i = Right ()
-      | otherwise = Left $ f i
+liftEitherR p f = g
+  where
+    g i
+        | p i = Right ()
+        | otherwise = Left $ f i
 
 liftExtended :: (a -> Bool) -> (a -> Bool) -> (a -> b) -> a -> Extended b
-liftExtended p q f = g where
-  g i | p i = Bottom
-      | q i = Top
-      | otherwise = Extended $ f i
+liftExtended p q f = g
+  where
+    g i
+        | p i = Bottom
+        | q i = Top
+        | otherwise = Extended $ f i
 
 ---------------------------------------------------------------------
 -- Instances
 ---------------------------------------------------------------------
 
 instance Preorder a => Preorder (Extended a) where
-  _ <~ Top = True
-  Top <~ _ = False
-  Bottom <~ _ = True
-  _ <~ Bottom = False
-  Extended x <~ Extended y = x <~ y
+    _ <~ Top = True
+    Top <~ _ = False
+    Bottom <~ _ = True
+    _ <~ Bottom = False
+    Extended x <~ Extended y = x <~ y
 
 {-
 instance Universe a => Universe (Extended a) where

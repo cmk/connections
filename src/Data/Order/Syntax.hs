@@ -1,29 +1,37 @@
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE Safe #-}
+
 -- | Utilities for custom preludes and RebindableSyntax.
 module Data.Order.Syntax (
-  -- * Preorders
-    (<), (>)
-  -- * Partial orders
-  , Order
-  , (==),(/=)
-  , (<=),(>=)
-  -- * Total orders
-  , Total
-  , min ,max
-  , compare
-  , comparing
-  -- * Re-exports
-  , Eq.Eq()
-  , Ord.Ord()
+    -- * Preorders
+    (<),
+    (>),
+
+    -- * Partial orders
+    Order,
+    (==),
+    (/=),
+    (<=),
+    (>=),
+
+    -- * Total orders
+    Total,
+    min,
+    max,
+    compare,
+    comparing,
+
+    -- * Re-exports
+    Eq.Eq (),
+    Ord.Ord (),
 ) where
 
 import safe Control.Exception
-import safe Data.Order
 import safe qualified Data.Eq as Eq
 import safe qualified Data.Ord as Ord
+import safe Data.Order
 
-import Prelude hiding (Eq(..),Ord(..))
+import Prelude hiding (Eq (..), Ord (..))
 
 infix 4 <, >
 
@@ -36,13 +44,12 @@ infix 4 <, >
 -- > x < y = x <~ y && not (y <~ x)
 -- > x < y = maybe False (< EQ) (pcompare x y)
 --
--- When '<~' is antisymmetric then /a/ is a partial 
+-- When '<~' is antisymmetric then /a/ is a partial
 -- order and we have:
--- 
+--
 -- > x < y = x <~ y && x /~ y
 --
 -- for all /x/, /y/ in /a/.
---
 (<) :: Preorder a => a -> a -> Bool
 (<) = plt
 
@@ -54,14 +61,13 @@ infix 4 <, >
 --
 -- > x > y = x >~ y && not (y >~ x)
 -- > x > y = maybe False (> EQ) (pcompare x y)
--- 
--- When '<~' is antisymmetric then /a/ is a partial 
+--
+-- When '<~' is antisymmetric then /a/ is a partial
 -- order and we have:
--- 
+--
 -- > x > y = x >~ y && x /~ y
 --
 -- for all /x/, /y/ in /a/.
---
 (>) :: Preorder a => a -> a -> Bool
 (>) = flip (<)
 
@@ -69,11 +75,9 @@ infix 4 <, >
 -- Partial orders
 -------------------------------------------------------------------------------
 
-
 infix 4 ==, /=, <=, >=
 
 -- | A wrapper around /==/ that forces /NaN == NaN/.
---
 (==) :: Eq.Eq a => a -> a -> Bool
 (==) x y = if x Eq./= x && y Eq./= y then True else x Eq.== y
 
@@ -90,7 +94,6 @@ infix 4 ==, /=, <=, >=
 -- Total orders
 -------------------------------------------------------------------------------
 
-
 infix 4 `min`, `max`, `compare`, `comparing`
 
 -- | Find the minimum of two values.
@@ -99,11 +102,10 @@ infix 4 `min`, `max`, `compare`, `comparing`
 --
 -- /Note/: this function will throw a /ArithException/ on floats and rationals
 -- if one of the arguments is finite and the other is /NaN/.
---
 min :: Total a => a -> a -> a
 min x y = case compare x y of
-  GT -> y
-  _  -> x
+    GT -> y
+    _ -> x
 
 -- | Find the minimum of two values.
 --
@@ -111,11 +113,10 @@ min x y = case compare x y of
 --
 -- /Note/: this function will throw a /ArithException/ on floats and rationals
 -- if one of the arguments is finite and the other is /NaN/.
---
 max :: Total a => a -> a -> a
 max x y = case compare x y of
-  LT -> y
-  _  -> x
+    LT -> y
+    _ -> x
 
 -- | Compare two values in a total order.
 --
@@ -137,15 +138,13 @@ max x y = case compare x y of
 --
 -- >>> compare (0/0 :: Double) 0
 -- *** Exception: divide by zero
---
 compare :: Total a => a -> a -> Ordering
 compare x y = case pcompare x y of
-  Just o -> o
-  Nothing -> throw DivideByZero
+    Just o -> o
+    Nothing -> throw DivideByZero
 
 -- | Compare on the range of a function.
 --
 -- > comparing p x y = compare (p x) (p y)
---
 comparing :: Total a => (b -> a) -> b -> b -> Ordering
 comparing p x y = compare (p x) (p y)

@@ -1,21 +1,21 @@
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE Safe              #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE Safe #-}
 
 module Data.Order.Interval (
-    Interval()
-  , imap
-  , (...)
-  , iempty
-  , singleton
-  , contains
-  , endpts
+    Interval (),
+    imap,
+    (...),
+    iempty,
+    singleton,
+    contains,
+    endpts,
 ) where
 
 import safe Data.Bifunctor (bimap)
+import safe qualified Data.Eq as Eq
 import safe Data.Order
 import safe Data.Order.Syntax
-import safe Prelude hiding (Ord(..), Eq(..), Bounded, until)
-import safe qualified Data.Eq as Eq
+import safe Prelude hiding (Bounded, Eq (..), Ord (..), until)
 
 ---------------------------------------------------------------------
 -- Intervals
@@ -26,14 +26,12 @@ import safe qualified Data.Eq as Eq
 -- An interval in a poset /P/ is a subset /I/ of /P/ with the following property:
 --
 -- \( \forall x, y \in I, z \in P: x \leq z \leq y \Rightarrow z \in I \)
---
-data Interval a = Empty | Interval !a !a deriving Show
+data Interval a = Empty | Interval !a !a deriving (Show)
 
 -- | Map over an interval.
 --
 -- /Note/ this is not a functor, as a non-monotonic map
 -- may cause the interval to collapse to the iempty interval.
---
 imap :: Preorder b => (a -> b) -> Interval a -> Interval b
 imap f = maybe iempty (uncurry (...)) . fmap (bimap f f) . endpts
 
@@ -43,19 +41,17 @@ infix 3 ...
 --
 -- /Note/: Endpoints are preorder-sorted. If /pcompare x y = Nothing/
 -- then the resulting interval will be empty.
--- 
 (...) :: Preorder a => a -> a -> Interval a
 x ... y = case pcompare x y of
-  Just LT -> Interval x y
-  Just EQ -> Interval x y
-  _ -> Empty
+    Just LT -> Interval x y
+    Just EQ -> Interval x y
+    _ -> Empty
 {-# INLINE (...) #-}
 
 -- | The iempty interval.
 --
 -- >>> iempty
 -- Empty
---
 iempty :: Interval a
 iempty = Empty
 {-# INLINE iempty #-}
@@ -64,13 +60,11 @@ iempty = Empty
 --
 -- >>> singleton 1
 -- 1 ... 1
---
 singleton :: a -> Interval a
 singleton a = Interval a a
 {-# INLINE singleton #-}
 
 -- | Obtain the endpoints of an interval.
---
 endpts :: Interval a -> Maybe (a, a)
 endpts Empty = Nothing
 endpts (Interval x y) = Just (x, y)
@@ -80,23 +74,21 @@ contains :: Preorder a => Interval a -> a -> Bool
 contains Empty _ = False
 contains (Interval x y) p = x <~ p && p <~ y
 
-
 ---------------------------------------------------------------------
 -- Instances
 ---------------------------------------------------------------------
 
 instance Eq a => Eq (Interval a) where
-  Empty == Empty = True
-  Empty == _ = False
-  _ == Empty = False
-  Interval x y == Interval x' y' = x == x' && y == y'
+    Empty == Empty = True
+    Empty == _ = False
+    _ == Empty = False
+    Interval x y == Interval x' y' = x == x' && y == y'
 
 -- | A < https://en.wikipedia.org/wiki/Containment_order containment order >
---
 instance Preorder a => Preorder (Interval a) where
-  Empty <~ _ = True
-  _ <~ Empty = False
-  Interval x y <~ Interval x' y' = x' <~ x && y <~ y'
+    Empty <~ _ = True
+    _ <~ Empty = False
+    Interval x y <~ Interval x' y' = x' <~ x && y <~ y'
 
 {-
 instance Bounded 'L a => Connection k (Maybe a) (Interval a) where

@@ -1,47 +1,52 @@
-{-# Language ConstraintKinds     #-}
-{-# Language Safe                #-}
-{-# Language ScopedTypeVariables #-}
-{-# Language TypeApplications    #-}
-module Data.Connection.Int (
-  -- * Int16
-    w08i16
-  , i08i16
-  -- * Int32
-  , w08i32
-  , w16i32
-  , i08i32
-  , i16i32
-  -- * Int64
-  , w08i64
-  , w16i64
-  , w32i64
-  , i08i64
-  , i16i64
-  , i32i64
-  -- * Int
-  , w08ixx
-  , w16ixx
-  , w32ixx
-  , i08ixx
-  , i16ixx
-  , i32ixx
-  , i64ixx
-  -- * Integer
-  , w08int
-  , w16int
-  , w32int
-  , w64int
-  , wxxint
-  , natint
-  , i08int
-  , i16int
-  , i32int
-  , i64int
-  , ixxint
-  ) where
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE Safe #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
-import safe Control.Category ((>>>))
+module Data.Connection.Int (
+    -- * Int16
+    w08i16,
+    i08i16,
+
+    -- * Int32
+    w08i32,
+    w16i32,
+    i08i32,
+    i16i32,
+
+    -- * Int64
+    w08i64,
+    w16i64,
+    w32i64,
+    i08i64,
+    i16i64,
+    i32i64,
+
+    -- * Int
+    w08ixx,
+    w16ixx,
+    w32ixx,
+    i08ixx,
+    i16ixx,
+    i32ixx,
+    i64ixx,
+
+    -- * Integer
+    w08int,
+    w16int,
+    w32int,
+    w64int,
+    wxxint,
+    natint,
+    i08int,
+    i16int,
+    i32int,
+    i64int,
+    ixxint,
+) where
+
 import safe Control.Applicative
+import safe Control.Category ((>>>))
 import safe Control.Monad
 import safe Data.Connection.Conn
 import safe Data.Connection.Word
@@ -58,7 +63,6 @@ w08i16 = signed
 i08i16 :: ConnL Int8 (Maybe Int16)
 i08i16 = signed
 
-
 -- Int32
 w08i32 :: ConnL Word8 (Maybe Int32)
 w08i32 = signed
@@ -71,7 +75,6 @@ i08i32 = signed
 
 i16i32 :: ConnL Int16 (Maybe Int32)
 i16i32 = signed
-
 
 -- Int64
 w08i64 :: ConnL Word8 (Maybe Int64)
@@ -91,7 +94,6 @@ i16i64 = signed
 
 i32i64 :: ConnL Int32 (Maybe Int64)
 i32i64 = signed
-
 
 -- Int
 w08ixx :: ConnL Word8 (Maybe Int)
@@ -116,7 +118,6 @@ i32ixx = signed
 i64ixx :: Conn k Int64 Int
 i64ixx = Conn fromIntegral fromIntegral fromIntegral
 
-
 -- Integer
 w08int :: ConnL Word8 (Maybe Integer)
 w08int = signed
@@ -134,7 +135,7 @@ wxxint :: ConnL Word (Maybe Integer)
 wxxint = signed
 
 natint :: ConnL Natural (Maybe Integer)
-natint = ConnL (fmap fromIntegral . fromPred (/=0)) (maybe 0 $ P.fromInteger . max 0)
+natint = ConnL (fmap fromIntegral . fromPred (/= 0)) (maybe 0 $ P.fromInteger . max 0)
 
 i08int :: ConnL Int8 (Maybe Integer)
 i08int = signed
@@ -159,7 +160,7 @@ fromPred :: (a -> Bool) -> a -> Maybe a
 fromPred p a = a <$ guard (p a)
 
 signed :: forall a b. (Bounded a, Integral a, Integral b) => ConnL a (Maybe b)
-signed = ConnL f g where
-  f = fmap fromIntegral . fromPred (/= minBound)
-  g = maybe minBound $ fromIntegral @b . min (fromIntegral @a maxBound) . max (fromIntegral @a minBound)
-
+signed = ConnL f g
+  where
+    f = fmap fromIntegral . fromPred (/= minBound)
+    g = maybe minBound $ fromIntegral @b . min (fromIntegral @a maxBound) . max (fromIntegral @a minBound)

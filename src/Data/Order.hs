@@ -1,54 +1,57 @@
-{-# LANGUAGE Safe                       #-}
-{-# LANGUAGE PolyKinds                  #-}
-{-# LANGUAGE ConstraintKinds            #-}
-{-# Language DataKinds                  #-}
-{-# LANGUAGE DefaultSignatures          #-}
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DerivingVia                #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE StandaloneDeriving         #-}
-{-# LANGUAGE TypeOperators              #-}
-{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE Safe #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Data.Order (
-  -- * Constraint kinds
-    Order
-  , Total
-  -- * Preorders
-  , Preorder(..)
-  , pcomparing
-  -- * DerivingVia
-  , Base(..), N5(..) 
-  -- * Re-exports
-  , Ordering(..)
-  , Down(..)
-  , Positive
+    -- * Constraint kinds
+    Order,
+    Total,
+
+    -- * Preorders
+    Preorder (..),
+    pcomparing,
+
+    -- * DerivingVia
+    Base (..),
+    N5 (..),
+
+    -- * Re-exports
+    Ordering (..),
+    Down (..),
+    Positive,
 ) where
 
 import safe Control.Applicative
 import safe Data.Bool
 import safe Data.Complex
 import safe Data.Either
+import safe qualified Data.Eq as Eq
 import safe Data.Functor.Identity
 import safe Data.Int
-import safe Data.List.NonEmpty
-import safe Data.Maybe
-import safe Data.Ord (Down(..))
-import safe Data.Semigroup
-import safe Data.Word
-import safe Data.Void
-import safe GHC.Real
-import safe Numeric.Natural
-import safe Prelude hiding (Ord(..), Bounded, until)
 import safe qualified Data.IntMap as IntMap
 import safe qualified Data.IntSet as IntSet
+import safe Data.List.NonEmpty
 import safe qualified Data.Map as Map
-import safe qualified Data.Set as Set
+import safe Data.Maybe
+import safe Data.Ord (Down (..))
 import safe qualified Data.Ord as Ord
-import safe qualified Data.Eq as Eq
-
+import safe Data.Semigroup
+import safe qualified Data.Set as Set
+import safe Data.Void
+import safe Data.Word
+import safe GHC.Real
+import safe Numeric.Natural
+import safe Prelude hiding (Bounded, Ord (..), until)
 
 -- | An < https://en.wikipedia.org/wiki/Order_theory#Partially_ordered_sets order > on /a/.
 --
@@ -56,17 +59,15 @@ import safe qualified Data.Eq as Eq
 --
 -- We instead use a constraint kind in order to retain compatibility with the
 -- downstream users of /Eq/.
---
 type Order a = (Eq.Eq a, Preorder a)
 
 -- | A < https://en.wikipedia.org/wiki/Total_order total order > on /a/.
--- 
+--
 -- Note: ideally this would be a subclass of /Order/, without instances
 -- for /Float/, /Double/, /Rational/, etc.
 --
 -- We instead use a constraint kind in order to retain compatibility with the
 -- downstream users of /Ord/.
--- 
 type Total a = (Ord.Ord a, Preorder a)
 
 -------------------------------------------------------------------------------
@@ -78,7 +79,7 @@ type Total a = (Ord.Ord a, Preorder a)
 -- A preorder relation '<~' must satisfy the following two axioms:
 --
 -- \( \forall x: x \leq x \) (reflexivity)
--- 
+--
 -- \( \forall a, b, c: ((a \leq b) \wedge (b \leq c)) \Rightarrow (a \leq c) \) (transitivity)
 --
 -- Given a preorder on /a/ one may define an equivalence relation '~~' such that
@@ -95,9 +96,8 @@ type Total a = (Ord.Ord a, Preorder a)
 --
 -- Minimal complete definition: either 'pcompare' or '<~'. Using 'pcompare' can
 -- be more efficient for complex types.
---
 class Preorder a where
-    {-# MINIMAL (<~) | pcompare #-} 
+    {-# MINIMAL (<~) | pcompare #-}
 
     infix 4 <~, >~, ?~, ~~, /~, `plt`, `pgt`, `pmax`, `pmin`, `pcompare`
 
@@ -111,7 +111,6 @@ class Preorder a where
     -- > x <~ y = maybe False (<~ EQ) (pcompare x y)
     --
     -- for all /x/, /y/ in /a/.
-    --
     (<~) :: a -> a -> Bool
     x <~ y = maybe False (Ord.<= EQ) (pcompare x y)
 
@@ -125,22 +124,19 @@ class Preorder a where
     -- > x >~ y = maybe False (>~ EQ) (pcompare x y)
     --
     -- for all /x/, /y/ in /a/.
-    --
     (>~) :: a -> a -> Bool
     (>~) = flip (<~)
 
-
-    -- | An equivalence relation on /a/. 
+    -- | An equivalence relation on /a/.
     --
     -- Are /x/ and /y/ comparable?
     --
     -- '?~' is reflexive, symmetric, and transitive.
     --
     -- If /a/ implements 'Ord' then we should have @x ?~ y = True@.
-    --
     (?~) :: a -> a -> Bool
     x ?~ y = maybe False (const True) (pcompare x y)
-    
+
     -- | An equivalence relation on /a/.
     --
     -- Are /x/ and /y/ equivalent?
@@ -152,17 +148,15 @@ class Preorder a where
     --
     -- Use this as a lawful substitute for '==' when comparing
     -- floats, doubles, or rationals.
-    --
     (~~) :: a -> a -> Bool
     x ~~ y = maybe False (Eq.== EQ) (pcompare x y)
 
     -- | Negation of '~~'.
     --
     -- Are /x/ and /y/ not equivalent?
-    --
     (/~) :: a -> a -> Bool
     x /~ y = not $ x ~~ y
-    
+
     -- | A strict preorder relation on /a/.
     --
     -- Is /x/ less than /y/?
@@ -172,16 +166,15 @@ class Preorder a where
     -- > x `plt` y = x <~ y && not (y <~ x)
     -- > x `plt` y = maybe False (< EQ) (pcompare x y)
     --
-    -- When '<~' is antisymmetric then /a/ is a partial 
+    -- When '<~' is antisymmetric then /a/ is a partial
     -- order and we have:
-    -- 
+    --
     -- > x `plt` y = x <~ y && x /~ y
     --
     -- for all /x/, /y/ in /a/.
-    --
     plt :: a -> a -> Bool
     plt x y = maybe False (Ord.< EQ) (pcompare x y)
-    
+
     -- | A converse strict preorder relation on /a/.
     --
     -- Is /x/ greater than /y/?
@@ -190,18 +183,17 @@ class Preorder a where
     --
     -- > x `pgt` y = x >~ y && not (y >~ x)
     -- > x `pgt` y = maybe False (> EQ) (pcompare x y)
-    -- 
-    -- When '<~' is antisymmetric then /a/ is a partial 
+    --
+    -- When '<~' is antisymmetric then /a/ is a partial
     -- order and we have:
-    -- 
+    --
     -- > x `pgt` y = x >~ y && x /~ y
     --
     -- for all /x/, /y/ in /a/.
-    --
     pgt :: a -> a -> Bool
     pgt = flip plt
 
-    -- | A similarity relation on /a/. 
+    -- | A similarity relation on /a/.
     --
     -- Are /x/ and /y/ either equivalent or incomparable?
     --
@@ -212,33 +204,30 @@ class Preorder a where
     -- > similar (0/0 :: Float) 5 = True
     --
     -- If /a/ implements 'Ord' then we should have @('~~') = 'similar' = ('==')@.
-    --
     similar :: a -> a -> Bool
     similar x y = maybe True (Eq.== EQ) (pcompare x y)
 
-    -- | A partial version of 'Data.Ord.max'. 
+    -- | A partial version of 'Data.Ord.max'.
     --
     -- Returns the left-hand argument in the case of equality.
-    --
     pmax :: a -> a -> Maybe a
     pmax x y = do
-      o <- pcompare x y
-      case o of
-        GT -> Just x
-        EQ -> Just x
-        LT -> Just y
+        o <- pcompare x y
+        case o of
+            GT -> Just x
+            EQ -> Just x
+            LT -> Just y
 
-    -- | A partial version of 'Data.Ord.min'. 
+    -- | A partial version of 'Data.Ord.min'.
     --
     -- Returns the left-hand argument in the case of equality.
-    --
     pmin :: a -> a -> Maybe a
     pmin x y = do
-      o <- pcompare x y
-      case o of
-        GT -> Just y
-        EQ -> Just x
-        LT -> Just x
+        o <- pcompare x y
+        case o of
+            GT -> Just y
+            EQ -> Just x
+            LT -> Just x
 
     -- | A partial version of 'Data.Ord.compare'.
     --
@@ -249,22 +238,20 @@ class Preorder a where
     -- > x ~~ y = maybe False (~~ EQ) $ pcompare x y
     -- > x ?~ y = maybe False (const True) $ pcompare x y
     -- > similar x y = maybe True (~~ EQ) $ pcompare x y
-    -- 
-    -- If /a/ implements 'Ord' then we should have @'pcompare' x y = 'Just' '$' 'compare' x y@.
     --
+    -- If /a/ implements 'Ord' then we should have @'pcompare' x y = 'Just' '$' 'compare' x y@.
     pcompare :: a -> a -> Maybe Ordering
-    pcompare x y 
-      | x <~ y    = Just $ if y <~ x then EQ else LT
-      | y <~ x    = Just GT
-      | otherwise = Nothing
+    pcompare x y
+        | x <~ y = Just $ if y <~ x then EQ else LT
+        | y <~ x = Just GT
+        | otherwise = Nothing
 
 -- | A partial version of 'Data.Order.Total.comparing'.
 --
 -- > pcomparing p x y = pcompare (p x) (p y)
 --
--- The partial application /pcomparing f/ induces a lawful preorder for 
+-- The partial application /pcomparing f/ induces a lawful preorder for
 -- any total function /f/.
---
 pcomparing :: Preorder a => (b -> a) -> b -> b -> Maybe Ordering
 pcomparing p x y = pcompare (p x) (p y)
 
@@ -272,13 +259,14 @@ pcomparing p x y = pcompare (p x) (p y)
 -- DerivingVia
 ---------------------------------------------------------------------
 
-newtype Base a = Base { getBase :: a } deriving stock (Eq.Eq, Ord.Ord, Show, Functor)
-  deriving Applicative via Identity
+newtype Base a = Base {getBase :: a}
+    deriving stock (Eq.Eq, Ord.Ord, Show, Functor)
+    deriving (Applicative) via Identity
 
 instance Ord.Ord a => Preorder (Base a) where
-  x <~ y = getBase $ liftA2 (Ord.<=) x y
-  x >~ y = getBase $ liftA2 (Ord.>=) x y
-  pcompare x y = Just . getBase $ liftA2 Ord.compare x y
+    x <~ y = getBase $ liftA2 (Ord.<=) x y
+    x >~ y = getBase $ liftA2 (Ord.>=) x y
+    pcompare x y = Just . getBase $ liftA2 Ord.compare x y
 
 --instance Preorder Void where  _ <~ _ = True
 deriving via (Base Void) instance Preorder Void
@@ -300,28 +288,27 @@ deriving via (Base Int64) instance Preorder Int64
 deriving via (Base Integer) instance Preorder Integer
 
 --TODO move to Order and derive Preorder as well
-newtype N5 a = N5 { getN5 :: a } deriving stock (Eq, Show, Functor)
-  deriving Applicative via Identity
+newtype N5 a = N5 {getN5 :: a}
+    deriving stock (Eq, Show, Functor)
+    deriving (Applicative) via Identity
 
 instance (Ord.Ord a, Fractional a) => Preorder (N5 a) where
-  x <~ y = getN5 $ liftA2 n5Le x y
+    x <~ y = getN5 $ liftA2 n5Le x y
 
 -- N5 lattice ordering: NInf <= NaN <= PInf
 n5Le :: (Ord.Ord a, Fractional a) => a -> a -> Bool
-n5Le x y | x Eq./= x && y Eq./= y = True
-       | x Eq./= x = y == 1/0
-       | y Eq./= y = x == -1/0
-       | otherwise = x Ord.<= y
+n5Le x y
+    | x Eq./= x && y Eq./= y = True
+    | x Eq./= x = y == 1 / 0
+    | y Eq./= y = x == -1 / 0
+    | otherwise = x Ord.<= y
 
 deriving via (N5 Float) instance Preorder Float
 deriving via (N5 Double) instance Preorder Double
 
-
 ---------------------------------------------------------------------
 -- Instances
 ---------------------------------------------------------------------
-
-
 
 -- N5 lattice ordering: NInf <= NaN <= PInf
 {-
@@ -339,112 +326,111 @@ Just EQ
 Nothing
 -}
 pcompareRat :: Rational -> Rational -> Maybe Ordering
-pcompareRat (0:%0) (x:%0) = Just $ Ord.compare 0 x
-pcompareRat (x:%0) (0:%0) = Just $ Ord.compare x 0
-pcompareRat (x:%0) (y:%0) = Just $ Ord.compare (signum x) (signum y)
-pcompareRat (0:%0) _ = Nothing
-pcompareRat _ (0:%0) = Nothing
-pcompareRat _ (x:%0) = Just $ Ord.compare 0 x -- guard against div-by-zero exceptions
-pcompareRat (x:%0) _ = Just $ Ord.compare x 0
+pcompareRat (0 :% 0) (x :% 0) = Just $ Ord.compare 0 x
+pcompareRat (x :% 0) (0 :% 0) = Just $ Ord.compare x 0
+pcompareRat (x :% 0) (y :% 0) = Just $ Ord.compare (signum x) (signum y)
+pcompareRat (0 :% 0) _ = Nothing
+pcompareRat _ (0 :% 0) = Nothing
+pcompareRat _ (x :% 0) = Just $ Ord.compare 0 x -- guard against div-by-zero exceptions
+pcompareRat (x :% 0) _ = Just $ Ord.compare x 0
 pcompareRat x y = Just $ Ord.compare x y
 
 -- | Positive rationals, extended with an absorbing zero.
 --
 -- 'Positive' is the canonical < https://en.wikipedia.org/wiki/Semifield#Examples semifield >.
---
 type Positive = Ratio Natural
 
 -- N5 lattice comparison
 pcomparePos :: Positive -> Positive -> Maybe Ordering
-pcomparePos (0:%0) (x:%0) = Just $ Ord.compare 0 x
-pcomparePos (x:%0) (0:%0) = Just $ Ord.compare x 0
-pcomparePos (_:%0) (_:%0) = Just EQ -- all non-nan infs are equal
-pcomparePos (0:%0) (0:%_) = Just $ GT
-pcomparePos (0:%_) (0:%0) = Just $ LT
-pcomparePos (0:%0) _ = Nothing
-pcomparePos _ (0:%0) = Nothing
-pcomparePos (x:%y) (x':%y') = Just $ Ord.compare (x*y') (x'*y)
+pcomparePos (0 :% 0) (x :% 0) = Just $ Ord.compare 0 x
+pcomparePos (x :% 0) (0 :% 0) = Just $ Ord.compare x 0
+pcomparePos (_ :% 0) (_ :% 0) = Just EQ -- all non-nan infs are equal
+pcomparePos (0 :% 0) (0 :% _) = Just $ GT
+pcomparePos (0 :% _) (0 :% 0) = Just $ LT
+pcomparePos (0 :% 0) _ = Nothing
+pcomparePos _ (0 :% 0) = Nothing
+pcomparePos (x :% y) (x' :% y') = Just $ Ord.compare (x * y') (x' * y)
 
 instance Preorder Rational where
-  pcompare = pcompareRat
+    pcompare = pcompareRat
 
 instance Preorder Positive where
-  pcompare = pcomparePos
+    pcompare = pcomparePos
 
 instance (Preorder a, Num a) => Preorder (Complex a) where
-  pcompare = pcomparing $ \(x :+ y) -> x*x + y*y
+    pcompare = pcomparing $ \(x :+ y) -> x * x + y * y
 
 instance Preorder a => Preorder (Down a) where
-  (Down x) <~ (Down y) = y <~ x
-  pcompare (Down x) (Down y) = pcompare y x
+    (Down x) <~ (Down y) = y <~ x
+    pcompare (Down x) (Down y) = pcompare y x
 
 instance Preorder a => Preorder (Dual a) where
-  (Dual x) <~ (Dual y) = y <~ x
-  pcompare (Dual x) (Dual y) = pcompare y x
+    (Dual x) <~ (Dual y) = y <~ x
+    pcompare (Dual x) (Dual y) = pcompare y x
 
 instance Preorder a => Preorder (Max a) where
-  Max a <~ Max b = a <~ b
+    Max a <~ Max b = a <~ b
 
 instance Preorder a => Preorder (Min a) where
-  Min a <~ Min b = a <~ b
+    Min a <~ Min b = a <~ b
 
 instance Preorder Any where
-  Any x <~ Any y = x <~ y
+    Any x <~ Any y = x <~ y
 
 instance Preorder All where
-  All x <~ All y = y <~ x
+    All x <~ All y = y <~ x
 
 instance Preorder a => Preorder (Identity a) where
-  pcompare (Identity x) (Identity y) = pcompare x y
+    pcompare (Identity x) (Identity y) = pcompare x y
 
 instance Preorder a => Preorder (Maybe a) where
-  Nothing <~ _ = True
-  Just{} <~ Nothing = False
-  Just a <~ Just b = a <~ b
+    Nothing <~ _ = True
+    Just{} <~ Nothing = False
+    Just a <~ Just b = a <~ b
 
 instance Preorder a => Preorder [a] where
-  {-# SPECIALISE instance Preorder [Char] #-}
-  --[] <~ _     = True
-  --(_:_) <~ [] = False
-  --(x:xs) <~ (y:ys) = x <~ y && xs <~ ys
+    {-# SPECIALIZE instance Preorder [Char] #-}
 
-  pcompare []     []     = Just EQ
-  pcompare []     (_:_)  = Just LT
-  pcompare (_:_)  []     = Just GT
-  pcompare (x:xs) (y:ys) = case pcompare x y of
-                              Just EQ -> pcompare xs ys
-                              other   -> other
+    --[] <~ _     = True
+    --(_:_) <~ [] = False
+    --(x:xs) <~ (y:ys) = x <~ y && xs <~ ys
+
+    pcompare [] [] = Just EQ
+    pcompare [] (_ : _) = Just LT
+    pcompare (_ : _) [] = Just GT
+    pcompare (x : xs) (y : ys) = case pcompare x y of
+        Just EQ -> pcompare xs ys
+        other -> other
 
 instance Preorder a => Preorder (NonEmpty a) where
-  (x :| xs) <~ (y :| ys) = x <~ y && xs <~ ys
+    (x :| xs) <~ (y :| ys) = x <~ y && xs <~ ys
 
 instance (Preorder a, Preorder b) => Preorder (Either a b) where
-  Right a <~ Right b  = a <~ b
-  Right _ <~ _        = False
+    Right a <~ Right b = a <~ b
+    Right _ <~ _ = False
+    Left a <~ Left b = a <~ b
+    Left _ <~ _ = True
 
-  Left a <~ Left b   = a <~ b
-  Left _ <~ _        = True
- 
-instance (Preorder a, Preorder b) => Preorder (a, b) where 
-  (a,b) <~ (i,j) = a <~ i && b <~ j
+instance (Preorder a, Preorder b) => Preorder (a, b) where
+    (a, b) <~ (i, j) = a <~ i && b <~ j
 
-instance (Preorder a, Preorder b, Preorder c) => Preorder (a, b, c) where 
-  (a,b,c) <~ (i,j,k) = a <~ i && b <~ j && c <~ k
+instance (Preorder a, Preorder b, Preorder c) => Preorder (a, b, c) where
+    (a, b, c) <~ (i, j, k) = a <~ i && b <~ j && c <~ k
 
-instance (Preorder a, Preorder b, Preorder c, Preorder d) => Preorder (a, b, c, d) where 
-  (a,b,c,d) <~ (i,j,k,l) = a <~ i && b <~ j && c <~ k && d <~ l
+instance (Preorder a, Preorder b, Preorder c, Preorder d) => Preorder (a, b, c, d) where
+    (a, b, c, d) <~ (i, j, k, l) = a <~ i && b <~ j && c <~ k && d <~ l
 
-instance (Preorder a, Preorder b, Preorder c, Preorder d, Preorder e) => Preorder (a, b, c, d, e) where 
-  (a,b,c,d,e) <~ (i,j,k,l,m) = a <~ i && b <~ j && c <~ k && d <~ l && e <~ m
+instance (Preorder a, Preorder b, Preorder c, Preorder d, Preorder e) => Preorder (a, b, c, d, e) where
+    (a, b, c, d, e) <~ (i, j, k, l, m) = a <~ i && b <~ j && c <~ k && d <~ l && e <~ m
 
 instance (Ord.Ord k, Preorder a) => Preorder (Map.Map k a) where
-  (<~) = Map.isSubmapOfBy (<~)
+    (<~) = Map.isSubmapOfBy (<~)
 
 instance Ord.Ord a => Preorder (Set.Set a) where
-  (<~) = Set.isSubsetOf
+    (<~) = Set.isSubsetOf
 
 instance Preorder a => Preorder (IntMap.IntMap a) where
-  (<~) = IntMap.isSubmapOfBy (<~)
+    (<~) = IntMap.isSubmapOfBy (<~)
 
 instance Preorder IntSet.IntSet where
-  (<~) = IntSet.isSubsetOf
+    (<~) = IntSet.isSubsetOf
