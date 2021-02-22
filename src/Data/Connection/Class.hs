@@ -149,6 +149,8 @@ f /|\ g = f `strong` g >>> conn
 -- Connection k
 ---------------------------------------------------------------------
 
+
+
 -- | The canonical connections against a 'Bool'.
 extremal :: Triple () a => Conn k a Bool
 extremal = Conn f g h
