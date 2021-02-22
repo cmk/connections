@@ -10,3 +10,13 @@
 * Unify `Connection` and `Triple` into a single class
 * Add `Heyting`, `Symmetric`, and `Boolean` algebras
 * Add misc new instances
+
+## 0.2.0  -- 2021-02-21
+
+* Change integral connection instances to non-shifting behavior.
+* Move all one-sided `Connection` instances to `Connection 'L`.
+* Consolidate floating point utilities into one module.
+* Rename some functions in `Class.hs` and `Conn.hs` for clarity.
+* Move `<` and `>` to `Syntax.hs`.
+* Remove niche instances w/ upstream dependencies.
+* Add misc new instances.

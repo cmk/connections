@@ -31,9 +31,7 @@ import safe Control.Applicative
 import safe Data.Bool
 import safe Data.Complex
 import safe Data.Either
-import safe Data.Foldable (foldl')
 import safe Data.Functor.Identity
-import safe Data.Functor.Contravariant
 import safe Data.Int
 import safe Data.List.NonEmpty
 import safe Data.Maybe
@@ -200,7 +198,7 @@ class Preorder a where
     --
     -- for all /x/, /y/ in /a/.
     --
-    pgt :: Preorder a => a -> a -> Bool
+    pgt :: a -> a -> Bool
     pgt = flip plt
 
     -- | A similarity relation on /a/. 

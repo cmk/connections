@@ -4,8 +4,8 @@
 
 module Data.Order.Extended (
   -- * Lattice extensions
-    type Lifted
-  , type Lowered
+    Lifted
+  , Lowered
   , Extended(..)
   , extended
   --, retract

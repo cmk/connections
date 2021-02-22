@@ -1,26 +1,32 @@
-{-# LANGUAGE Safe                       #-}
-{-# LANGUAGE PolyKinds                  #-}
-{-# LANGUAGE DataKinds                  #-}
-{-# LANGUAGE ConstraintKinds            #-}
-{-# LANGUAGE DefaultSignatures          #-}
+{-# Language MultiParamTypeClasses  #-}
+{-# Language ConstraintKinds     #-}
+{-# Language DataKinds           #-}
+{-# LANGUAGE DefaultSignatures   #-}
+{-# Language FlexibleContexts    #-}
+{-# Language FlexibleInstances   #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# Language Safe                #-}
+{-# Language ScopedTypeVariables #-}
+{-# Language TypeApplications    #-}
+
 -- | Lattices & algebras
 module Data.Lattice (
   -- * Semilattice
     Lattice
   , Semilattice(..)
   -- ** Meet
-  , type Meet
+  , Meet
   , (/\)
   , top
   -- ** Join
-  , type Join
+  , Join
   , (\/)
   , bottom
   -- * Algebra
   , Biheyting
   , Algebra(..)
   -- ** Heyting
-  , type Heyting
+  , Heyting
   , (//)
   , iff
   , neg
@@ -28,7 +34,7 @@ module Data.Lattice (
   , heyting
   , booleanR
   -- ** Coheyting
-  , type Coheyting
+  , Coheyting
   , (\\)
   , equiv
   , non

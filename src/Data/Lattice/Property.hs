@@ -1,4 +1,7 @@
-{-# LANGUAGE DataKinds                  #-}
+{-# Language ScopedTypeVariables #-}
+{-# Language TypeApplications    #-}
+{-# Language FlexibleContexts    #-}
+{-# Language FlexibleInstances   #-}
 module Data.Lattice.Property where
 
 import Data.Order.Property

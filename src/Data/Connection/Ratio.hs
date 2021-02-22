@@ -1,6 +1,7 @@
-{-# Language AllowAmbiguousTypes #-}
 {-# Language ConstraintKinds     #-}
 {-# Language Safe                #-}
+{-# Language ScopedTypeVariables #-}
+{-# Language TypeApplications    #-}
 module Data.Connection.Ratio (
     Ratio(..) 
   , reduce
@@ -54,19 +55,19 @@ shiftd n (x :% y) = (n + x) :% y
 ---------------------------------------------------------------------
 
 rati08 :: Conn k Rational (Extended Int8)
-rati08 = signedTriple 127
+rati08 = signedTriple
 
 rati16 :: Conn k Rational (Extended Int16)
-rati16 = signedTriple 32767
+rati16 = signedTriple
 
 rati32 :: Conn k Rational (Extended Int32)
-rati32 = signedTriple 2147483647
+rati32 = signedTriple
 
 rati64 :: Conn k Rational (Extended Int64)
-rati64 = signedTriple 9223372036854775807
+rati64 = signedTriple
 
 ratixx :: Conn k Rational (Extended Int)
-ratixx = signedTriple 9223372036854775807
+ratixx = signedTriple
 
 ratint :: Conn k Rational (Extended Integer)
 ratint = Conn f g h where
@@ -118,19 +119,19 @@ ratf64 = Conn (toFloating f) (fromFloating g) (toFloating h) where
 ---------------------------------------------------------------------
 
 posw08 :: Conn k Positive (Lowered Word8) 
-posw08 = unsignedTriple 255
+posw08 = unsignedTriple
 
 posw16 :: Conn k Positive (Lowered Word16) 
-posw16 = unsignedTriple 65535
+posw16 = unsignedTriple
 
 posw32 :: Conn k Positive (Lowered Word32) 
-posw32 = unsignedTriple 4294967295
+posw32 = unsignedTriple
 
 posw64 :: Conn k Positive (Lowered Word64) 
-posw64 = unsignedTriple 18446744073709551615
+posw64 = unsignedTriple
 
 poswxx :: Conn k Positive (Lowered Word) 
-poswxx = unsignedTriple 18446744073709551615
+poswxx = unsignedTriple
 
 posnat :: Conn k Positive (Lowered Natural)
 posnat = Conn f g h where
@@ -154,8 +155,8 @@ ninf = (-1) :% 0
 nan :: Num a => Ratio a
 nan = 0 :% 0
 
-unsignedTriple :: (Bounded a, Integral a) => Ratio Natural -> Conn k Positive (Lowered a) 
-unsignedTriple high = Conn f g h where
+unsignedTriple :: forall a k. (Bounded a, Integral a) => Conn k Positive (Lowered a) 
+unsignedTriple = Conn f g h where
   f x | x ~~ nan = Right maxBound
       | x > high = Right maxBound
       | otherwise = Left $ P.ceiling x
@@ -167,8 +168,10 @@ unsignedTriple high = Conn f g h where
       | x > high = Left maxBound
       | otherwise = Left $ P.floor x
 
-signedTriple :: (Bounded a, Integral a) => Rational -> Conn k Rational (Extended a)
-signedTriple high = Conn f g h where
+  high = P.fromIntegral @a maxBound
+
+signedTriple :: forall a k. (Bounded a, Integral a) => Conn k Rational (Extended a)
+signedTriple = Conn f g h where
 
   f = liftExtended (~~ ninf) (\x -> x ~~ nan || x > high) $ \x -> if x < low then minBound else P.ceiling x
 
@@ -176,16 +179,17 @@ signedTriple high = Conn f g h where
  
   h = liftExtended (\x -> x ~~ nan || x < low) (~~ pinf) $ \x -> if x > high then maxBound else P.floor x
 
+  high = P.fromIntegral @a maxBound
   low = -1 - high
 
 
-toFloating :: (Order (Ratio a), Fractional b, Num a) => (Ratio a -> b) -> Ratio a -> b
+toFloating :: Fractional a => (Rational -> a) -> Rational -> a
 toFloating f x | x ~~ nan = 0/0
          | x ~~ ninf = (-1)/0
          | x ~~ pinf = 1/0
          | otherwise = f x
 
-fromFloating :: (Order a, Eq a, Fractional a, Num b) => (a -> Ratio b) -> a -> Ratio b
+fromFloating :: (Order a, Fractional a) => (a -> Rational) -> a -> Rational
 fromFloating f x | x ~~ 0/0 = nan
                  | x ~~ (-1)/0 = ninf
                  | x ~~ 1/0 = pinf
