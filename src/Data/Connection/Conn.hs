@@ -90,7 +90,14 @@ import safe Prelude hiding (Ord (..))
 -- * /R/-tagged types are high / decreasing (e.g. 'Data.Connection.Class.maximal', 'Data.Connection.Class.floor', 'Data.Connection.Class.meet')
 data Kan = L | R
 
--- | An < https://ncatlab.org/nlab/show/adjoint+string adjoint string > of Galois connections of length 2 or 3.
+-- | A (chain of) Galois connections.
+--
+-- A [Galois connection](https://en.wikipedia.org/wiki/Galois_connection) between preorders P and Q
+-- is a pair of monotone maps `f :: p -> q` and `g :: q -> p` such that:
+--
+-- > f x <= y iff x <= g y
+--
+-- We say that `f` is the left or lower adjoint, and `g` is the right or upper adjoint of the connection.
 --
 -- Connections have many nice properties wrt numerical conversion:
 --
@@ -98,13 +105,15 @@ data Kan = L | R
 -- (0.125,0.125)
 -- >>> range (conn @_ @Rational @Float) (1 :% 7) -- sevenths are not
 -- (0.14285713,0.14285715)
-data Conn (k :: Kan) a b = Galois (a -> (b, b)) (b -> a)
+--
+-- See the /README/ file for a slightly more in-depth introduction.
+data Conn (k :: Kan) a b = C (a -> (b, b)) (b -> a)
 
 instance Category (Conn k) where
     id = identity
     {-# INLINE id #-}
 
-    Galois f1 g1 . Galois f2 g2 = Galois ((fst . f1) . (fst . f2) &&& (snd . f1) . (snd . f2)) (g2 . g1)
+    C f1 g1 . C f2 g2 = C ((fst . f1) . (fst . f2) &&& (snd . f1) . (snd . f2)) (g2 . g1)
     {-# INLINE (.) #-}
 
 -- | Obtain a /Conn/ from an adjoint triple of monotone functions.
@@ -116,28 +125,28 @@ instance Category (Conn k) where
 --
 --  For detailed properties see 'Data.Connection.Property'.
 pattern Conn :: (a -> b) -> (b -> a) -> (a -> b) -> Conn k a b
-pattern Conn f g h <- (embed &&& _1 &&& _2 -> (g, (h, f))) where Conn f g h = Galois (h &&& f) g
+pattern Conn f g h <- (embed &&& _1 &&& _2 -> (g, (h, f))) where Conn f g h = C (h &&& f) g
 
 {-# COMPLETE Conn #-}
 
 -- Internal floor function. When \(f \dashv g \dashv h \) this is h.
 _1 :: Conn k a b -> a -> b
-_1 (Galois f _) = fst . f
+_1 (C f _) = fst . f
 {-# INLINE _1 #-}
 
 -- Internal ceiling function. When \(f \dashv g \dashv h \) this is f.
 _2 :: Conn k a b -> a -> b
-_2 (Galois f _) = snd . f
+_2 (C f _) = snd . f
 {-# INLINE _2 #-}
 
 -- | The identity 'Conn'.
 identity :: Conn k a a
-identity = Galois (id &&& id) id
+identity = C (id &&& id) id
 {-# INLINE identity #-}
 
 -- | Obtain the center of a 'ConnK', upper adjoint of a 'ConnL', or lower adjoint of a 'ConnR'.
 embed :: Conn k a b -> b -> a
-embed (Galois _ g) = g
+embed (C _ g) = g
 {-# INLINE embed #-}
 
 -- | Obtain the upper and/or lower adjoints of a connection.
@@ -149,7 +158,7 @@ embed (Galois _ g) = g
 -- >>> range f64f32 (0/0)
 -- (NaN,NaN)
 range :: Conn k a b -> a -> (b, b)
-range (Galois f _) = f
+range (C f _) = f
 {-# INLINE range #-}
 
 ---------------------------------------------------------------------
@@ -265,7 +274,7 @@ type ConnL = Conn 'L
 --
 -- /Caution/: /ConnL f g/ must obey \(f \dashv g \). This condition is not checked.
 pattern ConnL :: (a -> b) -> (b -> a) -> ConnL a b
-pattern ConnL f g <- (_2 &&& embed -> (f, g)) where ConnL f g = Galois (f &&& f) g
+pattern ConnL f g <- (_2 &&& embed -> (f, g)) where ConnL f g = C (f &&& f) g
 
 {-# COMPLETE ConnL #-}
 
@@ -397,7 +406,7 @@ type ConnR = Conn 'R
 --
 -- /Caution/: /ConnR f g/ must obey \(f \dashv g \). This condition is not checked.
 pattern ConnR :: (b -> a) -> (a -> b) -> ConnR a b
-pattern ConnR f g <- (embed &&& _1 -> (f, g)) where ConnR f g = Galois (g &&& g) f
+pattern ConnR f g <- (embed &&& _1 -> (f, g)) where ConnR f g = C (g &&& g) f
 
 {-# COMPLETE ConnR #-}
 

@@ -22,10 +22,11 @@ library
       Data.Connection
     , Data.Connection.Conn
     , Data.Connection.Class
-    , Data.Connection.Int
-    , Data.Connection.Word
-    , Data.Connection.Ratio
+    , Data.Connection.Fixed
     , Data.Connection.Float
+    , Data.Connection.Int
+    , Data.Connection.Ratio
+    , Data.Connection.Word
     , Data.Connection.Property
 
     , Data.Lattice
