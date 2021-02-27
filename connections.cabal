@@ -50,6 +50,7 @@ test-suite test
     , Test.Data.Connection
     , Test.Data.Connection.Int
     , Test.Data.Connection.Word
+    , Test.Data.Connection.Fixed
     , Test.Data.Connection.Float
     , Test.Data.Connection.Ratio
   build-depends:       

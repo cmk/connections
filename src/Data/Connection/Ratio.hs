@@ -2,6 +2,7 @@
 {-# LANGUAGE Safe #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Data.Connection.Ratio (
     Ratio (..),
@@ -9,14 +10,15 @@ module Data.Connection.Ratio (
     shiftd,
 
     -- * Rational
-    ratf32,
-    ratf64,
     rati08,
     rati16,
     rati32,
     rati64,
     ratixx,
     ratint,
+    ratfix,
+    ratf32,
+    ratf64,
 
     -- * Positive
     posw08,
@@ -28,17 +30,18 @@ module Data.Connection.Ratio (
 ) where
 
 import safe Data.Connection.Conn
-import safe qualified Data.Connection.Float as Float
+import safe Data.Connection.Fixed
+import safe Data.Connection.Float as Float
 import safe Data.Int
 import safe Data.Order
 import safe Data.Order.Extended
 import safe Data.Order.Syntax
+import safe Data.Proxy
 import safe Data.Ratio
 import safe Data.Word
 import safe GHC.Real (Ratio (..), Rational)
 import safe Numeric.Natural
-import safe Prelude hiding (Ord (..), until)
-import safe qualified Prelude as P
+import safe Prelude hiding (Eq (..), Ord (..), until)
 
 -- | A total version of 'GHC.Real.reduce'.
 reduce :: Integral a => Ratio a -> Ratio a
@@ -56,66 +59,77 @@ shiftd n (x :% y) = (n + x) :% y
 ---------------------------------------------------------------------
 
 rati08 :: Conn k Rational (Extended Int8)
-rati08 = signedTriple
+rati08 = tripleI
 
 rati16 :: Conn k Rational (Extended Int16)
-rati16 = signedTriple
+rati16 = tripleI
 
 rati32 :: Conn k Rational (Extended Int32)
-rati32 = signedTriple
+rati32 = tripleI
 
 rati64 :: Conn k Rational (Extended Int64)
-rati64 = signedTriple
+rati64 = tripleI
 
 ratixx :: Conn k Rational (Extended Int)
-ratixx = signedTriple
+ratixx = tripleI
 
 ratint :: Conn k Rational (Extended Integer)
 ratint = Conn f g h
   where
-    f = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) P.ceiling
+    f = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) ceiling
 
-    g = extended ninf pinf P.fromIntegral
+    g = extended ninf pinf fromIntegral
 
-    h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) P.floor
+    h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) floor
+
+ratfix :: forall e k. HasResolution e => Conn k Rational (Fixed e)
+ratfix = Conn f g h
+  where
+    prec = resolution (Proxy :: Proxy e)
+
+    f (reduce . (* (toRational prec)) -> n :% d) = MkFixed $ let i = n `div` d in if n `mod` d == 0 then i else i + 1
+
+    g = toRational
+
+    h (reduce . (* (toRational prec)) -> n :% d) = MkFixed $ n `div` d
 
 ratf32 :: Conn k Rational Float
-ratf32 = Conn (toFloating f) (fromFloating g) (toFloating h)
+ratf32 = Conn (toFractional f) (fromFractional g) (toFractional h)
   where
     f x =
-        let est = P.fromRational x
-         in if fromFloating g est >~ x
+        let est = fromRational x
+         in if fromFractional g est >~ x
                 then est
-                else ascendf est (fromFloating g) x
+                else ascendf est (fromFractional g) x
 
     g = flip approxRational 0
 
     h x =
-        let est = P.fromRational x
-         in if fromFloating g est <~ x
+        let est = fromRational x
+         in if fromFractional g est <~ x
                 then est
-                else descendf est (fromFloating g) x
+                else descendf est (fromFractional g) x
 
     ascendf z g1 y = Float.until (\x -> g1 x >~ y) (<~) (Float.shift32 1) z
 
     descendf z f1 x = Float.until (\y -> f1 y <~ x) (>~) (Float.shift32 (-1)) z
 
 ratf64 :: Conn k Rational Double
-ratf64 = Conn (toFloating f) (fromFloating g) (toFloating h)
+ratf64 = Conn (toFractional f) (fromFractional g) (toFractional h)
   where
     f x =
-        let est = P.fromRational x
-         in if fromFloating g est >~ x
+        let est = fromRational x
+         in if fromFractional g est >~ x
                 then est
-                else ascendf est (fromFloating g) x
+                else ascendf est (fromFractional g) x
 
     g = flip approxRational 0
 
     h x =
-        let est = P.fromRational x
-         in if fromFloating g est <~ x
+        let est = fromRational x
+         in if fromFractional g est <~ x
                 then est
-                else descendf est (fromFloating g) x
+                else descendf est (fromFractional g) x
 
     ascendf z g1 y = Float.until (\x -> g1 x >~ y) (<~) (Float.shift64 1) z
 
@@ -126,28 +140,28 @@ ratf64 = Conn (toFloating f) (fromFloating g) (toFloating h)
 ---------------------------------------------------------------------
 
 posw08 :: Conn k Positive (Lowered Word8)
-posw08 = unsignedTriple
+posw08 = tripleW
 
 posw16 :: Conn k Positive (Lowered Word16)
-posw16 = unsignedTriple
+posw16 = tripleW
 
 posw32 :: Conn k Positive (Lowered Word32)
-posw32 = unsignedTriple
+posw32 = tripleW
 
 posw64 :: Conn k Positive (Lowered Word64)
-posw64 = unsignedTriple
+posw64 = tripleW
 
 poswxx :: Conn k Positive (Lowered Word)
-poswxx = unsignedTriple
+poswxx = tripleW
 
 posnat :: Conn k Positive (Lowered Natural)
 posnat = Conn f g h
   where
-    f = liftEitherR (\x -> x ~~ nan || x ~~ pinf) P.ceiling
+    f = liftEitherR (\x -> x ~~ nan || x ~~ pinf) ceiling
 
-    g = either P.fromIntegral (const pinf)
+    g = either fromIntegral (const pinf)
 
-    h = liftEitherR (~~ pinf) $ \x -> if x ~~ nan then 0 else P.floor x
+    h = liftEitherR (~~ pinf) $ \x -> if x ~~ nan then 0 else floor x
 
 ---------------------------------------------------------------------
 -- Internal
@@ -162,45 +176,45 @@ ninf = (-1) :% 0
 nan :: Num a => Ratio a
 nan = 0 :% 0
 
-unsignedTriple :: forall a k. (Bounded a, Integral a) => Conn k Positive (Lowered a)
-unsignedTriple = Conn f g h
+tripleW :: forall a k. (Bounded a, Integral a) => Conn k Positive (Lowered a)
+tripleW = Conn f g h
   where
     f x
         | x ~~ nan = Right maxBound
         | x > high = Right maxBound
-        | otherwise = Left $ P.ceiling x
+        | otherwise = Left $ ceiling x
 
-    g = either P.fromIntegral (const pinf)
+    g = either fromIntegral (const pinf)
 
     h x
         | x ~~ nan = Left minBound
         | x ~~ pinf = Right maxBound
         | x > high = Left maxBound
-        | otherwise = Left $ P.floor x
+        | otherwise = Left $ floor x
 
-    high = P.fromIntegral @a maxBound
+    high = fromIntegral @a maxBound
 
-signedTriple :: forall a k. (Bounded a, Integral a) => Conn k Rational (Extended a)
-signedTriple = Conn f g h
+tripleI :: forall a k. (Bounded a, Integral a) => Conn k Rational (Extended a)
+tripleI = Conn f g h
   where
-    f = liftExtended (~~ ninf) (\x -> x ~~ nan || x > high) $ \x -> if x < low then minBound else P.ceiling x
+    f = liftExtended (~~ ninf) (\x -> x ~~ nan || x > high) $ \x -> if x < low then minBound else ceiling x
 
-    g = extended ninf pinf P.fromIntegral
+    g = extended ninf pinf fromIntegral
 
-    h = liftExtended (\x -> x ~~ nan || x < low) (~~ pinf) $ \x -> if x > high then maxBound else P.floor x
+    h = liftExtended (\x -> x ~~ nan || x < low) (~~ pinf) $ \x -> if x > high then maxBound else floor x
 
-    high = P.fromIntegral @a maxBound
+    high = fromIntegral @a maxBound
     low = -1 - high
 
-toFloating :: Fractional a => (Rational -> a) -> Rational -> a
-toFloating f x
+toFractional :: Fractional a => (Rational -> a) -> Rational -> a
+toFractional f x
     | x ~~ nan = 0 / 0
     | x ~~ ninf = (-1) / 0
     | x ~~ pinf = 1 / 0
     | otherwise = f x
 
-fromFloating :: (Order a, Fractional a) => (a -> Rational) -> a -> Rational
-fromFloating f x
+fromFractional :: (Order a, Fractional a) => (a -> Rational) -> a -> Rational
+fromFractional f x
     | x ~~ 0 / 0 = nan
     | x ~~ (-1) / 0 = ninf
     | x ~~ 1 / 0 = pinf
@@ -221,9 +235,9 @@ nanr f = maybe (0 :% 0) f
 ratpos :: Conn k Rational Positive
 ratpos = Conn k f g h where
 
-  f = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) P.ceiling
+  f = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) ceiling
 
-  g = extended minBound maxBound P.fromIntegral
+  g = extended minBound maxBound fromIntegral
 
-  h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) P.floor
+  h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) floor
 -}
