@@ -76,6 +76,7 @@ module Data.Connection.Class (
 import safe Control.Category ((>>>))
 import safe Data.Bool (bool)
 import safe Data.Connection.Conn
+import safe Data.Connection.Fixed
 import safe Data.Connection.Float
 import safe Data.Connection.Int
 import safe Data.Connection.Ratio
@@ -148,8 +149,6 @@ f /|\ g = f `strong` g >>> conn
 ---------------------------------------------------------------------
 -- Connection k
 ---------------------------------------------------------------------
-
-
 
 -- | The canonical connections against a 'Bool'.
 extremal :: Triple () a => Conn k a Bool
@@ -467,6 +466,38 @@ instance Connection k (Integer, Integer) Integer where conn = latticeOrd
 instance Connection k () Rational where
     conn = Conn (const $ -1 :% 0) (const ()) (const $ 1 :% 0)
 instance Connection k (Rational, Rational) Rational where conn = latticeN5
+
+instance HasResolution e => Connection k Rational (Fixed e) where conn = ratfix
+
+instance Connection k Deci Uni where conn = f01f00
+instance Connection k Centi Uni where conn = f02f00
+instance Connection k Milli Uni where conn = f03f00
+instance Connection k Micro Uni where conn = f06f00
+instance Connection k Nano Uni where conn = f09f00
+instance Connection k Pico Uni where conn = f12f00
+
+instance Connection k Centi Deci where conn = f02f01
+instance Connection k Milli Deci where conn = f03f01
+instance Connection k Micro Deci where conn = f06f01
+instance Connection k Nano Deci where conn = f09f01
+instance Connection k Pico Deci where conn = f12f01
+
+instance Connection k Milli Centi where conn = f03f02
+instance Connection k Micro Centi where conn = f06f02
+instance Connection k Nano Centi where conn = f09f02
+instance Connection k Pico Centi where conn = f12f02
+
+instance Connection k Micro Milli where conn = f06f03
+instance Connection k Nano Milli where conn = f09f03
+instance Connection k Pico Milli where conn = f12f03
+
+instance Connection k Nano Micro where conn = f09f06
+instance Connection k Pico Micro where conn = f12f06
+
+instance Connection k Pico Nano where conn = f12f09
+
+instance Connection k (Fixed e, Fixed e) (Fixed e) where conn = latticeOrd
+
 
 instance Connection k () Float where conn = extremalN5
 instance Connection k Double Float where conn = f64f32

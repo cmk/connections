@@ -107,13 +107,13 @@ data Kan = L | R
 -- (0.14285713,0.14285715)
 --
 -- See the /README/ file for a slightly more in-depth introduction.
-data Conn (k :: Kan) a b = C (a -> (b, b)) (b -> a)
+data Conn (k :: Kan) a b = Conn_ (a -> (b, b)) (b -> a)
 
 instance Category (Conn k) where
     id = identity
     {-# INLINE id #-}
 
-    C f1 g1 . C f2 g2 = C ((fst . f1) . (fst . f2) &&& (snd . f1) . (snd . f2)) (g2 . g1)
+    Conn_ f1 g1 . Conn_ f2 g2 = Conn_ ((fst . f1) . (fst . f2) &&& (snd . f1) . (snd . f2)) (g2 . g1)
     {-# INLINE (.) #-}
 
 -- | Obtain a /Conn/ from an adjoint triple of monotone functions.
@@ -125,28 +125,28 @@ instance Category (Conn k) where
 --
 --  For detailed properties see 'Data.Connection.Property'.
 pattern Conn :: (a -> b) -> (b -> a) -> (a -> b) -> Conn k a b
-pattern Conn f g h <- (embed &&& _1 &&& _2 -> (g, (h, f))) where Conn f g h = C (h &&& f) g
+pattern Conn f g h <- (embed &&& _1 &&& _2 -> (g, (h, f))) where Conn f g h = Conn_ (h &&& f) g
 
 {-# COMPLETE Conn #-}
 
 -- Internal floor function. When \(f \dashv g \dashv h \) this is h.
 _1 :: Conn k a b -> a -> b
-_1 (C f _) = fst . f
+_1 (Conn_ f _) = fst . f
 {-# INLINE _1 #-}
 
 -- Internal ceiling function. When \(f \dashv g \dashv h \) this is f.
 _2 :: Conn k a b -> a -> b
-_2 (C f _) = snd . f
+_2 (Conn_ f _) = snd . f
 {-# INLINE _2 #-}
 
 -- | The identity 'Conn'.
 identity :: Conn k a a
-identity = C (id &&& id) id
+identity = Conn_ (id &&& id) id
 {-# INLINE identity #-}
 
 -- | Obtain the center of a 'ConnK', upper adjoint of a 'ConnL', or lower adjoint of a 'ConnR'.
 embed :: Conn k a b -> b -> a
-embed (C _ g) = g
+embed (Conn_ _ g) = g
 {-# INLINE embed #-}
 
 -- | Obtain the upper and/or lower adjoints of a connection.
@@ -158,7 +158,7 @@ embed (C _ g) = g
 -- >>> range f64f32 (0/0)
 -- (NaN,NaN)
 range :: Conn k a b -> a -> (b, b)
-range (C f _) = f
+range (Conn_ f _) = f
 {-# INLINE range #-}
 
 ---------------------------------------------------------------------
@@ -274,7 +274,7 @@ type ConnL = Conn 'L
 --
 -- /Caution/: /ConnL f g/ must obey \(f \dashv g \). This condition is not checked.
 pattern ConnL :: (a -> b) -> (b -> a) -> ConnL a b
-pattern ConnL f g <- (_2 &&& embed -> (f, g)) where ConnL f g = C (f &&& f) g
+pattern ConnL f g <- (_2 &&& embed -> (f, g)) where ConnL f g = Conn_ (f &&& f) g
 
 {-# COMPLETE ConnL #-}
 
@@ -406,7 +406,7 @@ type ConnR = Conn 'R
 --
 -- /Caution/: /ConnR f g/ must obey \(f \dashv g \). This condition is not checked.
 pattern ConnR :: (b -> a) -> (a -> b) -> ConnR a b
-pattern ConnR f g <- (embed &&& _1 -> (f, g)) where ConnR f g = C (g &&& g) f
+pattern ConnR f g <- (embed &&& _1 -> (f, g)) where ConnR f g = Conn_ (g &&& g) f
 
 {-# COMPLETE ConnR #-}
 

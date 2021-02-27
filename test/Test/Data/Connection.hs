@@ -11,6 +11,7 @@ import Data.Foldable
 import Data.Lattice
 import Data.Int
 import Data.Word
+import Data.Fixed
 import Data.Order
 import Data.Order.Extended
 import Data.Order.Interval
@@ -45,6 +46,9 @@ rd = R.exponentialFloatFrom 0 (-1.7976931348623157e308) 1.7976931348623157e308
 
 ord :: Gen Ordering
 ord = G.element [LT, EQ, GT]
+
+fxx :: Gen (Fixed k)
+fxx = MkFixed <$> G.integral ri'
 
 f32 :: Gen Float
 f32 = gen_flt $ G.float rf

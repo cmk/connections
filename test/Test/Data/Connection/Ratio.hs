@@ -4,11 +4,55 @@ module Test.Data.Connection.Ratio where
 
 import Data.Int
 import Data.Word
+import Data.Fixed
 import Data.Connection.Ratio
 import Hedgehog
 import Test.Data.Connection
 import qualified Data.Connection.Property as Prop
 import qualified Hedgehog.Gen as G
+import qualified Hedgehog.Range as R
+
+rat' :: Gen (Ratio Integer)
+rat' = G.realFrac_ $ R.linearFracFrom 0 (- 2^(127 :: Integer)) (2^(127 :: Integer))
+
+prop_connection_ratf06 :: Property
+prop_connection_ratf06 = withTests 1000 . property $ do
+  x <- forAll rat'
+  x' <- forAll rat'
+  y <- forAll fxx
+  y' <- forAll fxx
+
+  assert $ Prop.adjoint (ratfix @E6) x y
+  assert $ Prop.closed (ratfix @E6) x
+  assert $ Prop.kernel (ratfix @E6) y
+  assert $ Prop.monotonic (ratfix @E6) x x' y y'
+  assert $ Prop.idempotent (ratfix @E6) x y
+
+prop_connection_ratf09 :: Property
+prop_connection_ratf09 = withTests 1000 . property $ do
+  x <- forAll rat'
+  x' <- forAll rat'
+  y <- forAll fxx
+  y' <- forAll fxx
+
+  assert $ Prop.adjoint (ratfix @E9) x y
+  assert $ Prop.closed (ratfix @E9) x
+  assert $ Prop.kernel (ratfix @E9) y
+  assert $ Prop.monotonic (ratfix @E9) x x' y y'
+  assert $ Prop.idempotent (ratfix @E9) x y
+
+prop_connection_ratf12 :: Property
+prop_connection_ratf12 = withTests 1000 . property $ do
+  x <- forAll rat'
+  x' <- forAll rat'
+  y <- forAll fxx
+  y' <- forAll fxx
+
+  assert $ Prop.adjoint (ratfix @E12) x y
+  assert $ Prop.closed (ratfix @E12) x
+  assert $ Prop.kernel (ratfix @E12) y
+  assert $ Prop.monotonic (ratfix @E12) x x' y y'
+  assert $ Prop.idempotent (ratfix @E12) x y
 
 prop_connection_ratf32 :: Property
 prop_connection_ratf32 = withTests 1000 . property $ do

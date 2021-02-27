@@ -36,6 +36,7 @@ import safe Data.Bool
 import safe Data.Complex
 import safe Data.Either
 import safe qualified Data.Eq as Eq
+import safe Data.Fixed
 import safe Data.Functor.Identity
 import safe Data.Int
 import safe qualified Data.IntMap as IntMap
@@ -287,10 +288,12 @@ deriving via (Base Int32) instance Preorder Int32
 deriving via (Base Int64) instance Preorder Int64
 deriving via (Base Integer) instance Preorder Integer
 
+deriving via (Base (Fixed e)) instance Preorder (Fixed e)
+
 --TODO move to Order and derive Preorder as well
 newtype N5 a = N5 {getN5 :: a}
     deriving stock (Eq, Show, Functor)
-    deriving (Applicative) via Identity
+    deriving Applicative via Identity
 
 instance (Ord.Ord a, Fractional a) => Preorder (N5 a) where
     x <~ y = getN5 $ liftA2 n5Le x y
