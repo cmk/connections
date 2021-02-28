@@ -1,16 +1,12 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Safe #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Data.Connection.Float (
-    -- * Connections
-    f32i08,
-    f32i16,
-    f64i08,
-    f64i16,
-    f64i32,
-    f64f32,
-
     -- * Float
     min32,
     max32,
@@ -18,6 +14,12 @@ module Data.Connection.Float (
     ulp32,
     near32,
     shift32,
+    f32i08,
+    f32i16,
+    f32i32,
+    f32i64,
+    f32ixx,
+    f32int,
 
     -- * Double
     min64,
@@ -26,70 +28,32 @@ module Data.Connection.Float (
     ulp64,
     near64,
     shift64,
+    f64i08,
+    f64i16,
+    f64i32,
+    f64i64,
+    f64ixx,
+    f64int,
+    f64f32,
+    
     until,
 ) where
 
 import safe Data.Bool
 import safe Data.Connection.Conn
+--import safe Data.Connection.Int
+--import safe Data.Fixed
 import safe Data.Int
 import safe Data.Order
 import safe Data.Order.Extended
 import safe Data.Order.Syntax hiding (max, min)
 import safe Data.Word
+--import safe Data.Ratio (approxRational)
 import safe GHC.Float as F
+--import safe GHC.Real (Ratio (..))
 import safe Prelude hiding (Eq (..), Ord (..), until)
 import safe qualified Prelude as P
 
----------------------------------------------------------------------
--- Connections
----------------------------------------------------------------------
-
--- | All 'Data.Int.Int08' values are exactly representable in a 'Float'.
-f32i08 :: Conn k Float (Extended Int8)
-f32i08 = triple
-
--- | All 'Data.Int.Int16' values are exactly representable in a 'Float'.
---
---  > ceilingWith f32i16 32767.0
---  Extended 32767
---  > ceilingWith f32i16 32767.1
---  Top
-f32i16 :: Conn k Float (Extended Int16)
-f32i16 = triple
-
--- | All 'Data.Int.Int08' values are exactly representable in a 'Double'.
-f64i08 :: Conn k Double (Extended Int8)
-f64i08 = triple
-
--- | All 'Data.Int.Int16' values are exactly representable in a 'Double'.
-f64i16 :: Conn k Double (Extended Int16)
-f64i16 = triple
-
--- | All 'Data.Int.Int32' values are exactly representable in a 'Double'.
-f64i32 :: Conn k Double (Extended Int32)
-f64i32 = triple
-
-f64f32 :: Conn k Double Float
-f64f32 = Conn f g h
-  where
-    f x =
-        let est = double2Float x
-         in if g est >~ x
-                then est
-                else ascend32 est g x
-    
-    g = float2Double
-
-    h x =
-        let est = double2Float x
-         in if g est <~ x
-                then est
-                else descend32 est g x
-
-
-    ascend32 z g1 y = until (\x -> g1 x >~ y) (<~) (shift32 1) z
-
-    descend32 z h1 x = until (\y -> h1 y <~ x) (>~) (shift32 (-1)) z
 
 ---------------------------------------------------------------------
 -- Float
@@ -169,6 +133,31 @@ shift32 n x =
      else
       int32Float . clamp32 . (+ n) . floatInt32 $ x
 
+-- | All 'Data.Int.Int08' values are exactly representable in a 'Float'.
+f32i08 :: Conn k Float (Extended Int8)
+f32i08 = fxxext
+
+-- | All 'Data.Int.Int16' values are exactly representable in a 'Float'.
+--
+--  > ceilingWith f32i16 32767.0
+--  Extended 32767
+--  > ceilingWith f32i16 32767.1
+--  Top
+f32i16 :: Conn k Float (Extended Int16)
+f32i16 = fxxext
+
+f32i32 :: Conn 'L Float (Extended Int32)
+f32i32 = f32ext
+
+f32i64 :: Conn 'L Float (Extended Int64)
+f32i64 = f32ext
+
+f32ixx :: Conn 'L Float (Extended Int)
+f32ixx = f32ext
+
+f32int :: Conn 'L Float (Extended Integer)
+f32int = f32ext
+
 ---------------------------------------------------------------------
 -- Double
 ---------------------------------------------------------------------
@@ -247,6 +236,49 @@ shift64 n x =
      else
       int64Double . clamp64 . (+ n) . doubleInt64 $ x
 
+-- | All 'Data.Int.Int08' values are exactly representable in a 'Double'.
+f64i08 :: Conn k Double (Extended Int8)
+f64i08 = fxxext
+
+-- | All 'Data.Int.Int16' values are exactly representable in a 'Double'.
+f64i16 :: Conn k Double (Extended Int16)
+f64i16 = fxxext
+
+-- | All 'Data.Int.Int32' values are exactly representable in a 'Double'.
+f64i32 :: Conn k Double (Extended Int32)
+f64i32 = fxxext
+
+f64i64 :: Conn 'L Double (Extended Int64)
+f64i64 = f64ext
+
+f64ixx :: Conn 'L Double (Extended Int)
+f64ixx = f64ext
+
+f64int :: Conn 'L Double (Extended Integer)
+f64int = f64ext
+
+f64f32 :: Conn k Double Float
+f64f32 = Conn f g h
+  where
+    f x =
+        let est = double2Float x
+         in if g est >~ x
+                then est
+                else ascend32 est g x
+    
+    g = float2Double
+
+    h x =
+        let est = double2Float x
+         in if g est <~ x
+                then est
+                else descend32 est g x
+
+
+    ascend32 z g1 y = until (\x -> g1 x >~ y) (<~) (shift32 1) z
+
+    descend32 z h1 x = until (\y -> h1 y <~ x) (>~) (shift32 (-1)) z
+
 ---------------------------------------------------------------------
 -- Internal
 ---------------------------------------------------------------------
@@ -289,7 +321,7 @@ unsigned64 x
 int32Float :: Int32 -> Float
 int32Float = castWord32ToFloat . unsigned32
 
--- NB: I needed these zeros to avoid some error and now forget why :(
+-- NB: I needed these zeros to avoid some error
 floatInt32 :: Float -> Int32
 floatInt32 = signed32 . (+ 0) . castFloatToWord32
 
@@ -307,8 +339,38 @@ clamp32 = P.max (-2139095041) . P.min 2139095040
 clamp64 :: Int64 -> Int64
 clamp64 = P.max (-9218868437227405313) . P.min 9218868437227405312
 
-triple :: forall a b k. (RealFrac a, Preorder a, Bounded b, Integral b) => Conn k a (Extended b)
-triple = Conn f g h
+f32ext :: Integral a => Conn 'L Float (Extended a)
+f32ext = ConnL f g
+  where
+    prec = 24 :: Int -- Float loses integer precision beyond 2^prec
+
+    f x | abs x <= 2**24-1 = Extended (ceiling x)
+        | otherwise = case pcompare x 0 of
+                         Just LT -> Bottom
+                         _ -> Extended (2^prec)
+        
+    g Bottom = -2**24
+    g Top = 1/0
+    g (Extended i) | abs i P.<= 2^prec-1 = fromIntegral i
+                   | otherwise = if i P.>= 0 then 1/0 else -2**24 
+
+f64ext :: Integral a => Conn 'L Double (Extended a)
+f64ext = ConnL f g
+  where
+    prec = 53 :: Int -- Double loses integer precision beyond 2^prec
+
+    f x | abs x <= 2**53-1 = Extended (ceiling x)
+        | otherwise = case pcompare x 0 of
+                         Just LT -> Bottom
+                         _ -> Extended (2^prec)
+        
+    g Bottom = -2**53
+    g Top = 1/0
+    g (Extended i) | abs i P.<= 2^prec-1 = fromIntegral i
+                   | otherwise = if i P.>= 0 then 1/0 else -2**53 
+
+fxxext :: forall a b k. (RealFrac a, Preorder a, Bounded b, Integral b) => Conn k a (Extended b)
+fxxext = Conn f g h
   where
     f = liftExtended (~~ -1 / 0) (\x -> x ~~ 0 / 0 || x > high) $ \x -> if x < low then minBound else ceiling x
 
@@ -321,42 +383,10 @@ triple = Conn f g h
     high = fromIntegral $ maxBound @b
 
 {-
-rt :: RealFloat a => a -> a
-rt = uncurry encodeFloat . decodeFloat 
 
--- | Exact embedding up to the largest representable 'Int32'.
-f32i32 :: ConnL Float (Maybe Int32)
-f32i32 = Conn (nanf f) (nan g) where
-  f x | abs x <~ 2**24-1 = P.ceiling x
-      | otherwise = if x >~ 0 then 2^24 else minBound
+frac2fixed :: (RealFrac a, HasResolution b) => a -> Fixed b
+frac2fixed (flip approxRational 0 -> (n :% d)) = fromInteger n / fromInteger d
 
-  g i | abs' i <~ 2^24-1 = fromIntegral i
-      | otherwise = if i >~ 0 then 1/0 else -2**24
-
--- | Exact embedding up to the largest representable 'Int32'.
-i32f32 :: ConnL (Maybe Int32) Float
-i32f32 = Conn (nan g) (nanf f) where
-  f x | abs x <~ 2**24-1 = P.floor x
-      | otherwise = if x >~ 0 then maxBound else -2^24
-
-  g i | abs i <~ 2^24-1 = fromIntegral i
-      | otherwise = if i >~ 0 then 2**24 else -1/0
-
--- | Exact embedding up to the largest representable 'Int64'.
-f64i64 :: Conn Double (Maybe Int64)
-f64i64 = Conn (nanf f) (nan g) where
-  f x | abs x <~ 2**53-1 = P.ceiling x
-      | otherwise = if x >~ 0 then 2^53 else minBound
-
-  g i | abs' i <~ 2^53-1 = fromIntegral i
-      | otherwise = if i >~ 0 then 1/0 else -2**53
-
--- | Exact embedding up to the largest representable 'Int64'.
-f64ixx :: Conn Double (Maybe Int)
-f64ixx = Conn (nanf f) (nan g) where
-  f x | abs x <~ 2**53-1 = P.ceiling x
-      | otherwise = if x >~ 0 then 2^53 else minBound
-
-  g i | abs' i <~ 2^53-1 = fromIntegral i
-      | otherwise = if i >~ 0 then 1/0 else -2**53
+--fixed2Float :: forall a . HasResolution a => Fixed a -> Float
+--fixed2Float (MkFixed i) = rationalToFloat i $ resolution (Proxy :: Proxy a)
 -}

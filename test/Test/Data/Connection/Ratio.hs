@@ -1,24 +1,28 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# Language AllowAmbiguousTypes #-}
+{-# Language TypeApplications #-}
 module Test.Data.Connection.Ratio where
 
 import Data.Int
 import Data.Word
 import Data.Fixed
 import Data.Connection.Ratio
+import Data.Order.Extended
+import GHC.Real hiding (Fractional(..), (^^), (^), div)
 import Hedgehog
+import Numeric.Natural
 import Test.Data.Connection
 import qualified Data.Connection.Property as Prop
 import qualified Hedgehog.Gen as G
 import qualified Hedgehog.Range as R
 
-rat' :: Gen (Ratio Integer)
-rat' = G.realFrac_ $ R.linearFracFrom 0 (- 2^(127 :: Integer)) (2^(127 :: Integer))
+
+fxx :: Gen (Extended (Fixed k))
+fxx = gen_extended $ MkFixed <$> G.integral ri'
 
 prop_connection_ratf06 :: Property
 prop_connection_ratf06 = withTests 1000 . property $ do
-  x <- forAll rat'
-  x' <- forAll rat'
+  x <- forAll rat
+  x' <- forAll rat
   y <- forAll fxx
   y' <- forAll fxx
 
@@ -30,8 +34,8 @@ prop_connection_ratf06 = withTests 1000 . property $ do
 
 prop_connection_ratf09 :: Property
 prop_connection_ratf09 = withTests 1000 . property $ do
-  x <- forAll rat'
-  x' <- forAll rat'
+  x <- forAll rat
+  x' <- forAll rat
   y <- forAll fxx
   y' <- forAll fxx
 
@@ -43,8 +47,8 @@ prop_connection_ratf09 = withTests 1000 . property $ do
 
 prop_connection_ratf12 :: Property
 prop_connection_ratf12 = withTests 1000 . property $ do
-  x <- forAll rat'
-  x' <- forAll rat'
+  x <- forAll rat
+  x' <- forAll rat
   y <- forAll fxx
   y' <- forAll fxx
 
@@ -56,8 +60,8 @@ prop_connection_ratf12 = withTests 1000 . property $ do
 
 prop_connection_ratf32 :: Property
 prop_connection_ratf32 = withTests 1000 . property $ do
-  x <- forAll rat
-  x' <- forAll rat
+  x <- forAll rat'
+  x' <- forAll rat'
   y <- forAll f32
   y' <- forAll f32
 
@@ -69,8 +73,8 @@ prop_connection_ratf32 = withTests 1000 . property $ do
 
 prop_connection_ratf64 :: Property
 prop_connection_ratf64 = withTests 1000 . property $ do
-  x <- forAll rat
-  x' <- forAll rat
+  x <- forAll rat'
+  x' <- forAll rat'
   y <- forAll f64
   y' <- forAll f64
 
@@ -82,8 +86,8 @@ prop_connection_ratf64 = withTests 1000 . property $ do
 
 prop_connection_rati08 :: Property
 prop_connection_rati08 = withTests 1000 . property $ do
-  x <- forAll rat
-  x' <- forAll rat
+  x <- forAll rat'
+  x' <- forAll rat'
   y <- forAll $ gen_extended $ G.integral (ri @Int8)
   y' <- forAll $ gen_extended $ G.integral (ri @Int8)
 
@@ -95,8 +99,8 @@ prop_connection_rati08 = withTests 1000 . property $ do
 
 prop_connection_rati16 :: Property
 prop_connection_rati16 = withTests 1000 . property $ do
-  x <- forAll rat
-  x' <- forAll rat
+  x <- forAll rat'
+  x' <- forAll rat'
   y <- forAll $ gen_extended $ G.integral (ri @Int16)
   y' <- forAll $ gen_extended $ G.integral (ri @Int16)
 
@@ -108,8 +112,8 @@ prop_connection_rati16 = withTests 1000 . property $ do
 
 prop_connection_rati32 :: Property
 prop_connection_rati32 = withTests 1000 . property $ do
-  x <- forAll rat
-  x' <- forAll rat
+  x <- forAll rat'
+  x' <- forAll rat'
   y <- forAll $ gen_extended $ G.integral (ri @Int32)
   y' <- forAll $ gen_extended $ G.integral (ri @Int32)
 
@@ -121,8 +125,8 @@ prop_connection_rati32 = withTests 1000 . property $ do
 
 prop_connection_rati64 :: Property
 prop_connection_rati64 = withTests 1000 . property $ do
-  x <- forAll rat
-  x' <- forAll rat
+  x <- forAll rat'
+  x' <- forAll rat'
   y <- forAll $ gen_extended $ G.integral (ri @Int64)
   y' <- forAll $ gen_extended $ G.integral (ri @Int64)
 
@@ -134,8 +138,8 @@ prop_connection_rati64 = withTests 1000 . property $ do
 
 prop_connection_ratint :: Property
 prop_connection_ratint = withTests 1000 . property $ do
-  x <- forAll rat
-  x' <- forAll rat
+  x <- forAll rat'
+  x' <- forAll rat'
   y <- forAll $ gen_extended $ G.integral ri'
   y' <- forAll $ gen_extended $ G.integral ri'
 

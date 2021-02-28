@@ -250,10 +250,10 @@ prop_order_nat = withTests 1000 . property $ do
 
 prop_order_rat :: Property
 prop_order_rat = withTests 1000 . property $ do
-  x <- forAll rat
-  y <- forAll rat
-  z <- forAll rat
-  w <- forAll rat
+  x <- forAll rat'
+  y <- forAll rat'
+  z <- forAll rat'
+  w <- forAll rat'
   assert $ Prop.preorder x y
   assert $ Prop.order z w
   assert $ Prop.reflexive_eq x
