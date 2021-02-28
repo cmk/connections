@@ -4,12 +4,15 @@ module Test.Data.Connection.Float where
 import Data.Connection.Conn
 import Data.Connection.Float
 import Data.Int
+import Data.Fixed
 import Hedgehog
 import Prelude hiding (Ord(..),Bounded, until)
 import Test.Data.Connection
 import qualified Data.Connection.Property as Prop
 import qualified Hedgehog.Gen as G
 
+
+f64f12 :: Conn k Double Pico
 
 prop_connection_f32i08 :: Property
 prop_connection_f32i08 = withTests 1000 . property $ do

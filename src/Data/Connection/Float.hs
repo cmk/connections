@@ -14,6 +14,7 @@ module Data.Connection.Float (
     -- * Float
     min32,
     max32,
+    eps32,
     ulp32,
     near32,
     shift32,
@@ -21,6 +22,7 @@ module Data.Connection.Float (
     -- * Double
     min64,
     max64,
+    eps64,
     ulp64,
     near64,
     shift64,
@@ -114,6 +116,12 @@ max32 x y = case (isNaN x, isNaN y) of
     (True, False) -> y
     (True, True) -> x
 
+-- | Compute the difference between a float and its next largest neighbor.
+--
+-- See < https://en.wikipedia.org/wiki/Machine_epsilon >.
+eps32 :: Float -> Float
+eps32 x = shift32 1 x - x
+
 -- | Compute the signed distance between two floats in units of least precision.
 --
 -- >>> ulp32 1.0 (shift32 1 1.0)
@@ -133,7 +141,7 @@ ulp32 x y = fmap f $ pcompare x y
 --
 -- Required accuracy is specified in units of least precision.
 --
--- See also <https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/>.
+-- See <https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/>.
 near32 :: Word32 -> Float -> Float -> Bool
 near32 tol x y = maybe False ((<= tol) . snd) $ ulp32 x y
 
@@ -179,6 +187,12 @@ max64 x y = case (isNaN x, isNaN y) of
     (False, True) -> x
     (True, False) -> y
     (True, True) -> x
+
+-- | Compute the difference between a double and its next largest neighbor.
+--
+-- See < https://en.wikipedia.org/wiki/Machine_epsilon >.
+eps64 :: Double -> Double
+eps64 x = shift64 1 x - x
 
 -- | Compute the signed distance between two doubles in units of least precision.
 --
@@ -290,7 +304,11 @@ triple high = Conn f g h
 
     low = -1 - high
 
+
 {-
+rt :: RealFloat a => a -> a
+rt = uncurry encodeFloat . decodeFloat 
+
 -- | Exact embedding up to the largest representable 'Int32'.
 f32i32 :: ConnL Float (Maybe Int32)
 f32i32 = Conn (nanf f) (nan g) where
