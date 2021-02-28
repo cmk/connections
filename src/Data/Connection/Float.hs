@@ -46,7 +46,7 @@ import safe qualified Prelude as P
 
 -- | All 'Data.Int.Int08' values are exactly representable in a 'Float'.
 f32i08 :: Conn k Float (Extended Int8)
-f32i08 = triple 127
+f32i08 = triple
 
 -- | All 'Data.Int.Int16' values are exactly representable in a 'Float'.
 --
@@ -55,19 +55,19 @@ f32i08 = triple 127
 --  > ceilingWith f32i16 32767.1
 --  Top
 f32i16 :: Conn k Float (Extended Int16)
-f32i16 = triple 32767
+f32i16 = triple
 
 -- | All 'Data.Int.Int08' values are exactly representable in a 'Double'.
 f64i08 :: Conn k Double (Extended Int8)
-f64i08 = triple 127
+f64i08 = triple
 
 -- | All 'Data.Int.Int16' values are exactly representable in a 'Double'.
 f64i16 :: Conn k Double (Extended Int16)
-f64i16 = triple 32767
+f64i16 = triple
 
 -- | All 'Data.Int.Int32' values are exactly representable in a 'Double'.
 f64i32 :: Conn k Double (Extended Int32)
-f64i32 = triple 2147483647
+f64i32 = triple
 
 f64f32 :: Conn k Double Float
 f64f32 = Conn f1 g f2
@@ -293,17 +293,18 @@ clamp32 = P.max (-2139095041) . P.min 2139095040
 clamp64 :: Int64 -> Int64
 clamp64 = P.max (-9218868437227405313) . P.min 9218868437227405312
 
-triple :: (RealFrac a, Preorder a, Bounded b, Integral b) => a -> Conn k a (Extended b)
-triple high = Conn f g h
+triple :: forall a b k. (RealFrac a, Preorder a, Bounded b, Integral b) => Conn k a (Extended b)
+triple = Conn f g h
   where
-    f = liftExtended (~~ -1 / 0) (\x -> x ~~ 0 / 0 || x > high) $ \x -> if x < low then minBound else P.ceiling x
+    f = liftExtended (~~ -1 / 0) (\x -> x ~~ 0 / 0 || x > high) $ \x -> if x < low then minBound else ceiling x
 
-    g = extended (-1 / 0) (1 / 0) P.fromIntegral
+    g = extended (-1 / 0) (1 / 0) fromIntegral
 
-    h = liftExtended (\x -> x ~~ 0 / 0 || x < low) (~~ 1 / 0) $ \x -> if x > high then maxBound else P.floor x
+    h = liftExtended (\x -> x ~~ 0 / 0 || x < low) (~~ 1 / 0) $ \x -> if x > high then maxBound else floor x
 
-    low = -1 - high
+    low = fromIntegral $ minBound @b
 
+    high = fromIntegral $ maxBound @b
 
 {-
 rt :: RealFloat a => a -> a
