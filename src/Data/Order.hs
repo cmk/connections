@@ -290,7 +290,19 @@ deriving via (Base Integer) instance Preorder Integer
 
 deriving via (Base (Fixed e)) instance Preorder (Fixed e)
 
---TODO move to Order and derive Preorder as well
+-- | An < https://en.wikipedia.org/wiki/Modular_lattice#Examples /N5/ > lattice.
+-- 
+--  A non-modular lattice formed by the < https://en.wikipedia.org/wiki/Extended_real_number_line affine extended > 
+--  reals along with a /NaN/ value that is incomparable to any finite number, i.e.:
+--
+--  > pcompare (N5 NaN) (N5 x) = pcompare (N5 x) (N5 NaN) = Nothing
+--
+--  for any finite /x/.
+--
+--  > N5 NaN == N5 NaN = True
+--  > N5 NaN < N5 (1/0) = True
+--  > N5 NaN > N5 (-1/0) = True
+--
 newtype N5 a = N5 {getN5 :: a}
     deriving stock (Eq, Show, Functor)
     deriving Applicative via Identity
