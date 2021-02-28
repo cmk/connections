@@ -70,21 +70,22 @@ f64i32 :: Conn k Double (Extended Int32)
 f64i32 = triple
 
 f64f32 :: Conn k Double Float
-f64f32 = Conn f1 g f2
+f64f32 = Conn f g h
   where
-    f1 x =
-        let est = F.double2Float x
+    f x =
+        let est = double2Float x
          in if g est >~ x
                 then est
                 else ascend32 est g x
+    
+    g = float2Double
 
-    f2 x =
-        let est = F.double2Float x
+    h x =
+        let est = double2Float x
          in if g est <~ x
                 then est
                 else descend32 est g x
 
-    g = F.float2Double
 
     ascend32 z g1 y = until (\x -> g1 x >~ y) (<~) (shift32 1) z
 
@@ -158,9 +159,15 @@ near32 tol x y = maybe False ((<= tol) . snd) $ ulp32 x y
 -- >>> shift32 1 $ 1/0
 -- Infinity
 shift32 :: Int32 -> Float -> Float
-shift32 n x
-    | x ~~ 0 / 0 = x
-    | otherwise = int32Float . clamp32 . (+ n) . floatInt32 $ x
+shift32 n x = 
+  if isNaN x == True
+    then 
+      case signum n of
+        -1 -> -1 / 0
+        1  ->  1 / 0
+        _  ->  0 / 0
+     else
+      int32Float . clamp32 . (+ n) . floatInt32 $ x
 
 ---------------------------------------------------------------------
 -- Double
@@ -230,9 +237,15 @@ near64 tol x y = maybe False ((<= tol) . snd) $ ulp64 x y
 -- >>> shift64 1 $ 1/0
 -- Infinity
 shift64 :: Int64 -> Double -> Double
-shift64 n x
-    | x ~~ 0 / 0 = x
-    | otherwise = int64Double . clamp64 . (+ n) . doubleInt64 $ x
+shift64 n x =
+  if isNaN x == True
+    then 
+      case signum n of
+        -1 -> -1 / 0
+        1  ->  1 / 0
+        _  ->  0 / 0
+     else
+      int64Double . clamp64 . (+ n) . doubleInt64 $ x
 
 ---------------------------------------------------------------------
 -- Internal
@@ -259,7 +272,7 @@ signed32 x
 signed64 :: Word64 -> Int64
 signed64 x
     | x < 0x8000000000000000 = fromIntegral x
-    | otherwise = fromIntegral (maxBound P.- (x P.- 0x8000000000000000))
+    | otherwise = fromIntegral (maxBound - (x - 0x8000000000000000))
 
 -- Non-monotonic function converting from 2s-complement format.
 unsigned32 :: Int32 -> Word32
@@ -270,20 +283,21 @@ unsigned32 x
 -- Non-monotonic function converting from 2s-complement format.
 unsigned64 :: Int64 -> Word64
 unsigned64 x
-    | x >~ 0 = fromIntegral x
-    | otherwise = 0x8000000000000000 + (maxBound P.- (fromIntegral x))
+    | x >= 0 = fromIntegral x
+    | otherwise = 0x8000000000000000 + (maxBound - (fromIntegral x))
 
 int32Float :: Int32 -> Float
-int32Float = F.castWord32ToFloat . unsigned32
+int32Float = castWord32ToFloat . unsigned32
 
+-- NB: I needed these zeros to avoid some error and now forget why :(
 floatInt32 :: Float -> Int32
-floatInt32 = signed32 . (+ 0) . F.castFloatToWord32
+floatInt32 = signed32 . (+ 0) . castFloatToWord32
 
 int64Double :: Int64 -> Double
-int64Double = F.castWord64ToDouble . unsigned64
+int64Double = castWord64ToDouble . unsigned64
 
 doubleInt64 :: Double -> Int64
-doubleInt64 = signed64 . (+ 0) . F.castDoubleToWord64
+doubleInt64 = signed64 . (+ 0) . castDoubleToWord64
 
 -- Clamp between the int representations of -1/0 and 1/0
 clamp32 :: Int32 -> Int32
