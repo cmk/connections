@@ -7,7 +7,7 @@
 module Data.Connection.Ratio (
     Ratio (..),
     reduce,
-    shiftd,
+    shiftr,
 
     -- * Rational
     rati08,
@@ -51,8 +51,8 @@ reduce (x :% y) = (x `quot` d) :% (y `quot` d) where d = gcd x y
 -- | Shift by n 'units of least precision' where the ULP is determined by the denominator
 --
 -- This is an analog of 'Data.Connection.Float.shift32' for rationals.
-shiftd :: Num a => a -> Ratio a -> Ratio a
-shiftd n (x :% y) = (n + x) :% y
+shiftr :: Num a => a -> Ratio a -> Ratio a
+shiftr n (x :% y) = (n + x) :% y
 
 ---------------------------------------------------------------------
 -- Ratio Integer

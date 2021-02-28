@@ -5,8 +5,8 @@
 
 module Data.Connection.Fixed (
     Fixed (..),
-    HasResolution (..),
     showFixed,
+    shiftf,
 
     -- * Uni
     Uni,
@@ -49,12 +49,23 @@ module Data.Connection.Fixed (
     f12f03,
     f12f06,
     f12f09,
+
+    -- * HasResolution
+    HasResolution (..),
+    
 ) where
 
 import safe Data.Connection.Conn
 import safe Data.Fixed
 import safe Data.Order.Syntax
 import safe Prelude hiding (Eq (..), Ord (..))
+
+
+-- | Shift by n 'units of least precision' where the ULP is determined by the precision.
+--
+-- This is an analog of 'Data.Connection.Float.shift32' for fixed point numbers.
+shiftf :: Integer -> Fixed a -> Fixed a
+shiftf j (MkFixed i) = MkFixed (i + j)
 
 -- Deci
 

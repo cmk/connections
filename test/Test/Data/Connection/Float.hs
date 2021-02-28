@@ -11,8 +11,35 @@ import Test.Data.Connection
 import qualified Data.Connection.Property as Prop
 import qualified Hedgehog.Gen as G
 
+import GHC.Float
+import GHC.Float.RealFracMethods 
+
+--rationalToFloat :: Integer -> Integer -> Float
+
+shiftf :: Integer -> Fixed a -> Fixed a
+shiftf j (MkFixed i) = MkFixed (i + j)
 
 f64f12 :: Conn k Double Pico
+f64f12 = Conn f g h
+  where
+    f x =
+        let est = double2Float x
+         in if g est >~ x
+                then est
+                else ascend est g x
+    
+    g (MkFixed i) = rationalToDouble (div i $ 2^12) (2^12)
+
+    h x =
+        let est = double2Float x
+         in if g est <~ x
+                then est
+                else descend est g x
+
+
+    ascend z g1 y = until (\x -> g1 x >~ y) (<~) (shiftf 1) z
+
+    descend z h1 x = until (\y -> h1 y <~ x) (>~) (shiftf (-1)) z
 
 prop_connection_f32i08 :: Property
 prop_connection_f32i08 = withTests 1000 . property $ do
