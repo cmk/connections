@@ -9,6 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE KindSignatures #-}
 
 module Data.Connection.Class (
     -- * Conn
@@ -150,7 +151,7 @@ f /|\ g = f `strong` g >>> conn
 -- Connection k
 ---------------------------------------------------------------------
 
--- | The canonical connections against a 'Bool'.
+-- | The canonical connection with a 'Bool'.
 extremal :: Triple () a => Conn k a Bool
 extremal = Conn f g h
   where
@@ -284,7 +285,7 @@ infixr 5 `join`
 
 -- | Semigroup operation on a join-lattice.
 join :: Left (a, a) a => a -> a -> a
-join = curry ceiling
+join = joinWith conn
 
 -- | Extract the ceiling of a 'Conn' or lower half of a 'ConnL'.
 --
@@ -337,7 +338,7 @@ infixr 6 `meet`
 
 -- | Semigroup operation on a meet-lattice.
 meet :: Right (a, a) a => a -> a -> a
-meet = curry floor
+meet = meetWith conn
 
 -- | Extract the floor of a 'ConnK' or upper half of a 'ConnL'.
 --
@@ -467,8 +468,6 @@ instance Connection k () Rational where
     conn = Conn (const $ -1 :% 0) (const ()) (const $ 1 :% 0)
 instance Connection k (Rational, Rational) Rational where conn = latticeN5
 
-instance HasResolution e => Connection k Rational (Fixed e) where conn = ratfix
-
 instance Connection k Deci Uni where conn = f01f00
 instance Connection k Centi Uni where conn = f02f00
 instance Connection k Milli Uni where conn = f03f00
@@ -543,13 +542,22 @@ instance Connection 'L Int16 (Maybe Integer) where conn = i16int
 instance Connection 'L Int32 (Maybe Integer) where conn = i32int
 instance Connection 'L Int64 (Maybe Integer) where conn = i64int
 instance Connection 'L Int (Maybe Integer) where conn = ixxint
-
-{-
 instance Connection 'L Integer (Maybe Integer) where
   -- | Provided as a shim for /RebindableSyntax/.
-  -- Note that this instance will clip negative numbers to zero.
-conn = swapR $ intnat >>> natint
--}
+  --
+  -- Note that while arbitrarly large positive numbers are allowed,
+  -- this instance will clip negative numbers below the minimal 'Int64':
+  --
+  -- >>> embed (conn @Integer @(Maybe Integer)) Nothing
+  -- -9223372036854775808
+  --
+  conn = c1 >>> intnat >>> natint >>> c2 where
+    c1 = Conn shiftR shiftL shiftR
+    c2 = Conn (fmap shiftL) (fmap shiftR) (fmap shiftL)
+
+    shiftR x = x + m
+    shiftL x = x - m
+    m = 9223372036854775808
 
 instance Connection k Rational (Extended Int8) where conn = rati08
 instance Connection k Rational (Extended Int16) where conn = rati16
@@ -557,21 +565,46 @@ instance Connection k Rational (Extended Int32) where conn = rati32
 instance Connection k Rational (Extended Int64) where conn = rati64
 instance Connection k Rational (Extended Int) where conn = ratixx
 instance Connection k Rational (Extended Integer) where conn = ratint
+instance HasResolution prec => Connection k Rational (Extended (Fixed prec)) where conn = ratfix
 
--- | All 'Data.Int.Int08' values are exactly representable in a 'Float'.
+
+instance Connection 'L Float (Extended Word8) where conn = f32i08 >>> mapped i08w08
+instance Connection 'L Float (Extended Word16) where conn = f32i16 >>> mapped i16w16
+instance Connection 'L Float (Extended Word32) where conn = f32i32 >>> mapped i32w32
+instance Connection 'L Float (Extended Word64) where conn = f32i64 >>> mapped i64w64
+instance Connection 'L Float (Extended Word) where conn = f32ixx >>> mapped ixxwxx
+instance Connection 'L Float (Extended Natural) where conn = f32int >>> mapped intnat
+
+-- | All 'Data.Int.Int8' values are exactly representable in a 'Float'.
 instance Connection k Float (Extended Int8) where conn = f32i08
-
 -- | All 'Data.Int.Int16' values are exactly representable in a 'Float'.
 instance Connection k Float (Extended Int16) where conn = f32i16
 
--- | All 'Data.Int.Int08' values are exactly representable in a 'Double'.
-instance Connection k Double (Extended Int8) where conn = f64i08
+instance Connection 'L Float (Extended Int32) where conn = f32i32
+instance Connection 'L Float (Extended Int64) where conn = f32i64
+instance Connection 'L Float (Extended Int) where conn = f32ixx
+instance Connection 'L Float (Extended Integer) where conn = f32int
+instance HasResolution res => Connection 'L Float (Extended (Fixed res)) where conn = swapL ratf32 >>> ratfix
 
+
+instance Connection 'L Double (Extended Word8) where conn = f64i08 >>> mapped i08w08
+instance Connection 'L Double (Extended Word16) where conn = f64i16 >>> mapped i16w16
+instance Connection 'L Double (Extended Word32) where conn = f64i32 >>> mapped i32w32
+instance Connection 'L Double (Extended Word64) where conn = f64i64 >>> mapped i64w64
+instance Connection 'L Double (Extended Word) where conn = f64ixx >>> mapped ixxwxx
+instance Connection 'L Double (Extended Natural) where conn = f64int >>> mapped intnat
+
+-- | All 'Data.Int.Int8' values are exactly representable in a 'Double'.
+instance Connection k Double (Extended Int8) where conn = f64i08
 -- | All 'Data.Int.Int16' values are exactly representable in a 'Double'.
 instance Connection k Double (Extended Int16) where conn = f64i16
-
 -- | All 'Data.Int.Int32' values are exactly representable in a 'Double'.
 instance Connection k Double (Extended Int32) where conn = f64i32
+
+instance Connection 'L Double (Extended Int64) where conn = f64i64
+instance Connection 'L Double (Extended Int) where conn = f64ixx
+instance Connection 'L Double (Extended Integer) where conn = f64int
+instance HasResolution res => Connection 'L Double (Extended (Fixed res)) where conn = swapL ratf64 >>> ratfix
 
 instance Connection k a b => Connection k (Identity a) b where
     conn = Conn runIdentity Identity runIdentity >>> conn

@@ -47,9 +47,6 @@ rd = R.exponentialFloatFrom 0 (-1.7976931348623157e308) 1.7976931348623157e308
 ord :: Gen Ordering
 ord = G.element [LT, EQ, GT]
 
-fxx :: Gen (Fixed k)
-fxx = MkFixed <$> G.integral ri'
-
 f32 :: Gen Float
 f32 = gen_flt $ G.float rf
 
@@ -57,8 +54,10 @@ f64 :: Gen Double
 f64 = gen_flt $ G.double rd
 
 rat :: Gen (Ratio Integer)
-rat = G.frequency [(49, gen), (1, G.element [-1 :% 0, 1 :% 0, 0 :% 0])]
-  where gen = G.realFrac_ (R.linearFracFrom 0 (- 2^127) (2^127))
+rat = G.realFrac_ $ R.linearFracFrom 0 (- 2^(127 :: Integer)) (2^(127 :: Integer))
+
+rat' :: Gen (Ratio Integer)
+rat' = G.frequency [(49, rat), (1, G.element [-1 :% 0, 1 :% 0, 0 :% 0])]
 
 pos :: Gen (Ratio Natural)
 pos = G.frequency [(49, gen), (1, G.element [1 :% 0, 0 :% 0])]
@@ -89,8 +88,8 @@ prop_connection_extremal = withTests 1000 . property $ do
   x' <- forAll f32
   o <- forAll ord
   o' <- forAll ord
-  r <- forAll rat
-  r' <- forAll rat
+  r <- forAll rat'
+  r' <- forAll rat'
 
   assert $ Prop.adjoint (conn @_ @() @Ordering) () o
   assert $ Prop.closed (conn @_ @() @Ordering) ()

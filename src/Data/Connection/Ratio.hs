@@ -82,16 +82,20 @@ ratint = Conn f g h
 
     h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) floor
 
-ratfix :: forall e k. HasResolution e => Conn k Rational (Fixed e)
-ratfix = Conn f g h
+ratfix :: forall e k. HasResolution e => Conn k Rational (Extended (Fixed e))
+ratfix = Conn f' g h'
   where
     prec = resolution (Proxy :: Proxy e)
 
     f (reduce . (* (toRational prec)) -> n :% d) = MkFixed $ let i = n `div` d in if n `mod` d == 0 then i else i + 1
+    
+    f' = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) f
 
-    g = toRational
+    g = extended ninf pinf toRational
 
     h (reduce . (* (toRational prec)) -> n :% d) = MkFixed $ n `div` d
+
+    h' = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) h
 
 ratf32 :: Conn k Rational Float
 ratf32 = Conn (toFractional f) (fromFractional g) (toFractional h)
