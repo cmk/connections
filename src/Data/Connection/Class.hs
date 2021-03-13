@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
@@ -9,69 +10,32 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE KindSignatures #-}
 
 module Data.Connection.Class (
-    -- * Conn
-    Conn (),
-    identity,
-
-    -- * Connection k
+    -- * Types
+    Left,
+    left,
+    Right,
+    right,
     Triple,
-    pattern Conn,
-    ConnK,
-    embed,
-    extremal,
+
+    -- * Lattices
+    (\/),
+    (/\),
     lub,
     glb,
-    half,
-    midpoint,
-    range,
-    round,
-    round1,
-    round2,
-    truncate,
-    truncate1,
-    truncate2,
-
-    -- * Connection L
-    Left,
-    pattern ConnL,
-    ConnL,
-    connL,
-    embedL,
+    choose,
+    divide,
     minimal,
-    join,
-    ceiling,
-    ceiling1,
-    ceiling2,
-
-    -- * Connection R
-    Right,
-    pattern ConnR,
-    ConnR,
-    connR,
-    embedR,
     maximal,
-    meet,
-    floor,
-    floor1,
-    floor2,
-
-    -- * Combinators
-    (>>>),
-    (<<<),
-    (/|\),
-    (\|/),
-    choice,
-    strong,
+    extremal,
 
     -- * Connection
-    Kan (..),
+    Connection (..),
+
+    -- ** RebindableSyntax
     ConnInteger,
     ConnRational,
-    ConnExtended,
-    Connection (..),
 ) where
 
 import safe Control.Category ((>>>))
@@ -104,7 +68,17 @@ import safe Prelude hiding (ceiling, floor, round, truncate)
 
 type Left = Connection 'L
 
+-- | A specialization of /conn/ to left-side connections.
+--
+left :: Left a b => ConnL a b
+left = conn @ 'L
+
 type Right = Connection 'R
+
+-- | A specialization of /conn/ to right-side connections.
+--
+right :: Right a b => ConnR a b
+right = conn @ 'R
 
 -- | A constraint kind representing an <https://ncatlab.org/nlab/show/adjoint+triple adjoint triple> of Galois connections.
 type Triple a b = (Left a b, Right a b)
@@ -113,17 +87,15 @@ type Triple a b = (Left a b, Right a b)
 --
 --  Usable in conjunction with /RebindableSyntax/:
 --
---  > fromInteger = embedL . Just :: ConnInteger a => Integer -> a
+--  > fromInteger = upper conn . Just :: ConnInteger a => Integer -> a
 type ConnInteger a = Left a (Maybe Integer)
 
 -- | A constraint kind for 'Rational' conversions.
 --
 -- Usable in conjunction with /RebindableSyntax/:
 --
---  > fromRational = round :: ConnRational a => Rational -> a
+--  > fromRational = round conn :: ConnRational a => Rational -> a
 type ConnRational a = Triple Rational a
-
-type ConnExtended a b = Triple a (Extended b)
 
 -- | An < https://ncatlab.org/nlab/show/adjoint+string adjoint string > of Galois connections of length 2 or 3.
 class (Preorder a, Preorder b) => Connection k a b where
@@ -135,64 +107,7 @@ class (Preorder a, Preorder b) => Connection k a b where
     -- (3.1415925,3.1415927)
     conn :: Conn k a b
 
-infixr 3 \|/
-
--- | A preorder variant of 'Control.Arrow.|||'.
-(\|/) :: Conn k c a -> Conn k c b -> Conn k c (Either a b)
-f \|/ g = Conn Left (either id id) Right >>> f `choice` g
-
-infixr 4 /|\
-
--- | A preorder variant of 'Control.Arrow.&&&'.
-(/|\) :: Connection k (c, c) c => Conn k a c -> Conn k b c -> Conn k (a, b) c
-f /|\ g = f `strong` g >>> conn
-
----------------------------------------------------------------------
--- Connection k
----------------------------------------------------------------------
-
--- | The canonical connection with a 'Bool'.
-extremal :: Triple () a => Conn k a Bool
-extremal = Conn f g h
-  where
-    g False = minimal
-    g True = maximal
-
-    f i
-        | i ~~ minimal = False
-        | otherwise = True
-
-    h i
-        | i ~~ maximal = True
-        | otherwise = False
-
--- | Least upper bound operator.
---
--- The order dual of 'glb'.
---
--- >>> lub 1.0 9.0 7.0
--- 7.0
--- >>> lub 1.0 9.0 (0.0 / 0.0)
--- 1.0
-lub :: Triple (a, a) a => a -> a -> a -> a
-lub x y z = (x `meet` y) `join` (y `meet` z) `join` (z `meet` x)
-
--- | Greatest lower bound operator.
---
--- > glb x x y = x
--- > glb x y z = glb z x y
--- > glb x y z = glb x z y
--- > glb (glb x w y) w z = glb x w (glb y w z)
---
--- >>> glb 1.0 9.0 7.0
--- 7.0
--- >>> glb 1.0 9.0 (0.0 / 0.0)
--- 9.0
--- >>> glb (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
--- fromList [3,5]
-glb :: Triple (a, a) a => a -> a -> a -> a
-glb x y z = (x `join` y) `meet` (y `join` z) `meet` (z `join` x)
-
+{-
 -- | Return the nearest value to x.
 --
 -- > round @a @a = id
@@ -207,8 +122,8 @@ round x = case pcompare halfR halfL of
     Just LT -> floor x
     _ -> truncate x
   where
-    halfR = x - lower (connR @a @b) x -- dist from lower bound
-    halfL = upper (connL @a @b) x - x -- dist from upper bound
+    halfR = x - right (connR @a @b) x -- dist from lower bound
+    halfL = left (connL @a @b) x - x -- dist from upper bound
 
 -- | Lift a unary function over a 'Conn'.
 --
@@ -257,112 +172,103 @@ truncate1 f x = truncate $ f (g x) where Conn _ g _ = connL
 truncate2 :: (Num a, Triple a b) => (a -> a -> a) -> b -> b -> b
 truncate2 f x y = truncate $ f (g x) (g y) where Conn _ g _ = connL
 {-# INLINE truncate2 #-}
+-}
 
 ---------------------------------------------------------------------
--- Connection L
+-- Lattices
 ---------------------------------------------------------------------
 
--- | A specialization of /conn/ to left-side connections.
+infixr 5 \/
+
+-- | Lattice join.
 --
--- This is a convenience function provided primarily to avoid needing
--- to enable /DataKinds/.
-connL :: Left a b => ConnL a b
-connL = conn @ 'L
+-- > (\/) = curry $ lower semilattice
+(\/) :: Left (a, a) a => a -> a -> a
+(\/) = join conn
 
--- | Extract the center of a 'Conn' or upper half of a 'ConnL'.
-embedL :: Left a b => b -> a
-embedL = embed connL
+infixr 6 /\ -- comment for the parser
+
+-- | Lattice meet.
+--
+-- > (/\) = curry $ floor semilattice
+(/\) :: Right (a, a) a => a -> a -> a
+(/\) = meet conn
+
+-- | Least upper bound operator.
+--
+-- The order dual of 'glb'.
+--
+-- >>> lub 1.0 9.0 7.0
+-- 7.0
+-- >>> lub 1.0 9.0 (0.0 / 0.0)
+-- 1.0
+lub :: Triple (a, a) a => a -> a -> a -> a
+lub x y z = x /\ y \/ y /\ z \/ z /\ x
+
+-- | Greatest lower bound operator.
+--
+-- > glb x x y = x
+-- > glb x y z = glb z x y
+-- > glb x y z = glb x z y
+-- > glb (glb x w y) w z = glb x w (glb y w z)
+--
+-- >>> glb 1.0 9.0 7.0
+-- 7.0
+-- >>> glb 1.0 9.0 (0.0 / 0.0)
+-- 9.0
+-- >>> glb (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
+-- fromList [3,5]
+glb :: Triple (a, a) a => a -> a -> a -> a
+glb x y z = (x \/ y) /\ (y \/ z) /\ (z \/ x)
+
+infixr 3 `choose`
+
+-- | A preorder variant of 'Control.Arrow.|||'.
+choose :: Conn k c a -> Conn k c b -> Conn k c (Either a b)
+choose f g = Conn Left (either id id) Right >>> f `choice` g
+
+infixr 4 `divide`
+
+-- | A preorder variant of 'Control.Arrow.&&&'.
+divide :: Connection k (c, c) c => Conn k a c -> Conn k b c -> Conn k (a, b) c
+divide f g = f `strong` g >>> conn
 
 -- | A minimal element of a preorder.
+--
+-- > x /\ minimal = minimal
+-- > x \/ minimal = x
 --
 -- 'minimal' needn't be unique, but it must obey:
 --
 -- > x <~ minimal => x ~~ minimal
 minimal :: Left () a => a
-minimal = ceiling ()
-
-infixr 5 `join`
-
--- | Semigroup operation on a join-lattice.
-join :: Left (a, a) a => a -> a -> a
-join = joinWith conn
-
--- | Extract the ceiling of a 'Conn' or lower half of a 'ConnL'.
---
--- > ceiling @a @a = id
--- > ceiling (x1 `join` a2) = ceiling x1 `join` ceiling x2
---
--- The latter law is the adjoint functor theorem for preorders.
---
--- >>> Data.Connection.ceiling @Rational @Float (0 :% 0)
--- NaN
--- >>> Data.Connection.ceiling @Rational @Float (1 :% 0)
--- Infinity
--- >>> Data.Connection.ceiling @Rational @Float (13 :% 10)
--- 1.3000001
-ceiling :: Left a b => a -> b
-ceiling = ceilingWith conn
-
--- | Lift a unary function over a 'ConnL'.
-ceiling1 :: Left a b => (a -> a) -> b -> b
-ceiling1 = ceilingWith1 conn
-
--- | Lift a binary function over a 'ConnL'.
-ceiling2 :: Left a b => (a -> a -> a) -> b -> b -> b
-ceiling2 = ceilingWith2 conn
-
----------------------------------------------------------------------
--- Connection R
----------------------------------------------------------------------
-
--- | A specialization of /conn/ to right-side connections.
---
--- This is a convenience function provided primarily to avoid needing
--- to enable /DataKinds/.
-connR :: Right a b => ConnR a b
-connR = conn @ 'R
-
--- | Extract the center of a 'ConnK' or lower half of a 'ConnR'.
-embedR :: Right a b => b -> a
-embedR = embed connR
+minimal = ceiling conn ()
 
 -- | A maximal element of a preorder.
+--
+-- > x /\ maximal = x
+-- > x \/ maximal = maximal
 --
 -- 'maximal' needn't be unique, but it must obey:
 --
 -- > x >~ maximal => x ~~ maximal
 maximal :: Right () a => a
-maximal = floor ()
+maximal = floor conn ()
 
-infixr 6 `meet`
+-- | The canonical connection with a 'Bool'.
+extremal :: Triple () a => Conn k a Bool
+extremal = Conn f g h
+  where
+    g False = minimal
+    g True = maximal
 
--- | Semigroup operation on a meet-lattice.
-meet :: Right (a, a) a => a -> a -> a
-meet = meetWith conn
+    f i
+        | i ~~ minimal = False
+        | otherwise = True
 
--- | Extract the floor of a 'ConnK' or upper half of a 'ConnL'.
---
--- > floor @a @a = id
--- > floor (x1 `meet` x2) = floor x1 `meet` floor x2
---
--- The latter law is the adjoint functor theorem for preorders.
---
--- >>> Data.Connection.floor @Rational @Float (0 :% 0)
--- NaN
--- >>> Data.Connection.floor @Rational @Float (1 :% 0)
--- Infinity
--- >>> Data.Connection.floor @Rational @Float (13 :% 10)
--- 1.3
-floor :: Right a b => a -> b
-floor = floorWith conn
-
--- | Lift a unary function over a 'ConnR'.
-floor1 :: Right a b => (a -> a) -> b -> b
-floor1 = floorWith1 conn
-
--- | Lift a binary function over a 'ConnR'.
-floor2 :: Right a b => (a -> a -> a) -> b -> b -> b
-floor2 = floorWith2 conn
+    h i
+        | i ~~ maximal = True
+        | otherwise = False
 
 ---------------------------------------------------------------------
 -- Instances
@@ -497,7 +403,6 @@ instance Connection k Pico Nano where conn = f12f09
 
 instance Connection k (Fixed e, Fixed e) (Fixed e) where conn = latticeOrd
 
-
 instance Connection k () Float where conn = extremalN5
 instance Connection k Double Float where conn = f64f32
 instance Connection k Rational Float where conn = ratf32
@@ -543,21 +448,14 @@ instance Connection 'L Int32 (Maybe Integer) where conn = i32int
 instance Connection 'L Int64 (Maybe Integer) where conn = i64int
 instance Connection 'L Int (Maybe Integer) where conn = ixxint
 instance Connection 'L Integer (Maybe Integer) where
-  -- | Provided as a shim for /RebindableSyntax/.
-  --
-  -- Note that while arbitrarly large positive numbers are allowed,
-  -- this instance will clip negative numbers below the minimal 'Int64':
-  --
-  -- >>> embed (conn @Integer @(Maybe Integer)) Nothing
-  -- -9223372036854775808
-  --
-  conn = c1 >>> intnat >>> natint >>> c2 where
-    c1 = Conn shiftR shiftL shiftR
-    c2 = Conn (fmap shiftL) (fmap shiftR) (fmap shiftL)
+    conn = c1 >>> intnat >>> natint >>> c2
+      where
+        c1 = Conn shiftR shiftL shiftR
+        c2 = Conn (fmap shiftL) (fmap shiftR) (fmap shiftL)
 
-    shiftR x = x + m
-    shiftL x = x - m
-    m = 9223372036854775808
+        shiftR x = x + m
+        shiftL x = x - m
+        m = 9223372036854775808
 
 instance Connection k Rational (Extended Int8) where conn = rati08
 instance Connection k Rational (Extended Int16) where conn = rati16
@@ -566,7 +464,6 @@ instance Connection k Rational (Extended Int64) where conn = rati64
 instance Connection k Rational (Extended Int) where conn = ratixx
 instance Connection k Rational (Extended Integer) where conn = ratint
 instance HasResolution prec => Connection k Rational (Extended (Fixed prec)) where conn = ratfix
-
 
 instance Connection 'L Float (Extended Word8) where conn = f32i08 >>> mapped i08w08
 instance Connection 'L Float (Extended Word16) where conn = f32i16 >>> mapped i16w16
@@ -577,6 +474,7 @@ instance Connection 'L Float (Extended Natural) where conn = f32int >>> mapped i
 
 -- | All 'Data.Int.Int8' values are exactly representable in a 'Float'.
 instance Connection k Float (Extended Int8) where conn = f32i08
+
 -- | All 'Data.Int.Int16' values are exactly representable in a 'Float'.
 instance Connection k Float (Extended Int16) where conn = f32i16
 
@@ -584,8 +482,7 @@ instance Connection 'L Float (Extended Int32) where conn = f32i32
 instance Connection 'L Float (Extended Int64) where conn = f32i64
 instance Connection 'L Float (Extended Int) where conn = f32ixx
 instance Connection 'L Float (Extended Integer) where conn = f32int
-instance HasResolution res => Connection 'L Float (Extended (Fixed res)) where conn = swapL ratf32 >>> ratfix
-
+instance HasResolution res => Connection 'L Float (Extended (Fixed res)) where conn = connL ratf32 >>> ratfix
 
 instance Connection 'L Double (Extended Word8) where conn = f64i08 >>> mapped i08w08
 instance Connection 'L Double (Extended Word16) where conn = f64i16 >>> mapped i16w16
@@ -596,15 +493,17 @@ instance Connection 'L Double (Extended Natural) where conn = f64int >>> mapped 
 
 -- | All 'Data.Int.Int8' values are exactly representable in a 'Double'.
 instance Connection k Double (Extended Int8) where conn = f64i08
+
 -- | All 'Data.Int.Int16' values are exactly representable in a 'Double'.
 instance Connection k Double (Extended Int16) where conn = f64i16
+
 -- | All 'Data.Int.Int32' values are exactly representable in a 'Double'.
 instance Connection k Double (Extended Int32) where conn = f64i32
 
 instance Connection 'L Double (Extended Int64) where conn = f64i64
 instance Connection 'L Double (Extended Int) where conn = f64ixx
 instance Connection 'L Double (Extended Integer) where conn = f64int
-instance HasResolution res => Connection 'L Double (Extended (Fixed res)) where conn = swapL ratf64 >>> ratfix
+instance HasResolution res => Connection 'L Double (Extended (Fixed res)) where conn = connL ratf64 >>> ratfix
 
 instance Connection k a b => Connection k (Identity a) b where
     conn = Conn runIdentity Identity runIdentity >>> conn
@@ -652,19 +551,19 @@ instance (Total a, Preorder b) => Connection 'L () (Map.Map a b) where
     conn = ConnL (const Map.empty) (const ())
 
 instance (Total a, Left (b, b) b) => Connection 'L (Map.Map a b, Map.Map a b) (Map.Map a b) where
-    conn = ConnL (uncurry $ Map.unionWith join) fork
+    conn = ConnL (uncurry $ Map.unionWith (join conn)) fork
 
 instance (Total a, Right (b, b) b) => Connection 'R (Map.Map a b, Map.Map a b) (Map.Map a b) where
-    conn = ConnR fork (uncurry $ Map.intersectionWith meet)
+    conn = ConnR fork (uncurry $ Map.intersectionWith (meet conn))
 
 instance Preorder a => Connection 'L () (IntMap.IntMap a) where
     conn = ConnL (const IntMap.empty) (const ())
 
 instance Left (a, a) a => Connection 'L (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
-    conn = ConnL (uncurry $ IntMap.unionWith join) fork
+    conn = ConnL (uncurry $ IntMap.unionWith (join conn)) fork
 
 instance Right (a, a) a => Connection 'R (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
-    conn = ConnR fork (uncurry $ IntMap.intersectionWith meet)
+    conn = ConnR fork (uncurry $ IntMap.intersectionWith (meet conn))
 
 -- Internal
 
@@ -732,7 +631,7 @@ joinMaybe u@(Just _) _ = u
 joinMaybe _ u@(Just _) = u
 joinMaybe Nothing Nothing = Nothing
 
-meetMaybe :: Connection 'R (a, a) a => Maybe a -> Maybe a -> Maybe a
+meetMaybe :: Right (a, a) a => Maybe a -> Maybe a -> Maybe a
 meetMaybe Nothing Nothing = Nothing
 meetMaybe Nothing _ = Nothing
 meetMaybe _ Nothing = Nothing
@@ -745,7 +644,7 @@ joinExtended (Extended x) (Extended y) = Extended (x `join` y)
 joinExtended Bottom       y            = y
 joinExtended x            Bottom       = x
 
-meetExtended :: Connection 'R (a, a) a => Extended a -> Extended a -> Extended a
+meetExtended :: Right (a, a) a => Extended a -> Extended a -> Extended a
 meetExtended Top          y            = y
 meetExtended x            Top          = x
 meetExtended (Extended x) (Extended y) = Extended (x `meet` y)
@@ -758,7 +657,7 @@ joinEither u@(Right _) _ = u
 joinEither _ u@(Right _) = u
 joinEither (Left x) (Left y) = Left (x `join` y)
 
-meetEither :: (Connection 'R (a, a) a, Connection 'R (b, b) b) => Either a b -> Either a b -> Either a b
+meetEither :: (Right (a, a) a, Right (b, b) b) => Either a b -> Either a b -> Either a b
 meetEither (Left x) (Left y) = Left (x `meet` y)
 meetEither l@(Left _) _ = l
 meetEither _ l@(Left _) = l
@@ -767,6 +666,6 @@ meetEither (Right x) (Right y) = Right (x `meet` y)
 joinTuple :: (Connection 'L (a, a) a, Connection 'L (b, b) b) => (a, b) -> (a, b) -> (a, b)
 joinTuple (x1, y1) (x2, y2) = (x1 `join` x2, y1 `join` y2)
 
-meetTuple :: (Connection 'R (a, a) a, Connection 'R (b, b) b) => (a, b) -> (a, b) -> (a, b)
+meetTuple :: (Right (a, a) a, Right (b, b) b) => (a, b) -> (a, b) -> (a, b)
 meetTuple (x1, y1) (x2, y2) = (x1 `meet` x2, y1 `meet` y2)
 -}

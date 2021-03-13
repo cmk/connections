@@ -60,7 +60,7 @@ module Data.Lattice (
 
 import safe Data.Bifunctor (bimap)
 import safe Data.Bool hiding (not)
-import safe Data.Connection.Class
+import safe Data.Connection.Class hiding ((/\), (\/))
 import safe Data.Connection.Conn
 import safe Data.Either
 import safe Data.Int
@@ -72,7 +72,7 @@ import safe Data.Order.Extended
 import safe Data.Order.Syntax
 import safe qualified Data.Set as Set
 import safe Data.Word
-import safe Prelude hiding (Eq (..), Ord (..), not)
+import safe Prelude hiding (Eq (..), Ord (..), ceiling, floor, not)
 import safe qualified Prelude as P
 
 -------------------------------------------------------------------------------
@@ -161,31 +161,31 @@ infixr 6 /\ -- comment for the parser
 
 -- | Lattice meet.
 --
--- > (/\) = curry $ floorWith semilattice
+-- > (/\) = curry $ floor semilattice
 (/\) :: Meet a => a -> a -> a
-(/\) = curry $ floorWith semilattice
+(/\) = curry $ floor semilattice
 
 -- | The unique top element of a bounded lattice
 --
 -- > x /\ top = x
 -- > x \/ top = top
 top :: Meet a => a
-top = floorWith bounded ()
+top = floor bounded ()
 
 infixr 5 \/
 
 -- | Lattice join.
 --
--- > (\/) = curry $ ceilingWith semilattice
+-- > (\/) = curry $ lower semilattice
 (\/) :: Join a => a -> a -> a
-(\/) = curry $ ceilingWith semilattice
+(\/) = curry $ ceiling semilattice
 
 -- | The unique bottom element of a bounded lattice
 --
 -- > x /\ bottom = bottom
 -- > x \/ bottom = x
 bottom :: Join a => a
-bottom = ceilingWith bounded ()
+bottom = ceiling bounded ()
 
 -------------------------------------------------------------------------------
 -- Heyting algebras
@@ -278,7 +278,7 @@ infixr 8 // -- same as ^
 -- >>> True // True
 -- True
 (//) :: Algebra 'R a => a -> a -> a
-(//) = floorWith . algebra
+(//) = floor . algebra
 
 -- | Intuitionistic equivalence.
 --
@@ -363,7 +363,7 @@ infixl 8 \\
 -- >>> [GT,EQ] \\ [LT]
 -- fromList [EQ,GT]
 (\\) :: Algebra 'L a => a -> a -> a
-(\\) = flip $ ceilingWith . algebra
+(\\) = flip $ ceiling . algebra
 
 -- | Intuitionistic co-equivalence.
 equiv :: Algebra 'L a => a -> a -> a
@@ -677,7 +677,7 @@ instance (Total k, Join a) => Semilattice 'L (Map.Map k a) where
 
     semilattice = ConnL f fork
       where
-        f = uncurry $ Map.unionWith (curry $ ceilingWith semilattice)
+        f = uncurry $ Map.unionWith (curry $ ceiling semilattice)
 
 instance (Total k, Join a) => Algebra 'L (Map.Map k a) where
     algebra = coheyting (Map.\\)
@@ -687,7 +687,7 @@ instance (Join a) => Semilattice 'L (IntMap.IntMap a) where
 
     semilattice = ConnL f fork
       where
-        f = uncurry $ IntMap.unionWith (curry $ ceilingWith semilattice)
+        f = uncurry $ IntMap.unionWith (curry $ ceiling semilattice)
 
 instance (Join a) => Algebra 'L (IntMap.IntMap a) where
     algebra = coheyting (IntMap.\\)
