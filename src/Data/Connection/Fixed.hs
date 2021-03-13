@@ -52,14 +52,12 @@ module Data.Connection.Fixed (
 
     -- * HasResolution
     HasResolution (..),
-    
 ) where
 
 import safe Data.Connection.Conn
 import safe Data.Fixed
 import safe Data.Order.Syntax
 import safe Prelude hiding (Eq (..), Ord (..))
-
 
 -- | Shift by n 'units of least precision' where the ULP is determined by the precision.
 --

@@ -29,7 +29,7 @@ module Data.Connection.Ratio (
     posnat,
 ) where
 
-import safe Data.Connection.Conn
+import safe Data.Connection.Conn hiding (ceiling, floor)
 import safe Data.Connection.Fixed
 import safe Data.Connection.Float as Float
 import safe Data.Int
@@ -88,7 +88,7 @@ ratfix = Conn f' g h'
     prec = resolution (Proxy :: Proxy e)
 
     f (reduce . (* (toRational prec)) -> n :% d) = MkFixed $ let i = n `div` d in if n `mod` d == 0 then i else i + 1
-    
+
     f' = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) f
 
     g = extended ninf pinf toRational
