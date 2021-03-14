@@ -40,7 +40,7 @@ binord = ConnL g2 h where
 
 It turns out that this happens fairly frequently, and furthermore it is often the case that the two 'inside' functions (`g1` and `g2` here) are identical, thus forming an adjoint [string](https://ncatlab.org/nlab/show/adjoint+string) or chain of length 3 (i.e. `f` is adjoint to `g` is adjoint to `h`). It is useful to be able to work with these length-3 chains directly, because the choice of two routes back from P to Q enables lawful rounding, truncation, etc. 
 
-Therefore the connection type in `Data.Connection.Conn` is parametrized over a data kind (e.g. `'L`) that specifies which pair we are talking about (`f`/`g` or `g`/`h`). When a chain is available the data kind is existentialized (see the view pattern `ConnK`).
+Therefore the connection type in `Data.Connection.Conn` is parametrized over a data kind (e.g. `'L`) that specifies which pair we are talking about (`f`/`g` or `g`/`h`). When a chain is available the data kind is existentialized (see the view pattern `Conn`).
 
 In our example above, it turns out that a small change in the adjoints on each side enables such a chain:
 
