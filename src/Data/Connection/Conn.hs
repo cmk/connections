@@ -86,15 +86,15 @@ import safe Prelude hiding (Ord (..), ceiling, floor, round, truncate)
 
 -- | A data kind distinguishing the directionality of a Galois connection:
 --
--- * /L/-tagged types are low / increasing (e.g. 'Data.Connection.Class.minimal', 'Data.Connection.Class.ceiling', 'Data.Connection.Class.join')
+-- * /L/-tagged types are low / increasing (e.g. 'Data.Connection.Class.minimal', 'Data.Connection.Conn.ceiling', 'Data.Connection.Conn.join')
 --
--- * /R/-tagged types are high / decreasing (e.g. 'Data.Connection.Class.maximal', 'Data.Connection.Class.floor', 'Data.Connection.Class.meet')
+-- * /R/-tagged types are high / decreasing (e.g. 'Data.Connection.Class.maximal', 'Data.Connection.Conn.floor', 'Data.Connection.Conn.meet')
 data Kan = L | R
 
 -- | A (chain of) Galois connections.
 --
 -- A [Galois connection](https://en.wikipedia.org/wiki/Galois_connection) between preorders P and Q
--- is a pair of monotone maps `f :: p -> q` and `g :: q -> p` such that:
+-- is a pair of monotone maps /f :: p -> q/ and /g :: q -> p/ such that:
 --
 -- > f x <= y iff x <= g y
 --
@@ -127,12 +127,12 @@ _2 :: Conn k a b -> a -> b
 _2 (Conn_ f _) = snd . f
 {-# INLINE _2 #-}
 
--- | Retrieve the upper adjoint of a 'ConnL', or lower adjoint of a 'ConnR'.
+-- | Extract the upper adjoint of a 'ConnL', or lower adjoint of a 'ConnR'.
 embed :: Conn k a b -> b -> a
 embed (Conn_ _ g) = g
 {-# INLINE embed #-}
 
--- | Retrieve the left and/or right adjoints of a connection.
+-- | Extract the left and/or right adjoints of a connection.
 --
 -- > range c = floor c &&& ceiling c
 --
@@ -214,7 +214,7 @@ connL :: ConnR a b -> ConnL b a
 connL (ConnR f g) = ConnL f g
 {-# INLINE connL #-}
 
--- | Obtain the upper adjoint of a 'ConnL', or lower adjoint of a 'ConnR'.
+-- | Extract the upper adjoint of a 'ConnL'.
 upper :: ConnL a b -> b -> a
 upper = embed
 {-# INLINE upper #-}
@@ -314,7 +314,7 @@ connR :: ConnL a b -> ConnR b a
 connR (ConnL f g) = ConnR f g
 {-# INLINE connR #-}
 
--- | Obtain the  lower adjoint of a 'ConnR'.
+-- | Extract the  lower adjoint of a 'ConnR'.
 lower :: ConnR a b -> b -> a
 lower = embed
 {-# INLINE lower #-}
