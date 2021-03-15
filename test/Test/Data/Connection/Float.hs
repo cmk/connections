@@ -4,12 +4,8 @@
 
 module Test.Data.Connection.Float where
 
-import Data.Connection.Conn
 import Data.Connection.Float
-import Data.Fixed
 import Data.Int
-import Data.Order
-
 import qualified Data.Connection.Property as Prop
 import Hedgehog
 import qualified Hedgehog.Gen as G

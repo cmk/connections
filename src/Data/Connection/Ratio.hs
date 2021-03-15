@@ -34,7 +34,6 @@ import safe Data.Connection.Fixed
 import safe Data.Connection.Float as Float
 import safe Data.Int
 import safe Data.Order
-import safe Data.Order.Extended
 import safe Data.Order.Syntax
 import safe Data.Proxy
 import safe Data.Ratio
@@ -143,6 +142,8 @@ ratf64 = Conn (toFractional f) (fromFractional g) (toFractional h)
 -- Ratio Natural
 ---------------------------------------------------------------------
 
+type Lowered a = Either a ()
+
 posw08 :: Conn k Positive (Lowered Word8)
 posw08 = tripleW
 
@@ -179,6 +180,13 @@ ninf = (-1) :% 0
 
 nan :: Num a => Ratio a
 nan = 0 :% 0
+
+liftEitherR :: (a -> Bool) -> (a -> b) -> a -> Lowered b
+liftEitherR p f = g
+  where
+    g i
+        | p i = Right ()
+        | otherwise = Left $ f i
 
 tripleW :: forall a k. (Bounded a, Integral a) => Conn k Positive (Lowered a)
 tripleW = Conn f g h

@@ -43,6 +43,7 @@ import safe Data.Connection.Fixed
 import safe Data.Connection.Float
 import safe Data.Connection.Int
 import safe Data.Connection.Ratio
+import safe Data.Connection.Time
 import safe Data.Connection.Word
 import safe Data.Functor.Identity
 import safe Data.Int
@@ -50,7 +51,6 @@ import safe qualified Data.IntMap as IntMap
 import safe qualified Data.IntSet as IntSet
 import safe qualified Data.Map as Map
 import safe Data.Order
-import safe Data.Order.Extended
 import safe qualified Data.Set as Set
 import safe Data.Word
 import safe Numeric.Natural
@@ -99,9 +99,9 @@ type ConnRational a = Triple Rational a
 class (Preorder a, Preorder b) => Connection k a b where
     -- |
     --
-    -- >>> range (conn @_ @Rational @Float) (22 :% 7)
+    -- >>> outer (conn @_ @Rational @Float) (22 :% 7)
     -- (3.142857,3.1428573)
-    -- >>> range (conn @_ @Double @Float) pi
+    -- >>> outer (conn @_ @Double @Float) pi
     -- (3.1415925,3.1415927)
     conn :: Conn k a b
 
@@ -208,9 +208,9 @@ extremal = Conn f g h
 
 instance Preorder a => Connection k a a where conn = identity
 
-instance Connection k ((), ()) () where conn = latticeOrd
+instance Connection k ((), ()) () where conn = ordered
 
-instance Connection k () Bool where conn = bounded
+instance Connection k () Bool where conn = bounds
 instance Connection k Ordering Bool where conn = extremal
 instance Connection k Word8 Bool where conn = extremal
 instance Connection k Word16 Bool where conn = extremal
@@ -226,30 +226,30 @@ instance Connection k Int Bool where conn = extremal
 instance Connection k Rational Bool where conn = extremal
 instance Connection k Float Bool where conn = extremal
 instance Connection k Double Bool where conn = extremal
-instance Connection k (Bool, Bool) Bool where conn = latticeOrd
+instance Connection k (Bool, Bool) Bool where conn = ordered
 
-instance Connection k () Ordering where conn = bounded
-instance Connection k (Ordering, Ordering) Ordering where conn = latticeOrd
+instance Connection k () Ordering where conn = bounds
+instance Connection k (Ordering, Ordering) Ordering where conn = ordered
 
-instance Connection k () Word8 where conn = bounded
+instance Connection k () Word8 where conn = bounds
 instance Connection 'L Int8 Word8 where conn = i08w08
-instance Connection k (Word8, Word8) Word8 where conn = latticeOrd
+instance Connection k (Word8, Word8) Word8 where conn = ordered
 
-instance Connection k () Word16 where conn = bounded
+instance Connection k () Word16 where conn = bounds
 instance Connection 'L Word8 Word16 where conn = w08w16
 instance Connection 'L Int8 Word16 where conn = i08w16
 instance Connection 'L Int16 Word16 where conn = i16w16
-instance Connection k (Word16, Word16) Word16 where conn = latticeOrd
+instance Connection k (Word16, Word16) Word16 where conn = ordered
 
-instance Connection k () Word32 where conn = bounded
+instance Connection k () Word32 where conn = bounds
 instance Connection 'L Word8 Word32 where conn = w08w32
 instance Connection 'L Word16 Word32 where conn = w16w32
 instance Connection 'L Int8 Word32 where conn = i08w32
 instance Connection 'L Int16 Word32 where conn = i16w32
 instance Connection 'L Int32 Word32 where conn = i32w32
-instance Connection k (Word32, Word32) Word32 where conn = latticeOrd
+instance Connection k (Word32, Word32) Word32 where conn = ordered
 
-instance Connection k () Word64 where conn = bounded
+instance Connection k () Word64 where conn = bounds
 instance Connection 'L Word8 Word64 where conn = w08w64
 instance Connection 'L Word16 Word64 where conn = w16w64
 instance Connection 'L Word32 Word64 where conn = w32w64
@@ -258,9 +258,9 @@ instance Connection 'L Int16 Word64 where conn = i16w64
 instance Connection 'L Int32 Word64 where conn = i32w64
 instance Connection 'L Int64 Word64 where conn = i64w64
 instance Connection 'L Int Word64 where conn = ixxw64
-instance Connection k (Word64, Word64) Word64 where conn = latticeOrd
+instance Connection k (Word64, Word64) Word64 where conn = ordered
 
-instance Connection k () Word where conn = bounded
+instance Connection k () Word where conn = bounds
 instance Connection 'L Word8 Word where conn = w08wxx
 instance Connection 'L Word16 Word where conn = w16wxx
 instance Connection 'L Word32 Word where conn = w32wxx
@@ -270,7 +270,7 @@ instance Connection 'L Int16 Word where conn = i16wxx
 instance Connection 'L Int32 Word where conn = i32wxx
 instance Connection 'L Int64 Word where conn = i64wxx
 instance Connection 'L Int Word where conn = ixxwxx
-instance Connection k (Word, Word) Word where conn = latticeOrd
+instance Connection k (Word, Word) Word where conn = ordered
 
 instance Connection 'L () Natural where conn = ConnL (const 0) (const ())
 instance Connection 'L Word8 Natural where conn = w08nat
@@ -284,23 +284,25 @@ instance Connection 'L Int32 Natural where conn = i32nat
 instance Connection 'L Int64 Natural where conn = i64nat
 instance Connection 'L Int Natural where conn = ixxnat
 instance Connection 'L Integer Natural where conn = intnat
-instance Connection k (Natural, Natural) Natural where conn = latticeOrd
+instance Connection k (Natural, Natural) Natural where conn = ordered
 
 instance Connection k () Positive where
     conn = Conn (const $ 0 :% 1) (const ()) (const $ 1 :% 0)
 instance Connection k (Positive, Positive) Positive where conn = latticeN5
 
-instance Connection k () Int8 where conn = bounded
-instance Connection k (Int8, Int8) Int8 where conn = latticeOrd
-instance Connection k () Int16 where conn = bounded
-instance Connection k (Int16, Int16) Int16 where conn = latticeOrd
-instance Connection k () Int32 where conn = bounded
-instance Connection k (Int32, Int32) Int32 where conn = latticeOrd
-instance Connection k () Int64 where conn = bounded
-instance Connection k (Int64, Int64) Int64 where conn = latticeOrd
-instance Connection k () Int where conn = bounded
-instance Connection k (Int, Int) Int where conn = latticeOrd
-instance Connection k (Integer, Integer) Integer where conn = latticeOrd
+instance Connection k () Int8 where conn = bounds
+instance Connection k (Int8, Int8) Int8 where conn = ordered
+instance Connection k () Int16 where conn = bounds
+instance Connection k (Int16, Int16) Int16 where conn = ordered
+instance Connection k () Int32 where conn = bounds
+instance Connection k (Int32, Int32) Int32 where conn = ordered
+instance Connection k () Int64 where conn = bounds
+instance Connection k (Int64, Int64) Int64 where conn = ordered
+instance Connection k () Int where conn = bounds
+instance Connection k (Int, Int) Int where conn = ordered
+
+instance Connection k Uni Integer where conn = f00int
+instance Connection k (Integer, Integer) Integer where conn = ordered
 
 instance Connection k () Rational where
     conn = Conn (const $ -1 :% 0) (const ()) (const $ 1 :% 0)
@@ -333,7 +335,7 @@ instance Connection k Pico Micro where conn = f12f06
 
 instance Connection k Pico Nano where conn = f12f09
 
-instance Connection k (Fixed e, Fixed e) (Fixed e) where conn = latticeOrd
+instance Connection k (Fixed e, Fixed e) (Fixed e) where conn = ordered
 
 instance Connection k () Float where conn = extremalN5
 instance Connection k Double Float where conn = f64f32
@@ -366,6 +368,7 @@ instance Connection 'L Int8 (Maybe Int) where conn = i08ixx
 instance Connection 'L Int16 (Maybe Int) where conn = i16ixx
 instance Connection 'L Int32 (Maybe Int) where conn = i32ixx
 instance Connection k Int64 Int where conn = i64ixx
+instance Connection k SystemTime Int where conn = sysixx
 
 instance Connection 'L Word8 (Maybe Integer) where conn = w08int
 instance Connection 'L Word16 (Maybe Integer) where conn = w16int
@@ -395,6 +398,7 @@ instance Connection k Rational (Extended Int32) where conn = rati32
 instance Connection k Rational (Extended Int64) where conn = rati64
 instance Connection k Rational (Extended Int) where conn = ratixx
 instance Connection k Rational (Extended Integer) where conn = ratint
+instance Connection k Rational (Extended SystemTime) where conn = ratsys
 instance HasResolution prec => Connection k Rational (Extended (Fixed prec)) where conn = ratfix
 
 instance Connection 'L Float (Extended Word8) where conn = f32i08 >>> mapped i08w08
@@ -403,6 +407,7 @@ instance Connection 'L Float (Extended Word32) where conn = f32i32 >>> mapped i3
 instance Connection 'L Float (Extended Word64) where conn = f32i64 >>> mapped i64w64
 instance Connection 'L Float (Extended Word) where conn = f32ixx >>> mapped ixxwxx
 instance Connection 'L Float (Extended Natural) where conn = f32int >>> mapped intnat
+instance Connection 'L Float (Extended SystemTime) where conn = f32sys
 
 -- | All 'Data.Int.Int8' values are exactly representable in a 'Float'.
 instance Connection k Float (Extended Int8) where conn = f32i08
@@ -422,6 +427,7 @@ instance Connection 'L Double (Extended Word32) where conn = f64i32 >>> mapped i
 instance Connection 'L Double (Extended Word64) where conn = f64i64 >>> mapped i64w64
 instance Connection 'L Double (Extended Word) where conn = f64ixx >>> mapped ixxwxx
 instance Connection 'L Double (Extended Natural) where conn = f64int >>> mapped intnat
+instance Connection 'L Double (Extended SystemTime) where conn = f64sys
 
 -- | All 'Data.Int.Int8' values are exactly representable in a 'Double'.
 instance Connection k Double (Extended Int8) where conn = f64i08
@@ -453,7 +459,7 @@ instance Right () a => Connection 'R () (Maybe a) where
     conn = ConnR (const ()) (const $ Just maximal)
 
 instance Preorder a => Connection k () (Extended a) where
-    conn = Conn (const Bottom) (const ()) (const Top)
+    conn = Conn (const NegInf) (const ()) (const PosInf)
 
 instance (Left () a, Preorder b) => Connection 'L () (Either a b) where
     conn = ConnL (const $ Left minimal) (const ())
@@ -504,8 +510,8 @@ instance Right (a, a) a => Connection 'R (IntMap.IntMap a, IntMap.IntMap a) (Int
 fork :: a -> (a, a)
 fork x = (x, x)
 
-bounded :: Bounded a => Conn k () a
-bounded = Conn (const minBound) (const ()) (const maxBound)
+bounds :: Bounded a => Conn k () a
+bounds = Conn (const minBound) (const ()) (const maxBound)
 
 latticeN5 :: (Total a, Fractional a) => Conn k (a, a) a
 latticeN5 = Conn (uncurry joinN5) fork (uncurry meetN5)
@@ -516,9 +522,6 @@ latticeN5 = Conn (uncurry joinN5) fork (uncurry meetN5)
 
 extremalN5 :: (Total a, Fractional a) => Conn k () a
 extremalN5 = Conn (const $ -1 / 0) (const ()) (const $ 1 / 0)
-
-latticeOrd :: (Total a) => Conn k (a, a) a
-latticeOrd = Conn (uncurry max) fork (uncurry min)
 
 maybeL :: Triple () b => Conn k (Maybe a) (Either a b)
 maybeL = Conn f g h
@@ -570,18 +573,18 @@ meetMaybe _ Nothing = Nothing
 meetMaybe (Just x) (Just y) = Just (x `meet` y)
 
 joinExtended :: Connection 'L (a, a) a => Extended a -> Extended a -> Extended a
-joinExtended Top          _            = Top
-joinExtended _            Top          = Top
+joinExtended PosInf          _            = PosInf
+joinExtended _            PosInf          = PosInf
 joinExtended (Extended x) (Extended y) = Extended (x `join` y)
-joinExtended Bottom       y            = y
-joinExtended x            Bottom       = x
+joinExtended NegInf       y            = y
+joinExtended x            NegInf       = x
 
 meetExtended :: Right (a, a) a => Extended a -> Extended a -> Extended a
-meetExtended Top          y            = y
-meetExtended x            Top          = x
+meetExtended PosInf          y            = y
+meetExtended x            PosInf          = x
 meetExtended (Extended x) (Extended y) = Extended (x `meet` y)
-meetExtended Bottom       _            = Bottom
-meetExtended _            Bottom       = Bottom
+meetExtended NegInf       _            = NegInf
+meetExtended _            NegInf       = NegInf
 
 joinEither :: (Connection 'L (a, a) a, Connection 'L (b, b) b) => Either a b -> Either a b -> Either a b
 joinEither (Right x) (Right y) = Right (x `join` y)

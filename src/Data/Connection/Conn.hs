@@ -14,14 +14,13 @@ module Data.Connection.Conn (
     -- * Conn
     Kan (..),
     Conn (),
-    embed,
-    range,
-    identity,
     (>>>),
     (<<<),
     mapped,
     choice,
     strong,
+    ordered,
+    identity,
 
     -- * Connection L
     ConnL,
@@ -47,14 +46,16 @@ module Data.Connection.Conn (
 
     -- * Connection k
     pattern Conn,
-    half,
-    midpoint,
+    inner,
+    outer,
     round,
     round1,
     round2,
     truncate,
     truncate1,
     truncate2,
+    half,
+    midpoint,
 
     -- * Down
     upL,
@@ -64,19 +65,27 @@ module Data.Connection.Conn (
     filterL,
     filterR,
     Down (..),
+
+    -- * Extended
+    Extended(..),
+    extended,
+    liftExtended
 ) where
 
 import safe Control.Arrow ((&&&))
 import safe Control.Category (Category, (<<<), (>>>))
 import safe qualified Control.Category as C
 import safe Data.Bifunctor (bimap)
+import safe Data.ExtendedReal
 import safe Data.Order
+import safe Data.Order.Syntax
 import safe Prelude hiding (Ord (..), ceiling, floor, round, truncate)
 
 -- $setup
 -- >>> :set -XTypeApplications
 -- >>> import Data.Int
 -- >>> import Data.Ord (Down(..))
+-- >>> import Data.Ratio ((%))
 -- >>> import GHC.Real (Ratio(..))
 -- >>> :load Data.Connection
 -- >>> ratf32 = conn @_ @Rational @Float
@@ -84,9 +93,9 @@ import safe Prelude hiding (Ord (..), ceiling, floor, round, truncate)
 
 -- | A data kind distinguishing the directionality of a Galois connection:
 --
--- * /L/-tagged types are low / increasing (e.g. 'Data.Connection.Class.minimal', 'Data.Connection.Conn.ceiling', 'Data.Connection.Conn.join')
+-- * /L/-tagged types are low / increasing (e.g. 'Data.Connection.Class.minimal', 'Data.Connection.Conn.ceiling', 'Data.Lattice.(\/)')
 --
--- * /R/-tagged types are high / decreasing (e.g. 'Data.Connection.Class.maximal', 'Data.Connection.Conn.floor', 'Data.Connection.Conn.meet')
+-- * /R/-tagged types are high / decreasing (e.g. 'Data.Connection.Class.maximal', 'Data.Connection.Conn.floor', 'Data.Lattice.(/\)')
 data Kan = L | R
 
 -- | A (chain of) Galois connections.
@@ -100,9 +109,13 @@ data Kan = L | R
 --
 -- Connections have many nice properties wrt numerical conversion:
 --
--- >>> range (conn @_ @Rational @Float) (1 :% 8) -- eighths are exactly representable in a float
+-- >>> inner ratf32 (1 / 8)    -- eighths are exactly representable in a float
+-- 1 % 8
+-- >>> outer ratf32 (1 % 8)
 -- (0.125,0.125)
--- >>> range (conn @_ @Rational @Float) (1 :% 7) -- sevenths are not
+-- >>> inner ratf32 (1 / 7)    -- sevenths are not
+-- 9586981 % 67108864
+-- >>> outer ratf32 (1 % 7)
 -- (0.14285713,0.14285715)
 --
 -- See the /README/ file for a slightly more in-depth introduction.
@@ -125,32 +138,10 @@ _2 :: Conn k a b -> a -> b
 _2 (Conn_ f _) = snd . f
 {-# INLINE _2 #-}
 
--- | Extract the upper adjoint of a 'ConnL', or lower adjoint of a 'ConnR'.
-embed :: Conn k a b -> b -> a
-embed (Conn_ _ g) = g
-{-# INLINE embed #-}
-
--- | Extract the left and/or right adjoints of a connection.
---
--- > range c = floor c &&& ceiling c
---
--- >>> range f64f32 pi
--- (3.1415925,3.1415927)
--- >>> range f64f32 (0/0)
--- (NaN,NaN)
-range :: Conn k a b -> a -> (b, b)
-range (Conn_ f _) = f
-{-# INLINE range #-}
-
--- | The identity 'Conn'.
-identity :: Conn k a a
-identity = Conn_ (id &&& id) id
-{-# INLINE identity #-}
-
 -- | Lift a 'Conn' into a functor.
 --
 -- /Caution/: This function will result in an invalid connection
--- if the functor alters the internal preorder (i.e. 'Data.Ord.Down').
+-- if the functor alters the internal preorder (e.g. 'Data.Ord.Down').
 mapped :: Functor f => Conn k a b -> Conn k (f a) (f b)
 mapped (Conn f g h) = Conn (fmap f) (fmap g) (fmap h)
 {-# INLINE mapped #-}
@@ -178,6 +169,20 @@ strong (Conn ab ba ab') (Conn cd dc cd') = Conn f g h
     g = bimap ba dc
     h = bimap ab' cd'
 {-# INLINE strong #-}
+
+-- | The defining connection of a total order.
+--
+-- >>> outer ordered (True, False)
+-- (False,True)
+ordered :: Total a => Conn k (a, a) a
+ordered = Conn (uncurry max) (id &&& id) (uncurry min)
+{-# INLINE ordered #-}
+
+-- | The identity 'Conn'.
+identity :: Conn k a a
+identity = Conn_ (id &&& id) id
+{-# INLINE identity #-}
+
 
 ---------------------------------------------------------------------
 -- Conn 'L
@@ -214,7 +219,7 @@ connL (ConnR f g) = ConnL f g
 
 -- | Extract the upper adjoint of a 'ConnL'.
 upper :: ConnL a b -> b -> a
-upper = embed
+upper = inner
 {-# INLINE upper #-}
 
 -- | Map over a 'ConnL' from the right.
@@ -305,7 +310,7 @@ connR (ConnL f g) = ConnR f g
 
 -- | Extract the lower adjoint of a 'ConnR'.
 lower :: ConnR a b -> b -> a
-lower = embed
+lower = inner
 {-# INLINE lower #-}
 
 -- | Map over a 'ConnR' from the left.
@@ -377,27 +382,35 @@ floor2 (ConnR f g) h b1 b2 = g $ h (f b1) (f b2)
 --
 -- For detailed properties see 'Data.Connection.Property'.
 pattern Conn :: (a -> b) -> (b -> a) -> (a -> b) -> Conn k a b
-pattern Conn f g h <- (embed &&& _1 &&& _2 -> (g, (h, f))) where Conn f g h = Conn_ (h &&& f) g
+pattern Conn f g h <- (inner &&& _1 &&& _2 -> (g, (h, f))) where Conn f g h = Conn_ (h &&& f) g
 
 {-# COMPLETE Conn #-}
 
--- | Determine which half of the interval between 2 representations of /a/ a particular value lies.
+-- | Extract the upper adjoint of a 'ConnL', or lower adjoint of a 'ConnR'.
 --
--- @ 'half' c x = 'pcompare' (x - 'lower1' c 'id' x) ('upper1' c 'id' x - x) @
---
--- >>> maybe False (== EQ) $ half f64f32 (midpoint f64f32 pi)
--- True
-half :: (Num a, Preorder a) => (forall k. Conn k a b) -> a -> Maybe Ordering
-half c x = pcompare (x - lower1 c id x) (upper1 c id x - x)
-{-# INLINE half #-}
+-- When the connection is an adjoint triple the inner function is returned:
+--  
+-- >>> inner ratf32 (1 / 8)    -- eighths are exactly representable in a float
+-- 1 % 8
+-- >>> inner ratf32 (1 / 7)    -- sevenths are not
+-- 9586981 % 67108864
+inner :: Conn k a b -> b -> a
+inner (Conn_ _ g) = g
+{-# INLINE inner #-}
 
--- | Return the midpoint of the interval containing x.
+-- | Extract the left and/or right adjoints of a connection.
 --
--- >>> pi - midpoint f64f32 pi
--- 3.1786509424591713e-8
-midpoint :: Fractional a => (forall k. Conn k a b) -> a -> a
-midpoint c x = lower1 c id x / 2 + upper1 c id x / 2
-{-# INLINE midpoint #-}
+-- When the connection is an adjoint triple the outer functions are returned:
+-- 
+-- > outer c = floor c &&& ceiling c
+--
+-- >>> outer ratf32 (1 % 8)    -- eighths are exactly representable in a float
+-- (0.125,0.125)
+-- >>> outer ratf32 (1 % 7)    -- sevenths are not
+-- (0.14285713,0.14285715)
+outer :: Conn k a b -> a -> (b, b)
+outer (Conn_ f _) = f
+{-# INLINE outer #-}
 
 -- | Return the nearest value to x.
 --
@@ -414,14 +427,14 @@ round c x = case half c x of
     _ -> truncate c x
 {-# INLINE round #-}
 
--- | Lift a unary function over a 'Trip'.
+-- | Lift a unary function over an adjoint triple.
 --
 -- Results are rounded to the nearest value with ties away from 0.
 round1 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a) -> b -> b
 round1 c f x = round c $ f (g x) where Conn _ g _ = c
 {-# INLINE round1 #-}
 
--- | Lift a binary function over a 'Trip'.
+-- | Lift a binary function over an adjoint triple.
 --
 -- Results are rounded to the nearest value with ties away from 0.
 --
@@ -444,7 +457,7 @@ truncate :: (Num a, Preorder a) => (forall k. Conn k a b) -> a -> b
 truncate c x = if x >~ 0 then floor c x else ceiling c x
 {-# INLINE truncate #-}
 
--- | Lift a unary function over a 'Trip'.
+-- | Lift a unary function over an adjoint triple.
 --
 -- Results are truncated towards zero.
 --
@@ -456,6 +469,24 @@ truncate1 c f x = truncate c $ f (g x) where Conn _ g _ = c
 truncate2 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a -> a) -> b -> b -> b
 truncate2 c f x y = truncate c $ f (g x) (g y) where Conn _ g _ = c
 {-# INLINE truncate2 #-}
+
+-- | Determine which half of the interval between 2 representations of /a/ a particular value lies.
+--
+-- @ 'half' c x = 'pcompare' (x - 'lower1' c 'id' x) ('upper1' c 'id' x - x) @
+--
+-- >>> maybe False (== EQ) $ half f64f32 (midpoint f64f32 pi)
+-- True
+half :: (Num a, Preorder a) => (forall k. Conn k a b) -> a -> Maybe Ordering
+half c x = pcompare (x - lower1 c id x) (upper1 c id x - x)
+{-# INLINE half #-}
+
+-- | Return the midpoint of the interval containing x.
+--
+-- >>> pi - midpoint f64f32 pi
+-- 3.1786509424591713e-8
+midpoint :: Fractional a => (forall k. Conn k a b) -> a -> a
+midpoint c x = lower1 c id x / 2 + upper1 c id x / 2
+{-# INLINE midpoint #-}
 
 ---------------------------------------------------------------------
 -- Down
@@ -541,3 +572,24 @@ filterL c a b = ceiling c a <~ b
 filterR :: Preorder b => ConnR a b -> a -> b -> Bool
 filterR c a b = b <~ floor c a
 {-# INLINE filterR #-}
+
+
+---------------------------------------------------------------------
+-- Extended
+---------------------------------------------------------------------
+
+-- | Eliminate an 'Extended'.
+{-# INLINE extended #-}
+extended :: b -> b -> (a -> b) -> Extended a -> b
+extended b _ _ NegInf = b
+extended _ t _ PosInf = t
+extended _ _ f (Finite x) = f x
+
+{-# INLINE liftExtended #-}
+liftExtended :: (a -> Bool) -> (a -> Bool) -> (a -> b) -> a -> Extended b
+liftExtended p q f = g
+  where
+    g i
+        | p i = NegInf
+        | q i = PosInf
+        | otherwise = Finite $ f i
