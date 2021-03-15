@@ -10,7 +10,9 @@ maintainer:          chris.mckinlay@gmail.com
 category:            Math, Numerical
 stability:           Experimental
 build-type:          Simple
-extra-source-files:  ChangeLog.md
+extra-source-files:
+  ChangeLog.md
+  README.md
 cabal-version:       >=1.10
 
 library
