@@ -18,24 +18,22 @@ module Data.Connection.Class (
     Right,
     right,
     Triple,
+    ConnInteger,
+    ConnRational,
 
-    -- * Lattices
-    (\/),
-    (/\),
-    lub,
-    glb,
-    choose,
+    -- * Operations
+    select,
     divide,
     minimal,
     maximal,
     extremal,
+    join,
+    meet,
+    lub,
+    glb,
 
     -- * Connection
     Connection (..),
-
-    -- ** RebindableSyntax
-    ConnInteger,
-    ConnRational,
 ) where
 
 import safe Control.Category ((>>>))
@@ -112,21 +110,55 @@ class (Preorder a, Preorder b) => Connection k a b where
 -- Lattices
 ---------------------------------------------------------------------
 
-infixr 5 \/
+infixr 3 `select`
+
+-- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Category_Theory/Categories_of_ordered_sets coproduct order>
+--
+select :: Conn k c a -> Conn k c b -> Conn k c (Either a b)
+select f g = Conn Left (either id id) Right >>> f `choice` g
+
+infixr 4 `divide`
+
+-- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
+--
+divide :: Connection k (c, c) c => Conn k a c -> Conn k b c -> Conn k (a, b) c
+divide f g = f `strong` g >>> conn
+
+infixr 5 `join`
 
 -- | Lattice join.
 --
--- > (\/) = curry $ lower semilattice
-(\/) :: Left (a, a) a => a -> a -> a
-(\/) = join conn
+join :: Left (a, a) a => a -> a -> a
+join = curry $ ceiling conn
 
-infixr 6 /\ -- comment for the parser
+infixr 6 `meet`
 
 -- | Lattice meet.
 --
--- > (/\) = curry $ floor semilattice
-(/\) :: Right (a, a) a => a -> a -> a
-(/\) = meet conn
+meet :: Right (a, a) a => a -> a -> a
+meet = curry $ floor conn
+
+-- | A minimal element of a preorder.
+--
+-- > meet x minimal = minimal
+-- > join x minimal = x
+--
+-- 'minimal' needn't be unique, but it must obey:
+--
+-- > x <~ minimal => x ~~ minimal
+minimal :: Left () a => a
+minimal = ceiling conn ()
+
+-- | A maximal element of a preorder.
+--
+-- > meet x maximal = x
+-- > join x maximal = maximal
+--
+-- 'maximal' needn't be unique, but it must obey:
+--
+-- > x >~ maximal => x ~~ maximal
+maximal :: Right () a => a
+maximal = floor conn ()
 
 -- | Least upper bound operator.
 --
@@ -137,7 +169,7 @@ infixr 6 /\ -- comment for the parser
 -- >>> lub 1.0 9.0 (0.0 / 0.0)
 -- 1.0
 lub :: Triple (a, a) a => a -> a -> a -> a
-lub x y z = x /\ y \/ y /\ z \/ z /\ x
+lub x y z = x `meet` y `join` y `meet` z `join` z `meet` x
 
 -- | Greatest lower bound operator.
 --
@@ -153,41 +185,7 @@ lub x y z = x /\ y \/ y /\ z \/ z /\ x
 -- >>> glb (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
 -- fromList [3,5]
 glb :: Triple (a, a) a => a -> a -> a -> a
-glb x y z = (x \/ y) /\ (y \/ z) /\ (z \/ x)
-
-infixr 3 `choose`
-
--- | A preorder variant of 'Control.Arrow.|||'.
-choose :: Conn k c a -> Conn k c b -> Conn k c (Either a b)
-choose f g = Conn Left (either id id) Right >>> f `choice` g
-
-infixr 4 `divide`
-
--- | A preorder variant of 'Control.Arrow.&&&'.
-divide :: Connection k (c, c) c => Conn k a c -> Conn k b c -> Conn k (a, b) c
-divide f g = f `strong` g >>> conn
-
--- | A minimal element of a preorder.
---
--- > x /\ minimal = minimal
--- > x \/ minimal = x
---
--- 'minimal' needn't be unique, but it must obey:
---
--- > x <~ minimal => x ~~ minimal
-minimal :: Left () a => a
-minimal = ceiling conn ()
-
--- | A maximal element of a preorder.
---
--- > x /\ maximal = x
--- > x \/ maximal = maximal
---
--- 'maximal' needn't be unique, but it must obey:
---
--- > x >~ maximal => x ~~ maximal
-maximal :: Right () a => a
-maximal = floor conn ()
+glb x y z = (x `join` y) `meet` (y `join` z) `meet` (z `join` x)
 
 -- | The canonical connection with a 'Bool'.
 extremal :: Triple () a => Conn k a Bool
@@ -485,19 +483,19 @@ instance (Total a, Preorder b) => Connection 'L () (Map.Map a b) where
     conn = ConnL (const Map.empty) (const ())
 
 instance (Total a, Left (b, b) b) => Connection 'L (Map.Map a b, Map.Map a b) (Map.Map a b) where
-    conn = ConnL (uncurry $ Map.unionWith (join conn)) fork
+    conn = ConnL (uncurry $ Map.unionWith join) fork
 
 instance (Total a, Right (b, b) b) => Connection 'R (Map.Map a b, Map.Map a b) (Map.Map a b) where
-    conn = ConnR fork (uncurry $ Map.intersectionWith (meet conn))
+    conn = ConnR fork (uncurry $ Map.intersectionWith meet)
 
 instance Preorder a => Connection 'L () (IntMap.IntMap a) where
     conn = ConnL (const IntMap.empty) (const ())
 
 instance Left (a, a) a => Connection 'L (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
-    conn = ConnL (uncurry $ IntMap.unionWith (join conn)) fork
+    conn = ConnL (uncurry $ IntMap.unionWith join) fork
 
 instance Right (a, a) a => Connection 'R (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
-    conn = ConnR fork (uncurry $ IntMap.intersectionWith (meet conn))
+    conn = ConnR fork (uncurry $ IntMap.intersectionWith meet)
 
 -- Internal
 
