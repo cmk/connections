@@ -11,6 +11,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Data.Order (
     -- * Constraint kinds
@@ -35,6 +36,7 @@ import safe Control.Applicative
 import safe Data.Bool
 import safe Data.Complex
 import safe Data.Either
+import safe Data.ExtendedReal
 import safe qualified Data.Eq as Eq
 import safe Data.Fixed
 import safe Data.Functor.Identity
@@ -48,6 +50,8 @@ import safe Data.Ord (Down (..))
 import safe qualified Data.Ord as Ord
 import safe Data.Semigroup
 import safe qualified Data.Set as Set
+import safe Data.Time
+import safe Data.Time.Clock.System
 import safe Data.Void
 import safe Data.Word
 import safe GHC.Real
@@ -371,6 +375,24 @@ instance Preorder Rational where
 instance Preorder Positive where
     pcompare = pcomparePos
 
+
+--deriving via (Base SystemTime) instance Preorder SystemTime
+instance Preorder SystemTime where
+    pcompare = fmap Just . compareSys
+
+compareSys :: SystemTime -> SystemTime -> Ordering
+compareSys (norm -> MkSystemTime xs xn) (norm -> MkSystemTime ys yn) | EQ ==  os = Ord.compare xn yn
+                                                                     | otherwise = os
+                                                                       where  os = Ord.compare xs ys
+
+s2ns :: Num a => a
+s2ns = 10^9
+
+norm :: SystemTime -> SystemTime
+norm (MkSystemTime xs xn) | xn Ord.>= s2ns = MkSystemTime (xs + q) (fromIntegral r)
+                          | otherwise  = MkSystemTime  xs      xn
+                       where (q, r) = fromIntegral xn `divMod` s2ns
+
 instance (Preorder a, Num a) => Preorder (Complex a) where
     pcompare = pcomparing $ \(x :+ y) -> x * x + y * y
 
@@ -418,6 +440,13 @@ instance Preorder a => Preorder [a] where
 
 instance Preorder a => Preorder (NonEmpty a) where
     (x :| xs) <~ (y :| ys) = x <~ y && xs <~ ys
+
+instance Preorder a => Preorder (Extended a) where
+    _ <~ PosInf = True
+    PosInf <~ _ = False
+    NegInf <~ _ = True
+    _ <~ NegInf = False
+    Finite x <~ Finite y = x <~ y
 
 instance (Preorder a, Preorder b) => Preorder (Either a b) where
     Right a <~ Right b = a <~ b

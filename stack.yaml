@@ -2,9 +2,4 @@ resolver: lts-14.15
 flags: {}
 
 extra-deps:
-  - github: cmk/lawz
-    commit: 55c8dcdc6322f7c35c8568e1317afb5d35c3963d
-  - github: cmk/rings
-    commit: 001191e9850288de1aefcbd29db82d073984a014
-  - github: cmk/magmas
-    commit: f86a7433ffa13407b939280523feb661143a800a
+  - extended-reals-0.2.4.0@sha256:c1c815b8d8763b22566c7877b43a5e9e748b09b753d63096604c61102146d6f0,1621

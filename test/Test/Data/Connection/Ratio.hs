@@ -7,24 +7,17 @@ import qualified Data.Connection.Property as Prop
 import Data.Connection.Ratio
 import Data.Fixed
 import Data.Int
-import Data.Order.Extended
 import Data.Word
-import GHC.Real hiding (Fractional (..), div, (^), (^^))
 import Hedgehog
 import qualified Hedgehog.Gen as G
-import qualified Hedgehog.Range as R
-import Numeric.Natural
 import Test.Data.Connection
-
-fxx :: Gen (Extended (Fixed k))
-fxx = gen_extended $ MkFixed <$> G.integral ri'
 
 prop_connection_ratf06 :: Property
 prop_connection_ratf06 = withTests 1000 . property $ do
     x <- forAll rat
     x' <- forAll rat
-    y <- forAll fxx
-    y' <- forAll fxx
+    y <- forAll $ gen_extended fxx
+    y' <- forAll $ gen_extended fxx
 
     assert $ Prop.adjoint (ratfix @E6) x y
     assert $ Prop.closed (ratfix @E6) x
@@ -36,8 +29,8 @@ prop_connection_ratf09 :: Property
 prop_connection_ratf09 = withTests 1000 . property $ do
     x <- forAll rat
     x' <- forAll rat
-    y <- forAll fxx
-    y' <- forAll fxx
+    y <- forAll $ gen_extended fxx
+    y' <- forAll $ gen_extended fxx
 
     assert $ Prop.adjoint (ratfix @E9) x y
     assert $ Prop.closed (ratfix @E9) x
@@ -49,8 +42,8 @@ prop_connection_ratf12 :: Property
 prop_connection_ratf12 = withTests 1000 . property $ do
     x <- forAll rat
     x' <- forAll rat
-    y <- forAll fxx
-    y' <- forAll fxx
+    y <- forAll $ gen_extended fxx
+    y' <- forAll $ gen_extended fxx
 
     assert $ Prop.adjoint (ratfix @E12) x y
     assert $ Prop.closed (ratfix @E12) x

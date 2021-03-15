@@ -42,7 +42,6 @@ import safe Data.Bool
 import safe Data.Connection.Conn hiding (ceiling, floor)
 import safe Data.Int
 import safe Data.Order
-import safe Data.Order.Extended
 import safe Data.Order.Syntax hiding (max, min)
 import safe Data.Word
 import safe GHC.Float as F
@@ -132,9 +131,9 @@ f32i08 = fxxext
 -- | All 'Data.Int.Int16' values are exactly representable in a 'Float'.
 --
 -- >>> Data.Connection.Conn.ceiling f32i16 32767.0
--- Extended 32767
+-- Finite 32767
 -- >>> Data.Connection.Conn.ceiling f32i16 32767.1
--- Top
+-- PosInf
 f32i16 :: Conn k Float (Extended Int16)
 f32i16 = fxxext
 
@@ -334,14 +333,14 @@ f32ext = ConnL f g
   where
     prec = 24 :: Int -- Float loses integer precision beyond 2^prec
     f x
-        | abs x <= 2 ** 24 -1 = Extended (ceiling x)
+        | abs x <= 2 ** 24 -1 = Finite (ceiling x)
         | otherwise = case pcompare x 0 of
-            Just LT -> Bottom
-            _ -> Extended (2 ^ prec)
+            Just LT -> NegInf
+            _ -> Finite (2 ^ prec)
 
-    g Bottom = -2 ** 24
-    g Top = 1 / 0
-    g (Extended i)
+    g NegInf = -2 ** 24
+    g PosInf = 1 / 0
+    g (Finite i)
         | abs i P.<= 2 ^ prec -1 = fromIntegral i
         | otherwise = if i P.>= 0 then 1 / 0 else -2 ** 24
 {-# INLINE f32ext #-}
@@ -351,14 +350,14 @@ f64ext = ConnL f g
   where
     prec = 53 :: Int -- Double loses integer precision beyond 2^prec
     f x
-        | abs x <= 2 ** 53 -1 = Extended (ceiling x)
+        | abs x <= 2 ** 53 -1 = Finite (ceiling x)
         | otherwise = case pcompare x 0 of
-            Just LT -> Bottom
-            _ -> Extended (2 ^ prec)
+            Just LT -> NegInf
+            _ -> Finite (2 ^ prec)
 
-    g Bottom = -2 ** 53
-    g Top = 1 / 0
-    g (Extended i)
+    g NegInf = -2 ** 53
+    g PosInf = 1 / 0
+    g (Finite i)
         | abs i P.<= 2 ^ prec -1 = fromIntegral i
         | otherwise = if i P.>= 0 then 1 / 0 else -2 ** 53
 {-# INLINE f64ext #-}

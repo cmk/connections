@@ -60,15 +60,13 @@ module Data.Lattice (
 
 import safe Data.Bifunctor (bimap)
 import safe Data.Bool hiding (not)
-import safe Data.Connection.Class hiding ((/\), (\/))
-import safe Data.Connection.Conn
+import safe Data.Connection
 import safe Data.Either
 import safe Data.Int
 import safe qualified Data.IntMap as IntMap
 import safe qualified Data.IntSet as IntSet
 import safe qualified Data.Map as Map
 import safe Data.Order
-import safe Data.Order.Extended
 import safe Data.Order.Syntax
 import safe qualified Data.Set as Set
 import safe Data.Word
@@ -142,7 +140,7 @@ type Meet = Semilattice 'R
 -- @
 --
 -- See < https://en.wikipedia.org/wiki/Lattice_(order) >.
-class Order a => Semilattice (k :: Kan) a where
+class Order a => Semilattice k a where
     -- | The defining connection of a bounded semilattice.
     --
     -- 'bottom' and 'top' are defined by the left and right adjoints to /a -> ()/.
@@ -593,23 +591,23 @@ instance Heyting a => Algebra 'R (Maybe a) where
         f _ Nothing = Nothing
 
 instance Join a => Semilattice 'L (Extended a) where
-    bounded = Conn (const Bottom) (const ()) (const Top)
+    bounded = Conn (const NegInf) (const ()) (const PosInf)
     semilattice = ConnL (uncurry joinExtended) fork
 
 instance Meet a => Semilattice 'R (Extended a) where
-    bounded = Conn (const Bottom) (const ()) (const Top)
+    bounded = Conn (const NegInf) (const ()) (const PosInf)
     semilattice = ConnR fork (uncurry meetExtended)
 
 instance Heyting a => Algebra 'R (Extended a) where
     algebra = heyting f
       where
-        Extended a `f` Extended b
-            | a <~ b = Top
-            | otherwise = Extended (a // b)
-        Top `f` a = a
-        _ `f` Top = Top
-        Bottom `f` _ = Top
-        _ `f` Bottom = Bottom
+        Finite a `f` Finite b
+            | a <~ b = PosInf
+            | otherwise = Finite (a // b)
+        PosInf `f` a = a
+        _ `f` PosInf = PosInf
+        NegInf `f` _ = PosInf
+        _ `f` NegInf = NegInf
 
 -- | All minimal elements of the upper lattice cover all maximal elements of the lower lattice.
 instance (Join a, Join b) => Semilattice 'L (Either a b) where
@@ -622,7 +620,7 @@ instance (Meet a, Meet b) => Semilattice 'R (Either a b) where
 
 -- |
 -- Subdirectly irreducible Algebra algebra.
-instance Heyting a => Algebra 'R (Lowered a) where
+instance Heyting a => Algebra 'R (Either a ()) where
     algebra = heyting f
       where
         (Left a) `f` (Left b)
@@ -631,7 +629,7 @@ instance Heyting a => Algebra 'R (Lowered a) where
         (Right _) `f` a = a
         _ `f` (Right _) = top
 
-instance Heyting a => Algebra 'R (Lifted a) where
+instance Heyting a => Algebra 'R (Either () a) where
     algebra = heyting f
       where
         f (Right a) (Right b) = Right (a // b)
@@ -798,18 +796,18 @@ meetMaybe _ Nothing = Nothing
 meetMaybe (Just x) (Just y) = Just (x /\ y)
 
 joinExtended :: Join a => Extended a -> Extended a -> Extended a
-joinExtended Top _ = Top
-joinExtended _ Top = Top
-joinExtended (Extended x) (Extended y) = Extended (x \/ y)
-joinExtended Bottom y = y
-joinExtended x Bottom = x
+joinExtended PosInf _ = PosInf
+joinExtended _ PosInf = PosInf
+joinExtended (Finite x) (Finite y) = Finite (x \/ y)
+joinExtended NegInf y = y
+joinExtended x NegInf = x
 
 meetExtended :: Meet a => Extended a -> Extended a -> Extended a
-meetExtended Top y = y
-meetExtended x Top = x
-meetExtended (Extended x) (Extended y) = Extended (x /\ y)
-meetExtended Bottom _ = Bottom
-meetExtended _ Bottom = Bottom
+meetExtended PosInf y = y
+meetExtended x PosInf = x
+meetExtended (Finite x) (Finite y) = Finite (x /\ y)
+meetExtended NegInf _ = NegInf
+meetExtended _ NegInf = NegInf
 
 joinEither :: (Join a, Join b) => Either a b -> Either a b -> Either a b
 joinEither (Right x) (Right y) = Right (x \/ y)

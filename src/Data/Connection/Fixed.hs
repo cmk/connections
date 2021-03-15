@@ -10,6 +10,7 @@ module Data.Connection.Fixed (
 
     -- * Uni
     Uni,
+    f00int,
 
     -- * Deci
     Deci,
@@ -64,6 +65,13 @@ import safe Prelude hiding (Eq (..), Ord (..))
 -- This is an analog of 'Data.Connection.Float.shift32' for fixed point numbers.
 shiftf :: Integer -> Fixed a -> Fixed a
 shiftf j (MkFixed i) = MkFixed (i + j)
+
+-- Uni
+
+f00int :: Conn k Uni Integer
+f00int = Conn f g f where
+  f (MkFixed i) = i
+  g = fromInteger
 
 -- Deci
 

@@ -8,8 +8,7 @@ import Hedgehog
 import qualified Hedgehog.Gen as G
 import Test.Data.Connection
 
-fxx :: Gen (Fixed k)
-fxx = MkFixed <$> G.integral ri'
+
 
 prop_connections_micro :: Property
 prop_connections_micro = withTests 1000 . property $ do

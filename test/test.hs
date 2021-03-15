@@ -7,6 +7,7 @@ import qualified Test.Data.Connection.Fixed as CX
 import qualified Test.Data.Connection.Float as CF
 import qualified Test.Data.Connection.Int as CI
 import qualified Test.Data.Connection.Ratio as CR
+import qualified Test.Data.Connection.Time as CT
 import qualified Test.Data.Connection.Word as CW
 import qualified Test.Data.Lattice as L
 import qualified Test.Data.Order as P
@@ -22,6 +23,7 @@ tests =
         , CF.tests
         , CX.tests
         , CR.tests
+        , CT.tests
         ]
 
 main :: IO ()
