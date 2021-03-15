@@ -30,7 +30,6 @@ module Data.Connection.Conn (
     upper,
     upper1,
     upper2,
-    join,
     ceiling,
     ceiling1,
     ceiling2,
@@ -42,7 +41,6 @@ module Data.Connection.Conn (
     lower,
     lower1,
     lower2,
-    meet,
     floor,
     floor1,
     floor2,
@@ -236,13 +234,6 @@ upper2 :: ConnL a b -> (b -> b -> b) -> a -> a -> a
 upper2 (ConnL f g) h a1 a2 = g $ h (f a1) (f a2)
 {-# INLINE upper2 #-}
 
-infixr 5 `join`
-
--- | Semigroup operation on a join-semilattice.
-join :: ConnL (a, a) b -> a -> a -> b
-join = curry . ceiling
-{-# INLINE join #-}
-
 -- | Extract the lower half of a 'ConnL'.
 --
 -- > ceiling identity = id
@@ -252,8 +243,6 @@ join = curry . ceiling
 --
 -- >>> Data.Connection.ceiling ratf32 (0 :% 0)
 -- NaN
--- >>> Data.Connection.ceiling ratf32 (1 :% 0)
--- Infinity
 -- >>> Data.Connection.ceiling ratf32 (13 :% 10)
 -- 1.3000001
 -- >>> Data.Connection.ceiling f64f32 pi
@@ -314,7 +303,7 @@ connR :: ConnL a b -> ConnR b a
 connR (ConnL f g) = ConnR f g
 {-# INLINE connR #-}
 
--- | Extract the  lower adjoint of a 'ConnR'.
+-- | Extract the lower adjoint of a 'ConnR'.
 lower :: ConnR a b -> b -> a
 lower = embed
 {-# INLINE lower #-}
@@ -336,13 +325,6 @@ lower2 :: ConnR a b -> (b -> b -> b) -> a -> a -> a
 lower2 (ConnR f g) h a1 a2 = f $ h (g a1) (g a2)
 {-# INLINE lower2 #-}
 
-infixr 6 `meet`
-
--- | Semigroup operation on a meet-semilattice.
-meet :: ConnR (a, a) b -> a -> a -> b
-meet = curry . floor
-{-# INLINE meet #-}
-
 -- | Extract the upper half of a 'ConnR'
 --
 -- > floor identity = id
@@ -352,8 +334,6 @@ meet = curry . floor
 --
 -- >>> Data.Connection.floor ratf32 (0 :% 0)
 -- NaN
--- >>> Data.Connection.floor ratf32 (1 :% 0)
--- Infinity
 -- >>> Data.Connection.floor ratf32 (13 :% 10)
 -- 1.3
 -- >>> Data.Connection.floor f64f32 pi
