@@ -21,18 +21,14 @@ module Data.Connection.Class (
     ConnInteger,
     ConnRational,
 
-    -- * Operations
-    select,
-    divide,
+    -- * Connection
     minimal,
     maximal,
+    ceiling,
+    floor,
+    round,
+    truncate,
     extremal,
-    join,
-    meet,
-    lub,
-    glb,
-
-    -- * Connection
     Connection (..),
 ) where
 
@@ -60,7 +56,7 @@ import safe Prelude hiding (ceiling, floor, round, truncate)
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
 -- >>> import GHC.Real (Ratio(..))
--- >>> import Data.Set (Set,fromList)
+-- >>> import Data.IntSet (IntSet,fromList)
 -- >>> :load Data.Connection
 -- >>> import Prelude hiding (round, floor, ceiling, truncate)
 
@@ -99,93 +95,72 @@ type ConnRational a = Triple Rational a
 class (Preorder a, Preorder b) => Connection k a b where
     -- |
     --
-    -- >>> outer (conn @_ @Rational @Float) (22 :% 7)
+    -- >>> range (conn @_ @Rational @Float) (22 :% 7)
     -- (3.142857,3.1428573)
-    -- >>> outer (conn @_ @Double @Float) pi
+    -- >>> range (conn @_ @Double @Float) pi
     -- (3.1415925,3.1415927)
     conn :: Conn k a b
 
-
----------------------------------------------------------------------
--- Lattices
----------------------------------------------------------------------
-
-infixr 3 `select`
-
--- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Category_Theory/Categories_of_ordered_sets coproduct order>
+-- |
 --
-select :: Conn k c a -> Conn k c b -> Conn k c (Either a b)
-select f g = Conn Left (either id id) Right >>> f `choice` g
+-- > ceiling @a @a = id
+ceiling :: Left a b => a -> b
+ceiling = ceiling_ conn
+{-# INLINE ceiling #-}
 
-infixr 4 `divide`
-
--- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
+-- | 
 --
-divide :: Connection k (c, c) c => Conn k a c -> Conn k b c -> Conn k (a, b) c
-divide f g = f `strong` g >>> conn
+-- > floor @a @a = id
+floor :: Right a b => a -> b
+floor = floor_ conn
+{-# INLINE floor #-}
 
-infixr 5 `join`
-
--- | Lattice join.
+-- | Return the nearest value to x.
 --
-join :: Left (a, a) a => a -> a -> a
-join = curry $ ceiling conn
-
-infixr 6 `meet`
-
--- | Lattice meet.
+-- > round @a @a = id
 --
-meet :: Right (a, a) a => a -> a -> a
-meet = curry $ floor conn
+-- If x lies halfway between two finite values, then return the value
+-- with the larger absolute value (i.e. round away from zero).
+--
+-- See <https://en.wikipedia.org/wiki/Rounding>.
+round :: forall a b. (Num a, Triple a b) => a -> b
+round x = case pcompare halfR halfL of
+    Just GT -> ceiling x
+    Just LT -> floor x
+    _ -> truncate x
+  where
+    halfR = x - lower1 (right @a @b) id x -- dist from lower bound
+    halfL = upper1 (left @a @b) id x - x -- dist from upper bound
+{-# INLINE round #-}
+
+-- | Truncate towards zero.
+--
+-- > truncate @a @a = id
+truncate :: (Num a, Triple a b) => a -> b
+truncate x = if x >~ 0 then floor x else ceiling x
+{-# INLINE truncate #-}
 
 -- | A minimal element of a preorder.
 --
--- > meet x minimal = minimal
--- > join x minimal = x
+-- > minimize c x minimal = minimal
+-- > maximize c x minimal = x
 --
 -- 'minimal' needn't be unique, but it must obey:
 --
 -- > x <~ minimal => x ~~ minimal
 minimal :: Left () a => a
-minimal = ceiling conn ()
+minimal = ceiling_ conn ()
 
 -- | A maximal element of a preorder.
 --
--- > meet x maximal = x
--- > join x maximal = maximal
+-- > maximize c x maximal = maximal
+-- > minimize c x maximal = x
 --
 -- 'maximal' needn't be unique, but it must obey:
 --
 -- > x >~ maximal => x ~~ maximal
 maximal :: Right () a => a
-maximal = floor conn ()
-
--- | Least upper bound operator.
---
--- The order dual of 'glb'.
---
--- >>> lub 1.0 9.0 7.0
--- 7.0
--- >>> lub 1.0 9.0 (0.0 / 0.0)
--- 1.0
-lub :: Triple (a, a) a => a -> a -> a -> a
-lub x y z = x `meet` y `join` y `meet` z `join` z `meet` x
-
--- | Greatest lower bound operator.
---
--- > glb x x y = x
--- > glb x y z = glb z x y
--- > glb x y z = glb x z y
--- > glb (glb x w y) w z = glb x w (glb y w z)
---
--- >>> glb 1.0 9.0 7.0
--- 7.0
--- >>> glb 1.0 9.0 (0.0 / 0.0)
--- 9.0
--- >>> glb (fromList [1..3]) (fromList [3..5]) (fromList [5..7]) :: Set Int
--- fromList [3,5]
-glb :: Triple (a, a) a => a -> a -> a -> a
-glb x y z = (x `join` y) `meet` (y `join` z) `meet` (z `join` x)
+maximal = floor_ conn ()
 
 -- | The canonical connection with a 'Bool'.
 extremal :: Triple () a => Conn k a Bool
@@ -208,8 +183,6 @@ extremal = Conn f g h
 
 instance Preorder a => Connection k a a where conn = identity
 
-instance Connection k ((), ()) () where conn = ordered
-
 instance Connection k () Bool where conn = bounds
 instance Connection k Ordering Bool where conn = extremal
 instance Connection k Word8 Bool where conn = extremal
@@ -226,10 +199,8 @@ instance Connection k Int Bool where conn = extremal
 instance Connection k Rational Bool where conn = extremal
 instance Connection k Float Bool where conn = extremal
 instance Connection k Double Bool where conn = extremal
-instance Connection k (Bool, Bool) Bool where conn = ordered
 
 instance Connection k () Ordering where conn = bounds
-instance Connection k (Ordering, Ordering) Ordering where conn = ordered
 
 instance Connection k () Word8 where conn = bounds
 instance Connection 'L Int8 Word8 where conn = i08w08
@@ -247,7 +218,6 @@ instance Connection 'L Word16 Word32 where conn = w16w32
 instance Connection 'L Int8 Word32 where conn = i08w32
 instance Connection 'L Int16 Word32 where conn = i16w32
 instance Connection 'L Int32 Word32 where conn = i32w32
-instance Connection k (Word32, Word32) Word32 where conn = ordered
 
 instance Connection k () Word64 where conn = bounds
 instance Connection 'L Word8 Word64 where conn = w08w64
@@ -258,7 +228,6 @@ instance Connection 'L Int16 Word64 where conn = i16w64
 instance Connection 'L Int32 Word64 where conn = i32w64
 instance Connection 'L Int64 Word64 where conn = i64w64
 instance Connection 'L Int Word64 where conn = ixxw64
-instance Connection k (Word64, Word64) Word64 where conn = ordered
 
 instance Connection k () Word where conn = bounds
 instance Connection 'L Word8 Word where conn = w08wxx
@@ -270,7 +239,6 @@ instance Connection 'L Int16 Word where conn = i16wxx
 instance Connection 'L Int32 Word where conn = i32wxx
 instance Connection 'L Int64 Word where conn = i64wxx
 instance Connection 'L Int Word where conn = ixxwxx
-instance Connection k (Word, Word) Word where conn = ordered
 
 instance Connection 'L () Natural where conn = ConnL (const 0) (const ())
 instance Connection 'L Word8 Natural where conn = w08nat
@@ -284,22 +252,16 @@ instance Connection 'L Int32 Natural where conn = i32nat
 instance Connection 'L Int64 Natural where conn = i64nat
 instance Connection 'L Int Natural where conn = ixxnat
 instance Connection 'L Integer Natural where conn = intnat
-instance Connection k (Natural, Natural) Natural where conn = ordered
 
 instance Connection k () Positive where
     conn = Conn (const $ 0 :% 1) (const ()) (const $ 1 :% 0)
 instance Connection k (Positive, Positive) Positive where conn = latticeN5
 
 instance Connection k () Int8 where conn = bounds
-instance Connection k (Int8, Int8) Int8 where conn = ordered
 instance Connection k () Int16 where conn = bounds
-instance Connection k (Int16, Int16) Int16 where conn = ordered
 instance Connection k () Int32 where conn = bounds
-instance Connection k (Int32, Int32) Int32 where conn = ordered
 instance Connection k () Int64 where conn = bounds
-instance Connection k (Int64, Int64) Int64 where conn = ordered
 instance Connection k () Int where conn = bounds
-instance Connection k (Int, Int) Int where conn = ordered
 
 instance Connection k Uni Integer where conn = f00int
 instance Connection k (Integer, Integer) Integer where conn = ordered
@@ -334,8 +296,6 @@ instance Connection k Nano Micro where conn = f09f06
 instance Connection k Pico Micro where conn = f12f06
 
 instance Connection k Pico Nano where conn = f12f09
-
-instance Connection k (Fixed e, Fixed e) (Fixed e) where conn = ordered
 
 instance Connection k () Float where conn = extremalN5
 instance Connection k Double Float where conn = f64f32
@@ -473,42 +433,9 @@ instance (Preorder a, Triple () b) => Connection k (Maybe a) (Either a b) where
 instance (Triple () a, Preorder b) => Connection k (Maybe b) (Either a b) where
     conn = maybeR
 
-instance (Total a) => Connection 'L () (Set.Set a) where
-    conn = ConnL (const Set.empty) (const ())
-
-instance Total a => Connection k (Set.Set a, Set.Set a) (Set.Set a) where
-    conn = Conn (uncurry Set.union) fork (uncurry Set.intersection)
-
-instance Connection 'L () IntSet.IntSet where
-    conn = ConnL (const IntSet.empty) (const ())
-
-instance Connection k (IntSet.IntSet, IntSet.IntSet) IntSet.IntSet where
-    conn = Conn (uncurry IntSet.union) fork (uncurry IntSet.intersection)
-
-instance (Total a, Preorder b) => Connection 'L () (Map.Map a b) where
-    conn = ConnL (const Map.empty) (const ())
-
-instance (Total a, Left (b, b) b) => Connection 'L (Map.Map a b, Map.Map a b) (Map.Map a b) where
-    conn = ConnL (uncurry $ Map.unionWith join) fork
-
-instance (Total a, Right (b, b) b) => Connection 'R (Map.Map a b, Map.Map a b) (Map.Map a b) where
-    conn = ConnR fork (uncurry $ Map.intersectionWith meet)
-
-instance Preorder a => Connection 'L () (IntMap.IntMap a) where
-    conn = ConnL (const IntMap.empty) (const ())
-
-instance Left (a, a) a => Connection 'L (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
-    conn = ConnL (uncurry $ IntMap.unionWith join) fork
-
-instance Right (a, a) a => Connection 'R (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
-    conn = ConnR fork (uncurry $ IntMap.intersectionWith meet)
-
 -- Internal
 
 -------------------------
-
-fork :: a -> (a, a)
-fork x = (x, x)
 
 bounds :: Bounded a => Conn k () a
 bounds = Conn (const minBound) (const ()) (const maxBound)
@@ -517,6 +444,8 @@ latticeN5 :: (Total a, Fractional a) => Conn k (a, a) a
 latticeN5 = Conn (uncurry joinN5) fork (uncurry meetN5)
   where
     joinN5 x y = maybe (1 / 0) (bool y x . (>= EQ)) (pcompare x y)
+
+    fork x = (x, x)
 
     meetN5 x y = maybe (-1 / 0) (bool y x . (<= EQ)) (pcompare x y)
 
