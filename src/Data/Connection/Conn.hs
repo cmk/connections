@@ -18,7 +18,9 @@ module Data.Connection.Conn (
     (<<<),
     mapped,
     choice,
+    select,
     strong,
+    divide,
     ordered,
     identity,
 
@@ -29,9 +31,10 @@ module Data.Connection.Conn (
     upper,
     upper1,
     upper2,
-    ceiling,
+    ceiling_,
     ceiling1,
     ceiling2,
+    maximize,
 
     -- * Connection R
     ConnR,
@@ -40,22 +43,24 @@ module Data.Connection.Conn (
     lower,
     lower1,
     lower2,
-    floor,
+    floor_,
     floor1,
     floor2,
+    minimize,
 
     -- * Connection k
     pattern Conn,
     inner,
     outer,
-    round,
-    round1,
-    round2,
-    truncate,
-    truncate1,
-    truncate2,
     half,
     midpoint,
+    round_,
+    round1,
+    round2,
+    truncate_,
+    truncate1,
+    truncate2,
+    median,
 
     -- * Down
     upL,
@@ -93,9 +98,9 @@ import safe Prelude hiding (Ord (..), ceiling, floor, round, truncate)
 
 -- | A data kind distinguishing the directionality of a Galois connection:
 --
--- * /L/-tagged types are low / increasing (e.g. 'Data.Connection.Class.minimal', 'Data.Connection.Conn.ceiling', 'Data.Lattice.(\/)')
+-- * /L/-tagged types are low / increasing (e.g. 'Data.Connection.Class.minimal', 'Data.Connection.Conn.maximize')
 --
--- * /R/-tagged types are high / decreasing (e.g. 'Data.Connection.Class.maximal', 'Data.Connection.Conn.floor', 'Data.Lattice.(/\)')
+-- * /R/-tagged types are high / decreasing (e.g. 'Data.Connection.Class.maximal', 'Data.Connection.Conn.minimize')
 data Kan = L | R
 
 -- | A (chain of) Galois connections.
@@ -117,6 +122,15 @@ data Kan = L | R
 -- 9586981 % 67108864
 -- >>> outer ratf32 (1 % 7)
 -- (0.14285713,0.14285715)
+--
+-- Another example avoiding loss-of-precision:
+--
+-- >>> f x y = (x + y) - x
+-- >>> maxOdd32 = 1.6777215e7
+-- >>> f maxOdd32 2.0 :: Float
+-- 1.0
+-- >>> round2 f64f32 f maxOdd32 2.0
+-- 2.0
 --
 -- See the /README/ file for a slightly more in-depth introduction.
 data Conn (k :: Kan) a b = Conn_ (a -> (b, b)) (b -> a)
@@ -158,6 +172,13 @@ choice (Conn ab ba ab') (Conn cd dc cd') = Conn f g h
     h = either (Left . ab') (Right . cd')
 {-# INLINE choice #-}
 
+infixr 3 `select`
+
+-- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Category_Theory/Categories_of_ordered_sets coproduct order>
+--
+select :: Conn k c a -> Conn k c b -> Conn k c (Either a b)
+select f g = Conn Left (either id id) Right >>> f `choice` g
+
 -- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
 --
 -- > (strong id) (ab >>> cd) = (strong id) ab >>> (strong id) cd
@@ -169,6 +190,13 @@ strong (Conn ab ba ab') (Conn cd dc cd') = Conn f g h
     g = bimap ba dc
     h = bimap ab' cd'
 {-# INLINE strong #-}
+
+infixr 4 `divide`
+
+-- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
+--
+divide :: Total c => Conn k a c -> Conn k b c -> Conn k (a, b) c
+divide f g = f `strong` g >>> ordered
 
 -- | The defining connection of a total order.
 --
@@ -182,7 +210,6 @@ ordered = Conn (uncurry max) (id &&& id) (uncurry min)
 identity :: Conn k a a
 identity = Conn_ (id &&& id) id
 {-# INLINE identity #-}
-
 
 ---------------------------------------------------------------------
 -- Conn 'L
@@ -241,20 +268,20 @@ upper2 (ConnL f g) h a1 a2 = g $ h (f a1) (f a2)
 
 -- | Extract the lower half of a 'ConnL'.
 --
--- > ceiling identity = id
--- > ceiling c (x \/ y) = ceiling c x \/ ceiling c y
+-- > ceiling_ identity = id
+-- > ceiling_ c (x \/ y) = ceiling_ c x \/ ceiling_ c y
 --
 -- The latter law is the adjoint functor theorem for preorders.
 --
--- >>> Data.Connection.ceiling ratf32 (0 :% 0)
+-- >>> Data.Connection.ceiling_ ratf32 (0 :% 0)
 -- NaN
--- >>> Data.Connection.ceiling ratf32 (13 :% 10)
+-- >>> Data.Connection.ceiling_ ratf32 (13 :% 10)
 -- 1.3000001
--- >>> Data.Connection.ceiling f64f32 pi
+-- >>> Data.Connection.ceiling_ f64f32 pi
 -- 3.1415927
-ceiling :: ConnL a b -> a -> b
-ceiling (ConnL f _) = f
-{-# INLINE ceiling #-}
+ceiling_ :: ConnL a b -> a -> b
+ceiling_ (ConnL f _) = f
+{-# INLINE ceiling_ #-}
 
 -- | Map over a 'ConnL' from the left.
 --
@@ -274,6 +301,12 @@ ceiling1 (ConnL f g) h b = f $ h (g b)
 ceiling2 :: ConnL a b -> (a -> a -> a) -> b -> b -> b
 ceiling2 (ConnL f g) h b1 b2 = f $ h (g b1) (g b2)
 {-# INLINE ceiling2 #-}
+
+-- | Lattice join.
+--
+maximize :: ConnL (a, a) b -> a -> a -> b
+maximize = curry . ceiling_
+{-# INLINE maximize #-}
 
 ---------------------------------------------------------------------
 -- Conn 'R
@@ -332,20 +365,20 @@ lower2 (ConnR f g) h a1 a2 = f $ h (g a1) (g a2)
 
 -- | Extract the upper half of a 'ConnR'
 --
--- > floor identity = id
--- > floor c (x /\ y) = floor c x /\ floor c y
+-- > floor_ identity = id
+-- > floor_ c (x /\ y) = floor_ c x /\ floor_ c y
 --
 -- The latter law is the adjoint functor theorem for preorders.
 --
--- >>> Data.Connection.floor ratf32 (0 :% 0)
+-- >>> Data.Connection.floor_ ratf32 (0 :% 0)
 -- NaN
--- >>> Data.Connection.floor ratf32 (13 :% 10)
+-- >>> Data.Connection.floor_ ratf32 (13 :% 10)
 -- 1.3
--- >>> Data.Connection.floor f64f32 pi
+-- >>> Data.Connection.floor_ f64f32 pi
 -- 3.1415925
-floor :: ConnR a b -> a -> b
-floor (ConnR _ g) = g
-{-# INLINE floor #-}
+floor_ :: ConnR a b -> a -> b
+floor_ (ConnR _ g) = g
+{-# INLINE floor_ #-}
 
 -- | Map over a 'ConnR' from the right.
 --
@@ -365,6 +398,12 @@ floor1 (ConnR f g) h b = g $ h (f b)
 floor2 :: ConnR a b -> (a -> a -> a) -> b -> b -> b
 floor2 (ConnR f g) h b1 b2 = g $ h (f b1) (f b2)
 {-# INLINE floor2 #-}
+
+-- | Lattice meet.
+--
+minimize :: ConnR (a, a) b -> a -> a -> b
+minimize = curry . floor_
+{-# INLINE minimize #-}
 
 ---------------------------------------------------------------------
 -- Conn k
@@ -402,7 +441,7 @@ inner (Conn_ _ g) = g
 --
 -- When the connection is an adjoint triple the outer functions are returned:
 -- 
--- > outer c = floor c &&& ceiling c
+-- > outer c = floor_ c &&& ceiling_ c
 --
 -- >>> outer ratf32 (1 % 8)    -- eighths are exactly representable in a float
 -- (0.125,0.125)
@@ -411,64 +450,6 @@ inner (Conn_ _ g) = g
 outer :: Conn k a b -> a -> (b, b)
 outer (Conn_ f _) = f
 {-# INLINE outer #-}
-
--- | Return the nearest value to x.
---
--- > round identity = id
---
--- If x lies halfway between two finite values, then return the value
--- with the larger absolute value (i.e. round away from zero).
---
--- See <https://en.wikipedia.org/wiki/Rounding>.
-round :: (Num a, Preorder a) => (forall k. Conn k a b) -> a -> b
-round c x = case half c x of
-    Just GT -> ceiling c x
-    Just LT -> floor c x
-    _ -> truncate c x
-{-# INLINE round #-}
-
--- | Lift a unary function over an adjoint triple.
---
--- Results are rounded to the nearest value with ties away from 0.
-round1 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a) -> b -> b
-round1 c f x = round c $ f (g x) where Conn _ g _ = c
-{-# INLINE round1 #-}
-
--- | Lift a binary function over an adjoint triple.
---
--- Results are rounded to the nearest value with ties away from 0.
---
--- Example avoiding loss-of-precision:
---
--- >>> f x y = (x + y) - x
--- >>> maxOdd32 = 1.6777215e7
--- >>> f maxOdd32 2.0 :: Float
--- 1.0
--- >>> round2 ratf32 f maxOdd32 2.0
--- 2.0
-round2 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a -> a) -> b -> b -> b
-round2 c f x y = round c $ f (g x) (g y) where Conn _ g _ = c
-{-# INLINE round2 #-}
-
--- | Truncate towards zero.
---
--- > truncate identity = id
-truncate :: (Num a, Preorder a) => (forall k. Conn k a b) -> a -> b
-truncate c x = if x >~ 0 then floor c x else ceiling c x
-{-# INLINE truncate #-}
-
--- | Lift a unary function over an adjoint triple.
---
--- Results are truncated towards zero.
---
--- > truncate1 identity = id
-truncate1 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a) -> b -> b
-truncate1 c f x = truncate c $ f (g x) where Conn _ g _ = c
-{-# INLINE truncate1 #-}
-
-truncate2 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a -> a) -> b -> b -> b
-truncate2 c f x y = truncate c $ f (g x) (g y) where Conn _ g _ = c
-{-# INLINE truncate2 #-}
 
 -- | Determine which half of the interval between 2 representations of /a/ a particular value lies.
 --
@@ -487,6 +468,82 @@ half c x = pcompare (x - lower1 c id x) (upper1 c id x - x)
 midpoint :: Fractional a => (forall k. Conn k a b) -> a -> a
 midpoint c x = lower1 c id x / 2 + upper1 c id x / 2
 {-# INLINE midpoint #-}
+
+-- | Return the nearest value to x.
+--
+-- > round_ identity = id
+--
+-- If x lies halfway between two finite values, then return the value
+-- with the larger absolute value (i.e. round_ away from zero).
+--
+-- See <https://en.wikipedia.org/wiki/Rounding>.
+round_ :: (Num a, Preorder a) => (forall k. Conn k a b) -> a -> b
+round_ c x = case half c x of
+    Just GT -> ceiling_ c x
+    Just LT -> floor_ c x
+    _ -> truncate_ c x
+{-# INLINE round_ #-}
+
+-- | Lift a unary function over an adjoint triple.
+--
+-- Results are rounded to the nearest value with ties away from 0.
+round1 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a) -> b -> b
+round1 c f x = round_ c $ f (g x) where Conn _ g _ = c
+{-# INLINE round1 #-}
+
+-- | Lift a binary function over an adjoint triple.
+--
+-- Results are rounded to the nearest value with ties away from 0.
+--
+-- Example avoiding loss-of-precision:
+--
+-- >>> f x y = (x + y) - x
+-- >>> maxOdd32 = 1.6777215e7
+-- >>> f maxOdd32 2.0 :: Float
+-- 1.0
+-- >>> round2 ratf32 f maxOdd32 2.0
+-- 2.0
+round2 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a -> a) -> b -> b -> b
+round2 c f x y = round_ c $ f (g x) (g y) where Conn _ g _ = c
+{-# INLINE round2 #-}
+
+-- | Truncate towards zero.
+--
+-- > truncate_ identity = id
+truncate_ :: (Num a, Preorder a) => (forall k. Conn k a b) -> a -> b
+truncate_ c x = if x >~ 0 then floor_ c x else ceiling_ c x
+{-# INLINE truncate_ #-}
+
+-- | Lift a unary function over an adjoint triple.
+--
+-- Results are truncated towards zero.
+--
+-- > truncate1 identity = id
+truncate1 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a) -> b -> b
+truncate1 c f x = truncate_ c $ f (g x) where Conn _ g _ = c
+{-# INLINE truncate1 #-}
+
+truncate2 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a -> a) -> b -> b -> b
+truncate2 c f x y = truncate_ c $ f (g x) (g y) where Conn _ g _ = c
+{-# INLINE truncate2 #-}
+
+-- | Birkoff's < https://en.wikipedia.org/wiki/Median_algebra median > operator.
+--
+-- > median x x y = x
+-- > median x y z = median z x y
+-- > median x y z = median x z y
+-- > median (median x w y) w z = median x w (median y w z)
+--
+-- >>> median f64f32 1.0 9.0 7.0
+-- 7.0
+-- >>> median f64f32 1.0 9.0 (0.0 / 0.0)
+-- 9.0
+median :: (forall k. Conn k (a, a) a) -> a -> a -> a -> a
+median c x y z = (x `join` y) `meet` (y `join` z) `meet` (z `join` x)
+  where
+    join = maximize c
+    meet = minimize c
+{-# INLINE median #-}
 
 ---------------------------------------------------------------------
 -- Down
@@ -542,18 +599,18 @@ downR (ConnR f g) = ConnR (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
 --
 -- /filterL/ and /filterR/ commute with /Down/:
 --
--- > filterL c a b <=> ideal c (Down a) (Down b)
+-- > filterL c a b <=> filterR c (Down a) (Down b)
 --
--- > filterL c (Down a) (Down b) <=> ideal c a b
+-- > filterL c (Down a) (Down b) <=> filterR c a b
 --
 -- /filterL c a/ is upward-closed for all /a/:
 --
 -- > a <= b1 && b1 <= b2 => a <= b2
--- > a1 <= b && a2 <= b => meet c (ceiling c a1) (ceiling c a2) <= b
+-- > a1 <= b && a2 <= b => meet c (ceiling_ c a1) (ceiling_ c a2) <= b
 --
 -- See <https://en.wikipedia.org/wiki/Filter_(mathematics)>
 filterL :: Preorder b => ConnL a b -> a -> b -> Bool
-filterL c a b = ceiling c a <~ b
+filterL c a b = ceiling_ c a <~ b
 {-# INLINE filterL #-}
 
 -- | Obtain the principal ideal in /B/ generated by an element of /A/.
@@ -566,11 +623,11 @@ filterL c a b = ceiling c a <~ b
 --
 -- > a >= b1 && b1 >= b2 => a >= b2
 --
--- > a1 >= b && a2 >= b => join c (floor c a1) (floor c a2) >= b
+-- > a1 >= b && a2 >= b => join c (floor_ c a1) (floor_ c a2) >= b
 --
 -- See <https://en.wikipedia.org/wiki/Ideal_(order_theory)>
 filterR :: Preorder b => ConnR a b -> a -> b -> Bool
-filterR c a b = b <~ floor c a
+filterR c a b = b <~ floor_ c a
 {-# INLINE filterR #-}
 
 
