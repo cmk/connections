@@ -8,8 +8,6 @@ import Hedgehog
 import qualified Hedgehog.Gen as G
 import Test.Data.Connection
 
-
-
 prop_connections_micro :: Property
 prop_connections_micro = withTests 1000 . property $ do
     f00 <- forAll fxx

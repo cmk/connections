@@ -6,7 +6,6 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Data.Connection.Time (
-
     -- * SystemTime
     sysixx,
     f32sys,
@@ -15,16 +14,15 @@ module Data.Connection.Time (
     f09sys,
     diffSystemTime,
     getSystemTime,
-    SystemTime(..),
-
+    SystemTime (..),
 ) where
 
 import safe Data.Connection.Conn
 import safe Data.Connection.Fixed
 import safe Data.Connection.Ratio
 import safe Data.Int
-import safe Data.Time.Clock.System
 import safe Data.Order.Syntax
+import safe Data.Time.Clock.System
 import safe Prelude hiding (Eq (..), Ord (..), ceiling)
 
 -- $setup
@@ -37,10 +35,11 @@ import safe Prelude hiding (Eq (..), Ord (..), ceiling)
 
 -- | The 'Int' is valued in seconds
 sysixx :: Conn k SystemTime Int
-sysixx = Conn f g h where
-  f (normalize -> MkSystemTime s n) = fromIntegral s + if n == 0 then 0 else 1
-  g i = MkSystemTime (fromIntegral i) 0
-  h (normalize -> MkSystemTime s _) = fromIntegral s
+sysixx = Conn f g h
+  where
+    f (normalize -> MkSystemTime s n) = fromIntegral s + if n == 0 then 0 else 1
+    g i = MkSystemTime (fromIntegral i) 0
+    h (normalize -> MkSystemTime s _) = fromIntegral s
 
 -- | The 'Float' is valued in seconds (to nanosecond precision).
 --
@@ -65,24 +64,23 @@ ratsys :: Conn k Rational (Extended SystemTime)
 ratsys = ratfix >>> f09sys
 
 -- | The 'Nano' is valued in seconds (to nanosecond precision).
---
 f09sys :: Conn k (Extended Nano) (Extended SystemTime)
-f09sys = Conn f g h where
-  
-  f NegInf = NegInf
-  f (Finite i) = extend (const False) (> max64) (fromNanoSecs . clamp) i
-  f PosInf = PosInf
-  
-  g = fmap toNanoSecs
+f09sys = Conn f g h
+  where
+    f NegInf = NegInf
+    f (Finite i) = extend (const False) (> max64) (fromNanoSecs . clamp) i
+    f PosInf = PosInf
 
-  h NegInf = NegInf
-  h (Finite i) = extend (< min64) (const False) (fromNanoSecs . clamp) i
-  h PosInf = PosInf
-  
-  min64 = - 2^63 
-  max64 = 2^63 - 1
+    g = fmap toNanoSecs
 
-  clamp = max min64 . min max64
+    h NegInf = NegInf
+    h (Finite i) = extend (< min64) (const False) (fromNanoSecs . clamp) i
+    h PosInf = PosInf
+
+    min64 = - 2 ^ 63
+    max64 = 2 ^ 63 - 1
+
+    clamp = max min64 . min max64
 
 -- | Return the difference between two 'SystemTime's in seconds
 --
@@ -97,20 +95,21 @@ diffSystemTime x y = inner f64sys $ round2 ratsys (-) (Finite x) (Finite y)
 
 -------------------------
 
-
 s2ns :: Num a => a
-s2ns = 10^9
+s2ns = 10 ^ 9
 
 -- | SystemTime to nano seconds.
 toNanoSecs :: SystemTime -> Nano
-toNanoSecs (MkSystemTime  (toInteger -> s) (toInteger -> n)) = MkFixed (s * s2ns + n)
+toNanoSecs (MkSystemTime (toInteger -> s) (toInteger -> n)) = MkFixed (s * s2ns + n)
 
 fromNanoSecs :: Nano -> SystemTime
-fromNanoSecs (MkFixed i) = MkSystemTime (fromInteger $ q) (fromInteger r) 
+fromNanoSecs (MkFixed i) = MkSystemTime (fromInteger $ q) (fromInteger r)
   where
-    (q, r) = divMod i s2ns 
+    (q, r) = divMod i s2ns
 
 normalize :: SystemTime -> SystemTime
-normalize (MkSystemTime xs xn) | xn >= s2ns = MkSystemTime (xs + q) (fromIntegral r)
-                               | otherwise  = MkSystemTime  xs      xn
-                             where (q, r) = fromIntegral xn `divMod` s2ns
+normalize (MkSystemTime xs xn)
+    | xn >= s2ns = MkSystemTime (xs + q) (fromIntegral r)
+    | otherwise = MkSystemTime xs xn
+  where
+    (q, r) = fromIntegral xn `divMod` s2ns

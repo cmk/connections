@@ -19,7 +19,7 @@ module Data.Connection.Float (
     ulp32,
     near32,
     shift32,
-    
+
     -- * Double
     f64w08,
     f64w16,
@@ -52,13 +52,11 @@ import safe qualified Prelude as P
 -- Float
 ---------------------------------------------------------------------
 
-
 -- | All 'Data.Word.Word08' values are exactly representable in a 'Float'.
 f32w08 :: Conn k Float (Extended Word8)
 f32w08 = fxxext
 
 -- | All 'Data.Word.Word16' values are exactly representable in a 'Float'.
---
 f32w16 :: Conn k Float (Extended Word16)
 f32w16 = fxxext
 
@@ -153,7 +151,6 @@ shift32 n x =
 ---------------------------------------------------------------------
 -- Double
 ---------------------------------------------------------------------
-
 
 -- | All 'Data.Word.Word08' values are exactly representable in a 'Double'.
 f64w08 :: Conn k Double (Extended Word8)
@@ -406,7 +403,7 @@ fxxextL prec = ConnL f g
     g (Finite i)
         | abs i P.<= 2 ^ prec -1 = fromIntegral i
         | otherwise = if i P.>= 0 then 1 / 0 else -2 ^^ prec
-    
+
 {-# INLINE fxxextL #-}
 
 -}

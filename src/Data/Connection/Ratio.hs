@@ -12,7 +12,6 @@ module Data.Connection.Ratio (
     ratw64,
     ratwxx,
     ratnat,
-    
     rati08,
     rati16,
     rati32,
@@ -23,12 +22,10 @@ module Data.Connection.Ratio (
     ratf32,
     ratf64,
     ratrat,
-
     reduce,
     shiftr,
     Ratio (..),
 ) where
-
 
 import safe Data.Bool
 import safe Data.Connection.Conn hiding (ceiling, floor, lower)
@@ -199,7 +196,8 @@ ratext = Conn f g h
 
     high = fromIntegral @a maxBound
     low = fromIntegral @a minBound
-    --low = -1 - high
+
+--low = -1 - high
 
 toFractional :: Fractional a => (Rational -> a) -> Rational -> a
 toFractional f x

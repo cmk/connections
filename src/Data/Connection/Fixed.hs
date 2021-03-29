@@ -69,9 +69,10 @@ shiftf j (MkFixed i) = MkFixed (i + j)
 -- Uni
 
 f00int :: Conn k Uni Integer
-f00int = Conn f g f where
-  f (MkFixed i) = i
-  g = fromInteger
+f00int = Conn f g f
+  where
+    f (MkFixed i) = i
+    g = fromInteger
 
 -- Deci
 

@@ -1,35 +1,36 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 module Test.Data.Connection where
 
 import Control.Applicative hiding (empty)
 import Data.Connection
+import Data.Connection.Property as Prop
 import Data.Connection.Ratio
 import Data.Fixed
 import Data.Order
 import Data.Order.Interval
-import GHC.Real hiding (Fractional(..), (^^), (^), div)
-import Hedgehog
-import Numeric.Natural
-import Prelude hiding (Eq(..),Ord(..))
-import qualified Hedgehog.Gen as G
-import qualified Hedgehog.Range as R
-import Data.Connection.Property as Prop
 import Data.Order.Property
 import Data.Order.Syntax
+import GHC.Real hiding (Fractional (..), div, (^), (^^))
+import Hedgehog
+import qualified Hedgehog.Gen as G
+import qualified Hedgehog.Range as R
+import Numeric.Natural
+import Prelude hiding (Eq (..), Ord (..))
 
 ri :: (Integral a, Bounded a) => Range a
 ri = R.linearFrom 0 minBound maxBound
 
 ri' :: Range Integer
-ri' = R.linearFrom 0 (- 2^127) (2^127)
+ri' = R.linearFrom 0 (- 2 ^ 127) (2 ^ 127)
 
 ri'' :: Range Integer
 ri'' = R.exponentialFrom 0 (-340282366920938463463374607431768211456) 340282366920938463463374607431768211456
 
 rn :: Range Natural
-rn = R.linear 0 (2^128)
+rn = R.linear 0 (2 ^ 128)
 
 rf :: Range Float
 rf = R.exponentialFloatFrom 0 (-3.4028235e38) 3.4028235e38
@@ -50,14 +51,14 @@ fxx :: Gen (Fixed k)
 fxx = MkFixed <$> G.integral ri'
 
 rat :: Gen (Ratio Integer)
-rat = G.realFrac_ $ R.linearFracFrom 0 (- 2^(127 :: Integer)) (2^(127 :: Integer))
+rat = G.realFrac_ $ R.linearFracFrom 0 (- 2 ^ (127 :: Integer)) (2 ^ (127 :: Integer))
 
 rat' :: Gen (Ratio Integer)
 rat' = G.frequency [(49, rat), (1, G.element [-1 :% 0, 1 :% 0, 0 :% 0])]
 
 -- potentially ineffiecient
 gen_ivl :: Preorder a => Gen a -> Gen a -> Gen (Interval a)
-gen_ivl g1 g2 = liftA2 (...) g1 g2 
+gen_ivl g1 g2 = liftA2 (...) g1 g2
 
 gen_maybe :: Gen a -> Gen (Maybe a)
 gen_maybe gen = G.frequency [(9, Just <$> gen), (1, pure Nothing)]
@@ -71,8 +72,8 @@ gen_lowered gen = G.frequency [(9, Left <$> gen), (1, pure $ Right ())]
 gen_extended :: Gen a -> Gen (Extended a)
 gen_extended gen = G.frequency [(18, Finite <$> gen), (1, pure NegInf), (1, pure PosInf)]
 
-gen_flt :: Floating a => Gen a -> Gen a 
-gen_flt gen = G.frequency [(49, gen), (1, G.element [(-1/0), 1/0, 0/0])]
+gen_flt :: Floating a => Gen a -> Gen a
+gen_flt gen = G.frequency [(49, gen), (1, G.element [(-1 / 0), 1 / 0, 0 / 0])]
 
 {-
 prop_connection_extremal :: Property
@@ -85,14 +86,14 @@ prop_connection_extremal = withTests 1000 . property $ do
   r' <- forAll rat'
   b <- forAll G.bool
   b' <- forAll G.bool
- 
+
  {-
   assert $ Prop.adjoint extremal o b
   assert $ Prop.closed extremal o
   assert $ Prop.kernel (extremal @Ordering) b
   assert $ Prop.monotonic extremal o o' b b'
   assert $ Prop.idempotent extremal o b
-  
+
   assert $ Prop.adjoint extremal x b
   assert $ Prop.closed extremal x
   assert $ Prop.kernel (extremal @Float) b
@@ -104,19 +105,19 @@ prop_connection_extremal = withTests 1000 . property $ do
   assert $ Prop.kernel (extremal @Rational) b
   assert $ Prop.monotonic extremal r r' b b'
   assert $ Prop.idempotent extremal r b
-  
+
   assert $ Prop.adjoint (conn @_ @() @Ordering) () o
   assert $ Prop.closed (conn @_ @() @Ordering) ()
   assert $ Prop.kernel (conn @_ @() @Ordering) o
   assert $ Prop.monotonic (conn @_ @() @Ordering) () () o o'
   assert $ Prop.idempotent (conn @_ @() @Ordering) () o
-  
+
   assert $ Prop.adjoint (conn @_ @() @Float) () x
   assert $ Prop.closed (conn @_ @() @Float) ()
   assert $ Prop.kernel (conn @_ @() @Float) x
   assert $ Prop.monotonic (conn @_ @() @Float) () () x x'
   assert $ Prop.idempotent (conn @_ @() @Float) () x
- -} 
+ -}
 
   assert $ Prop.adjoint (conn @_ @() @Rational) () r
   assert $ Prop.closed (conn @_ @() @Rational) ()
