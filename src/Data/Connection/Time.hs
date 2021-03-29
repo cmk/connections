@@ -70,13 +70,13 @@ f09sys :: Conn k (Extended Nano) (Extended SystemTime)
 f09sys = Conn f g h where
   
   f NegInf = NegInf
-  f (Finite i) = liftExtended (const False) (> max64) (fromNanoSecs . clamp) i
+  f (Finite i) = extend (const False) (> max64) (fromNanoSecs . clamp) i
   f PosInf = PosInf
   
   g = fmap toNanoSecs
 
   h NegInf = NegInf
-  h (Finite i) = liftExtended (< min64) (const False) (fromNanoSecs . clamp) i
+  h (Finite i) = extend (< min64) (const False) (fromNanoSecs . clamp) i
   h PosInf = PosInf
   
   min64 = - 2^63 

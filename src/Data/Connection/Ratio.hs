@@ -5,11 +5,14 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Data.Connection.Ratio (
-    Ratio (..),
-    reduce,
-    shiftr,
-
     -- * Rational
+    ratw08,
+    ratw16,
+    ratw32,
+    ratw64,
+    ratwxx,
+    ratnat,
+    
     rati08,
     rati16,
     rati32,
@@ -19,17 +22,16 @@ module Data.Connection.Ratio (
     ratfix,
     ratf32,
     ratf64,
+    ratrat,
 
-    -- * Positive
-    posw08,
-    posw16,
-    posw32,
-    posw64,
-    poswxx,
-    posnat,
+    reduce,
+    shiftr,
+    Ratio (..),
 ) where
 
-import safe Data.Connection.Conn hiding (ceiling, floor)
+
+import safe Data.Bool
+import safe Data.Connection.Conn hiding (ceiling, floor, lower)
 import safe Data.Connection.Fixed
 import safe Data.Connection.Float as Float
 import safe Data.Int
@@ -57,29 +59,53 @@ shiftr n (x :% y) = (n + x) :% y
 -- Ratio Integer
 ---------------------------------------------------------------------
 
+ratw08 :: Conn k Rational (Extended Word8)
+ratw08 = ratext
+
+ratw16 :: Conn k Rational (Extended Word16)
+ratw16 = ratext
+
+ratw32 :: Conn k Rational (Extended Word32)
+ratw32 = ratext
+
+ratw64 :: Conn k Rational (Extended Word64)
+ratw64 = ratext
+
+ratwxx :: Conn k Rational (Extended Word)
+ratwxx = ratext
+
+ratnat :: Conn k Rational (Extended Natural)
+ratnat = Conn f g h
+  where
+    f = extend (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) (ceiling . max 0)
+
+    g = extended ninf pinf fromIntegral
+
+    h = extend (\x -> x ~~ nan || x < 0) (~~ pinf) (floor . max 0)
+
 rati08 :: Conn k Rational (Extended Int8)
-rati08 = tripleI
+rati08 = ratext
 
 rati16 :: Conn k Rational (Extended Int16)
-rati16 = tripleI
+rati16 = ratext
 
 rati32 :: Conn k Rational (Extended Int32)
-rati32 = tripleI
+rati32 = ratext
 
 rati64 :: Conn k Rational (Extended Int64)
-rati64 = tripleI
+rati64 = ratext
 
 ratixx :: Conn k Rational (Extended Int)
-ratixx = tripleI
+ratixx = ratext
 
 ratint :: Conn k Rational (Extended Integer)
 ratint = Conn f g h
   where
-    f = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) ceiling
+    f = extend (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) ceiling
 
     g = extended ninf pinf fromIntegral
 
-    h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) floor
+    h = extend (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) floor
 
 ratfix :: forall e k. HasResolution e => Conn k Rational (Extended (Fixed e))
 ratfix = Conn f' g h'
@@ -88,13 +114,13 @@ ratfix = Conn f' g h'
 
     f (reduce . (* (toRational prec)) -> n :% d) = MkFixed $ let i = n `div` d in if n `mod` d == 0 then i else i + 1
 
-    f' = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) f
+    f' = extend (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) f
 
     g = extended ninf pinf toRational
 
     h (reduce . (* (toRational prec)) -> n :% d) = MkFixed $ n `div` d
 
-    h' = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) h
+    h' = extend (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) h
 
 ratf32 :: Conn k Rational Float
 ratf32 = Conn (toFractional f) (fromFractional g) (toFractional h)
@@ -138,35 +164,16 @@ ratf64 = Conn (toFractional f) (fromFractional g) (toFractional h)
 
     descendf z f1 x = Float.until (\y -> f1 y <~ x) (>~) (Float.shift64 (-1)) z
 
----------------------------------------------------------------------
--- Ratio Natural
----------------------------------------------------------------------
-
-type Lowered a = Either a ()
-
-posw08 :: Conn k Positive (Lowered Word8)
-posw08 = tripleW
-
-posw16 :: Conn k Positive (Lowered Word16)
-posw16 = tripleW
-
-posw32 :: Conn k Positive (Lowered Word32)
-posw32 = tripleW
-
-posw64 :: Conn k Positive (Lowered Word64)
-posw64 = tripleW
-
-poswxx :: Conn k Positive (Lowered Word)
-poswxx = tripleW
-
-posnat :: Conn k Positive (Lowered Natural)
-posnat = Conn f g h
+ratrat :: Conn k (Rational, Rational) Rational
+ratrat = Conn f g h
   where
-    f = liftEitherR (\x -> x ~~ nan || x ~~ pinf) ceiling
+    -- join
+    f (x, y) = maybe (1 / 0) (bool y x . (>= EQ)) (pcompare x y)
 
-    g = either fromIntegral (const pinf)
+    g x = (x, x)
 
-    h = liftEitherR (~~ pinf) $ \x -> if x ~~ nan then 0 else floor x
+    -- meet
+    h (x, y) = maybe (-1 / 0) (bool y x . (<= EQ)) (pcompare x y)
 
 ---------------------------------------------------------------------
 -- Internal
@@ -181,42 +188,18 @@ ninf = (-1) :% 0
 nan :: Num a => Ratio a
 nan = 0 :% 0
 
-liftEitherR :: (a -> Bool) -> (a -> b) -> a -> Lowered b
-liftEitherR p f = g
+ratext :: forall a k. (Bounded a, Integral a) => Conn k Rational (Extended a)
+ratext = Conn f g h
   where
-    g i
-        | p i = Right ()
-        | otherwise = Left $ f i
-
-tripleW :: forall a k. (Bounded a, Integral a) => Conn k Positive (Lowered a)
-tripleW = Conn f g h
-  where
-    f x
-        | x ~~ nan = Right maxBound
-        | x > high = Right maxBound
-        | otherwise = Left $ ceiling x
-
-    g = either fromIntegral (const pinf)
-
-    h x
-        | x ~~ nan = Left minBound
-        | x ~~ pinf = Right maxBound
-        | x > high = Left maxBound
-        | otherwise = Left $ floor x
-
-    high = fromIntegral @a maxBound
-
-tripleI :: forall a k. (Bounded a, Integral a) => Conn k Rational (Extended a)
-tripleI = Conn f g h
-  where
-    f = liftExtended (~~ ninf) (\x -> x ~~ nan || x > high) $ \x -> if x < low then minBound else ceiling x
+    f = extend (~~ ninf) (\x -> x ~~ nan || x > high) $ \x -> if x < low then minBound else ceiling x
 
     g = extended ninf pinf fromIntegral
 
-    h = liftExtended (\x -> x ~~ nan || x < low) (~~ pinf) $ \x -> if x > high then maxBound else floor x
+    h = extend (\x -> x ~~ nan || x < low) (~~ pinf) $ \x -> if x > high then maxBound else floor x
 
     high = fromIntegral @a maxBound
-    low = -1 - high
+    low = fromIntegral @a minBound
+    --low = -1 - high
 
 toFractional :: Fractional a => (Rational -> a) -> Rational -> a
 toFractional f x
@@ -244,12 +227,4 @@ cancel (x :% y) = if x < 0 && y < 0 then (pabs x) :% (pabs y) else x :% y
 nanr :: Integral b => (a -> Ratio b) -> Maybe a -> Ratio b
 nanr f = maybe (0 :% 0) f
 
-ratpos :: Conn k Rational Positive
-ratpos = Conn k f g h where
-
-  f = liftExtended (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) ceiling
-
-  g = extended minBound maxBound fromIntegral
-
-  h = liftExtended (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) floor
 -}

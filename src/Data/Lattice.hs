@@ -96,7 +96,7 @@ type Meet = Semilattice 'R
 -- A lattice is a partially ordered set in which every two elements have a unique join
 -- (least upper bound or supremum) and a unique meet (greatest lower bound or infimum).
 --
--- A bounded lattice adds unique elements 'top' and 'bottom', which serve as
+-- A bound lattice adds unique elements 'top' and 'bottom', which serve as
 -- identities to '\/' and '/\', respectively.
 --
 -- /Neutrality/:
@@ -148,10 +148,10 @@ type Meet = Semilattice 'R
 -- See < https://en.wikipedia.org/wiki/Lattice_(order) >.
 class Order a => Semilattice k a where
 
-    -- | The defining connection of a bounded semilattice.
+    -- | The defining connection of a bound semilattice.
     --
     -- 'bottom' and 'top' are defined by the left and right adjoints to /a -> ()/.
-    bounded :: Conn k () a
+    bound :: Conn k () a
 
     -- | The defining connection of a semilattice.
     --
@@ -162,9 +162,9 @@ infixr 6 /\ -- comment for the parser
 
 -- | Lattice meet.
 --
--- > (/\) = curry $ floor_ semilattice
+-- > (/\) = curry $ floor semilattice
 (/\) :: Meet a => a -> a -> a
-(/\) = curry $ floor_ semilattice
+(/\) = curry $ floor semilattice
 
 -- | Greatest lower bound operator.
 -- 
@@ -182,12 +182,12 @@ infixr 6 /\ -- comment for the parser
 glb :: Lattice a => a -> a -> a -> a
 glb x y z = (x \/ y) /\ (y \/ z) /\ (z \/ x)
 
--- | The unique top element of a bounded lattice
+-- | The unique top element of a bound lattice
 --
 -- > x /\ top = x
 -- > x \/ top = top
 top :: Meet a => a
-top = floor_ bounded ()
+top = floor bound ()
 
 infixr 5 \/
 
@@ -195,7 +195,7 @@ infixr 5 \/
 --
 -- > (\/) = curry $ lower semilattice
 (\/) :: Join a => a -> a -> a
-(\/) = curry $ ceiling_ semilattice
+(\/) = curry $ ceiling semilattice
 
 -- | Least upper bound operator.
 --
@@ -208,12 +208,12 @@ infixr 5 \/
 lub :: Lattice a => a -> a -> a -> a
 lub x y z = x /\ y \/ y /\ z \/ z /\ x
 
--- | The unique bottom element of a bounded lattice
+-- | The unique bottom element of a bound lattice
 --
 -- > x /\ bottom = bottom
 -- > x \/ bottom = x
 bottom :: Join a => a
-bottom = ceiling_ bounded ()
+bottom = ceiling bound ()
 
 -------------------------------------------------------------------------------
 -- Heyting algebras
@@ -236,7 +236,7 @@ type Biheyting a = (Coheyting a, Heyting a)
 
 -- | Heyting and co-Heyting algebras
 --
--- A Heyting algebra is a bounded, distributive lattice equipped with an
+-- A Heyting algebra is a bound, distributive lattice equipped with an
 -- implication operation.
 --
 -- * The complete of closed subsets of a topological space is the primordial
@@ -306,7 +306,7 @@ infixr 8 // -- same as ^
 -- >>> True // True
 -- True
 (//) :: Algebra 'R a => a -> a -> a
-(//) = floor_ . algebra
+(//) = floor . algebra
 
 -- | Intuitionistic equivalence.
 --
@@ -391,7 +391,7 @@ infixl 8 \\
 -- >>> [GT,EQ] \\ [LT]
 -- fromList [EQ,GT]
 (\\) :: Algebra 'L a => a -> a -> a
-(\\) = flip $ ceiling_ . algebra
+(\\) = flip $ ceiling . algebra
 
 -- | Intuitionistic co-equivalence.
 equiv :: Algebra 'L a => a -> a -> a
@@ -523,7 +523,7 @@ class Symmetric a => Boolean a where
 -------------------------------------------------------------------------------
 
 instance Semilattice k () where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L () where algebra = coheyting impliesL
@@ -532,7 +532,7 @@ instance Symmetric () where not = id
 instance Boolean ()
 
 instance Semilattice k Bool where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Bool where algebra = coheyting impliesL
@@ -541,7 +541,7 @@ instance Symmetric Bool where not = P.not
 instance Boolean Bool
 
 instance Semilattice k Ordering where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Ordering where algebra = coheyting impliesL
@@ -552,97 +552,98 @@ instance Symmetric Ordering where
     not GT = LT
 
 instance Semilattice k Word8 where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Word8 where algebra = coheyting impliesL
 instance Algebra 'R Word8 where algebra = heyting impliesR
 
 instance Semilattice k Word16 where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Word16 where algebra = coheyting impliesL
 instance Algebra 'R Word16 where algebra = heyting impliesR
 
 instance Semilattice k Word32 where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Word32 where algebra = coheyting impliesL
 instance Algebra 'R Word32 where algebra = heyting impliesR
 
 instance Semilattice k Word64 where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Word64 where algebra = coheyting impliesL
 instance Algebra 'R Word64 where algebra = heyting impliesR
 
 instance Semilattice k Word where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Word where algebra = coheyting impliesL
 instance Algebra 'R Word where algebra = heyting impliesR
 
 instance Semilattice k Int8 where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Int8 where algebra = coheyting impliesL
 instance Algebra 'R Int8 where algebra = heyting impliesR
 
 instance Semilattice k Int16 where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Int16 where algebra = coheyting impliesL
 instance Algebra 'R Int16 where algebra = heyting impliesR
 
 instance Semilattice k Int32 where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Int32 where algebra = coheyting impliesL
 instance Algebra 'R Int32 where algebra = heyting impliesR
 
 instance Semilattice k Int64 where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Int64 where algebra = coheyting impliesL
 instance Algebra 'R Int64 where algebra = heyting impliesR
 
 instance Semilattice k Int where
-  bounded = conn
+  bound = bounded
   semilattice = ordered
 
 instance Algebra 'L Int where algebra = coheyting impliesL
 instance Algebra 'R Int where algebra = heyting impliesR
 
+{-
 instance Semilattice k Float where
-  bounded = conn
+  bound = conn
   semilattice = conn
 
 instance Semilattice k Double where
-  bounded = conn
+  bound = conn
   semilattice = conn
 
 instance Semilattice k Rational where
-  bounded = conn
+  bound = conn
   semilattice = conn
 
 instance Semilattice k Positive where
-  bounded = conn
+  bound = conn
   semilattice = conn
-
+-}
 -------------------------------------------------------------------------------
 -- Instances: product types
 -------------------------------------------------------------------------------
 
 instance (Lattice a, Lattice b) => Semilattice k (a, b) where
-    bounded = Conn (const (bottom, bottom)) (const ()) (const (top, top))
+    bound = Conn (const (bottom, bottom)) (const ()) (const (top, top))
     semilattice = Conn (uncurry joinTuple) fork (uncurry meetTuple)
 
 instance (Heyting a, Heyting b) => Algebra 'R (a, b) where
@@ -661,11 +662,11 @@ instance (Boolean a, Boolean b) => Boolean (a, b)
 -------------------------------------------------------------------------------
 
 instance Join a => Semilattice 'L (Maybe a) where
-    bounded = ConnL (const Nothing) (const ())
+    bound = ConnL (const Nothing) (const ())
     semilattice = ConnL (uncurry joinMaybe) fork
 
 instance Meet a => Semilattice 'R (Maybe a) where
-    bounded = ConnR (const ()) (const $ Just top)
+    bound = ConnR (const ()) (const $ Just top)
     semilattice = ConnR fork (uncurry meetMaybe)
 
 instance Heyting a => Algebra 'R (Maybe a) where
@@ -676,11 +677,11 @@ instance Heyting a => Algebra 'R (Maybe a) where
         f _ Nothing = Nothing
 
 instance Join a => Semilattice 'L (Extended a) where
-    bounded = Conn (const NegInf) (const ()) (const PosInf)
+    bound = Conn (const NegInf) (const ()) (const PosInf)
     semilattice = ConnL (uncurry joinExtended) fork
 
 instance Meet a => Semilattice 'R (Extended a) where
-    bounded = Conn (const NegInf) (const ()) (const PosInf)
+    bound = Conn (const NegInf) (const ()) (const PosInf)
     semilattice = ConnR fork (uncurry meetExtended)
 
 instance Heyting a => Algebra 'R (Extended a) where
@@ -696,11 +697,11 @@ instance Heyting a => Algebra 'R (Extended a) where
 
 -- | All minimal elements of the upper lattice cover all maximal elements of the lower lattice.
 instance (Join a, Join b) => Semilattice 'L (Either a b) where
-    bounded = ConnL (const $ Left bottom) (const ())
+    bound = ConnL (const $ Left bottom) (const ())
     semilattice = ConnL (uncurry joinEither) fork
 
 instance (Meet a, Meet b) => Semilattice 'R (Either a b) where
-    bounded = ConnR (const ()) (const $ Right top)
+    bound = ConnR (const ()) (const $ Right top)
     semilattice = ConnR fork (uncurry meetEither)
 
 -- |
@@ -730,13 +731,13 @@ instance Total a => Connection k (Set.Set a, Set.Set a) (Set.Set a) where
     semilattice = Conn (uncurry Set.union) fork (uncurry Set.intersection)
 
 instance Connection 'L () IntSet.IntSet where
-    bounded = ConnL (const IntSet.empty) (const ())
+    bound = ConnL (const IntSet.empty) (const ())
 
 instance Connection k (IntSet.IntSet, IntSet.IntSet) IntSet.IntSet where
     semilattice = Conn (uncurry IntSet.union) fork (uncurry IntSet.intersection)
 
 instance (Total a, Preorder b) => Connection 'L () (Map.Map a b) where
-    bounded = ConnL (const Map.empty) (const ())
+    bound = ConnL (const Map.empty) (const ())
 
 instance (Total a, Left (b, b) b) => Connection 'L (Map.Map a b, Map.Map a b) (Map.Map a b) where
     semilattice = ConnL (uncurry $ Map.unionWith join) fork
@@ -745,7 +746,7 @@ instance (Total a, Right (b, b) b) => Connection 'R (Map.Map a b, Map.Map a b) (
     semilattice = ConnR fork (uncurry $ Map.intersectionWith meet)
 
 instance Preorder a => Connection 'L () (IntMap.IntMap a) where
-    bounded = ConnL (const IntMap.empty) (const ())
+    bound = ConnL (const IntMap.empty) (const ())
 
 instance Left (a, a) a => Connection 'L (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
     semilattice = ConnL (uncurry $ IntMap.unionWith join) fork
@@ -754,10 +755,9 @@ instance Right (a, a) a => Connection 'R (IntMap.IntMap a, IntMap.IntMap a) (Int
     semilattice = ConnR fork (uncurry $ IntMap.intersectionWith meet)
 -}
 
-instance Total a => Semilattice k (Set.Set a) where
-    --bounded = ConnL (const Set.empty) (const ())
-    --semilattice = ConnL (uncurry Set.union) fork
-    semilattice = Conn (uncurry Set.union) fork (uncurry Set.intersection)
+instance Total a => Semilattice 'L (Set.Set a) where
+    bound = ConnL (const Set.empty) (const ())
+    semilattice = ConnL (uncurry Set.union) fork
 
 instance Total a => Algebra 'L (Set.Set a) where
     algebra = coheyting (Set.\\)
@@ -771,7 +771,7 @@ instance Total a => Algebra 'L (Set.Set a) where
 --instance (Total a, U.Finite a) => Boolean (Set.Set a) where
 
 instance Semilattice k IntSet.IntSet where
-    bounded = Conn (const IntSet.empty) (const ()) (const $ IntSet.fromList [minBound .. maxBound])
+    bound = Conn (const IntSet.empty) (const ()) (const $ IntSet.fromList [minBound .. maxBound])
     semilattice = Conn (uncurry IntSet.union) fork (uncurry IntSet.intersection)
 
 instance Algebra 'L IntSet.IntSet where
@@ -797,7 +797,7 @@ instance Boolean IntSet.IntSet where
 -}
 
 instance (Total k, Join a) => Semilattice 'L (Map.Map k a) where
-    bounded = ConnL (const Map.empty) (const ())
+    bound = ConnL (const Map.empty) (const ())
 
     semilattice = ConnL f fork
       where
@@ -807,7 +807,7 @@ instance (Total k, Join a) => Algebra 'L (Map.Map k a) where
     algebra = coheyting (Map.\\)
 
 instance (Join a) => Semilattice 'L (IntMap.IntMap a) where
-    bounded = ConnL (const IntMap.empty) (const ())
+    bound = ConnL (const IntMap.empty) (const ())
 
     semilattice = ConnL f fork
       where
@@ -816,80 +816,7 @@ instance (Join a) => Semilattice 'L (IntMap.IntMap a) where
 instance (Join a) => Algebra 'L (IntMap.IntMap a) where
     algebra = coheyting (IntMap.\\)
 
-{- TODO pick an instance either key-aware or no
 
-instance (Total a, U.Finite a, Heyting b) => Algebra 'R (Map.Map a b) where
-
-  algebra = heyting $ \a b ->
-    let
-      x = Map.merge
-            Map.dropMissing                    -- drop if an element is missing in @b@
-            (Map.mapMissing (\_ _ -> true))     -- put @true@ if an element is missing in @a@
-            (Map.zipWithMatched (\_ -> (//) )) -- merge  matching elements with @`implies`@
-            a b
-
-      y = Map.fromList [(k, true) | k <- U.universeF, not (Map.member k a), not (Map.member k b) ]
-        -- for elements which are not in a, nor in b add
-        -- a @true@ key
-    in
-      Map.union x y
-
--- TODO: compare performance
-impliesMap a b =
-  Map.intersection (`implies`) a b
-    `Map.union` Map.map (const true) (Map.difference b a)
-    `Map.union` Map.fromList [(k, true) | k <- universeF, not (Map.member k a), not (Map.member k b)]
-
--}
-
-{-
-
--- A symmetric Heyting algebra
---
--- λ> implies (False ... True) (False ... True)
--- Interval True True
--- λ> implies (False ... True) (singleton False)
--- Interval False False
--- λ> implies (singleton True) (False ... True)
--- Interval False True
---
--- λ> implies ([EQ,GT] ... [EQ,GT]) ([LT] ... [LT,EQ])  :: Interval (Set.Set Ordering)
--- Interval (fromList [LT]) (fromList [LT,EQ])
---
--- TODO: may need /a/ to be boolean here.
-implies :: Symmetric a => Interval a -> Interval a -> Interval a
-implies i1 i2 = maybe iempty (uncurry (...)) $ liftA2 f (endpts i1) (endpts i2) where
-  f (x1,x2) (y1,y2) = (x1 // y1 /\ x2 // y2, x2 // y2)
-
-  --TODO: would this work for interval orders?
-  f (x1,x2) (y1,y2) = (x1 // y1 /\ x2 // y2, x1 // y1 \/ x2 // y2)
-
-coimplies i1 i2 = not (not i1 `implies` not i2)
-
--- The symmetry
--- neg x = top \\ not x
--- non x = not x // bottom
--- λ> not ([LT] ... [LT,GT]) :: Interval (Set.Set Ordering)
--- Interval (fromList [EQ]) (fromList [EQ,GT])
---
-not :: Symmetric a => Interval a -> Interval a
-not = maybe iempty (\(x1, x2) -> neg x2 ... neg x1) . endpts
-
--- λ> neg' (False ... True)
--- Interval False False
--- λ> (False ... True) `implies` (singleton False)
--- Interval False False
---
-neg' x = (bottom ... top) `coimplies` (not x)
-
--- λ> non' (False ... True)
--- Interval False False
--- λ> (singleton True) `coimplies` (False ... True)
--- Interval False False
---
-non' x = not x `implies` (singleton bottom)
-
--}
 
 -- Internal
 
