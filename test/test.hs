@@ -2,7 +2,6 @@ import Control.Monad
 import System.Exit (exitFailure)
 import System.IO (BufferMode (..), hSetBuffering, stderr, stdout)
 
-import qualified Test.Data.Connection as C
 import qualified Test.Data.Connection.Fixed as CX
 import qualified Test.Data.Connection.Float as CF
 import qualified Test.Data.Connection.Int as CI
@@ -17,7 +16,6 @@ tests =
     sequence
         [ P.tests
         , L.tests
-        , C.tests
         , CI.tests
         , CW.tests
         , CF.tests

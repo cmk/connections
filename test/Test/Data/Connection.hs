@@ -55,10 +55,6 @@ rat = G.realFrac_ $ R.linearFracFrom 0 (- 2^(127 :: Integer)) (2^(127 :: Integer
 rat' :: Gen (Ratio Integer)
 rat' = G.frequency [(49, rat), (1, G.element [-1 :% 0, 1 :% 0, 0 :% 0])]
 
-pos :: Gen (Ratio Natural)
-pos = G.frequency [(49, gen), (1, G.element [1 :% 0, 0 :% 0])]
-  where gen = G.realFrac_ (R.linearFracFrom 0 0 (2^127))
-
 -- potentially ineffiecient
 gen_ivl :: Preorder a => Gen a -> Gen a -> Gen (Interval a)
 gen_ivl g1 g2 = liftA2 (...) g1 g2 
@@ -78,6 +74,7 @@ gen_extended gen = G.frequency [(18, Finite <$> gen), (1, pure NegInf), (1, pure
 gen_flt :: Floating a => Gen a -> Gen a 
 gen_flt gen = G.frequency [(49, gen), (1, G.element [(-1/0), 1/0, 0/0])]
 
+{-
 prop_connection_extremal :: Property
 prop_connection_extremal = withTests 1000 . property $ do
   x <- forAll f32
@@ -88,7 +85,8 @@ prop_connection_extremal = withTests 1000 . property $ do
   r' <- forAll rat'
   b <- forAll G.bool
   b' <- forAll G.bool
-  
+ 
+ {-
   assert $ Prop.adjoint extremal o b
   assert $ Prop.closed extremal o
   assert $ Prop.kernel (extremal @Ordering) b
@@ -118,6 +116,7 @@ prop_connection_extremal = withTests 1000 . property $ do
   assert $ Prop.kernel (conn @_ @() @Float) x
   assert $ Prop.monotonic (conn @_ @() @Float) () () x x'
   assert $ Prop.idempotent (conn @_ @() @Float) () x
+ -} 
 
   assert $ Prop.adjoint (conn @_ @() @Rational) () r
   assert $ Prop.closed (conn @_ @() @Rational) ()
@@ -127,3 +126,4 @@ prop_connection_extremal = withTests 1000 . property $ do
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
+-}

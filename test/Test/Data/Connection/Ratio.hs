@@ -12,70 +12,84 @@ import Hedgehog
 import qualified Hedgehog.Gen as G
 import Test.Data.Connection
 
-prop_connection_ratf06 :: Property
-prop_connection_ratf06 = withTests 1000 . property $ do
-    x <- forAll rat
-    x' <- forAll rat
-    y <- forAll $ gen_extended fxx
-    y' <- forAll $ gen_extended fxx
 
-    assert $ Prop.adjoint (ratfix @E6) x y
-    assert $ Prop.closed (ratfix @E6) x
-    assert $ Prop.kernel (ratfix @E6) y
-    assert $ Prop.monotonic (ratfix @E6) x x' y y'
-    assert $ Prop.idempotent (ratfix @E6) x y
-
-prop_connection_ratf09 :: Property
-prop_connection_ratf09 = withTests 1000 . property $ do
-    x <- forAll rat
-    x' <- forAll rat
-    y <- forAll $ gen_extended fxx
-    y' <- forAll $ gen_extended fxx
-
-    assert $ Prop.adjoint (ratfix @E9) x y
-    assert $ Prop.closed (ratfix @E9) x
-    assert $ Prop.kernel (ratfix @E9) y
-    assert $ Prop.monotonic (ratfix @E9) x x' y y'
-    assert $ Prop.idempotent (ratfix @E9) x y
-
-prop_connection_ratf12 :: Property
-prop_connection_ratf12 = withTests 1000 . property $ do
-    x <- forAll rat
-    x' <- forAll rat
-    y <- forAll $ gen_extended fxx
-    y' <- forAll $ gen_extended fxx
-
-    assert $ Prop.adjoint (ratfix @E12) x y
-    assert $ Prop.closed (ratfix @E12) x
-    assert $ Prop.kernel (ratfix @E12) y
-    assert $ Prop.monotonic (ratfix @E12) x x' y y'
-    assert $ Prop.idempotent (ratfix @E12) x y
-
-prop_connection_ratf32 :: Property
-prop_connection_ratf32 = withTests 1000 . property $ do
+prop_connection_ratw08 :: Property
+prop_connection_ratw08 = withTests 1000 . property $ do
     x <- forAll rat'
     x' <- forAll rat'
-    y <- forAll f32
-    y' <- forAll f32
+    y <- forAll $ gen_extended $ G.integral (ri @Word8)
+    y' <- forAll $ gen_extended $ G.integral (ri @Word8)
 
-    assert $ Prop.adjoint (ratf32) x y
-    assert $ Prop.closed (ratf32) x
-    assert $ Prop.kernel (ratf32) y
-    assert $ Prop.monotonic (ratf32) x x' y y'
-    assert $ Prop.idempotent (ratf32) x y
+    assert $ Prop.adjoint (ratw08) x y
+    assert $ Prop.closed (ratw08) x
+    assert $ Prop.kernel (ratw08) y
+    assert $ Prop.monotonic (ratw08) x x' y y'
+    assert $ Prop.idempotent (ratw08) x y
 
-prop_connection_ratf64 :: Property
-prop_connection_ratf64 = withTests 1000 . property $ do
+prop_connection_ratw16 :: Property
+prop_connection_ratw16 = withTests 1000 . property $ do
     x <- forAll rat'
     x' <- forAll rat'
-    y <- forAll f64
-    y' <- forAll f64
+    y <- forAll $ gen_extended $ G.integral (ri @Word16)
+    y' <- forAll $ gen_extended $ G.integral (ri @Word16)
 
-    assert $ Prop.adjoint (ratf64) x y
-    assert $ Prop.closed (ratf64) x
-    assert $ Prop.kernel (ratf64) y
-    assert $ Prop.monotonic (ratf64) x x' y y'
-    assert $ Prop.idempotent (ratf64) x y
+    assert $ Prop.adjoint (ratw16) x y
+    assert $ Prop.closed (ratw16) x
+    assert $ Prop.kernel (ratw16) y
+    assert $ Prop.monotonic (ratw16) x x' y y'
+    assert $ Prop.idempotent (ratw16) x y
+
+prop_connection_ratw32 :: Property
+prop_connection_ratw32 = withTests 1000 . property $ do
+    x <- forAll rat'
+    x' <- forAll rat'
+    y <- forAll $ gen_extended $ G.integral (ri @Word32)
+    y' <- forAll $ gen_extended $ G.integral (ri @Word32)
+
+    assert $ Prop.adjoint (ratw32) x y
+    assert $ Prop.closed (ratw32) x
+    assert $ Prop.kernel (ratw32) y
+    assert $ Prop.monotonic (ratw32) x x' y y'
+    assert $ Prop.idempotent (ratw32) x y
+
+prop_connection_ratw64 :: Property
+prop_connection_ratw64 = withTests 1000 . property $ do
+    x <- forAll rat'
+    x' <- forAll rat'
+    y <- forAll $ gen_extended $ G.integral (ri @Word64)
+    y' <- forAll $ gen_extended $ G.integral (ri @Word64)
+
+    assert $ Prop.adjoint (ratw64) x y
+    assert $ Prop.closed (ratw64) x
+    assert $ Prop.kernel (ratw64) y
+    assert $ Prop.monotonic (ratw64) x x' y y'
+    assert $ Prop.idempotent (ratw64) x y
+
+prop_connection_ratwxx :: Property
+prop_connection_ratwxx = withTests 1000 . property $ do
+    x <- forAll rat'
+    x' <- forAll rat'
+    y <- forAll $ gen_extended $ G.integral (ri @Word)
+    y' <- forAll $ gen_extended $ G.integral (ri @Word)
+
+    assert $ Prop.adjoint (ratwxx) x y
+    assert $ Prop.closed (ratwxx) x
+    assert $ Prop.kernel (ratwxx) y
+    assert $ Prop.monotonic (ratwxx) x x' y y'
+    assert $ Prop.idempotent (ratwxx) x y
+
+prop_connection_ratnat :: Property
+prop_connection_ratnat = withTests 1000 . property $ do
+    x <- forAll rat
+    x' <- forAll rat
+    y <- forAll $ gen_extended $ G.integral rn
+    y' <- forAll $ gen_extended $ G.integral rn
+
+    assert $ Prop.adjoint ratnat x y
+    assert $ Prop.closed ratnat x
+    assert $ Prop.kernel ratnat y
+    assert $ Prop.monotonic ratnat x x' y y'
+    assert $ Prop.idempotent ratnat x y
 
 prop_connection_rati08 :: Property
 prop_connection_rati08 = withTests 1000 . property $ do
@@ -142,70 +156,70 @@ prop_connection_ratint = withTests 1000 . property $ do
     assert $ Prop.monotonic (ratint) x x' y y'
     assert $ Prop.idempotent (ratint) x y
 
-prop_connection_posw08 :: Property
-prop_connection_posw08 = withTests 1000 . property $ do
-    x <- forAll pos
-    x' <- forAll pos
-    y <- forAll $ gen_lowered $ G.integral (ri @Word8)
-    y' <- forAll $ gen_lowered $ G.integral (ri @Word8)
+prop_connection_ratf06 :: Property
+prop_connection_ratf06 = withTests 1000 . property $ do
+    x <- forAll rat
+    x' <- forAll rat
+    y <- forAll $ gen_extended fxx
+    y' <- forAll $ gen_extended fxx
 
-    assert $ Prop.adjoint (posw08) x y
-    assert $ Prop.closed (posw08) x
-    assert $ Prop.kernel (posw08) y
-    assert $ Prop.monotonic (posw08) x x' y y'
-    assert $ Prop.idempotent (posw08) x y
+    assert $ Prop.adjoint (ratfix @E6) x y
+    assert $ Prop.closed (ratfix @E6) x
+    assert $ Prop.kernel (ratfix @E6) y
+    assert $ Prop.monotonic (ratfix @E6) x x' y y'
+    assert $ Prop.idempotent (ratfix @E6) x y
 
-prop_connection_posw16 :: Property
-prop_connection_posw16 = withTests 1000 . property $ do
-    x <- forAll pos
-    x' <- forAll pos
-    y <- forAll $ gen_lowered $ G.integral (ri @Word16)
-    y' <- forAll $ gen_lowered $ G.integral (ri @Word16)
+prop_connection_ratf09 :: Property
+prop_connection_ratf09 = withTests 1000 . property $ do
+    x <- forAll rat
+    x' <- forAll rat
+    y <- forAll $ gen_extended fxx
+    y' <- forAll $ gen_extended fxx
 
-    assert $ Prop.adjoint (posw16) x y
-    assert $ Prop.closed (posw16) x
-    assert $ Prop.kernel (posw16) y
-    assert $ Prop.monotonic (posw16) x x' y y'
-    assert $ Prop.idempotent (posw16) x y
+    assert $ Prop.adjoint (ratfix @E9) x y
+    assert $ Prop.closed (ratfix @E9) x
+    assert $ Prop.kernel (ratfix @E9) y
+    assert $ Prop.monotonic (ratfix @E9) x x' y y'
+    assert $ Prop.idempotent (ratfix @E9) x y
 
-prop_connection_posw32 :: Property
-prop_connection_posw32 = withTests 1000 . property $ do
-    x <- forAll pos
-    x' <- forAll pos
-    y <- forAll $ gen_lowered $ G.integral (ri @Word32)
-    y' <- forAll $ gen_lowered $ G.integral (ri @Word32)
+prop_connection_ratf12 :: Property
+prop_connection_ratf12 = withTests 1000 . property $ do
+    x <- forAll rat
+    x' <- forAll rat
+    y <- forAll $ gen_extended fxx
+    y' <- forAll $ gen_extended fxx
 
-    assert $ Prop.adjoint (posw32) x y
-    assert $ Prop.closed (posw32) x
-    assert $ Prop.kernel (posw32) y
-    assert $ Prop.monotonic (posw32) x x' y y'
-    assert $ Prop.idempotent (posw32) x y
+    assert $ Prop.adjoint (ratfix @E12) x y
+    assert $ Prop.closed (ratfix @E12) x
+    assert $ Prop.kernel (ratfix @E12) y
+    assert $ Prop.monotonic (ratfix @E12) x x' y y'
+    assert $ Prop.idempotent (ratfix @E12) x y
 
-prop_connection_posw64 :: Property
-prop_connection_posw64 = withTests 1000 . property $ do
-    x <- forAll pos
-    x' <- forAll pos
-    y <- forAll $ gen_lowered $ G.integral (ri @Word64)
-    y' <- forAll $ gen_lowered $ G.integral (ri @Word64)
+prop_connection_ratf32 :: Property
+prop_connection_ratf32 = withTests 1000 . property $ do
+    x <- forAll rat'
+    x' <- forAll rat'
+    y <- forAll f32
+    y' <- forAll f32
 
-    assert $ Prop.adjoint (posw64) x y
-    assert $ Prop.closed (posw64) x
-    assert $ Prop.kernel (posw64) y
-    assert $ Prop.monotonic (posw64) x x' y y'
-    assert $ Prop.idempotent (posw64) x y
+    assert $ Prop.adjoint (ratf32) x y
+    assert $ Prop.closed (ratf32) x
+    assert $ Prop.kernel (ratf32) y
+    assert $ Prop.monotonic (ratf32) x x' y y'
+    assert $ Prop.idempotent (ratf32) x y
 
-prop_connection_posnat :: Property
-prop_connection_posnat = withTests 1000 . property $ do
-    x <- forAll pos
-    x' <- forAll pos
-    y <- forAll $ gen_lowered $ G.integral rn
-    y' <- forAll $ gen_lowered $ G.integral rn
+prop_connection_ratf64 :: Property
+prop_connection_ratf64 = withTests 1000 . property $ do
+    x <- forAll rat'
+    x' <- forAll rat'
+    y <- forAll f64
+    y' <- forAll f64
 
-    assert $ Prop.adjoint (posnat) x y
-    assert $ Prop.closed (posnat) x
-    assert $ Prop.kernel (posnat) y
-    assert $ Prop.monotonic (posnat) x x' y y'
-    assert $ Prop.idempotent (posnat) x y
+    assert $ Prop.adjoint (ratf64) x y
+    assert $ Prop.closed (ratf64) x
+    assert $ Prop.kernel (ratf64) y
+    assert $ Prop.monotonic (ratf64) x x' y y'
+    assert $ Prop.idempotent (ratf64) x y
 
 tests :: IO Bool
 tests = checkParallel $$(discover)

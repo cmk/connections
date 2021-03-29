@@ -8,33 +8,33 @@
 
 module Data.Connection.Float (
     -- * Float
+    f32w08,
+    f32w16,
+    f32i08,
+    f32i16,
+    f32f32,
     min32,
     max32,
     eps32,
     ulp32,
     near32,
     shift32,
-    f32i08,
-    f32i16,
-    f32i32,
-    f32i64,
-    f32ixx,
-    f32int,
-
+    
     -- * Double
+    f64w08,
+    f64w16,
+    f64w32,
+    f64i08,
+    f64i16,
+    f64i32,
+    f64f32,
+    f64f64,
     min64,
     max64,
     eps64,
     ulp64,
     near64,
     shift64,
-    f64i08,
-    f64i16,
-    f64i32,
-    f64i64,
-    f64ixx,
-    f64int,
-    f64f32,
     until,
 ) where
 
@@ -51,6 +51,32 @@ import safe qualified Prelude as P
 ---------------------------------------------------------------------
 -- Float
 ---------------------------------------------------------------------
+
+
+-- | All 'Data.Word.Word08' values are exactly representable in a 'Float'.
+f32w08 :: Conn k Float (Extended Word8)
+f32w08 = fxxext
+
+-- | All 'Data.Word.Word16' values are exactly representable in a 'Float'.
+--
+f32w16 :: Conn k Float (Extended Word16)
+f32w16 = fxxext
+
+-- | All 'Data.Int.Int08' values are exactly representable in a 'Float'.
+f32i08 :: Conn k Float (Extended Int8)
+f32i08 = fxxext
+
+-- | All 'Data.Int.Int16' values are exactly representable in a 'Float'.
+--
+-- >>> Data.Connection.Conn.ceiling f32i16 32767.0
+-- Finite 32767
+-- >>> Data.Connection.Conn.ceiling f32i16 32767.1
+-- PosInf
+f32i16 :: Conn k Float (Extended Int16)
+f32i16 = fxxext
+
+f32f32 :: Conn k (Float, Float) Float
+f32f32 = fxxfxx
 
 -- | A /NaN/-handling min32 function.
 --
@@ -124,34 +150,59 @@ shift32 n x =
             _ -> 0 / 0
         else int32Float . clamp32 . (+ n) . floatInt32 $ x
 
--- | All 'Data.Int.Int08' values are exactly representable in a 'Float'.
-f32i08 :: Conn k Float (Extended Int8)
-f32i08 = fxxext
-
--- | All 'Data.Int.Int16' values are exactly representable in a 'Float'.
---
--- >>> Data.Connection.Conn.ceiling f32i16 32767.0
--- Finite 32767
--- >>> Data.Connection.Conn.ceiling f32i16 32767.1
--- PosInf
-f32i16 :: Conn k Float (Extended Int16)
-f32i16 = fxxext
-
-f32i32 :: Conn 'L Float (Extended Int32)
-f32i32 = f32ext
-
-f32i64 :: Conn 'L Float (Extended Int64)
-f32i64 = f32ext
-
-f32ixx :: Conn 'L Float (Extended Int)
-f32ixx = f32ext
-
-f32int :: Conn 'L Float (Extended Integer)
-f32int = f32ext
-
 ---------------------------------------------------------------------
 -- Double
 ---------------------------------------------------------------------
+
+
+-- | All 'Data.Word.Word08' values are exactly representable in a 'Double'.
+f64w08 :: Conn k Double (Extended Word8)
+f64w08 = fxxext
+
+-- | All 'Data.Word.Word16' values are exactly representable in a 'Double'.
+f64w16 :: Conn k Double (Extended Word16)
+f64w16 = fxxext
+
+-- | All 'Data.Word.Word32' values are exactly representable in a 'Double'.
+f64w32 :: Conn k Double (Extended Word32)
+f64w32 = fxxext
+
+-- | All 'Data.Int.Int08' values are exactly representable in a 'Double'.
+f64i08 :: Conn k Double (Extended Int8)
+f64i08 = fxxext
+
+-- | All 'Data.Int.Int16' values are exactly representable in a 'Double'.
+f64i16 :: Conn k Double (Extended Int16)
+f64i16 = fxxext
+
+-- | All 'Data.Int.Int32' values are exactly representable in a 'Double'.
+f64i32 :: Conn k Double (Extended Int32)
+f64i32 = fxxext
+
+f64f32 :: Conn k Double Float
+f64f32 = Conn f g h
+  where
+    f x =
+        let est = double2Float x
+         in if g est >~ x
+                then est
+                else ascend32 est g x
+
+    g = float2Double
+
+    h x =
+        let est = double2Float x
+         in if g est <~ x
+                then est
+                else descend32 est g x
+
+    ascend32 z g1 y = until (\x -> g1 x >~ y) (<~) (shift32 1) z
+
+    descend32 z h1 x = until (\y -> h1 y <~ x) (>~) (shift32 (-1)) z
+{-# INLINE f64f32 #-}
+
+f64f64 :: Conn k (Double, Double) Double
+f64f64 = fxxfxx
 
 -- | A /NaN/-handling min function.
 --
@@ -225,49 +276,6 @@ shift64 n x =
             _ -> 0 / 0
         else int64Double . clamp64 . (+ n) . doubleInt64 $ x
 
--- | All 'Data.Int.Int08' values are exactly representable in a 'Double'.
-f64i08 :: Conn k Double (Extended Int8)
-f64i08 = fxxext
-
--- | All 'Data.Int.Int16' values are exactly representable in a 'Double'.
-f64i16 :: Conn k Double (Extended Int16)
-f64i16 = fxxext
-
--- | All 'Data.Int.Int32' values are exactly representable in a 'Double'.
-f64i32 :: Conn k Double (Extended Int32)
-f64i32 = fxxext
-
-f64i64 :: Conn 'L Double (Extended Int64)
-f64i64 = f64ext
-
-f64ixx :: Conn 'L Double (Extended Int)
-f64ixx = f64ext
-
-f64int :: Conn 'L Double (Extended Integer)
-f64int = f64ext
-
-f64f32 :: Conn k Double Float
-f64f32 = Conn f g h
-  where
-    f x =
-        let est = double2Float x
-         in if g est >~ x
-                then est
-                else ascend32 est g x
-
-    g = float2Double
-
-    h x =
-        let est = double2Float x
-         in if g est <~ x
-                then est
-                else descend32 est g x
-
-    ascend32 z g1 y = until (\x -> g1 x >~ y) (<~) (shift32 1) z
-
-    descend32 z h1 x = until (\y -> h1 y <~ x) (>~) (shift32 (-1)) z
-{-# INLINE f64f32 #-}
-
 ---------------------------------------------------------------------
 -- Internal
 ---------------------------------------------------------------------
@@ -328,48 +336,25 @@ clamp32 = P.max (-2139095041) . P.min 2139095040
 clamp64 :: Int64 -> Int64
 clamp64 = P.max (-9218868437227405313) . P.min 9218868437227405312
 
-f32ext :: Integral a => Conn 'L Float (Extended a)
-f32ext = ConnL f g
+fxxfxx :: (Total a, Fractional a) => Conn k (a, a) a
+fxxfxx = Conn f g h
   where
-    prec = 24 :: Int -- Float loses integer precision beyond 2^prec
-    f x
-        | abs x <= 2 ** 24 -1 = Finite (ceiling x)
-        | otherwise = case pcompare x 0 of
-            Just LT -> NegInf
-            _ -> Finite (2 ^ prec)
+    -- join
+    f (x, y) = maybe (1 / 0) (bool y x . (>= EQ)) (pcompare x y)
 
-    g NegInf = -2 ** 24
-    g PosInf = 1 / 0
-    g (Finite i)
-        | abs i P.<= 2 ^ prec -1 = fromIntegral i
-        | otherwise = if i P.>= 0 then 1 / 0 else -2 ** 24
-{-# INLINE f32ext #-}
+    g x = (x, x)
 
-f64ext :: Integral a => Conn 'L Double (Extended a)
-f64ext = ConnL f g
-  where
-    prec = 53 :: Int -- Double loses integer precision beyond 2^prec
-    f x
-        | abs x <= 2 ** 53 -1 = Finite (ceiling x)
-        | otherwise = case pcompare x 0 of
-            Just LT -> NegInf
-            _ -> Finite (2 ^ prec)
-
-    g NegInf = -2 ** 53
-    g PosInf = 1 / 0
-    g (Finite i)
-        | abs i P.<= 2 ^ prec -1 = fromIntegral i
-        | otherwise = if i P.>= 0 then 1 / 0 else -2 ** 53
-{-# INLINE f64ext #-}
+    -- meet
+    h (x, y) = maybe (-1 / 0) (bool y x . (<= EQ)) (pcompare x y)
 
 fxxext :: forall a b k. (RealFrac a, Preorder a, Bounded b, Integral b) => Conn k a (Extended b)
 fxxext = Conn f g h
   where
-    f = liftExtended (~~ -1 / 0) (\x -> x ~~ 0 / 0 || x > high) $ \x -> if x < low then minBound else ceiling x
+    f = extend (~~ -1 / 0) (\x -> x ~~ 0 / 0 || x > high) $ \x -> if x < low then minBound else ceiling x
 
     g = extended (-1 / 0) (1 / 0) fromIntegral
 
-    h = liftExtended (\x -> x ~~ 0 / 0 || x < low) (~~ 1 / 0) $ \x -> if x > high then maxBound else floor x
+    h = extend (\x -> x ~~ 0 / 0 || x < low) (~~ 1 / 0) $ \x -> if x > high then maxBound else floor x
 
     low = fromIntegral $ minBound @b
 
@@ -377,10 +362,51 @@ fxxext = Conn f g h
 {-# INLINE fxxext #-}
 
 {-
+f32i32 :: Conn 'L Float (Extended Int32)
+f32i32 = f32ext
 
-frac2fixed :: (RealFrac a, HasResolution b) => a -> Fixed b
-frac2fixed (flip approxRational 0 -> (n :% d)) = fromInteger n / fromInteger d
+f32i64 :: Conn 'L Float (Extended Int64)
+f32i64 = f32ext
 
---fixed2Float :: forall a . HasResolution a => Fixed a -> Float
---fixed2Float (MkFixed i) = rationalToFloat i $ resolution (Proxy :: Proxy a)
+f32ixx :: Conn 'L Float (Extended Int)
+f32ixx = f32ext
+
+f32int :: Conn 'L Float (Extended Integer)
+f32int = f32ext
+
+f64i64 :: Conn 'L Double (Extended Int64)
+f64i64 = f64ext
+
+f64ixx :: Conn 'L Double (Extended Int)
+f64ixx = f64ext
+
+{-# INLINE f64ext #-}
+f64int :: Conn 'L Double (Extended Integer)
+f64int = f64ext
+
+f32ext :: Integral a => Conn 'L Float (Extended a)
+f32ext = fxxextL 23 -- Float loses integer precision beyond 2^prec
+
+{-# INLINE f32ext #-}
+
+f64ext :: Integral a => Conn 'L Double (Extended a)
+f64ext = fxxextL 52 -- Double loses integer precision beyond 2^prec
+
+fxxextL :: (Preorder a, RealFrac a, Integral b) => b -> ConnL a (Extended b)
+fxxextL prec = ConnL f g
+  where
+    f x
+        | abs x <= 2 ^^ prec -1 = Finite (ceiling x)
+        | otherwise = case pcompare x 0 of
+            Just LT -> NegInf
+            _ -> Finite (2 ^ prec)
+
+    g NegInf = -2 ^^ prec
+    g PosInf = 1 / 0
+    g (Finite i)
+        | abs i P.<= 2 ^ prec -1 = fromIntegral i
+        | otherwise = if i P.>= 0 then 1 / 0 else -2 ^^ prec
+    
+{-# INLINE fxxextL #-}
+
 -}

@@ -29,7 +29,6 @@ module Data.Order (
     -- * Re-exports
     Ordering (..),
     Down (..),
-    Positive,
 ) where
 
 import safe Control.Applicative
@@ -50,7 +49,6 @@ import safe Data.Ord (Down (..))
 import safe qualified Data.Ord as Ord
 import safe Data.Semigroup
 import safe qualified Data.Set as Set
-import safe Data.Time
 import safe Data.Time.Clock.System
 import safe Data.Void
 import safe Data.Word
@@ -353,28 +351,10 @@ pcompareRat _ (x :% 0) = Just $ Ord.compare 0 x -- guard against div-by-zero exc
 pcompareRat (x :% 0) _ = Just $ Ord.compare x 0
 pcompareRat x y = Just $ Ord.compare x y
 
--- | Positive rationals, extended with an absorbing zero.
---
--- 'Positive' is the canonical < https://en.wikipedia.org/wiki/Semifield#Examples semifield >.
-type Positive = Ratio Natural
 
--- N5 lattice comparison
-pcomparePos :: Positive -> Positive -> Maybe Ordering
-pcomparePos (0 :% 0) (x :% 0) = Just $ Ord.compare 0 x
-pcomparePos (x :% 0) (0 :% 0) = Just $ Ord.compare x 0
-pcomparePos (_ :% 0) (_ :% 0) = Just EQ -- all non-nan infs are equal
-pcomparePos (0 :% 0) (0 :% _) = Just $ GT
-pcomparePos (0 :% _) (0 :% 0) = Just $ LT
-pcomparePos (0 :% 0) _ = Nothing
-pcomparePos _ (0 :% 0) = Nothing
-pcomparePos (x :% y) (x' :% y') = Just $ Ord.compare (x * y') (x' * y)
 
 instance Preorder Rational where
     pcompare = pcompareRat
-
-instance Preorder Positive where
-    pcompare = pcomparePos
-
 
 --deriving via (Base SystemTime) instance Preorder SystemTime
 instance Preorder SystemTime where

@@ -267,25 +267,6 @@ prop_order_rat = withTests 1000 . property $ do
   assert $ Prop.transitive_eq x y z
   assert $ Prop.chain_22 x y z w
 
-prop_order_pos :: Property
-prop_order_pos = withTests 1000 . property $ do
-  x <- forAll pos
-  y <- forAll pos
-  z <- forAll pos
-  w <- forAll pos
-  assert $ Prop.preorder x y
-  assert $ Prop.order z w
-  assert $ Prop.reflexive_eq x
-  assert $ Prop.reflexive_le x
-  assert $ Prop.irreflexive_lt x
-  assert $ Prop.symmetric_eq x y
-  assert $ Prop.asymmetric_lt x y
-  assert $ Prop.antisymmetric_le x y
-  assert $ Prop.transitive_lt x y z
-  assert $ Prop.transitive_le x y z
-  assert $ Prop.transitive_eq x y z
-  assert $ Prop.chain_22 x y z w
-
 prop_order_f32 :: Property
 prop_order_f32 = withTests 1000 . property $ do
   x <- forAll f32
