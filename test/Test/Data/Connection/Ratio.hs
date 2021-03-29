@@ -12,7 +12,6 @@ import Hedgehog
 import qualified Hedgehog.Gen as G
 import Test.Data.Connection
 
-
 prop_connection_ratw08 :: Property
 prop_connection_ratw08 = withTests 1000 . property $ do
     x <- forAll rat'

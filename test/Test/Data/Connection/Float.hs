@@ -5,9 +5,9 @@
 module Test.Data.Connection.Float where
 
 import Data.Connection.Float
+import qualified Data.Connection.Property as Prop
 import Data.Int
 import Data.Word
-import qualified Data.Connection.Property as Prop
 import Hedgehog
 import qualified Hedgehog.Gen as G
 import Test.Data.Connection

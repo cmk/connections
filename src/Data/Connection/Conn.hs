@@ -75,9 +75,9 @@ module Data.Connection.Conn (
     -- * Extended
     Lifted,
     Lowered,
-    Extended(..),
+    Extended (..),
     extended,
-    extend
+    extend,
 ) where
 
 import safe Control.Arrow ((&&&))
@@ -176,7 +176,6 @@ choice (Conn ab ba ab') (Conn cd dc cd') = Conn f g h
 infixr 3 `select`
 
 -- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Category_Theory/Categories_of_ordered_sets coproduct order>
---
 select :: Conn k c a -> Conn k c b -> Conn k c (Either a b)
 select f g = Conn Left (either id id) Right >>> f `choice` g
 
@@ -195,7 +194,6 @@ strong (Conn ab ba ab') (Conn cd dc cd') = Conn f g h
 infixr 4 `divide`
 
 -- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
---
 divide :: Total c => Conn k a c -> Conn k b c -> Conn k (a, b) c
 divide f g = f `strong` g >>> ordered
 
@@ -208,7 +206,6 @@ ordered = Conn (uncurry max) (id &&& id) (uncurry min)
 {-# INLINE ordered #-}
 
 -- | The defining connections of a bounded preorder.
---
 bounded :: Bounded a => Conn k () a
 bounded = Conn (const minBound) (const ()) (const maxBound)
 {-# INLINE bounded #-}
@@ -310,7 +307,6 @@ ceiling2 (ConnL f g) h b1 b2 = f $ h (g b1) (g b2)
 {-# INLINE ceiling2 #-}
 
 -- | Generalized maximum.
---
 maximize :: ConnL (a, b) c -> a -> b -> c
 maximize = curry . ceiling
 {-# INLINE maximize #-}
@@ -393,10 +389,6 @@ floor (ConnR _ g) = g
 --
 -- > x <~ floor1 c id x
 --
--- >>> floor1 (conn @_ @() @Ordering) id LT
--- GT
--- >>> floor1 (conn @_ @() @Ordering) id GT
--- GT
 floor1 :: ConnR a b -> (a -> a) -> b -> b
 floor1 (ConnR f g) h b = g $ h (f b)
 {-# INLINE floor1 #-}
@@ -407,7 +399,6 @@ floor2 (ConnR f g) h b1 b2 = g $ h (f b1) (f b2)
 {-# INLINE floor2 #-}
 
 -- | Generalized minimum.
---
 minimize :: ConnR (a, b) c -> a -> b -> c
 minimize = curry . floor
 {-# INLINE minimize #-}
@@ -435,7 +426,7 @@ pattern Conn f g h <- (inner &&& _1 &&& _2 -> (g, (h, f))) where Conn f g h = Co
 -- | Extract the upper adjoint of a 'ConnL', or lower adjoint of a 'ConnR'.
 --
 -- When the connection is an adjoint triple the inner function is returned:
---  
+--
 -- >>> inner ratf32 (1 / 8)    -- eighths are exactly representable in a float
 -- 1 % 8
 -- >>> inner ratf32 (1 / 7)    -- sevenths are not
@@ -447,7 +438,7 @@ inner (Conn_ _ g) = g
 -- | Extract the left and/or right adjoints of a connection.
 --
 -- When the connection is an adjoint triple the outer functions are returned:
--- 
+--
 -- > outer c = floor c &&& ceiling c
 --
 -- >>> outer ratf32 (1 % 8)    -- eighths are exactly representable in a float
@@ -636,7 +627,6 @@ filterL c a b = ceiling c a <~ b
 filterR :: Preorder b => ConnR a b -> a -> b -> Bool
 filterR c a b = b <~ floor c a
 {-# INLINE filterR #-}
-
 
 ---------------------------------------------------------------------
 -- Extended

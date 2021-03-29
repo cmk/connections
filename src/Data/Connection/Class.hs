@@ -38,7 +38,7 @@ import safe Data.Int
 import safe Data.Order
 import safe Data.Word
 import safe Numeric.Natural
-import safe Prelude hiding (floor, ceiling, round, truncate, fromInteger, fromRational)
+import safe Prelude hiding (ceiling, floor, fromInteger, fromRational, round, truncate)
 
 -- $setup
 -- >>> :set -XTypeApplications
@@ -61,14 +61,12 @@ class (Preorder a, Preorder b) => Connection k a b where
 type Left = Connection 'L
 
 -- | A specialization of /conn/ to left-side connections.
---
 left :: Left a b => ConnL a b
 left = conn @ 'L
 
 type Right = Connection 'R
 
 -- | A specialization of /conn/ to right-side connections.
---
 right :: Right a b => ConnR a b
 right = conn @ 'R
 
@@ -81,7 +79,6 @@ type ConnInteger a = Left a (Maybe Integer)
 -- | A replacement for the version in /base/.
 --
 --  Usable in conjunction with /RebindableSyntax/:
---
 fromInteger :: ConnInteger a => Integer -> a
 fromInteger = upper conn . Just
 
@@ -91,7 +88,6 @@ type ConnRational a = Triple Rational a
 -- | A replacement for the version in /base/.
 --
 -- Usable in conjunction with /RebindableSyntax/:
---
 fromRational :: forall a. ConnRational a => Rational -> a
 fromRational x = case pcompare r l of
     Just GT -> ceiling left x
@@ -101,7 +97,6 @@ fromRational x = case pcompare r l of
     r = x - lower1 (right @Rational @a) id x -- dist from lower bound
     l = upper1 (left @Rational @a) id x - x -- dist from upper bound
 {-# INLINE fromRational #-}
-
 
 ---------------------------------------------------------------------
 -- Instances
@@ -239,7 +234,6 @@ instance Connection 'L Int64 (Maybe Integer) where conn = i64int
 instance Connection 'L Int (Maybe Integer) where conn = ixxint
 
 instance Connection 'L Integer (Maybe Integer) where
-    -- | Supplied for use with /RebindableSyntax/
     conn = c1 >>> intnat >>> natint >>> c2
       where
         c1 = Conn shiftR shiftL shiftR
@@ -248,7 +242,6 @@ instance Connection 'L Integer (Maybe Integer) where
         shiftR x = x + m
         shiftL x = x - m
         m = 9223372036854775808
-
 
 instance Connection k Rational (Extended Word8) where conn = ratw08
 instance Connection k Rational (Extended Word16) where conn = ratw16
@@ -272,7 +265,6 @@ instance Connection k Float (Extended Int8) where conn = f32i08
 instance Connection k Float (Extended Int16) where conn = f32i16
 instance Connection 'L Float (Extended SystemTime) where conn = f32sys
 instance HasResolution res => Connection 'L Float (Extended (Fixed res)) where conn = connL ratf32 >>> ratfix
-
 
 instance Connection k Double (Extended Word8) where conn = f64w08
 instance Connection k Double (Extended Word16) where conn = f64w16

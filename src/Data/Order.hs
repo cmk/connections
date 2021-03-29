@@ -35,8 +35,8 @@ import safe Control.Applicative
 import safe Data.Bool
 import safe Data.Complex
 import safe Data.Either
-import safe Data.ExtendedReal
 import safe qualified Data.Eq as Eq
+import safe Data.ExtendedReal
 import safe Data.Fixed
 import safe Data.Functor.Identity
 import safe Data.Int
@@ -351,8 +351,6 @@ pcompareRat _ (x :% 0) = Just $ Ord.compare 0 x -- guard against div-by-zero exc
 pcompareRat (x :% 0) _ = Just $ Ord.compare x 0
 pcompareRat x y = Just $ Ord.compare x y
 
-
-
 instance Preorder Rational where
     pcompare = pcompareRat
 
@@ -361,17 +359,21 @@ instance Preorder SystemTime where
     pcompare = fmap Just . compareSys
 
 compareSys :: SystemTime -> SystemTime -> Ordering
-compareSys (norm -> MkSystemTime xs xn) (norm -> MkSystemTime ys yn) | EQ ==  os = Ord.compare xn yn
-                                                                     | otherwise = os
-                                                                       where  os = Ord.compare xs ys
+compareSys (norm -> MkSystemTime xs xn) (norm -> MkSystemTime ys yn)
+    | EQ == os = Ord.compare xn yn
+    | otherwise = os
+  where
+    os = Ord.compare xs ys
 
 s2ns :: Num a => a
-s2ns = 10^9
+s2ns = 10 ^ 9
 
 norm :: SystemTime -> SystemTime
-norm (MkSystemTime xs xn) | xn Ord.>= s2ns = MkSystemTime (xs + q) (fromIntegral r)
-                          | otherwise  = MkSystemTime  xs      xn
-                       where (q, r) = fromIntegral xn `divMod` s2ns
+norm (MkSystemTime xs xn)
+    | xn Ord.>= s2ns = MkSystemTime (xs + q) (fromIntegral r)
+    | otherwise = MkSystemTime xs xn
+  where
+    (q, r) = fromIntegral xn `divMod` s2ns
 
 instance (Preorder a, Num a) => Preorder (Complex a) where
     pcompare = pcomparing $ \(x :+ y) -> x * x + y * y

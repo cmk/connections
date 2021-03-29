@@ -147,7 +147,6 @@ type Meet = Semilattice 'R
 --
 -- See < https://en.wikipedia.org/wiki/Lattice_(order) >.
 class Order a => Semilattice k a where
-
     -- | The defining connection of a bound semilattice.
     --
     -- 'bottom' and 'top' are defined by the left and right adjoints to /a -> ()/.
@@ -167,7 +166,7 @@ infixr 6 /\ -- comment for the parser
 (/\) = curry $ floor semilattice
 
 -- | Greatest lower bound operator.
--- 
+--
 -- > glb x x y = x
 -- > glb x y z = glb z x y
 -- > glb x y z = glb x z y
@@ -523,8 +522,8 @@ class Symmetric a => Boolean a where
 -------------------------------------------------------------------------------
 
 instance Semilattice k () where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L () where algebra = coheyting impliesL
 instance Algebra 'R () where algebra = heyting impliesR
@@ -532,8 +531,8 @@ instance Symmetric () where not = id
 instance Boolean ()
 
 instance Semilattice k Bool where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Bool where algebra = coheyting impliesL
 instance Algebra 'R Bool where algebra = heyting impliesR
@@ -541,8 +540,8 @@ instance Symmetric Bool where not = P.not
 instance Boolean Bool
 
 instance Semilattice k Ordering where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Ordering where algebra = coheyting impliesL
 instance Algebra 'R Ordering where algebra = heyting impliesR
@@ -552,71 +551,71 @@ instance Symmetric Ordering where
     not GT = LT
 
 instance Semilattice k Word8 where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Word8 where algebra = coheyting impliesL
 instance Algebra 'R Word8 where algebra = heyting impliesR
 
 instance Semilattice k Word16 where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Word16 where algebra = coheyting impliesL
 instance Algebra 'R Word16 where algebra = heyting impliesR
 
 instance Semilattice k Word32 where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Word32 where algebra = coheyting impliesL
 instance Algebra 'R Word32 where algebra = heyting impliesR
 
 instance Semilattice k Word64 where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Word64 where algebra = coheyting impliesL
 instance Algebra 'R Word64 where algebra = heyting impliesR
 
 instance Semilattice k Word where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Word where algebra = coheyting impliesL
 instance Algebra 'R Word where algebra = heyting impliesR
 
 instance Semilattice k Int8 where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Int8 where algebra = coheyting impliesL
 instance Algebra 'R Int8 where algebra = heyting impliesR
 
 instance Semilattice k Int16 where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Int16 where algebra = coheyting impliesL
 instance Algebra 'R Int16 where algebra = heyting impliesR
 
 instance Semilattice k Int32 where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Int32 where algebra = coheyting impliesL
 instance Algebra 'R Int32 where algebra = heyting impliesR
 
 instance Semilattice k Int64 where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Int64 where algebra = coheyting impliesL
 instance Algebra 'R Int64 where algebra = heyting impliesR
 
 instance Semilattice k Int where
-  bound = bounded
-  semilattice = ordered
+    bound = bounded
+    semilattice = ordered
 
 instance Algebra 'L Int where algebra = coheyting impliesL
 instance Algebra 'R Int where algebra = heyting impliesR
@@ -778,7 +777,7 @@ instance Algebra 'L IntSet.IntSet where
     algebra = coheyting (IntSet.\\)
 
 instance Algebra 'R IntSet.IntSet where
-  --heyting = heyting $ \x y -> non x \/ y
+    --heyting = heyting $ \x y -> non x \/ y
     algebra = symmetricR
 
 instance Symmetric IntSet.IntSet where
@@ -815,8 +814,6 @@ instance (Join a) => Semilattice 'L (IntMap.IntMap a) where
 
 instance (Join a) => Algebra 'L (IntMap.IntMap a) where
     algebra = coheyting (IntMap.\\)
-
-
 
 -- Internal
 
