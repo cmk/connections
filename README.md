@@ -8,7 +8,7 @@ Hosted on [Hackage](https://hackage.haskell.org/package/connections).
 
 * [What is a connection?](#intro)
 * [What can you do with them?](#what)
-* [What's wrong with the numeric functions in `base`?](#base)
+* [What's wrong with the numeric conversions in `base`?](#base)
 
 
 
@@ -18,7 +18,7 @@ A [Galois connection](https://en.wikipedia.org/wiki/Galois_connection) between p
 
 For example:
 
-![](./example.png)
+![](img/example.png)
 
 Connections are useful for performing lawful conversions between different types [among other things](#what). This library provides connections between common types, combinators & accessors, including lawful versions of [`floor`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Conn.html#v:floor), [`ceiling`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Conn.html#v:ceiling), [`round`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Conn.html#v:round), and [`truncate`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Conn.html#v:truncate).
 
@@ -50,7 +50,7 @@ We can easily verify the adjointness property by hand in this case:
  `EQ`  | `>`/`>` | `=`/`<` |
  `GT`  | `>`/`>` | `=`/`=` |
 
-Each cell represents a pairing of (`x`,`y`) with the two relations `f x _ y` and `x _ g y`. A cell with either `=`/`>`, `>`/`=`, or arrows facing in opposite directions would indictate a failure. See the `test` folder for further examples, or `Data.Connection.Property` for the properties tested.
+Each cell represents a pairing of (`x`,`y`) with the two relations `f x _ y` and `x _ g y`. A cell with either `=`/`>`, `>`/`=`, or arrows facing in opposite directions would indictate a failure. See the `test` folder for further examples.
 
 Interestingly, there is a second 'flipped' connection available as well, where the same `g` can serve as the lower end:
 
@@ -88,11 +88,12 @@ Once again we can check the adjointness property for each of the two connections
  
  `f`/`g`/`h` |   `False`   |    `True`   |
 ------------ | ----------- | ----------- |
-    `LT`     | `=`/`=`/`=` | `<`/`<`/`<` |
-    `EQ`     | `>`/`>`/`=` | `=`/`<`/`<` |
-    `GT`     | `>`/`>`/`>` | `=`/`=`/`=` |
+ `LT`        | `=`/`=`/`=` | `<`/`<`/`<` |
+ `EQ`        | `>`/`>`/`=` | `=`/`<`/`<` |
+ `GT`        | `>`/`>`/`>` | `=`/`=`/`=` |
 
 
+See [`Data.Connection.Property`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Property.html) for a list of properties that all connections should satisfy.
 
 
 ### What can you do with them? <a name="what"></a>
@@ -150,7 +151,7 @@ You can also lift functions over connections:
 ```
 λ> :t round1 f64f32
 round1 f64f32 :: (Double -> Double) -> Float -> Float
-λ> f x = let m = 1.6777215e7 in (m + x) - m
+λ> f x = let m = 16777215 in (m + x) - m
 λ> f 2.0 :: Float
 1.0
 λ> round1 f64f32 f 2.0  -- Avoid loss of precision
@@ -184,21 +185,25 @@ Finite (MkSystemTime {systemSeconds = 3, systemNanoseconds = 141592654})
 diffSystemTime :: SystemTime -> SystemTime -> Double
 λ> diffSystemTime (MkSystemTime 0 0) (MkSystemTime 0 maxBound)
 -4.294967295
-divMod (maxBound @Word32) (10^9)
+λ> divMod (maxBound @Word32) (10^9)
 (4,294967295)
 ```
 
 
 
-### What's wrong with the numeric functions in `base`? <a name="base"></a>
+### What's wrong with the numeric conversions in `base`? <a name="base"></a>
 
-Quite a bit unfortunately. As far as `connections` is concerned though, there are two classes of problem: 
+Unfortunately `base` is in bad shape from an industrial user's perspective. Every class in the image below not colored yellow or orange has problems. Every 'numerical' class (blue or pink) has serious problems either in the specification, the instances, or both.
+
+![](img/haskell-typeclasses.png)
+
+With respect to numerical conversions there are two classes of problem: 
 
 * the `Fractional` instances of `Ord` (e.g. `Float`, `Double`, `Rational`)
-* the conversion methods of `Integral`, `Num`, `Real` and `Fractional`
+* the conversion methods of `Integral`, `Num`, `Real`, `Fractional`, and `RealFrac`
 
 
-##### Orders: total and partial 
+#### Orders: total and partial 
 
 The root problem here is quite old: `NaN` values (e.g. `0/0`, `0 * 1/0`, `1/0 - 1/0`, etc) are not comparable to any finite number, so fractional and floating point types cannot be totally ordered.
 
@@ -235,7 +240,7 @@ This is dangerous and can lead to bugs [well outside of numerical applications](
 
 
 
-##### Coercive conversions
+#### Coercive conversions
 
 The second set of problems is with the various conversion methods defined in `Integral`, `Num`, `Real` and `Fractional`:
 
@@ -262,7 +267,7 @@ The problem with the conversion methods is that they are all lawless: the classe
 One could object that the examples above are exceptional. Unfortunately, surprises can occur in completely mundane situations as well:
 
 ```
-λ> fromRational @Float 5000000.2 -- your fintech backend is under-charging 20¢ on every $5M transaction
+λ> fromRational @Float 5000000.2 -- your fintech app is under-charging 20¢ on every $5M transaction
 5000000.0
 λ> fromRational @Float 5000000.3 -- or is it over-charging 20¢?
 5000000.5
@@ -271,16 +276,24 @@ One could object that the examples above are exceptional. Unfortunately, surpris
 Worse, these conversion methods in turn give rise to the aptly-named [coercions](hackage.haskell.org/package/base/docs/src/GHC-Real.html#fromIntegral):
 
 ```
-fromIntegral :: (Integral a, Num b) => a -> b
-fromIntegral = fromInteger . toInteger
-
 realToFrac :: (Real a, Fractional b) => a -> b
 realToFrac = fromRational . toRational
+
+fromIntegral :: (Integral a, Num b) => a -> b
+fromIntegral = fromInteger . toInteger
 ```
 
 If you're not careful, these 'just make it type-check' functions will get slotted in everywhere in your application. Sometimes that's ok, but if your application has to deal with small, large, infinite, or otherwise exceptional values then the resultant behavior will make your (or somebody's) life miserable:
 
 ```
+λ> realToFrac @Float @Double (1/0)
+3.402823669209385e38
+λ> realToFrac @Double @Float (1/0)
+Infinity
+λ> realToFrac @Rational @Double (1 :% 0)
+Infinity
+λ> realToFrac @Double @Rational (1/0)
+179769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137216 % 1
 λ> fromIntegral @Int8 @Word8 128
 128
 λ> fromIntegral @Int8 @Word 128
@@ -289,47 +302,88 @@ If you're not careful, these 'just make it type-check' functions will get slotte
 *** Exception: arithmetic underflow
 ```
 
-```
-λ> realToFrac @Float @Double 8765432.1
-8765432.0
-λ> realToFrac @Double @Float (1/0)
-Infinity
-λ> realToFrac @Rational @Double (1 :% 0)
-Infinity
-λ> realToFrac @Double @Rational (1/0)
-179769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137216 % 1 -- Infinity is a 309 digit number
-```
+What happened in that last example to create an underflow exception? If anything you would expect overflow. 
 
-A similar set of issues arises from the methods of [`RealFrac`](hackage.haskell.org/package/base/docs/GHC-Real.html#t:RealFrac):
+This is what happened:
 
 ```
-floor :: (RealFrac a, Integral b) => a -> b
-ceiling :: (RealFrac a, Integral b) => a -> b
-round :: (RealFrac a, Integral b) => a -> b
-truncate :: (RealFrac a, Integral b) => a -> b
+λ> toInteger @Int8 128
+-128
+λ> fromInteger @Natural (-128)
+*** Exception: arithmetic underflow
 ```
 
-Here again to the extent that laws are given (e.g. 'ceiling x returns the least integer not less than x'), they seem to be easily violated: 
+It's a good example of why composition is only your friend if it comes with composable guarantees. 
+
+
+Finally, let's look at [`RealFrac`](www.hackage.haskell.org/package/base/docs/GHC-Real.html#t:RealFrac):
+
+```  
+-- | Extracting components of fractions.
+class  (Real a, Fractional a) => RealFrac a where
+
+    -- | The function 'properFraction' takes a real fractional number @x@
+    -- and returns a pair @(n,f)@ such that @x = n+f@, and:
+    --
+    -- * @n@ is an integral number with the same sign as @x@; and
+    --
+    -- * @f@ is a fraction with the same type and sign as @x@,
+    --   and with absolute value less than @1@.
+    --
+    -- The default definitions of the 'ceiling', 'floor', 'truncate'
+    -- and 'round' functions are in terms of 'properFraction'.
+    properFraction      :: (Integral b) => a -> (b,a)
+    
+    -- | @'truncate' x@ returns the integer nearest @x@ between zero and @x@
+    truncate            :: (Integral b) => a -> b
+    
+    -- | @'round' x@ returns the nearest integer to @x@;
+    --   the even integer if @x@ is equidistant between two integers
+    round               :: (Integral b) => a -> b
+    
+    -- | @'ceiling' x@ returns the least integer not less than @x@
+    ceiling             :: (Integral b) => a -> b
+    
+    -- | @'floor' x@ returns the greatest integer not greater than @x@
+    floor               :: (Integral b) => a -> b
+
+    {-# MINIMAL properFraction #-}
+```
+
+By now you might be suspicious of these claims. If so, your suspicion would be rewarded:
+
 
 ```
-λ> ceiling @Float @Int (1/0)
-0
+λ> properFraction @Float @Int 3000000.1
+(3000000,0.0)
 λ> ceiling @Float @Int 3000000.1
 3000000
 ```
 
-Finally, because everyting is forced to go through `Integer` and/or `Rational` you get wierd effects 
+The situation again is especially bad for floating point types, which are forced to go through `Integer` and/or `Rational`:
 
 ```
+λ> properFraction @Float @Int (1/0)
+(0,0.0)
+λ> ceiling @Float @Int (1/0)
+0
+λ> properFraction @Float @Integer (1/0)
+(340282366920938463463374607431768211456,0.0)
+λ> ceiling @Float @Integer (1/0)
+340282366920938463463374607431768211456
+λ> realToFrac @Float @Rational (1/0)
+340282366920938463463374607431768211456 % 1
+```
+
+Even conversions between `Float` and `Double`, which should be straightforward, are impacted:
+
+```
+λ> realToFrac @Float @Double (1/0)
+3.402823669209385e38
 λ> import GHC.Float (float2Double)
 λ> float2Double (1/0)
 Infinity
-λ> realToFrac @Float @Double (1/0)
-3.402823669209385e38
-λ> realToFrac @Float @Rational (1/0)
-340282366920938463463374607431768211456 % 1
-λ> ceiling @Float @Integer (1/0)  
-340282366920938463463374607431768211456 -- must be somebody's favorite number
 ```
 
-The basic problem behind all of this is that functions that can only be meaningfully given laws in pairs (like `toRational` and `fromRational`) are instead broken up between different classes, with no semantics whatsoever.
+The meta-problem behind all of these problems is the mis-specification of the numeric type classes in `base`. Functions that can only be meaningfully given laws in pairs (like `toRational` and `fromRational`) are instead broken up between different classes, laws are either non-existant or (worse) misleading, and users are left to fend for themselves.
+
