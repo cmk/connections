@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.com/cmk/connections.svg?branch=master)](https://travis-ci.com/cmk/connections)
 
-This library provides an API for working with Galois connections on various common preorders.
+`connections` is a library for working with Galois connections on various common preorders.
 
 Hosted on [Hackage](https://hackage.haskell.org/package/connections).
 
@@ -16,7 +16,7 @@ Hosted on [Hackage](https://hackage.haskell.org/package/connections).
 
 A [Galois connection](https://en.wikipedia.org/wiki/Galois_connection) between preorders P and Q is a pair of monotone maps `f :: p -> q` and `g :: q -> p` such that `f x <= y` if and only if `x <= g y`. We say that `f` is the left or lower adjoint, and `g` is the right or upper adjoint of the connection.
 
-For example:
+For illustration, here is a simple example from [7 Sketches](https://math.mit.edu/~dspivak/teaching/sp18/7Sketches.pdf):
 
 ![](img/example.png)
 
@@ -193,14 +193,14 @@ diffSystemTime :: SystemTime -> SystemTime -> Double
 
 ### What's wrong with the numeric conversions in `base`? <a name="base"></a>
 
-Unfortunately `base` is in bad shape from an industrial user's perspective. Every class in the image below not colored yellow or orange has problems. Every 'numerical' class (blue or pink) has serious problems either in the specification, the instances, or both.
+From an industrial user's perspective, `base` is unfortunately in pretty bad shape. Every class in the image below not colored yellow or orange has problems in my opinion. Every 'numerical' class (blue or pink) has serious problems either in the interface, the instances, or both.
 
 ![](img/haskell-typeclasses.png)
 
 With respect to numerical conversions there are two classes of problem: 
 
-* the `Fractional` instances of `Ord` (e.g. `Float`, `Double`, `Rational`)
-* the conversion methods of `Integral`, `Num`, `Real`, `Fractional`, and `RealFrac`
+* the non-integral instances of `Ord` (e.g. `Float`, `Double`, `Rational`, `Scientific`, etc.)
+* the interfaces of `Integral`, `Num`, `Real`, `Fractional`, and `RealFrac`
 
 
 #### Orders: total and partial 

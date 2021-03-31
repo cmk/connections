@@ -1,6 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE Safe #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -13,41 +14,48 @@
 --  \( \forall x : f \dashv g \Rightarrow f \circ g (x) \leq x \)
 module Data.Connection.Property (
     -- * Adjointness
+    adjoint,
     adjointL,
     adjointR,
-    adjoint,
     adjunction,
 
     -- * Closure
+    closed,
     closedL,
     closedR,
-    closed,
+    kernel,
     kernelL,
     kernelR,
-    kernel,
     invertible,
 
     -- * Monotonicity
+    monotonic,
     monotonicR,
     monotonicL,
-    monotonic,
     monotone,
 
     -- * Idempotence
+    idempotent,
     idempotentL,
     idempotentR,
-    idempotent,
     projective,
 ) where
 
-import Data.Connection
-import Data.Order
-import Data.Order.Property
-import Prelude hiding (Num (..), Ord (..), ceiling, floor)
+import safe Data.Connection.Conn
+import safe Data.Order
+import safe Data.Order.Property
+import safe Prelude hiding (Num (..), Ord (..), ceiling, floor)
 
 -- Adjointness
 
 -------------------------
+
+adjoint :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> b -> Bool
+adjoint t a b =
+    adjointL t a b
+        && adjointR t a b
+        && adjointL (connL t) b a
+        && adjointR (connR t) b a
 
 -- | \( \forall x, y : f \dashv g \Rightarrow f (x) \leq y \Leftrightarrow x \leq g (y) \)
 --
@@ -57,13 +65,6 @@ adjointL (ConnL f g) = adjunction (<~) (<~) f g
 
 adjointR :: (Preorder a, Preorder b) => ConnR a b -> a -> b -> Bool
 adjointR (ConnR f g) = adjunction (>~) (>~) g f
-
-adjoint :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> b -> Bool
-adjoint t a b =
-    adjointL t a b
-        && adjointR t a b
-        && adjointL (connL t) b a
-        && adjointR (connR t) b a
 
 -- | \( \forall a: f a \leq b \Leftrightarrow a \leq g b \)
 --
@@ -76,6 +77,9 @@ adjunction (#) (%) f g a b = f a # b <=> a % g b
 
 -------------------------
 
+closed :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> Bool
+closed t a = closedL t a && closedR t a
+
 -- | \( \forall x : f \dashv g \Rightarrow x \leq g \circ f (x) \)
 --
 -- This is a required property.
@@ -85,8 +89,8 @@ closedL (ConnL f g) = invertible (>~) f g
 closedR :: (Preorder a, Preorder b) => ConnR a b -> a -> Bool
 closedR (ConnR f g) = invertible (<~) g f
 
-closed :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> Bool
-closed t a = closedL t a && closedR t a
+kernel :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> b -> Bool
+kernel t b = kernelL t b && kernelR t b
 
 -- | \( \forall x : f \dashv g \Rightarrow x \leq g \circ f (x) \)
 --
@@ -97,9 +101,6 @@ kernelL (ConnL f g) = invertible (<~) g f
 kernelR :: (Preorder a, Preorder b) => ConnR a b -> b -> Bool
 kernelR (ConnR f g) = invertible (>~) f g
 
-kernel :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> b -> Bool
-kernel t b = kernelL t b && kernelR t b
-
 -- | \( \forall a: f (g a) \sim a \)
 invertible :: Rel s b -> (s -> r) -> (r -> s) -> s -> b
 invertible (#) f g a = g (f a) # a
@@ -107,6 +108,9 @@ invertible (#) f g a = g (f a) # a
 -- Monotonicity
 
 -------------------------
+
+monotonic :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> a -> b -> b -> Bool
+monotonic t a1 a2 b1 b2 = monotonicL t a1 a2 b1 b2 && monotonicR t a1 a2 b1 b2
 
 -- | \( \forall x, y : x \leq y \Rightarrow f (x) \leq f (y) \)
 --
@@ -117,9 +121,6 @@ monotonicR (ConnR f g) a1 a2 b1 b2 = monotone (<~) (<~) g a1 a2 && monotone (<~)
 monotonicL :: (Preorder a, Preorder b) => ConnL a b -> a -> a -> b -> b -> Bool
 monotonicL (ConnL f g) a1 a2 b1 b2 = monotone (<~) (<~) f a1 a2 && monotone (<~) (<~) g b1 b2
 
-monotonic :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> a -> b -> b -> Bool
-monotonic t a1 a2 b1 b2 = monotonicL t a1 a2 b1 b2 && monotonicR t a1 a2 b1 b2
-
 -- | \( \forall a, b: a \leq b \Rightarrow f(a) \leq f(b) \)
 monotone :: Rel r Bool -> Rel s Bool -> (r -> s) -> r -> r -> Bool
 monotone (#) (%) f a b = a # b ==> f a % f b
@@ -127,6 +128,9 @@ monotone (#) (%) f a b = a # b ==> f a % f b
 -- Idempotence
 
 -------------------------
+
+idempotent :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> b -> Bool
+idempotent t a b = idempotentL t a b && idempotentR t a b
 
 -- | \( \forall x: f \dashv g \Rightarrow counit \circ f (x) \sim f (x) \wedge unit \circ g (x) \sim g (x) \)
 --
@@ -136,9 +140,6 @@ idempotentL c@(ConnL f g) a b = projective (~~) g (upper1 c id) b && projective 
 
 idempotentR :: (Preorder a, Preorder b) => ConnR a b -> a -> b -> Bool
 idempotentR c@(ConnR f g) a b = projective (~~) g (floor1 c id) a && projective (~~) f (lower1 c id) b
-
-idempotent :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> b -> Bool
-idempotent t a b = idempotentL t a b && idempotentR t a b
 
 -- | \( \forall a: g \circ f (a) \sim f (a) \)
 projective :: Rel s b -> (r -> s) -> (s -> s) -> r -> b

@@ -1,10 +1,9 @@
-{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE Safe #-}
 
 module Data.Connection.Float (
     -- * Float
@@ -13,14 +12,12 @@ module Data.Connection.Float (
     f32i08,
     f32i16,
     f32f32,
-    min32,
-    max32,
-    eps32,
     ulp32,
     near32,
     shift32,
 
     -- * Double
+    f64f64,
     f64w08,
     f64w16,
     f64w32,
@@ -28,10 +25,6 @@ module Data.Connection.Float (
     f64i16,
     f64i32,
     f64f32,
-    f64f64,
-    min64,
-    max64,
-    eps64,
     ulp64,
     near64,
     shift64,
@@ -42,7 +35,7 @@ import safe Data.Bool
 import safe Data.Connection.Conn hiding (ceiling, floor)
 import safe Data.Int
 import safe Data.Order
-import safe Data.Order.Syntax hiding (max, min)
+import safe Data.Order.Syntax
 import safe Data.Word
 import safe GHC.Float as F
 import safe Prelude hiding (Eq (..), Ord (..), until)
@@ -52,57 +45,20 @@ import safe qualified Prelude as P
 -- Float
 ---------------------------------------------------------------------
 
--- | All 'Data.Word.Word08' values are exactly representable in a 'Float'.
-f32w08 :: Conn k Float (Extended Word8)
-f32w08 = fxxext
-
--- | All 'Data.Word.Word16' values are exactly representable in a 'Float'.
-f32w16 :: Conn k Float (Extended Word16)
-f32w16 = fxxext
-
--- | All 'Data.Int.Int08' values are exactly representable in a 'Float'.
-f32i08 :: Conn k Float (Extended Int8)
-f32i08 = fxxext
-
--- | All 'Data.Int.Int16' values are exactly representable in a 'Float'.
---
--- >>> Data.Connection.Conn.ceiling f32i16 32767.0
--- Finite 32767
--- >>> Data.Connection.Conn.ceiling f32i16 32767.1
--- PosInf
-f32i16 :: Conn k Float (Extended Int16)
-f32i16 = fxxext
-
 f32f32 :: Conn k (Float, Float) Float
 f32f32 = fxxfxx
 
--- | A /NaN/-handling min32 function.
---
--- > min32 x NaN = x
--- > min32 NaN y = y
-min32 :: Float -> Float -> Float
-min32 x y = case (isNaN x, isNaN y) of
-    (False, False) -> if x <= y then x else y
-    (False, True) -> x
-    (True, False) -> y
-    (True, True) -> x
+f32w08 :: Conn k Float (Extended Word8)
+f32w08 = fxxext
 
--- | A /NaN/-handling max32 function.
---
--- > max32 x NaN = x
--- > max32 NaN y = y
-max32 :: Float -> Float -> Float
-max32 x y = case (isNaN x, isNaN y) of
-    (False, False) -> if x >= y then x else y
-    (False, True) -> x
-    (True, False) -> y
-    (True, True) -> x
+f32w16 :: Conn k Float (Extended Word16)
+f32w16 = fxxext
 
--- | Compute the difference between a float and its next largest neighbor.
---
--- See < https://en.wikipedia.org/wiki/Machine_epsilon >.
-eps32 :: Float -> Float
-eps32 x = shift32 1 x - x
+f32i08 :: Conn k Float (Extended Int8)
+f32i08 = fxxext
+
+f32i16 :: Conn k Float (Extended Int16)
+f32i16 = fxxext
 
 -- | Compute the signed distance between two floats in units of least precision.
 --
@@ -152,27 +108,24 @@ shift32 n x =
 -- Double
 ---------------------------------------------------------------------
 
--- | All 'Data.Word.Word08' values are exactly representable in a 'Double'.
+f64f64 :: Conn k (Double, Double) Double
+f64f64 = fxxfxx
+
 f64w08 :: Conn k Double (Extended Word8)
 f64w08 = fxxext
 
--- | All 'Data.Word.Word16' values are exactly representable in a 'Double'.
 f64w16 :: Conn k Double (Extended Word16)
 f64w16 = fxxext
 
--- | All 'Data.Word.Word32' values are exactly representable in a 'Double'.
 f64w32 :: Conn k Double (Extended Word32)
 f64w32 = fxxext
 
--- | All 'Data.Int.Int08' values are exactly representable in a 'Double'.
 f64i08 :: Conn k Double (Extended Int8)
 f64i08 = fxxext
 
--- | All 'Data.Int.Int16' values are exactly representable in a 'Double'.
 f64i16 :: Conn k Double (Extended Int16)
 f64i16 = fxxext
 
--- | All 'Data.Int.Int32' values are exactly representable in a 'Double'.
 f64i32 :: Conn k Double (Extended Int32)
 f64i32 = fxxext
 
@@ -197,37 +150,6 @@ f64f32 = Conn f g h
 
     descend32 z h1 x = until (\y -> h1 y <~ x) (>~) (shift32 (-1)) z
 {-# INLINE f64f32 #-}
-
-f64f64 :: Conn k (Double, Double) Double
-f64f64 = fxxfxx
-
--- | A /NaN/-handling min function.
---
--- > min64 x NaN = x
--- > min64 NaN y = y
-min64 :: Double -> Double -> Double
-min64 x y = case (isNaN x, isNaN y) of
-    (False, False) -> if x <= y then x else y
-    (False, True) -> x
-    (True, False) -> y
-    (True, True) -> x
-
--- | A /NaN/-handling max function.
---
--- > max64 x NaN = x
--- > max64 NaN y = y
-max64 :: Double -> Double -> Double
-max64 x y = case (isNaN x, isNaN y) of
-    (False, False) -> if x >= y then x else y
-    (False, True) -> x
-    (True, False) -> y
-    (True, True) -> x
-
--- | Compute the difference between a double and its next largest neighbor.
---
--- See < https://en.wikipedia.org/wiki/Machine_epsilon >.
-eps64 :: Double -> Double
-eps64 x = shift64 1 x - x
 
 -- | Compute the signed distance between two doubles in units of least precision.
 --

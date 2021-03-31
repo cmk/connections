@@ -25,7 +25,6 @@ module Data.Connection.Class (
 ) where
 
 import safe Control.Category ((>>>))
-import safe Data.Bool (bool)
 import safe Data.Connection.Conn
 import safe Data.Connection.Fixed
 import safe Data.Connection.Float
@@ -40,22 +39,9 @@ import safe Data.Word
 import safe Numeric.Natural
 import safe Prelude hiding (ceiling, floor, fromInteger, fromRational, round, truncate)
 
--- $setup
--- >>> :set -XTypeApplications
--- >>> :set -XFlexibleContexts
--- >>> import GHC.Real (Ratio(..))
--- >>> import Data.IntSet (IntSet,fromList)
--- >>> :load Data.Connection
--- >>> import Prelude hiding (round, floor, ceiling, truncate)
-
--- | An < https://ncatlab.org/nlab/show/adjoint+string adjoint string > of Galois connections of length 2 or 3.
+-- | A < https://ncatlab.org/nlab/show/adjoint+string chain > of Galois connections of length 2 or 3.
 class (Preorder a, Preorder b) => Connection k a b where
-    -- |
-    --
-    -- >>> outer (conn @_ @Rational @Float) (22 :% 7)
-    -- (3.142857,3.1428573)
-    -- >>> outer (conn @_ @Double @Float) pi
-    -- (3.1415925,3.1415927)
+    
     conn :: Conn k a b
 
 type Left = Connection 'L
@@ -92,7 +78,7 @@ fromRational :: forall a. ConnRational a => Rational -> a
 fromRational x = case pcompare r l of
     Just GT -> ceiling left x
     Just LT -> floor right x
-    _ -> if x >~ 0 then ceiling left x else floor right x
+    _ -> if x >~ 0 then floor right x else ceiling left x
   where
     r = x - lower1 (right @Rational @a) id x -- dist from lower bound
     l = upper1 (left @Rational @a) id x - x -- dist from upper bound
@@ -234,6 +220,10 @@ instance Connection 'L Int64 (Maybe Integer) where conn = i64int
 instance Connection 'L Int (Maybe Integer) where conn = ixxint
 
 instance Connection 'L Integer (Maybe Integer) where
+    -- | 
+    --
+    -- NB: This instance is provided for use with 'fromInteger'.
+    -- It is lawful for /abs i <= maxBound @Int64/
     conn = c1 >>> intnat >>> natint >>> c2
       where
         c1 = Conn shiftR shiftL shiftR
@@ -263,8 +253,7 @@ instance Connection k Float (Extended Word8) where conn = f32w08
 instance Connection k Float (Extended Word16) where conn = f32w16
 instance Connection k Float (Extended Int8) where conn = f32i08
 instance Connection k Float (Extended Int16) where conn = f32i16
-instance Connection 'L Float (Extended SystemTime) where conn = f32sys
-instance HasResolution res => Connection 'L Float (Extended (Fixed res)) where conn = connL ratf32 >>> ratfix
+instance HasResolution res => Connection 'L Float (Extended (Fixed res)) where conn = f32fix
 
 instance Connection k Double (Extended Word8) where conn = f64w08
 instance Connection k Double (Extended Word16) where conn = f64w16
@@ -272,39 +261,13 @@ instance Connection k Double (Extended Word32) where conn = f64w32
 instance Connection k Double (Extended Int8) where conn = f64i08
 instance Connection k Double (Extended Int16) where conn = f64i16
 instance Connection k Double (Extended Int32) where conn = f64i32
-instance Connection 'L Double (Extended SystemTime) where conn = f64sys
-instance HasResolution res => Connection 'L Double (Extended (Fixed res)) where conn = connL ratf64 >>> ratfix
+instance HasResolution res => Connection 'L Double (Extended (Fixed res)) where conn = f64fix
 
 instance Connection k a b => Connection k (Identity a) b where
     conn = Conn runIdentity Identity runIdentity >>> conn
 
 instance Connection k a b => Connection k a (Identity b) where
     conn = conn >>> Conn Identity runIdentity Identity
-
-{-
-instance (Triple () a, Triple () b) => Connection k () (a, b) where
-    conn = Conn (const (minimal, minimal)) (const ()) (const (maximal, maximal))
-
-instance Preorder a => Connection 'L () (Maybe a) where
-    conn = ConnL (const Nothing) (const ())
-
-instance Right () a => Connection 'R () (Maybe a) where
-    conn = ConnR (const ()) (const $ Just maximal)
-
-instance Preorder a => Connection k () (Extended a) where
-    conn = Conn (const NegInf) (const ()) (const PosInf)
-
-instance (Left () a, Preorder b) => Connection 'L () (Either a b) where
-    conn = ConnL (const $ Left minimal) (const ())
-
-instance (Preorder a, Right () b) => Connection 'R () (Either a b) where
-    conn = ConnR (const ()) (const $ Right maximal)
-
-instance (Preorder a, Right b Bool) => Connection k (Maybe a) (Either a b) where
-    conn = maybeR right
-instance (Left a Bool, Preorder b) => Connection k (Maybe b) (Either a b) where
-    conn = maybeL left
--}
 
 -- Internal
 
@@ -326,71 +289,3 @@ bounds x y = Conn f g h
     h i
         | i == y = True
         | otherwise = False
-
-{-
-instance (Triple (a, a) a, Triple (b, b) b) => Connection k ((a, b), (a, b)) (a, b) where
-  conn = Conn (uncurry joinTuple) fork (uncurry meetTuple)
-
-instance Left (a, a) a => Connection 'L (Maybe a, Maybe a) (Maybe a) where
-  conn = ConnL (uncurry joinMaybe) fork
-
-instance Right (a, a) a => Connection 'R (Maybe a, Maybe a) (Maybe a) where
-  conn = ConnR fork (uncurry meetMaybe)
-
-instance Left (a, a) a => Connection 'L (Extended a, Extended a) (Extended a) where
-  conn = ConnL (uncurry joinExtended) fork
-
-instance Right (a, a) a => Connection 'R (Extended a, Extended a) (Extended a) where
-  conn = ConnR fork (uncurry meetExtended)
-
--- | All minimal elements of the upper lattice cover all maximal elements of the lower lattice.
-instance (Left (a, a) a, Left (b, b) b) => Connection 'L (Either a b, Either a b) (Either a b) where
-  conn = ConnL (uncurry joinEither) fork
-
-instance (Right (a, a) a, Right (b, b) b) => Connection 'R (Either a b, Either a b) (Either a b) where
-  conn = ConnR fork (uncurry meetEither)
-
-joinMaybe :: Connection 'L (a, a) a => Maybe a -> Maybe a -> Maybe a
-joinMaybe (Just x) (Just y) = Just (x `join` y)
-joinMaybe u@(Just _) _ = u
-joinMaybe _ u@(Just _) = u
-joinMaybe Nothing Nothing = Nothing
-
-meetMaybe :: Right (a, a) a => Maybe a -> Maybe a -> Maybe a
-meetMaybe Nothing Nothing = Nothing
-meetMaybe Nothing _ = Nothing
-meetMaybe _ Nothing = Nothing
-meetMaybe (Just x) (Just y) = Just (x `meet` y)
-
-joinExtended :: Connection 'L (a, a) a => Extended a -> Extended a -> Extended a
-joinExtended PosInf          _            = PosInf
-joinExtended _            PosInf          = PosInf
-joinExtended (Extended x) (Extended y) = Extended (x `join` y)
-joinExtended NegInf       y            = y
-joinExtended x            NegInf       = x
-
-meetExtended :: Right (a, a) a => Extended a -> Extended a -> Extended a
-meetExtended PosInf          y            = y
-meetExtended x            PosInf          = x
-meetExtended (Extended x) (Extended y) = Extended (x `meet` y)
-meetExtended NegInf       _            = NegInf
-meetExtended _            NegInf       = NegInf
-
-joinEither :: (Connection 'L (a, a) a, Connection 'L (b, b) b) => Either a b -> Either a b -> Either a b
-joinEither (Right x) (Right y) = Right (x `join` y)
-joinEither u@(Right _) _ = u
-joinEither _ u@(Right _) = u
-joinEither (Left x) (Left y) = Left (x `join` y)
-
-meetEither :: (Right (a, a) a, Right (b, b) b) => Either a b -> Either a b -> Either a b
-meetEither (Left x) (Left y) = Left (x `meet` y)
-meetEither l@(Left _) _ = l
-meetEither _ l@(Left _) = l
-meetEither (Right x) (Right y) = Right (x `meet` y)
-
-joinTuple :: (Connection 'L (a, a) a, Connection 'L (b, b) b) => (a, b) -> (a, b) -> (a, b)
-joinTuple (x1, y1) (x2, y2) = (x1 `join` x2, y1 `join` y2)
-
-meetTuple :: (Right (a, a) a, Right (b, b) b) => (a, b) -> (a, b) -> (a, b)
-meetTuple (x1, y1) (x2, y2) = (x1 `meet` x2, y1 `meet` y2)
--}

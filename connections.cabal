@@ -1,7 +1,9 @@
 name:                connections
-version:             0.3.0
+version:             0.3.1
 synopsis:            Orders, Galois connections, and lattices.
-description:         A library for order manipulation using Galois connections. See the README for a brief overview.
+description:         A library for working with Galois connections on various common preorders.
+                     .
+                     See the README for an overview.
 homepage:            https://github.com/cmk/connections
 license:             BSD3
 license-file:        LICENSE
@@ -13,7 +15,9 @@ build-type:          Simple
 extra-source-files:
   ChangeLog.md
   README.md
-cabal-version:       >=1.10
+extra-doc-files:
+  img/*.png
+cabal-version:       1.18
 
 library
   hs-source-dirs:   src
@@ -36,10 +40,10 @@ library
     , Data.Lattice.Property
 
     , Data.Order
+    , Data.Order.Interval
     , Data.Order.Property
     , Data.Order.Syntax
-    
-    , Data.Order.Interval
+
   build-depends:       
       base            >= 4.10    && < 5.0
     , containers      >= 0.4.0   && < 1.0

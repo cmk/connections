@@ -62,7 +62,7 @@ module Data.Lattice (
 
 import safe Data.Bifunctor (bimap)
 import safe Data.Bool hiding (not)
-import safe Data.Connection
+import safe Data.Connection.Conn
 import safe Data.Either
 import safe Data.Int
 import safe qualified Data.IntMap as IntMap
@@ -75,9 +75,9 @@ import safe Data.Word
 import safe Prelude hiding (Eq (..), Ord (..), ceiling, floor, not)
 import safe qualified Prelude as P
 
--- >>> import Data.IntSet (IntSet,fromList)
+-- >>> import safe Data.IntSet (IntSet,fromList)
 -- >>> :load Data.Connection
--- >>> import Prelude hiding (round, floor, ceiling, truncate)
+-- >>> import safe Prelude hiding (round, floor, ceiling, truncate)
 
 -------------------------------------------------------------------------------
 -- Lattices
@@ -254,7 +254,7 @@ type Biheyting a = (Coheyting a, Heyting a)
 --
 -- > EQ /\ non EQ = EQ /\ GT \\ EQ = EQ /\ GT = EQ /= LT
 --
--- See < https://ncatlab.org/nlab/show/co-Algebra+algebra >
+-- See < https://ncatlab.org/nlab/show/co-Heyting+algebra >
 --
 -- /Heyting/:
 --
@@ -329,7 +329,7 @@ iff x y = (x // y) /\ (y // x)
 -- > neg (neg (neg x)) = neg x
 -- > neg (neg (x \/ neg x)) = top
 --
--- Some logics may in addition obey < https://ncatlab.org/nlab/show/De+Morgan+Algebra+algebra De Morgan conditions >.
+-- Some logics may in addition obey < https://ncatlab.org/nlab/show/De+Morgan+Heyting+algebra De Morgan conditions >.
 neg :: Heyting a => a -> a
 neg x = x // bottom
 
@@ -345,11 +345,11 @@ heyting f a = ConnR (a /\) (a `f`)
 --
 -- Double negation is a meet-preserving monad.
 booleanR :: Heyting a => ConnR a a
-booleanR =
-    let -- Check that /x/ is a regular element
-        -- See https://ncatlab.org/nlab/show/regular+element
-        inj x = if x ~~ (neg . neg) x then x else bottom
-     in ConnR (neg . neg) inj
+booleanR = ConnR (neg . neg) inj
+  where
+    -- Check that /x/ is a regular element
+    -- See https://ncatlab.org/nlab/show/regular+element
+    inj x = if x ~~ (neg . neg) x then x else bottom
 
 -------------------------------------------------------------------------------
 -- Coheyting
@@ -430,11 +430,11 @@ coheyting f a = ConnL (`f` a) (\/ a)
 --
 -- Double negation is a join-preserving comonad.
 booleanL :: Coheyting a => ConnL a a
-booleanL =
-    let -- Check that /x/ is a regular element
-        -- See https://ncatlab.org/nlab/show/regular+element
-        inj x = if x ~~ (non . non) x then x else top
-     in ConnL inj (non . non)
+booleanL = ConnL inj (non . non)
+  where
+    -- Check that /x/ is a regular element
+    -- See https://ncatlab.org/nlab/show/regular+element
+    inj x = if x ~~ (non . non) x then x else top
 
 -------------------------------------------------------------------------------
 -- Symmetric
@@ -442,7 +442,7 @@ booleanL =
 
 -- | Symmetric Heyting algebras
 --
--- A symmetric Heyting algebra is a <https://ncatlab.org/nlab/show/De+Morgan+Algebra+algebra De Morgan >
+-- A symmetric Heyting algebra is a <https://ncatlab.org/nlab/show/De+Morgan+Heyting+algebra De Morgan >
 -- bi-Algebra algebra with an idempotent, antitone negation operator.
 --
 -- /Laws/:

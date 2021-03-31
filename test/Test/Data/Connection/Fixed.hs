@@ -1,12 +1,54 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Test.Data.Connection.Fixed where
 
 import Data.Connection.Fixed
 import qualified Data.Connection.Property as Prop
+import Data.Fixed
 import Hedgehog
 import qualified Hedgehog.Gen as G
 import Test.Data.Connection
+
+prop_connection_ratf06 :: Property
+prop_connection_ratf06 = withTests 1000 . property $ do
+    x <- forAll rat
+    x' <- forAll rat
+    y <- forAll $ gen_extended fxx
+    y' <- forAll $ gen_extended fxx
+
+    assert $ Prop.adjoint (ratfix @E6) x y
+    assert $ Prop.closed (ratfix @E6) x
+    assert $ Prop.kernel (ratfix @E6) y
+    assert $ Prop.monotonic (ratfix @E6) x x' y y'
+    assert $ Prop.idempotent (ratfix @E6) x y
+
+prop_connection_ratf09 :: Property
+prop_connection_ratf09 = withTests 1000 . property $ do
+    x <- forAll rat
+    x' <- forAll rat
+    y <- forAll $ gen_extended fxx
+    y' <- forAll $ gen_extended fxx
+
+    assert $ Prop.adjoint (ratfix @E9) x y
+    assert $ Prop.closed (ratfix @E9) x
+    assert $ Prop.kernel (ratfix @E9) y
+    assert $ Prop.monotonic (ratfix @E9) x x' y y'
+    assert $ Prop.idempotent (ratfix @E9) x y
+
+prop_connection_ratf12 :: Property
+prop_connection_ratf12 = withTests 1000 . property $ do
+    x <- forAll rat
+    x' <- forAll rat
+    y <- forAll $ gen_extended fxx
+    y' <- forAll $ gen_extended fxx
+
+    assert $ Prop.adjoint (ratfix @E12) x y
+    assert $ Prop.closed (ratfix @E12) x
+    assert $ Prop.kernel (ratfix @E12) y
+    assert $ Prop.monotonic (ratfix @E12) x x' y y'
+    assert $ Prop.idempotent (ratfix @E12) x y
 
 prop_connections_micro :: Property
 prop_connections_micro = withTests 1000 . property $ do

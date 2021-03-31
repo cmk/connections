@@ -41,7 +41,7 @@ sysixx = Conn f g h
     g i = MkSystemTime (fromIntegral i) 0
     h (normalize -> MkSystemTime s _) = fromIntegral s
 
--- | The 'Float' is valued in seconds (to nanosecond precision).
+-- | The 'Float' is valued in seconds.
 --
 -- >>> Data.Connection.ceiling f32sys (0/0)
 -- PosInf
@@ -50,7 +50,7 @@ sysixx = Conn f g h
 f32sys :: Conn 'L Float (Extended SystemTime)
 f32sys = connL ratf32 >>> ratsys
 
--- | The 'Double' is valued in seconds (to nanosecond precision).
+-- | The 'Double' is valued in seconds.
 --
 -- >>> Data.Connection.ceiling f64sys (0/0)
 -- PosInf
@@ -59,7 +59,7 @@ f32sys = connL ratf32 >>> ratsys
 f64sys :: Conn 'L Double (Extended SystemTime)
 f64sys = connL ratf64 >>> ratsys
 
--- | The 'Rational' is valued in seconds (to nanosecond precision).
+-- | The 'Rational' is valued in seconds.
 ratsys :: Conn k Rational (Extended SystemTime)
 ratsys = ratfix >>> f09sys
 
@@ -98,7 +98,6 @@ diffSystemTime x y = inner f64sys $ round2 ratsys (-) (Finite x) (Finite y)
 s2ns :: Num a => a
 s2ns = 10 ^ 9
 
--- | SystemTime to nano seconds.
 toNanoSecs :: SystemTime -> Nano
 toNanoSecs (MkSystemTime (toInteger -> s) (toInteger -> n)) = MkFixed (s * s2ns + n)
 
