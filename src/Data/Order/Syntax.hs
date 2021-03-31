@@ -31,7 +31,7 @@ import safe qualified Data.Eq as Eq
 import safe qualified Data.Ord as Ord
 import safe Data.Order
 
-import Prelude hiding (Eq (..), Ord (..))
+import safe Prelude hiding (Eq (..), Ord (..))
 
 infix 4 <, >
 

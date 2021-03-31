@@ -1,16 +1,17 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Test.Data.Connection.Ratio where
 
 import qualified Data.Connection.Property as Prop
 import Data.Connection.Ratio
-import Data.Fixed
 import Data.Int
 import Data.Word
 import Hedgehog
 import qualified Hedgehog.Gen as G
 import Test.Data.Connection
+
 
 prop_connection_ratw08 :: Property
 prop_connection_ratw08 = withTests 1000 . property $ do
@@ -154,45 +155,6 @@ prop_connection_ratint = withTests 1000 . property $ do
     assert $ Prop.kernel (ratint) y
     assert $ Prop.monotonic (ratint) x x' y y'
     assert $ Prop.idempotent (ratint) x y
-
-prop_connection_ratf06 :: Property
-prop_connection_ratf06 = withTests 1000 . property $ do
-    x <- forAll rat
-    x' <- forAll rat
-    y <- forAll $ gen_extended fxx
-    y' <- forAll $ gen_extended fxx
-
-    assert $ Prop.adjoint (ratfix @E6) x y
-    assert $ Prop.closed (ratfix @E6) x
-    assert $ Prop.kernel (ratfix @E6) y
-    assert $ Prop.monotonic (ratfix @E6) x x' y y'
-    assert $ Prop.idempotent (ratfix @E6) x y
-
-prop_connection_ratf09 :: Property
-prop_connection_ratf09 = withTests 1000 . property $ do
-    x <- forAll rat
-    x' <- forAll rat
-    y <- forAll $ gen_extended fxx
-    y' <- forAll $ gen_extended fxx
-
-    assert $ Prop.adjoint (ratfix @E9) x y
-    assert $ Prop.closed (ratfix @E9) x
-    assert $ Prop.kernel (ratfix @E9) y
-    assert $ Prop.monotonic (ratfix @E9) x x' y y'
-    assert $ Prop.idempotent (ratfix @E9) x y
-
-prop_connection_ratf12 :: Property
-prop_connection_ratf12 = withTests 1000 . property $ do
-    x <- forAll rat
-    x' <- forAll rat
-    y <- forAll $ gen_extended fxx
-    y' <- forAll $ gen_extended fxx
-
-    assert $ Prop.adjoint (ratfix @E12) x y
-    assert $ Prop.closed (ratfix @E12) x
-    assert $ Prop.kernel (ratfix @E12) y
-    assert $ Prop.monotonic (ratfix @E12) x x' y y'
-    assert $ Prop.idempotent (ratfix @E12) x y
 
 prop_connection_ratf32 :: Property
 prop_connection_ratf32 = withTests 1000 . property $ do

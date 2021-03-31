@@ -1,8 +1,8 @@
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE Safe #-}
 
 module Data.Connection.Ratio (
     -- * Rational
@@ -18,7 +18,6 @@ module Data.Connection.Ratio (
     rati64,
     ratixx,
     ratint,
-    ratfix,
     ratf32,
     ratf64,
     ratrat,
@@ -29,12 +28,10 @@ module Data.Connection.Ratio (
 
 import safe Data.Bool
 import safe Data.Connection.Conn hiding (ceiling, floor, lower)
-import safe Data.Connection.Fixed
 import safe Data.Connection.Float as Float
 import safe Data.Int
 import safe Data.Order
 import safe Data.Order.Syntax
-import safe Data.Proxy
 import safe Data.Ratio
 import safe Data.Word
 import safe GHC.Real (Ratio (..), Rational)
@@ -103,21 +100,6 @@ ratint = Conn f g h
     g = extended ninf pinf fromIntegral
 
     h = extend (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) floor
-
-ratfix :: forall e k. HasResolution e => Conn k Rational (Extended (Fixed e))
-ratfix = Conn f' g h'
-  where
-    prec = resolution (Proxy :: Proxy e)
-
-    f (reduce . (* (toRational prec)) -> n :% d) = MkFixed $ let i = n `div` d in if n `mod` d == 0 then i else i + 1
-
-    f' = extend (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) f
-
-    g = extended ninf pinf toRational
-
-    h (reduce . (* (toRational prec)) -> n :% d) = MkFixed $ n `div` d
-
-    h' = extend (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) h
 
 ratf32 :: Conn k Rational Float
 ratf32 = Conn (toFractional f) (fromFractional g) (toFractional h)

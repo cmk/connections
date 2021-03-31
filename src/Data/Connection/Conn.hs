@@ -12,7 +12,7 @@
 
 module Data.Connection.Conn (
     -- * Conn
-    Kan (..),
+    Side (..),
     Conn (),
     (>>>),
     (<<<),
@@ -21,11 +21,11 @@ module Data.Connection.Conn (
     select,
     strong,
     divide,
-    ordered,
     bounded,
+    ordered,
     identity,
 
-    -- * Connection L
+    -- * Conn 'L
     ConnL,
     pattern ConnL,
     connL,
@@ -37,7 +37,7 @@ module Data.Connection.Conn (
     ceiling2,
     maximize,
 
-    -- * Connection R
+    -- * Conn 'R
     ConnR,
     pattern ConnR,
     connR,
@@ -51,8 +51,8 @@ module Data.Connection.Conn (
 
     -- * Connection k
     pattern Conn,
-    inner,
     outer,
+    inner,
     half,
     midpoint,
     round,
@@ -97,21 +97,20 @@ import safe Prelude hiding (Ord (..), ceiling, floor, round, truncate)
 -- >>> import GHC.Real (Ratio(..))
 -- >>> :load Data.Connection
 
--- | A data kind distinguishing the directionality of a Galois connection:
+-- | A data kind distinguishing links in a < https://ncatlab.org/nlab/show/adjoint+string chain > of Galois connections of length 2 or 3.
 --
--- * /L/-tagged types are low / increasing (e.g. 'Data.Connection.Conn.ceiling', 'Data.Connection.Conn.maximize')
+-- * /L/-tagged types are increasing (e.g. 'Data.Connection.Conn.ceiling', 'Data.Connection.Conn.maximize')
 --
--- * /R/-tagged types are high / decreasing (e.g. 'Data.Connection.Conn.floor', 'Data.Connection.Conn.minimize')
-data Kan = L | R
+-- * /R/-tagged types are decreasing (e.g. 'Data.Connection.Conn.floor', 'Data.Connection.Conn.minimize')
+--
+--  If a connection is existentialized over this value (i.e. has type /forall k. Conn k a b/) then it can
+--  provide either of two functions /f, h :: a -> b/.
+--
+--  This is useful because it enables rounding, truncation, medians, etc. 
+--
+data Side = L | R
 
--- | A (chain of) Galois connections.
---
--- A [Galois connection](https://en.wikipedia.org/wiki/Galois_connection) between preorders P and Q
--- is a pair of monotone maps /f :: p -> q/ and /g :: q -> p/ such that:
---
--- > f x <= y iff x <= g y
---
--- We say that `f` is the left or right adjoint, and `g` is the right or left adjoint of the connection.
+-- | A < https://ncatlab.org/nlab/show/adjoint+string chain > of Galois connections of length 2 or 3.
 --
 -- Connections have many nice properties wrt numerical conversion:
 --
@@ -134,7 +133,7 @@ data Kan = L | R
 -- 2.0
 --
 -- See the /README/ file for a slightly more in-depth introduction.
-data Conn (k :: Kan) a b = Conn_ (a -> (b, b)) (b -> a)
+data Conn (k :: Side) a b = Conn_ (a -> (b, b)) (b -> a)
 
 instance Category (Conn k) where
     id = identity
@@ -161,7 +160,7 @@ mapped :: Functor f => Conn k a b -> Conn k (f a) (f b)
 mapped (Conn f g h) = Conn (fmap f) (fmap g) (fmap h)
 {-# INLINE mapped #-}
 
--- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Category_Theory/Categories_of_ordered_sets coproduct order>
+-- | Lift two connections into a connection on the <https://en.wikibooks.org/wiki/Category_Theory/Categories_of_ordered_sets coproduct order>
 --
 -- > (choice id) (ab >>> cd) = (choice id) ab >>> (choice id) cd
 -- > (flip choice id) (ab >>> cd) = (flip choice id) ab >>> (flip choice id) cd
@@ -175,11 +174,11 @@ choice (Conn ab ba ab') (Conn cd dc cd') = Conn f g h
 
 infixr 3 `select`
 
--- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Category_Theory/Categories_of_ordered_sets coproduct order>
+-- | Lift two connections into a connection on the <https://en.wikibooks.org/wiki/Category_Theory/Categories_of_ordered_sets coproduct order>
 select :: Conn k c a -> Conn k c b -> Conn k c (Either a b)
 select f g = Conn Left (either id id) Right >>> f `choice` g
 
--- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
+-- | Lift two connections into a connection on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
 --
 -- > (strong id) (ab >>> cd) = (strong id) ab >>> (strong id) cd
 -- > (flip strong id) (ab >>> cd) = (flip strong id) ab >>> (flip strong id) cd
@@ -193,9 +192,14 @@ strong (Conn ab ba ab') (Conn cd dc cd') = Conn f g h
 
 infixr 4 `divide`
 
--- | Lift two 'Conn's into a 'Conn' on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
+-- | Lift two connections into a connection on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
 divide :: Total c => Conn k a c -> Conn k b c -> Conn k (a, b) c
 divide f g = f `strong` g >>> ordered
+
+-- | The defining connections of a bounded preorder.
+bounded :: Bounded a => Conn k () a
+bounded = Conn (const minBound) (const ()) (const maxBound)
+{-# INLINE bounded #-}
 
 -- | The defining connections of a total order.
 --
@@ -205,12 +209,7 @@ ordered :: Total a => Conn k (a, a) a
 ordered = Conn (uncurry max) (id &&& id) (uncurry min)
 {-# INLINE ordered #-}
 
--- | The defining connections of a bounded preorder.
-bounded :: Bounded a => Conn k () a
-bounded = Conn (const minBound) (const ()) (const maxBound)
-{-# INLINE bounded #-}
-
--- | The identity 'Conn'.
+-- | The identity connection.
 identity :: Conn k a a
 identity = Conn_ (id &&& id) id
 {-# INLINE identity #-}
@@ -235,21 +234,21 @@ type ConnL = Conn 'L
 -- /Caution/: /ConnL f g/ must obey \(f \dashv g \). This condition is not checked.
 --
 -- For further information see 'Data.Connection.Property'.
-pattern ConnL :: (a -> b) -> (b -> a) -> ConnL a b
+pattern ConnL :: (a -> b) -> (b -> a) -> Conn 'L a b
 pattern ConnL f g <- (_2 &&& upper -> (f, g)) where ConnL f g = Conn_ (f &&& f) g
 
 {-# COMPLETE ConnL #-}
 
--- | Witness to the symmetry between 'ConnL' and 'ConnR'.
+-- | Witness to the mirror symmetry between 'ConnL' and 'ConnR'.
 --
 -- > connL . connR = id
 -- > connR . connL = id
-connL :: ConnR a b -> ConnL b a
+connL :: Conn 'R a b -> Conn 'L b a
 connL (ConnR f g) = ConnL f g
 {-# INLINE connL #-}
 
 -- | Extract the upper adjoint of a 'ConnL'.
-upper :: ConnL a b -> b -> a
+upper :: Conn 'L a b -> b -> a
 upper = inner
 {-# INLINE upper #-}
 
@@ -261,12 +260,12 @@ upper = inner
 --
 -- >>> compare pi $ upper1 f64f32 id pi
 -- LT
-upper1 :: ConnL a b -> (b -> b) -> a -> a
+upper1 :: Conn 'L a b -> (b -> b) -> a -> a
 upper1 (ConnL f g) h a = g $ h (f a)
 {-# INLINE upper1 #-}
 
 -- | Zip over a 'ConnL' from the right.
-upper2 :: ConnL a b -> (b -> b -> b) -> a -> a -> a
+upper2 :: Conn 'L a b -> (b -> b -> b) -> a -> a -> a
 upper2 (ConnL f g) h a1 a2 = g $ h (f a1) (f a2)
 {-# INLINE upper2 #-}
 
@@ -283,31 +282,29 @@ upper2 (ConnL f g) h a1 a2 = g $ h (f a1) (f a2)
 -- 1.3000001
 -- >>> Data.Connection.ceiling f64f32 pi
 -- 3.1415927
-ceiling :: ConnL a b -> a -> b
+ceiling :: Conn 'L a b -> a -> b
 ceiling (ConnL f _) = f
 {-# INLINE ceiling #-}
 
 -- | Map over a 'ConnL' from the left.
 --
+-- > ceiling1 identity = id
+--
 -- This is the counit of the resulting comonad:
 --
 -- > x >~ ceiling1 c id x
 --
--- >>> ceiling1 (conn @_ @() @Ordering) id LT
--- LT
--- >>> ceiling1 (conn @_ @() @Ordering) id GT
--- LT
-ceiling1 :: ConnL a b -> (a -> a) -> b -> b
+ceiling1 :: Conn 'L a b -> (a -> a) -> b -> b
 ceiling1 (ConnL f g) h b = f $ h (g b)
 {-# INLINE ceiling1 #-}
 
 -- | Zip over a 'ConnL' from the left.
-ceiling2 :: ConnL a b -> (a -> a -> a) -> b -> b -> b
+ceiling2 :: Conn 'L a b -> (a -> a -> a) -> b -> b -> b
 ceiling2 (ConnL f g) h b1 b2 = f $ h (g b1) (g b2)
 {-# INLINE ceiling2 #-}
 
 -- | Generalized maximum.
-maximize :: ConnL (a, b) c -> a -> b -> c
+maximize :: Conn 'L (a, b) c -> a -> b -> c
 maximize = curry . ceiling
 {-# INLINE maximize #-}
 
@@ -331,21 +328,21 @@ type ConnR = Conn 'R
 -- /Caution/: /ConnR f g/ must obey \(f \dashv g \). This condition is not checked.
 --
 -- For further information see 'Data.Connection.Property'.
-pattern ConnR :: (b -> a) -> (a -> b) -> ConnR a b
+pattern ConnR :: (b -> a) -> (a -> b) -> Conn 'R a b
 pattern ConnR f g <- (lower &&& _1 -> (f, g)) where ConnR f g = Conn_ (g &&& g) f
 
 {-# COMPLETE ConnR #-}
 
--- | Witness to the symmetry between 'ConnL' and 'ConnR'.
+-- | Witness to the mirror symmetry between 'ConnL' and 'ConnR'.
 --
 -- > connL . connR = id
 -- > connR . connL = id
-connR :: ConnL a b -> ConnR b a
+connR :: Conn 'L a b -> Conn 'R b a
 connR (ConnL f g) = ConnR f g
 {-# INLINE connR #-}
 
 -- | Extract the lower adjoint of a 'ConnR'.
-lower :: ConnR a b -> b -> a
+lower :: Conn 'R a b -> b -> a
 lower = inner
 {-# INLINE lower #-}
 
@@ -357,12 +354,12 @@ lower = inner
 --
 -- >>> compare pi $ lower1 f64f32 id pi
 -- GT
-lower1 :: ConnR a b -> (b -> b) -> a -> a
+lower1 :: Conn 'R a b -> (b -> b) -> a -> a
 lower1 (ConnR f g) h a = f $ h (g a)
 {-# INLINE lower1 #-}
 
 -- | Zip over a 'ConnR' from the left.
-lower2 :: ConnR a b -> (b -> b -> b) -> a -> a -> a
+lower2 :: Conn 'R a b -> (b -> b -> b) -> a -> a -> a
 lower2 (ConnR f g) h a1 a2 = f $ h (g a1) (g a2)
 {-# INLINE lower2 #-}
 
@@ -379,27 +376,29 @@ lower2 (ConnR f g) h a1 a2 = f $ h (g a1) (g a2)
 -- 1.3
 -- >>> Data.Connection.floor f64f32 pi
 -- 3.1415925
-floor :: ConnR a b -> a -> b
+floor :: Conn 'R a b -> a -> b
 floor (ConnR _ g) = g
 {-# INLINE floor #-}
 
 -- | Map over a 'ConnR' from the right.
 --
+-- > floor1 identity = id
+--
 -- This is the unit of the resulting monad:
 --
 -- > x <~ floor1 c id x
 --
-floor1 :: ConnR a b -> (a -> a) -> b -> b
+floor1 :: Conn 'R a b -> (a -> a) -> b -> b
 floor1 (ConnR f g) h b = g $ h (f b)
 {-# INLINE floor1 #-}
 
 -- | Zip over a 'ConnR' from the right.
-floor2 :: ConnR a b -> (a -> a -> a) -> b -> b -> b
+floor2 :: Conn 'R a b -> (a -> a -> a) -> b -> b -> b
 floor2 (ConnR f g) h b1 b2 = g $ h (f b1) (f b2)
 {-# INLINE floor2 #-}
 
 -- | Generalized minimum.
-minimize :: ConnR (a, b) c -> a -> b -> c
+minimize :: Conn 'R (a, b) c -> a -> b -> c
 minimize = curry . floor
 {-# INLINE minimize #-}
 
@@ -423,18 +422,6 @@ pattern Conn f g h <- (inner &&& _1 &&& _2 -> (g, (h, f))) where Conn f g h = Co
 
 {-# COMPLETE Conn #-}
 
--- | Extract the upper adjoint of a 'ConnL', or lower adjoint of a 'ConnR'.
---
--- When the connection is an adjoint triple the inner function is returned:
---
--- >>> inner ratf32 (1 / 8)    -- eighths are exactly representable in a float
--- 1 % 8
--- >>> inner ratf32 (1 / 7)    -- sevenths are not
--- 9586981 % 67108864
-inner :: Conn k a b -> b -> a
-inner (Conn_ _ g) = g
-{-# INLINE inner #-}
-
 -- | Extract the left and/or right adjoints of a connection.
 --
 -- When the connection is an adjoint triple the outer functions are returned:
@@ -448,6 +435,18 @@ inner (Conn_ _ g) = g
 outer :: Conn k a b -> a -> (b, b)
 outer (Conn_ f _) = f
 {-# INLINE outer #-}
+
+-- | Extract the upper adjoint of a 'ConnL', or lower adjoint of a 'ConnR'.
+--
+-- When the connection is an adjoint triple the inner function is returned:
+--
+-- >>> inner ratf32 (1 / 8)    -- eighths are exactly representable in a float
+-- 1 % 8
+-- >>> inner ratf32 (1 / 7)    -- sevenths are not
+-- 9586981 % 67108864
+inner :: Conn k a b -> b -> a
+inner (Conn_ _ g) = g
+{-# INLINE inner #-}
 
 -- | Determine which half of the interval between 2 representations of /a/ a particular value lies.
 --
@@ -472,17 +471,19 @@ midpoint c x = lower1 c id x / 2 + upper1 c id x / 2
 -- > round identity = id
 --
 -- If x lies halfway between two finite values, then return the value
--- with the smaller absolute value (i.e. round away from zero).
+-- with the smaller absolute value (i.e. round towards from zero).
 --
 -- See <https://en.wikipedia.org/wiki/Rounding>.
 round :: (Num a, Preorder a) => (forall k. Conn k a b) -> a -> b
 round c x = case half c x of
     Just GT -> ceiling c x
     Just LT -> floor c x
-    _ -> if x >~ 0 then ceiling c x else floor c x
+    _ -> truncate c x
 {-# INLINE round #-}
 
 -- | Lift a unary function over an adjoint triple.
+--
+-- > round1 identity = id
 --
 -- Results are rounded to the nearest value with ties away from 0.
 round1 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a) -> b -> b
@@ -490,6 +491,8 @@ round1 c f x = round c $ f (g x) where Conn _ g _ = c
 {-# INLINE round1 #-}
 
 -- | Lift a binary function over an adjoint triple.
+--
+-- > round2 identity = id
 --
 -- Results are rounded to the nearest value with ties away from 0.
 --
@@ -514,13 +517,18 @@ truncate c x = if x >~ 0 then floor c x else ceiling c x
 
 -- | Lift a unary function over an adjoint triple.
 --
--- Results are truncated towards zero.
---
 -- > truncate1 identity = id
+--
+-- Results are truncated towards zero.
 truncate1 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a) -> b -> b
 truncate1 c f x = truncate c $ f (g x) where Conn _ g _ = c
 {-# INLINE truncate1 #-}
 
+-- | Lift a binary function over an adjoint triple.
+--
+-- > truncate2 identity = id
+--
+-- Results are truncated towards zero.
 truncate2 :: (Num a, Preorder a) => (forall k. Conn k a b) -> (a -> a -> a) -> b -> b -> b
 truncate2 c f x y = truncate c $ f (g x) (g y) where Conn _ g _ = c
 {-# INLINE truncate2 #-}
@@ -550,7 +558,7 @@ median c x y z = (x `join` y) `meet` (y `join` z) `meet` (z `join` x)
 -- | Convert an inverted 'ConnL' to a 'ConnL'.
 --
 -- > upL . downL = downL . upL = id
-upL :: ConnL (Down a) (Down b) -> ConnL b a
+upL :: Conn 'L (Down a) (Down b) -> Conn 'L b a
 upL (ConnL f g) = ConnL g' f'
   where
     f' x = let (Down y) = f (Down x) in y
@@ -560,7 +568,7 @@ upL (ConnL f g) = ConnL g' f'
 -- | Convert an inverted 'ConnR' to a 'ConnR'.
 --
 -- > upR . downR = downR . upR = id
-upR :: ConnR (Down a) (Down b) -> ConnR b a
+upR :: Conn 'R (Down a) (Down b) -> Conn 'R b a
 upR (ConnR f g) = ConnR g' f'
   where
     f' x = let (Down y) = f (Down x) in y
@@ -569,23 +577,23 @@ upR (ConnR f g) = ConnR g' f'
 
 -- | Convert a 'ConnL' to an inverted 'ConnL'.
 --
--- >>> let counit = upper1 (downL $ conn @_ @() @Ordering) id
+-- >>> let counit = upper1 (downL $ bounded @Ordering) id
 -- >>> counit (Down LT)
 -- Down LT
 -- >>> counit (Down GT)
 -- Down LT
-downL :: ConnL a b -> ConnL (Down b) (Down a)
+downL :: Conn 'L a b -> Conn 'L (Down b) (Down a)
 downL (ConnL f g) = ConnL (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
 {-# INLINE downL #-}
 
 -- | Convert a 'ConnR' to an inverted 'ConnR'.
 --
--- >>> let unit = lower1 (downR $ conn @_ @() @Ordering) id
+-- >>> let unit = lower1 (downR $ bounded @Ordering) id
 -- >>> unit (Down LT)
 -- Down GT
 -- >>> unit (Down GT)
 -- Down GT
-downR :: ConnR a b -> ConnR (Down b) (Down a)
+downR :: Conn 'R a b -> Conn 'R (Down b) (Down a)
 downR (ConnR f g) = ConnR (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
 {-# INLINE downR #-}
 
@@ -604,10 +612,10 @@ downR (ConnR f g) = ConnR (\(Down x) -> Down $ g x) (\(Down x) -> Down $ f x)
 -- /filterL c a/ is upward-closed for all /a/:
 --
 -- > a <= b1 && b1 <= b2 => a <= b2
--- > a1 <= b && a2 <= b => meet c (ceiling c a1) (ceiling c a2) <= b
+-- > a1 <= b && a2 <= b => minimize c (ceiling c a1) (ceiling c a2) <= b
 --
 -- See <https://en.wikipedia.org/wiki/Filter_(mathematics)>
-filterL :: Preorder b => ConnL a b -> a -> b -> Bool
+filterL :: Preorder b => Conn 'L a b -> a -> b -> Bool
 filterL c a b = ceiling c a <~ b
 {-# INLINE filterL #-}
 
@@ -621,10 +629,10 @@ filterL c a b = ceiling c a <~ b
 --
 -- > a >= b1 && b1 >= b2 => a >= b2
 --
--- > a1 >= b && a2 >= b => join c (floor c a1) (floor c a2) >= b
+-- > a1 >= b && a2 >= b => maximize c (floor c a1) (floor c a2) >= b
 --
 -- See <https://en.wikipedia.org/wiki/Ideal_(order_theory)>
-filterR :: Preorder b => ConnR a b -> a -> b -> Bool
+filterR :: Preorder b => Conn 'R a b -> a -> b -> Bool
 filterR c a b = b <~ floor c a
 {-# INLINE filterR #-}
 
