@@ -105,6 +105,7 @@ module Data.Connection (
     i08w32,
     i16w32,
     i32w32,
+    f32w32,
     f64w32,
     ratw32,
 
@@ -117,6 +118,8 @@ module Data.Connection (
     i32w64,
     i64w64,
     ixxw64,
+    f32w64,
+    f64w64,
     ratw64,
 
     -- *** Word
@@ -129,6 +132,8 @@ module Data.Connection (
     i32wxx,
     i64wxx,
     ixxwxx,
+    f32wxx,
+    f64wxx,
     ratwxx,
 
     -- *** Natural
@@ -143,6 +148,8 @@ module Data.Connection (
     i64nat,
     ixxnat,
     intnat,
+    f32nat,
+    f64nat,
     ratnat,
     
     -- ** Signed ints
@@ -164,6 +171,7 @@ module Data.Connection (
     w16i32,
     i08i32,
     i16i32,
+    f32i32,
     f64i32,
     rati32,
 
@@ -174,6 +182,8 @@ module Data.Connection (
     i08i64,
     i16i64,
     i32i64,
+    f32i64,
+    f64i64,
     rati64,
 
     -- *** Int
@@ -184,6 +194,8 @@ module Data.Connection (
     i16ixx,
     i32ixx,
     i64ixx,
+    f32ixx,
+    f64ixx,
     ratixx,
     sysixx,
 
@@ -200,6 +212,8 @@ module Data.Connection (
     i64int,
     ixxint,
     f00int,
+    f32int,
+    f64int,
     ratint,
 
     -- ** Rational

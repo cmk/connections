@@ -1,5 +1,9 @@
 # Revision history for connections
 
+## 0.3.2  -- 2021-xx-xx
+
+* Add left-hand float and double connections.
+
 ## 0.3.1  -- 2021-05-30
 
 * Add `Data.Connection.Time`.

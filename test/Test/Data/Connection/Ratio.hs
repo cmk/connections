@@ -156,31 +156,5 @@ prop_connection_ratint = withTests 1000 . property $ do
     assert $ Prop.monotonic (ratint) x x' y y'
     assert $ Prop.idempotent (ratint) x y
 
-prop_connection_ratf32 :: Property
-prop_connection_ratf32 = withTests 1000 . property $ do
-    x <- forAll rat'
-    x' <- forAll rat'
-    y <- forAll f32
-    y' <- forAll f32
-
-    assert $ Prop.adjoint (ratf32) x y
-    assert $ Prop.closed (ratf32) x
-    assert $ Prop.kernel (ratf32) y
-    assert $ Prop.monotonic (ratf32) x x' y y'
-    assert $ Prop.idempotent (ratf32) x y
-
-prop_connection_ratf64 :: Property
-prop_connection_ratf64 = withTests 1000 . property $ do
-    x <- forAll rat'
-    x' <- forAll rat'
-    y <- forAll f64
-    y' <- forAll f64
-
-    assert $ Prop.adjoint (ratf64) x y
-    assert $ Prop.closed (ratf64) x
-    assert $ Prop.kernel (ratf64) y
-    assert $ Prop.monotonic (ratf64) x x' y y'
-    assert $ Prop.idempotent (ratf64) x y
-
 tests :: IO Bool
 tests = checkParallel $$(discover)

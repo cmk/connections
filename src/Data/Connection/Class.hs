@@ -251,16 +251,33 @@ instance HasResolution res => Connection k Rational (Extended (Fixed res)) where
 
 instance Connection k Float (Extended Word8) where conn = f32w08
 instance Connection k Float (Extended Word16) where conn = f32w16
+instance Connection 'L Float (Extended Word32) where conn = f32w32
+instance Connection 'L Float (Extended Word64) where conn = f32w64
+instance Connection 'L Float (Extended Word) where conn = f32wxx
+instance Connection 'L Float (Extended Natural) where conn = f32nat
+
 instance Connection k Float (Extended Int8) where conn = f32i08
 instance Connection k Float (Extended Int16) where conn = f32i16
+instance Connection 'L Float (Extended Int32) where conn = f32i32
+instance Connection 'L Float (Extended Int64) where conn = f32i64
+instance Connection 'L Float (Extended Int) where conn = f32ixx
+instance Connection 'L Float (Extended Integer) where conn = f32int
 instance HasResolution res => Connection 'L Float (Extended (Fixed res)) where conn = f32fix
 
 instance Connection k Double (Extended Word8) where conn = f64w08
 instance Connection k Double (Extended Word16) where conn = f64w16
 instance Connection k Double (Extended Word32) where conn = f64w32
+instance Connection 'L Double (Extended Word64) where conn = f64w64
+instance Connection 'L Double (Extended Word) where conn = f64wxx
+instance Connection 'L Double (Extended Natural) where conn = f64nat
+
 instance Connection k Double (Extended Int8) where conn = f64i08
 instance Connection k Double (Extended Int16) where conn = f64i16
 instance Connection k Double (Extended Int32) where conn = f64i32
+instance Connection 'L Double (Extended Int64) where conn = f64i64
+instance Connection 'L Double (Extended Int) where conn = f64ixx
+instance Connection 'L Double (Extended Integer) where conn = f64int
+
 instance HasResolution res => Connection 'L Double (Extended (Fixed res)) where conn = f64fix
 
 instance Connection k a b => Connection k (Identity a) b where
