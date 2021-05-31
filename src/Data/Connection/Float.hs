@@ -9,35 +9,53 @@ module Data.Connection.Float (
     -- * Float
     f32w08,
     f32w16,
+    f32w32,
+    f32w64,
+    f32wxx,
+    f32nat,
     f32i08,
     f32i16,
+    f32i32,
+    f32i64,
+    f32ixx,
+    f32int,
     f32f32,
+    f64f32,
+    ratf32,
     ulp32,
     near32,
     shift32,
 
     -- * Double
-    f64f64,
     f64w08,
     f64w16,
     f64w32,
+    f64w64,
+    f64wxx,
+    f64nat,
     f64i08,
     f64i16,
     f64i32,
-    f64f32,
+    f64i64,
+    f64ixx,
+    f64int,
+    f64f64,
+    ratf64,
     ulp64,
     near64,
     shift64,
-    until,
 ) where
 
 import safe Data.Bool
 import safe Data.Connection.Conn hiding (ceiling, floor)
+import safe Data.Connection.Ratio
 import safe Data.Int
 import safe Data.Order
 import safe Data.Order.Syntax
+import safe Data.Ratio (approxRational)
 import safe Data.Word
 import safe GHC.Float as F
+import safe Numeric.Natural
 import safe Prelude hiding (Eq (..), Ord (..), until)
 import safe qualified Prelude as P
 
@@ -45,20 +63,87 @@ import safe qualified Prelude as P
 -- Float
 ---------------------------------------------------------------------
 
-f32f32 :: Conn k (Float, Float) Float
-f32f32 = fxxfxx
-
 f32w08 :: Conn k Float (Extended Word8)
 f32w08 = fxxext
 
 f32w16 :: Conn k Float (Extended Word16)
 f32w16 = fxxext
 
+f32w32 :: Conn 'L Float (Extended Word32)
+f32w32 = connL ratf32 >>> ratw32
+
+f32w64 :: Conn 'L Float (Extended Word64)
+f32w64 = connL ratf32 >>> ratw64
+
+f32wxx :: Conn 'L Float (Extended Word)
+f32wxx = connL ratf32 >>> ratwxx
+
+f32nat :: Conn 'L Float (Extended Natural)
+f32nat = connL ratf32 >>> ratnat
+
+f32i32 :: Conn 'L Float (Extended Int32)
+f32i32 = connL ratf32 >>> rati32
+
+f32i64 :: Conn 'L Float (Extended Int64)
+f32i64 = connL ratf32 >>> rati64
+
+f32ixx :: Conn 'L Float (Extended Int)
+f32ixx = connL ratf32 >>> ratixx
+
+f32int :: Conn 'L Float (Extended Integer)
+f32int = connL ratf32 >>> ratint
+
 f32i08 :: Conn k Float (Extended Int8)
 f32i08 = fxxext
 
 f32i16 :: Conn k Float (Extended Int16)
 f32i16 = fxxext
+
+f32f32 :: Conn k (Float, Float) Float
+f32f32 = fxxfxx
+
+f64f32 :: Conn k Double Float
+f64f32 = Conn f g h
+  where
+    f x =
+        let est = double2Float x
+         in if g est >~ x
+                then est
+                else ascend32 est g x
+
+    g = float2Double
+
+    h x =
+        let est = double2Float x
+         in if g est <~ x
+                then est
+                else descend32 est g x
+
+    ascend32 z g1 y = until (\x -> g1 x >~ y) (<~) (shift32 1) z
+
+    descend32 z h1 x = until (\y -> h1 y <~ x) (>~) (shift32 (-1)) z
+{-# INLINE f64f32 #-}
+
+ratf32 :: Conn k Rational Float
+ratf32 = Conn (toFractional f) (fromFractional g) (toFractional h)
+  where
+    f x =
+        let est = fromRational x
+         in if fromFractional g est >~ x
+                then est
+                else ascendf est (fromFractional g) x
+
+    g = flip approxRational 0
+
+    h x =
+        let est = fromRational x
+         in if fromFractional g est <~ x
+                then est
+                else descendf est (fromFractional g) x
+
+    ascendf z g1 y = until (\x -> g1 x >~ y) (<~) (shift32 1) z
+
+    descendf z f1 x = until (\y -> f1 y <~ x) (>~) (shift32 (-1)) z
 
 -- | Compute the signed distance between two floats in units of least precision.
 --
@@ -108,9 +193,6 @@ shift32 n x =
 -- Double
 ---------------------------------------------------------------------
 
-f64f64 :: Conn k (Double, Double) Double
-f64f64 = fxxfxx
-
 f64w08 :: Conn k Double (Extended Word8)
 f64w08 = fxxext
 
@@ -119,6 +201,15 @@ f64w16 = fxxext
 
 f64w32 :: Conn k Double (Extended Word32)
 f64w32 = fxxext
+
+f64w64 :: Conn 'L Double (Extended Word64)
+f64w64 = connL ratf64 >>> ratw64
+
+f64wxx :: Conn 'L Double (Extended Word)
+f64wxx = connL ratf64 >>> ratwxx
+
+f64nat :: Conn 'L Double (Extended Natural)
+f64nat = connL ratf64 >>> ratnat
 
 f64i08 :: Conn k Double (Extended Int8)
 f64i08 = fxxext
@@ -129,27 +220,38 @@ f64i16 = fxxext
 f64i32 :: Conn k Double (Extended Int32)
 f64i32 = fxxext
 
-f64f32 :: Conn k Double Float
-f64f32 = Conn f g h
+f64i64 :: Conn 'L Double (Extended Int64)
+f64i64 = connL ratf64 >>> rati64
+
+f64ixx :: Conn 'L Double (Extended Int)
+f64ixx = connL ratf64 >>> ratixx
+
+f64int :: Conn 'L Double (Extended Integer)
+f64int = connL ratf64 >>> ratint
+
+f64f64 :: Conn k (Double, Double) Double
+f64f64 = fxxfxx
+
+ratf64 :: Conn k Rational Double
+ratf64 = Conn (toFractional f) (fromFractional g) (toFractional h)
   where
     f x =
-        let est = double2Float x
-         in if g est >~ x
+        let est = fromRational x
+         in if fromFractional g est >~ x
                 then est
-                else ascend32 est g x
+                else ascendf est (fromFractional g) x
 
-    g = float2Double
+    g = flip approxRational 0
 
     h x =
-        let est = double2Float x
-         in if g est <~ x
+        let est = fromRational x
+         in if fromFractional g est <~ x
                 then est
-                else descend32 est g x
+                else descendf est (fromFractional g) x
 
-    ascend32 z g1 y = until (\x -> g1 x >~ y) (<~) (shift32 1) z
+    ascendf z g1 y = until (\x -> g1 x >~ y) (<~) (shift64 1) z
 
-    descend32 z h1 x = until (\y -> h1 y <~ x) (>~) (shift32 (-1)) z
-{-# INLINE f64f32 #-}
+    descendf z f1 x = until (\y -> f1 y <~ x) (>~) (shift64 (-1)) z
 
 -- | Compute the signed distance between two doubles in units of least precision.
 --
@@ -209,6 +311,29 @@ until pre rel f seed = go seed
         | otherwise = go x'
       where
         x' = f x
+
+pinf :: Num a => Ratio a
+pinf = 1 :% 0
+
+ninf :: Num a => Ratio a
+ninf = (-1) :% 0
+
+nan :: Num a => Ratio a
+nan = 0 :% 0
+
+toFractional :: Fractional a => (Rational -> a) -> Rational -> a
+toFractional f x
+    | x ~~ nan = 0 / 0
+    | x ~~ ninf = (-1) / 0
+    | x ~~ pinf = 1 / 0
+    | otherwise = f x
+
+fromFractional :: (Order a, Fractional a) => (a -> Rational) -> a -> Rational
+fromFractional f x
+    | x ~~ 0 / 0 = nan
+    | x ~~ (-1) / 0 = ninf
+    | x ~~ 1 / 0 = pinf
+    | otherwise = f x
 
 -- Non-monotonic function
 signed32 :: Word32 -> Int32

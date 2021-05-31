@@ -18,8 +18,6 @@ module Data.Connection.Ratio (
     rati64,
     ratixx,
     ratint,
-    ratf32,
-    ratf64,
     ratrat,
     reduce,
     shiftr,
@@ -28,7 +26,6 @@ module Data.Connection.Ratio (
 
 import safe Data.Bool
 import safe Data.Connection.Conn hiding (ceiling, floor, lower)
-import safe Data.Connection.Float as Float
 import safe Data.Int
 import safe Data.Order
 import safe Data.Order.Syntax
@@ -101,48 +98,6 @@ ratint = Conn f g h
 
     h = extend (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) floor
 
-ratf32 :: Conn k Rational Float
-ratf32 = Conn (toFractional f) (fromFractional g) (toFractional h)
-  where
-    f x =
-        let est = fromRational x
-         in if fromFractional g est >~ x
-                then est
-                else ascendf est (fromFractional g) x
-
-    g = flip approxRational 0
-
-    h x =
-        let est = fromRational x
-         in if fromFractional g est <~ x
-                then est
-                else descendf est (fromFractional g) x
-
-    ascendf z g1 y = Float.until (\x -> g1 x >~ y) (<~) (Float.shift32 1) z
-
-    descendf z f1 x = Float.until (\y -> f1 y <~ x) (>~) (Float.shift32 (-1)) z
-
-ratf64 :: Conn k Rational Double
-ratf64 = Conn (toFractional f) (fromFractional g) (toFractional h)
-  where
-    f x =
-        let est = fromRational x
-         in if fromFractional g est >~ x
-                then est
-                else ascendf est (fromFractional g) x
-
-    g = flip approxRational 0
-
-    h x =
-        let est = fromRational x
-         in if fromFractional g est <~ x
-                then est
-                else descendf est (fromFractional g) x
-
-    ascendf z g1 y = Float.until (\x -> g1 x >~ y) (<~) (Float.shift64 1) z
-
-    descendf z f1 x = Float.until (\y -> f1 y <~ x) (>~) (Float.shift64 (-1)) z
-
 ratrat :: Conn k (Rational, Rational) Rational
 ratrat = Conn f g h
   where
@@ -181,19 +136,6 @@ ratext = Conn f g h
 
 --low = -1 - high
 
-toFractional :: Fractional a => (Rational -> a) -> Rational -> a
-toFractional f x
-    | x ~~ nan = 0 / 0
-    | x ~~ ninf = (-1) / 0
-    | x ~~ pinf = 1 / 0
-    | otherwise = f x
-
-fromFractional :: (Order a, Fractional a) => (a -> Rational) -> a -> Rational
-fromFractional f x
-    | x ~~ 0 / 0 = nan
-    | x ~~ (-1) / 0 = ninf
-    | x ~~ 1 / 0 = pinf
-    | otherwise = f x
 
 {-
 pabs :: (Lattice a, Eq a, Num a) => a -> a

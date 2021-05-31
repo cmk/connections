@@ -19,6 +19,7 @@ module Data.Connection.Time (
 
 import safe Data.Connection.Conn
 import safe Data.Connection.Fixed
+import safe Data.Connection.Float
 import safe Data.Connection.Ratio
 import safe Data.Int
 import safe Data.Order.Syntax

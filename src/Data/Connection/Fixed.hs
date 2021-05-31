@@ -60,6 +60,7 @@ module Data.Connection.Fixed (
 ) where
 
 import safe Data.Connection.Conn
+import safe Data.Connection.Float
 import safe Data.Connection.Ratio
 import safe Data.Fixed
 import safe Data.Order
