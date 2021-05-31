@@ -1,15 +1,16 @@
 # Revision history for connections
 
-## 0.0.3  -- 2020-02-17
+## 0.3.1  -- 2021-05-30
 
-* `Data.Connection.Float` : float utils
-* `Data.Connection.Ratio` : add rational connections
+* Add `Data.Connection.Time`.
+* Add float-word connections.
+* Move infix join/meet to `Data.Lattice`
+* Re-organize top-level exports.
+* New dependencies on `time` and `extended-reals`.
 
-## 0.1.0  -- 2020-07-07
+## 0.3.0  -- 2021-03-14
 
-* Unify `Connection` and `Triple` into a single class
-* Add `Heyting`, `Symmetric`, and `Boolean` algebras
-* Add misc new instances
+* Add `Data.Connection.Fixed`.
 
 ## 0.2.0  -- 2021-02-21
 
@@ -20,3 +21,15 @@
 * Move `<` and `>` to `Syntax.hs`.
 * Remove niche instances w/ upstream dependencies.
 * Add misc new instances.
+
+## 0.1.0  -- 2020-07-07
+
+* Unify `Connection` and `Triple` into a single class
+* Add `Heyting`, `Symmetric`, and `Boolean` algebras
+* Add misc new instances
+
+## 0.0.3  -- 2020-02-17
+
+* `Data.Connection.Float` : float utils
+* `Data.Connection.Ratio` : add rational connections
+
