@@ -10,7 +10,8 @@ Hosted on [Hackage](https://hackage.haskell.org/package/connections).
 * [What can you do with them?](#what)
 * [What's wrong with the numeric conversions in `base`?](#base)
 
-
+Note that this file contains markdown syntax that doesn't render on Hackage.
+A fully rendered version is hosted on Github [here](https://github.com/cmk/connections/blob/master/README.md).
 
 ### What is a connection? <a name="intro"></a>
 
