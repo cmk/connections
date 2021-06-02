@@ -21,6 +21,7 @@ module Data.Connection.Class (
     fromInteger,
     ConnRational,
     fromRational,
+    fromFloating,
     Connection (..),
 ) where
 
@@ -83,6 +84,13 @@ fromRational x = case pcompare r l of
     r = x - lower1 (right @Rational @a) id x -- dist from lower bound
     l = upper1 (left @Rational @a) id x - x -- dist from upper bound
 {-# INLINE fromRational #-}
+
+-- | Convert a rational or floating-point value.
+--
+--  The extra two arguments correspond to negative infinity and
+--  to NaN / positive infinity.
+fromFloating :: Left a (Extended b) => b -> b -> a -> b
+fromFloating ninf inf = extended ninf inf id . ceiling conn
 
 ---------------------------------------------------------------------
 -- Instances
