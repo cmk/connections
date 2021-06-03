@@ -161,10 +161,10 @@ f12f09 = fixfix $ 10 ^ (3 :: Integer)
 -- Fixed
 
 f32fix :: HasResolution e => Conn 'L Float (Extended (Fixed e))
-f32fix = connL ratf32 >>> ratfix
+f32fix = swapL ratf32 >>> ratfix
 
 f64fix :: HasResolution e => Conn 'L Double (Extended (Fixed e))
-f64fix = connL ratf64 >>> ratfix
+f64fix = swapL ratf64 >>> ratfix
 
 ratfix :: forall e k. HasResolution e => Conn k Rational (Extended (Fixed e))
 ratfix = Conn f' g h'

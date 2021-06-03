@@ -28,7 +28,7 @@ module Data.Connection.Conn (
     -- * Conn 'L
     ConnL,
     pattern ConnL,
-    connL,
+    swapL,
     upper,
     upper1,
     upper2,
@@ -40,7 +40,7 @@ module Data.Connection.Conn (
     -- * Conn 'R
     ConnR,
     pattern ConnR,
-    connR,
+    swapR,
     lower,
     lower1,
     lower2,
@@ -241,11 +241,11 @@ pattern ConnL f g <- (_2 &&& upper -> (f, g)) where ConnL f g = Conn_ (f &&& f) 
 
 -- | Witness to the mirror symmetry between 'ConnL' and 'ConnR'.
 --
--- > connL . connR = id
--- > connR . connL = id
-connL :: Conn 'R a b -> Conn 'L b a
-connL (ConnR f g) = ConnL f g
-{-# INLINE connL #-}
+-- > swapL . swapR = id
+-- > swapR . swapL = id
+swapL :: Conn 'R a b -> Conn 'L b a
+swapL (ConnR f g) = ConnL f g
+{-# INLINE swapL #-}
 
 -- | Extract the upper adjoint of a 'ConnL'.
 upper :: Conn 'L a b -> b -> a
@@ -318,7 +318,7 @@ type ConnR = Conn 'R
 --
 -- 'ConnR' is the mirror image of 'ConnL':
 --
--- > connR :: ConnL a b -> ConnR b a
+-- > swapR :: ConnL a b -> ConnR b a
 --
 -- If you only require one connection there is no particular reason to
 -- use one version over the other. However some use cases (e.g. rounding)
@@ -335,11 +335,11 @@ pattern ConnR f g <- (lower &&& _1 -> (f, g)) where ConnR f g = Conn_ (g &&& g) 
 
 -- | Witness to the mirror symmetry between 'ConnL' and 'ConnR'.
 --
--- > connL . connR = id
--- > connR . connL = id
-connR :: Conn 'L a b -> Conn 'R b a
-connR (ConnL f g) = ConnR f g
-{-# INLINE connR #-}
+-- > swapL . swapR = id
+-- > swapR . swapL = id
+swapR :: Conn 'L a b -> Conn 'R b a
+swapR (ConnL f g) = ConnR f g
+{-# INLINE swapR #-}
 
 -- | Extract the lower adjoint of a 'ConnR'.
 lower :: Conn 'R a b -> b -> a

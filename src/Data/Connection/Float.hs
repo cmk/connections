@@ -70,28 +70,28 @@ f32w16 :: Conn k Float (Extended Word16)
 f32w16 = fxxext
 
 f32w32 :: Conn 'L Float (Extended Word32)
-f32w32 = connL ratf32 >>> ratw32
+f32w32 = swapL ratf32 >>> ratw32
 
 f32w64 :: Conn 'L Float (Extended Word64)
-f32w64 = connL ratf32 >>> ratw64
+f32w64 = swapL ratf32 >>> ratw64
 
 f32wxx :: Conn 'L Float (Extended Word)
-f32wxx = connL ratf32 >>> ratwxx
+f32wxx = swapL ratf32 >>> ratwxx
 
 f32nat :: Conn 'L Float (Extended Natural)
-f32nat = connL ratf32 >>> ratnat
+f32nat = swapL ratf32 >>> ratnat
 
 f32i32 :: Conn 'L Float (Extended Int32)
-f32i32 = connL ratf32 >>> rati32
+f32i32 = swapL ratf32 >>> rati32
 
 f32i64 :: Conn 'L Float (Extended Int64)
-f32i64 = connL ratf32 >>> rati64
+f32i64 = swapL ratf32 >>> rati64
 
 f32ixx :: Conn 'L Float (Extended Int)
-f32ixx = connL ratf32 >>> ratixx
+f32ixx = swapL ratf32 >>> ratixx
 
 f32int :: Conn 'L Float (Extended Integer)
-f32int = connL ratf32 >>> ratint
+f32int = swapL ratf32 >>> ratint
 
 f32i08 :: Conn k Float (Extended Int8)
 f32i08 = fxxext
@@ -203,13 +203,13 @@ f64w32 :: Conn k Double (Extended Word32)
 f64w32 = fxxext
 
 f64w64 :: Conn 'L Double (Extended Word64)
-f64w64 = connL ratf64 >>> ratw64
+f64w64 = swapL ratf64 >>> ratw64
 
 f64wxx :: Conn 'L Double (Extended Word)
-f64wxx = connL ratf64 >>> ratwxx
+f64wxx = swapL ratf64 >>> ratwxx
 
 f64nat :: Conn 'L Double (Extended Natural)
-f64nat = connL ratf64 >>> ratnat
+f64nat = swapL ratf64 >>> ratnat
 
 f64i08 :: Conn k Double (Extended Int8)
 f64i08 = fxxext
@@ -221,13 +221,13 @@ f64i32 :: Conn k Double (Extended Int32)
 f64i32 = fxxext
 
 f64i64 :: Conn 'L Double (Extended Int64)
-f64i64 = connL ratf64 >>> rati64
+f64i64 = swapL ratf64 >>> rati64
 
 f64ixx :: Conn 'L Double (Extended Int)
-f64ixx = connL ratf64 >>> ratixx
+f64ixx = swapL ratf64 >>> ratixx
 
 f64int :: Conn 'L Double (Extended Integer)
-f64int = connL ratf64 >>> ratint
+f64int = swapL ratf64 >>> ratint
 
 f64f64 :: Conn k (Double, Double) Double
 f64f64 = fxxfxx

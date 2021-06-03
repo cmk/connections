@@ -27,13 +27,13 @@ module Data.Connection (
     
     -- ** Conn L
     ConnL,
-    connL,
     pattern ConnL,
+    swapL,
    
     -- ** Conn R
     ConnR,
-    connR,
     pattern ConnR,
+    swapR,
     
     -- ** Conn k
     pattern Conn,
