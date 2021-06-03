@@ -41,7 +41,7 @@ module Data.Connection.Property (
     projective,
 ) where
 
-import safe Data.Connection.Conn
+import safe Data.Connection.Cast
 import safe Data.Order
 import safe Data.Order.Property
 import safe Prelude hiding (Num (..), Ord (..), ceiling, floor)
@@ -50,7 +50,7 @@ import safe Prelude hiding (Num (..), Ord (..), ceiling, floor)
 
 -------------------------
 
-adjoint :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> b -> Bool
+adjoint :: (Preorder a, Preorder b) => (forall k. Cast k a b) -> a -> b -> Bool
 adjoint t a b =
     adjointL t a b
         && adjointR t a b
@@ -60,11 +60,11 @@ adjoint t a b =
 -- | \( \forall x, y : f \dashv g \Rightarrow f (x) \leq y \Leftrightarrow x \leq g (y) \)
 --
 -- A Galois connection is an adjunction of preorders. This is a required property.
-adjointL :: (Preorder a, Preorder b) => ConnL a b -> a -> b -> Bool
-adjointL (ConnL f g) = adjunction (<~) (<~) f g
+adjointL :: (Preorder a, Preorder b) => Cast 'L a b -> a -> b -> Bool
+adjointL (CastL f g) = adjunction (<~) (<~) f g
 
-adjointR :: (Preorder a, Preorder b) => ConnR a b -> a -> b -> Bool
-adjointR (ConnR f g) = adjunction (>~) (>~) g f
+adjointR :: (Preorder a, Preorder b) => Cast 'R a b -> a -> b -> Bool
+adjointR (CastR f g) = adjunction (>~) (>~) g f
 
 -- | \( \forall a: f a \leq b \Leftrightarrow a \leq g b \)
 --
@@ -77,29 +77,29 @@ adjunction (#) (%) f g a b = f a # b <=> a % g b
 
 -------------------------
 
-closed :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> Bool
+closed :: (Preorder a, Preorder b) => (forall k. Cast k a b) -> a -> Bool
 closed t a = closedL t a && closedR t a
 
 -- | \( \forall x : f \dashv g \Rightarrow x \leq g \circ f (x) \)
 --
 -- This is a required property.
-closedL :: (Preorder a, Preorder b) => ConnL a b -> a -> Bool
-closedL (ConnL f g) = invertible (>~) f g
+closedL :: (Preorder a, Preorder b) => Cast 'L a b -> a -> Bool
+closedL (CastL f g) = invertible (>~) f g
 
-closedR :: (Preorder a, Preorder b) => ConnR a b -> a -> Bool
-closedR (ConnR f g) = invertible (<~) g f
+closedR :: (Preorder a, Preorder b) => Cast 'R a b -> a -> Bool
+closedR (CastR f g) = invertible (<~) g f
 
-kernel :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> b -> Bool
+kernel :: (Preorder a, Preorder b) => (forall k. Cast k a b) -> b -> Bool
 kernel t b = kernelL t b && kernelR t b
 
 -- | \( \forall x : f \dashv g \Rightarrow x \leq g \circ f (x) \)
 --
 -- This is a required property.
-kernelL :: (Preorder a, Preorder b) => ConnL a b -> b -> Bool
-kernelL (ConnL f g) = invertible (<~) g f
+kernelL :: (Preorder a, Preorder b) => Cast 'L a b -> b -> Bool
+kernelL (CastL f g) = invertible (<~) g f
 
-kernelR :: (Preorder a, Preorder b) => ConnR a b -> b -> Bool
-kernelR (ConnR f g) = invertible (>~) f g
+kernelR :: (Preorder a, Preorder b) => Cast 'R a b -> b -> Bool
+kernelR (CastR f g) = invertible (>~) f g
 
 -- | \( \forall a: f (g a) \sim a \)
 invertible :: Rel s b -> (s -> r) -> (r -> s) -> s -> b
@@ -109,17 +109,17 @@ invertible (#) f g a = g (f a) # a
 
 -------------------------
 
-monotonic :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> a -> b -> b -> Bool
+monotonic :: (Preorder a, Preorder b) => (forall k. Cast k a b) -> a -> a -> b -> b -> Bool
 monotonic t a1 a2 b1 b2 = monotonicL t a1 a2 b1 b2 && monotonicR t a1 a2 b1 b2
 
 -- | \( \forall x, y : x \leq y \Rightarrow f (x) \leq f (y) \)
 --
 -- This is a required property.
-monotonicR :: (Preorder a, Preorder b) => ConnR a b -> a -> a -> b -> b -> Bool
-monotonicR (ConnR f g) a1 a2 b1 b2 = monotone (<~) (<~) g a1 a2 && monotone (<~) (<~) f b1 b2
+monotonicR :: (Preorder a, Preorder b) => Cast 'R a b -> a -> a -> b -> b -> Bool
+monotonicR (CastR f g) a1 a2 b1 b2 = monotone (<~) (<~) g a1 a2 && monotone (<~) (<~) f b1 b2
 
-monotonicL :: (Preorder a, Preorder b) => ConnL a b -> a -> a -> b -> b -> Bool
-monotonicL (ConnL f g) a1 a2 b1 b2 = monotone (<~) (<~) f a1 a2 && monotone (<~) (<~) g b1 b2
+monotonicL :: (Preorder a, Preorder b) => Cast 'L a b -> a -> a -> b -> b -> Bool
+monotonicL (CastL f g) a1 a2 b1 b2 = monotone (<~) (<~) f a1 a2 && monotone (<~) (<~) g b1 b2
 
 -- | \( \forall a, b: a \leq b \Rightarrow f(a) \leq f(b) \)
 monotone :: Rel r Bool -> Rel s Bool -> (r -> s) -> r -> r -> Bool
@@ -129,17 +129,17 @@ monotone (#) (%) f a b = a # b ==> f a % f b
 
 -------------------------
 
-idempotent :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> b -> Bool
+idempotent :: (Preorder a, Preorder b) => (forall k. Cast k a b) -> a -> b -> Bool
 idempotent t a b = idempotentL t a b && idempotentR t a b
 
 -- | \( \forall x: f \dashv g \Rightarrow counit \circ f (x) \sim f (x) \wedge unit \circ g (x) \sim g (x) \)
 --
 -- See <https://ncatlab.org/nlab/show/idempotent+adjunction>
-idempotentL :: (Preorder a, Preorder b) => ConnL a b -> a -> b -> Bool
-idempotentL c@(ConnL f g) a b = projective (~~) g (upper1 c id) b && projective (~~) f (ceiling1 c id) a
+idempotentL :: (Preorder a, Preorder b) => Cast 'L a b -> a -> b -> Bool
+idempotentL c@(CastL f g) a b = projective (~~) g (upper1 c id) b && projective (~~) f (ceiling1 c id) a
 
-idempotentR :: (Preorder a, Preorder b) => ConnR a b -> a -> b -> Bool
-idempotentR c@(ConnR f g) a b = projective (~~) g (floor1 c id) a && projective (~~) f (lower1 c id) b
+idempotentR :: (Preorder a, Preorder b) => Cast 'R a b -> a -> b -> Bool
+idempotentR c@(CastR f g) a b = projective (~~) g (floor1 c id) a && projective (~~) f (lower1 c id) b
 
 -- | \( \forall a: g \circ f (a) \sim f (a) \)
 projective :: Rel s b -> (r -> s) -> (s -> s) -> r -> b

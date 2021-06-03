@@ -26,7 +26,7 @@ library
   exposed-modules:
 
       Data.Connection
-    , Data.Connection.Conn
+    , Data.Connection.Cast
     , Data.Connection.Class
     , Data.Connection.Fixed
     , Data.Connection.Float

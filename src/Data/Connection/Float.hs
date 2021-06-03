@@ -47,7 +47,7 @@ module Data.Connection.Float (
 ) where
 
 import safe Data.Bool
-import safe Data.Connection.Conn hiding (ceiling, floor)
+import safe Data.Connection.Cast hiding (ceiling, floor)
 import safe Data.Connection.Ratio
 import safe Data.Int
 import safe Data.Order
@@ -63,47 +63,47 @@ import safe qualified Prelude as P
 -- Float
 ---------------------------------------------------------------------
 
-f32w08 :: Conn k Float (Extended Word8)
+f32w08 :: Cast k Float (Extended Word8)
 f32w08 = fxxext
 
-f32w16 :: Conn k Float (Extended Word16)
+f32w16 :: Cast k Float (Extended Word16)
 f32w16 = fxxext
 
-f32w32 :: Conn 'L Float (Extended Word32)
+f32w32 :: Cast 'L Float (Extended Word32)
 f32w32 = swapL ratf32 >>> ratw32
 
-f32w64 :: Conn 'L Float (Extended Word64)
+f32w64 :: Cast 'L Float (Extended Word64)
 f32w64 = swapL ratf32 >>> ratw64
 
-f32wxx :: Conn 'L Float (Extended Word)
+f32wxx :: Cast 'L Float (Extended Word)
 f32wxx = swapL ratf32 >>> ratwxx
 
-f32nat :: Conn 'L Float (Extended Natural)
+f32nat :: Cast 'L Float (Extended Natural)
 f32nat = swapL ratf32 >>> ratnat
 
-f32i32 :: Conn 'L Float (Extended Int32)
+f32i32 :: Cast 'L Float (Extended Int32)
 f32i32 = swapL ratf32 >>> rati32
 
-f32i64 :: Conn 'L Float (Extended Int64)
+f32i64 :: Cast 'L Float (Extended Int64)
 f32i64 = swapL ratf32 >>> rati64
 
-f32ixx :: Conn 'L Float (Extended Int)
+f32ixx :: Cast 'L Float (Extended Int)
 f32ixx = swapL ratf32 >>> ratixx
 
-f32int :: Conn 'L Float (Extended Integer)
+f32int :: Cast 'L Float (Extended Integer)
 f32int = swapL ratf32 >>> ratint
 
-f32i08 :: Conn k Float (Extended Int8)
+f32i08 :: Cast k Float (Extended Int8)
 f32i08 = fxxext
 
-f32i16 :: Conn k Float (Extended Int16)
+f32i16 :: Cast k Float (Extended Int16)
 f32i16 = fxxext
 
-f32f32 :: Conn k (Float, Float) Float
+f32f32 :: Cast k (Float, Float) Float
 f32f32 = fxxfxx
 
-f64f32 :: Conn k Double Float
-f64f32 = Conn f g h
+f64f32 :: Cast k Double Float
+f64f32 = Cast f g h
   where
     f x =
         let est = double2Float x
@@ -124,8 +124,8 @@ f64f32 = Conn f g h
     descend32 z h1 x = until (\y -> h1 y <~ x) (>~) (shift32 (-1)) z
 {-# INLINE f64f32 #-}
 
-ratf32 :: Conn k Rational Float
-ratf32 = Conn (toFractional f) (fromFractional g) (toFractional h)
+ratf32 :: Cast k Rational Float
+ratf32 = Cast (toFractional f) (fromFractional g) (toFractional h)
   where
     f x =
         let est = fromRational x
@@ -193,47 +193,47 @@ shift32 n x =
 -- Double
 ---------------------------------------------------------------------
 
-f64w08 :: Conn k Double (Extended Word8)
+f64w08 :: Cast k Double (Extended Word8)
 f64w08 = fxxext
 
-f64w16 :: Conn k Double (Extended Word16)
+f64w16 :: Cast k Double (Extended Word16)
 f64w16 = fxxext
 
-f64w32 :: Conn k Double (Extended Word32)
+f64w32 :: Cast k Double (Extended Word32)
 f64w32 = fxxext
 
-f64w64 :: Conn 'L Double (Extended Word64)
+f64w64 :: Cast 'L Double (Extended Word64)
 f64w64 = swapL ratf64 >>> ratw64
 
-f64wxx :: Conn 'L Double (Extended Word)
+f64wxx :: Cast 'L Double (Extended Word)
 f64wxx = swapL ratf64 >>> ratwxx
 
-f64nat :: Conn 'L Double (Extended Natural)
+f64nat :: Cast 'L Double (Extended Natural)
 f64nat = swapL ratf64 >>> ratnat
 
-f64i08 :: Conn k Double (Extended Int8)
+f64i08 :: Cast k Double (Extended Int8)
 f64i08 = fxxext
 
-f64i16 :: Conn k Double (Extended Int16)
+f64i16 :: Cast k Double (Extended Int16)
 f64i16 = fxxext
 
-f64i32 :: Conn k Double (Extended Int32)
+f64i32 :: Cast k Double (Extended Int32)
 f64i32 = fxxext
 
-f64i64 :: Conn 'L Double (Extended Int64)
+f64i64 :: Cast 'L Double (Extended Int64)
 f64i64 = swapL ratf64 >>> rati64
 
-f64ixx :: Conn 'L Double (Extended Int)
+f64ixx :: Cast 'L Double (Extended Int)
 f64ixx = swapL ratf64 >>> ratixx
 
-f64int :: Conn 'L Double (Extended Integer)
+f64int :: Cast 'L Double (Extended Integer)
 f64int = swapL ratf64 >>> ratint
 
-f64f64 :: Conn k (Double, Double) Double
+f64f64 :: Cast k (Double, Double) Double
 f64f64 = fxxfxx
 
-ratf64 :: Conn k Rational Double
-ratf64 = Conn (toFractional f) (fromFractional g) (toFractional h)
+ratf64 :: Cast k Rational Double
+ratf64 = Cast (toFractional f) (fromFractional g) (toFractional h)
   where
     f x =
         let est = fromRational x
@@ -380,8 +380,8 @@ clamp32 = P.max (-2139095041) . P.min 2139095040
 clamp64 :: Int64 -> Int64
 clamp64 = P.max (-9218868437227405313) . P.min 9218868437227405312
 
-fxxfxx :: (Total a, Fractional a) => Conn k (a, a) a
-fxxfxx = Conn f g h
+fxxfxx :: (Total a, Fractional a) => Cast k (a, a) a
+fxxfxx = Cast f g h
   where
     -- join
     f (x, y) = maybe (1 / 0) (bool y x . (>= EQ)) (pcompare x y)
@@ -391,8 +391,8 @@ fxxfxx = Conn f g h
     -- meet
     h (x, y) = maybe (-1 / 0) (bool y x . (<= EQ)) (pcompare x y)
 
-fxxext :: forall a b k. (RealFrac a, Preorder a, Bounded b, Integral b) => Conn k a (Extended b)
-fxxext = Conn f g h
+fxxext :: forall a b k. (RealFrac a, Preorder a, Bounded b, Integral b) => Cast k a (Extended b)
+fxxext = Cast f g h
   where
     f = extend (~~ -1 / 0) (\x -> x ~~ 0 / 0 || x > high) $ \x -> if x < low then minBound else ceiling x
 
@@ -406,38 +406,38 @@ fxxext = Conn f g h
 {-# INLINE fxxext #-}
 
 {-
-f32i32 :: Conn 'L Float (Extended Int32)
+f32i32 :: Cast 'L Float (Extended Int32)
 f32i32 = f32ext
 
-f32i64 :: Conn 'L Float (Extended Int64)
+f32i64 :: Cast 'L Float (Extended Int64)
 f32i64 = f32ext
 
-f32ixx :: Conn 'L Float (Extended Int)
+f32ixx :: Cast 'L Float (Extended Int)
 f32ixx = f32ext
 
-f32int :: Conn 'L Float (Extended Integer)
+f32int :: Cast 'L Float (Extended Integer)
 f32int = f32ext
 
-f64i64 :: Conn 'L Double (Extended Int64)
+f64i64 :: Cast 'L Double (Extended Int64)
 f64i64 = f64ext
 
-f64ixx :: Conn 'L Double (Extended Int)
+f64ixx :: Cast 'L Double (Extended Int)
 f64ixx = f64ext
 
 {-# INLINE f64ext #-}
-f64int :: Conn 'L Double (Extended Integer)
+f64int :: Cast 'L Double (Extended Integer)
 f64int = f64ext
 
-f32ext :: Integral a => Conn 'L Float (Extended a)
+f32ext :: Integral a => Cast 'L Float (Extended a)
 f32ext = fxxextL 23 -- Float loses integer precision beyond 2^prec
 
 {-# INLINE f32ext #-}
 
-f64ext :: Integral a => Conn 'L Double (Extended a)
+f64ext :: Integral a => Cast 'L Double (Extended a)
 f64ext = fxxextL 52 -- Double loses integer precision beyond 2^prec
 
-fxxextL :: (Preorder a, RealFrac a, Integral b) => b -> ConnL a (Extended b)
-fxxextL prec = ConnL f g
+fxxextL :: (Preorder a, RealFrac a, Integral b) => b -> CastL a (Extended b)
+fxxextL prec = CastL f g
   where
     f x
         | abs x <= 2 ^^ prec -1 = Finite (ceiling x)

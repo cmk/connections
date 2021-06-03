@@ -92,13 +92,13 @@ instance Preorder a => Preorder (Interval a) where
 
 {-
 instance Bounded 'L a => Connection k (Maybe a) (Interval a) where
-  conn = Conn f g h where
+  conn = Cast f g h where
     f = maybe iempty singleton
     g = maybe Nothing (Just . uncurry (\/)) . endpts
     h = maybe iempty $ \x -> minimal ... x
 
 instance Lattice a => Connection k (Interval a) (Maybe a) where
-  conn = Conn f g h where
+  conn = Cast f g h where
     f = maybe Nothing (Just . uncurry (\/)) . endpts
     g = maybe iempty singleton
     h = maybe Nothing (Just . uncurry (/\)) . endpts

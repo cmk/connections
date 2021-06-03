@@ -32,8 +32,8 @@ Lastly, it provides [lattices and algebras](https://hackage.haskell.org/package/
 Let's look at a simple connection between `Ordering` and `Bool`:
 
 ```
-ordbin :: Conn 'L Ordering Bool
-ordbin = ConnL f g where
+ordbin :: Cast 'L Ordering Bool
+ordbin = CastL f g where
   f LT = False
   f _  = True
  
@@ -56,8 +56,8 @@ Each cell represents a pairing of (`x`,`y`) with the two relations `f x _ y` and
 Interestingly, there is a second 'flipped' connection available as well, where the same `g` can serve as the lower end:
 
 ```
-binord :: Conn 'L Bool Ordering
-binord = ConnL g h where
+binord :: Cast 'L Bool Ordering
+binord = CastL g h where
   g False = LT
   g True  = GT
   
@@ -72,8 +72,8 @@ Therefore the connection type in `Data.Connection.Conn` is parametrized over a d
 In our example above, it turns out that a small change in the adjoints on each side enables such a chain:
 
 ```
-ordbin :: Conn k Ordering Bool
-ordbin = Conn f g h
+ordbin :: Cast k Ordering Bool
+ordbin = Cast f g h
   where
     f LT = False
     f _  = True
@@ -163,7 +163,7 @@ round1 f64f32 :: (Double -> Double) -> Float -> Float
 
 ```
 λ> :t divide rati16 f32i16
-divide rati16 f32i16 :: Conn k (Rational, Float) (Extended Int16)
+divide rati16 f32i16 :: Cast k (Rational, Float) (Extended Int16)
 λ> maximize (divide rati16 f32i16) 2.99 3.01
 Finite 4
 λ> maximize (divide rati16 f32i16) 2.99 (0/0)
@@ -177,11 +177,11 @@ In particular connections form a category, which means they compose:
 ```
 λ> :t MkSystemTime
 MkSystemTime :: Int64 -> Word32 -> SystemTime
-λ> :t connL ratf64 >>> ratsys
-connL ratf64 >>> ratsys :: Conn 'L Double (Extended SystemTime)
-λ> ceiling (connL ratf64 >>> ratsys) pi
+λ> :t swapL ratf64 >>> ratsys
+swapL ratf64 >>> ratsys :: Cast 'L Double (Extended SystemTime)
+λ> ceiling (swapL ratf64 >>> ratsys) pi
 Finite (MkSystemTime {systemSeconds = 3, systemNanoseconds = 141592654})
-λ> diffSystemTime x y = inner (connL ratf64 >>> ratsys) $ round2 ratsys (-) (Finite x) (Finite y)
+λ> diffSystemTime x y = inner (swapL ratf64 >>> ratsys) $ round2 ratsys (-) (Finite x) (Finite y)
 λ> :t diffSystemTime
 diffSystemTime :: SystemTime -> SystemTime -> Double
 λ> diffSystemTime (MkSystemTime 0 0) (MkSystemTime 0 maxBound)

@@ -17,10 +17,9 @@ module Data.Connection.Time (
     SystemTime (..),
 ) where
 
-import safe Data.Connection.Conn
+import safe Data.Connection.Cast
 import safe Data.Connection.Fixed
 import safe Data.Connection.Float
-import safe Data.Connection.Ratio
 import safe Data.Int
 import safe Data.Order.Syntax
 import safe Data.Time.Clock.System
@@ -35,8 +34,8 @@ import safe Prelude hiding (Eq (..), Ord (..), ceiling)
 -------------------------
 
 -- | The 'Int' is valued in seconds
-sysixx :: Conn k SystemTime Int
-sysixx = Conn f g h
+sysixx :: Cast k SystemTime Int
+sysixx = Cast f g h
   where
     f (normalize -> MkSystemTime s n) = fromIntegral s + if n == 0 then 0 else 1
     g i = MkSystemTime (fromIntegral i) 0
@@ -48,7 +47,7 @@ sysixx = Conn f g h
 -- PosInf
 -- >>> Data.Connection.ceiling f32sys pi
 -- Finite (MkSystemTime {systemSeconds = 3, systemNanoseconds = 141592742})
-f32sys :: Conn 'L Float (Extended SystemTime)
+f32sys :: Cast 'L Float (Extended SystemTime)
 f32sys = swapL ratf32 >>> ratsys
 
 -- | The 'Double' is valued in seconds.
@@ -57,16 +56,16 @@ f32sys = swapL ratf32 >>> ratsys
 -- PosInf
 -- >>> Data.Connection.ceiling f64sys pi
 -- Finite (MkSystemTime {systemSeconds = 3, systemNanoseconds = 141592654})
-f64sys :: Conn 'L Double (Extended SystemTime)
+f64sys :: Cast 'L Double (Extended SystemTime)
 f64sys = swapL ratf64 >>> ratsys
 
 -- | The 'Rational' is valued in seconds.
-ratsys :: Conn k Rational (Extended SystemTime)
+ratsys :: Cast k Rational (Extended SystemTime)
 ratsys = ratfix >>> f09sys
 
 -- | The 'Nano' is valued in seconds (to nanosecond precision).
-f09sys :: Conn k (Extended Nano) (Extended SystemTime)
-f09sys = Conn f g h
+f09sys :: Cast k (Extended Nano) (Extended SystemTime)
+f09sys = Cast f g h
   where
     f NegInf = NegInf
     f (Finite i) = extend (const False) (> max64) (fromNanoSecs . clamp) i
