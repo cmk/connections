@@ -8,7 +8,6 @@ import Data.Connection.Fixed
 import qualified Data.Connection.Property as Prop
 import Data.Fixed
 import Hedgehog
-import qualified Hedgehog.Gen as G
 import Test.Data.Connection
 
 prop_connection_ratf06 :: Property

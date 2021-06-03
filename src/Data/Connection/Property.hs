@@ -54,8 +54,8 @@ adjoint :: (Preorder a, Preorder b) => (forall k. Conn k a b) -> a -> b -> Bool
 adjoint t a b =
     adjointL t a b
         && adjointR t a b
-        && adjointL (connL t) b a
-        && adjointR (connR t) b a
+        && adjointL (swapL t) b a
+        && adjointR (swapR t) b a
 
 -- | \( \forall x, y : f \dashv g \Rightarrow f (x) \leq y \Leftrightarrow x \leq g (y) \)
 --

@@ -49,7 +49,7 @@ sysixx = Conn f g h
 -- >>> Data.Connection.ceiling f32sys pi
 -- Finite (MkSystemTime {systemSeconds = 3, systemNanoseconds = 141592742})
 f32sys :: Conn 'L Float (Extended SystemTime)
-f32sys = connL ratf32 >>> ratsys
+f32sys = swapL ratf32 >>> ratsys
 
 -- | The 'Double' is valued in seconds.
 --
@@ -58,7 +58,7 @@ f32sys = connL ratf32 >>> ratsys
 -- >>> Data.Connection.ceiling f64sys pi
 -- Finite (MkSystemTime {systemSeconds = 3, systemNanoseconds = 141592654})
 f64sys :: Conn 'L Double (Extended SystemTime)
-f64sys = connL ratf64 >>> ratsys
+f64sys = swapL ratf64 >>> ratsys
 
 -- | The 'Rational' is valued in seconds.
 ratsys :: Conn k Rational (Extended SystemTime)
