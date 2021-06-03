@@ -62,7 +62,7 @@ module Data.Lattice (
 
 import safe Data.Bifunctor (bimap)
 import safe Data.Bool hiding (not)
-import safe Data.Connection.Conn
+import safe Data.Connection.Cast
 import safe Data.Either
 import safe Data.Int
 import safe qualified Data.IntMap as IntMap
@@ -150,12 +150,12 @@ class Order a => Semilattice k a where
     -- | The defining connection of a bound semilattice.
     --
     -- 'bottom' and 'top' are defined by the left and right adjoints to /a -> ()/.
-    bound :: Conn k () a
+    bound :: Cast k () a
 
     -- | The defining connection of a semilattice.
     --
     -- '\/' and '/\' are defined by the left and right adjoints to /a -> (a, a)/.
-    semilattice :: Conn k (a, a) a
+    semilattice :: Cast k (a, a) a
 
 infixr 6 /\ -- comment for the parser
 
@@ -270,9 +270,9 @@ type Biheyting a = (Coheyting a, Heyting a)
 class Semilattice k a => Algebra k a where
     -- | The defining connection of a (co-)Heyting algebra.
     --
-    -- > algebra @'L x = ConnL (\\ x) (\/ x)
-    -- > algebra @'R x = ConnR (x /\) (x //)
-    algebra :: a -> Conn k a a
+    -- > algebra @'L x = CastL (\\ x) (\/ x)
+    -- > algebra @'R x = CastR (x /\) (x //)
+    algebra :: a -> Cast k a a
 
 -------------------------------------------------------------------------------
 -- Heyting
@@ -338,14 +338,14 @@ middle :: Heyting a => a -> a
 middle x = x \/ neg x
 
 -- | Default constructor for a Algebra algebra.
-heyting :: Meet a => (a -> a -> a) -> a -> ConnR a a
-heyting f a = ConnR (a /\) (a `f`)
+heyting :: Meet a => (a -> a -> a) -> a -> Cast 'R a a
+heyting f a = CastR (a /\) (a `f`)
 
 -- | An adjunction between a Algebra algebra and its Boolean sub-algebra.
 --
 -- Double negation is a meet-preserving monad.
-booleanR :: Heyting a => ConnR a a
-booleanR = ConnR (neg . neg) inj
+booleanR :: Heyting a => Cast 'R a a
+booleanR = CastR (neg . neg) inj
   where
     -- Check that /x/ is a regular element
     -- See https://ncatlab.org/nlab/show/regular+element
@@ -423,14 +423,14 @@ boundary :: Coheyting a => a -> a
 boundary x = x /\ non x
 
 -- | Default constructor for a co-Heyting algebra.
-coheyting :: Join a => (a -> a -> a) -> a -> ConnL a a
-coheyting f a = ConnL (`f` a) (\/ a)
+coheyting :: Join a => (a -> a -> a) -> a -> Cast 'L a a
+coheyting f a = CastL (`f` a) (\/ a)
 
 -- | An adjunction between a co-Heyting algebra and its Boolean sub-algebra.
 --
 -- Double negation is a join-preserving comonad.
-booleanL :: Coheyting a => ConnL a a
-booleanL = ConnL inj (non . non)
+booleanL :: Coheyting a => Cast 'L a a
+booleanL = CastL inj (non . non)
   where
     -- Check that /x/ is a regular element
     -- See https://ncatlab.org/nlab/show/regular+element
@@ -489,11 +489,11 @@ converseR :: Symmetric a => a -> a
 converseR x = not x // bottom
 
 -- | Default constructor for a Heyting algebra.
-symmetricR :: Symmetric a => a -> ConnR a a
+symmetricR :: Symmetric a => a -> Cast 'R a a
 symmetricR = heyting $ \x y -> not (not y \\ not x)
 
 -- | Default constructor for a co-Heyting algebra.
-symmetricL :: Symmetric a => a -> ConnL a a
+symmetricL :: Symmetric a => a -> Cast 'L a a
 symmetricL = coheyting $ \x y -> not (not y // not x)
 
 -------------------------------------------------------------------------------
@@ -514,8 +514,8 @@ symmetricL = coheyting $ \x y -> not (not y // not x)
 -- > non = not = neg
 class Symmetric a => Boolean a where
     -- | A witness to the lawfulness of a boolean algebra.
-    boolean :: Conn k a a
-    boolean = Conn (converseR . converseL) id (converseL . converseR)
+    boolean :: Cast k a a
+    boolean = Cast (converseR . converseL) id (converseL . converseR)
 
 -------------------------------------------------------------------------------
 -- Instances
@@ -642,8 +642,8 @@ instance Semilattice k Positive where
 -------------------------------------------------------------------------------
 
 instance (Lattice a, Lattice b) => Semilattice k (a, b) where
-    bound = Conn (const (bottom, bottom)) (const ()) (const (top, top))
-    semilattice = Conn (uncurry joinTuple) fork (uncurry meetTuple)
+    bound = Cast (const (bottom, bottom)) (const ()) (const (top, top))
+    semilattice = Cast (uncurry joinTuple) fork (uncurry meetTuple)
 
 instance (Heyting a, Heyting b) => Algebra 'R (a, b) where
     algebra (a, b) = algebra a `strong` algebra b
@@ -661,12 +661,12 @@ instance (Boolean a, Boolean b) => Boolean (a, b)
 -------------------------------------------------------------------------------
 
 instance Join a => Semilattice 'L (Maybe a) where
-    bound = ConnL (const Nothing) (const ())
-    semilattice = ConnL (uncurry joinMaybe) fork
+    bound = CastL (const Nothing) (const ())
+    semilattice = CastL (uncurry joinMaybe) fork
 
 instance Meet a => Semilattice 'R (Maybe a) where
-    bound = ConnR (const ()) (const $ Just top)
-    semilattice = ConnR fork (uncurry meetMaybe)
+    bound = CastR (const ()) (const $ Just top)
+    semilattice = CastR fork (uncurry meetMaybe)
 
 instance Heyting a => Algebra 'R (Maybe a) where
     algebra = heyting f
@@ -676,12 +676,12 @@ instance Heyting a => Algebra 'R (Maybe a) where
         f _ Nothing = Nothing
 
 instance Join a => Semilattice 'L (Extended a) where
-    bound = Conn (const NegInf) (const ()) (const PosInf)
-    semilattice = ConnL (uncurry joinExtended) fork
+    bound = Cast (const NegInf) (const ()) (const PosInf)
+    semilattice = CastL (uncurry joinExtended) fork
 
 instance Meet a => Semilattice 'R (Extended a) where
-    bound = Conn (const NegInf) (const ()) (const PosInf)
-    semilattice = ConnR fork (uncurry meetExtended)
+    bound = Cast (const NegInf) (const ()) (const PosInf)
+    semilattice = CastR fork (uncurry meetExtended)
 
 instance Heyting a => Algebra 'R (Extended a) where
     algebra = heyting f
@@ -696,12 +696,12 @@ instance Heyting a => Algebra 'R (Extended a) where
 
 -- | All minimal elements of the upper lattice cover all maximal elements of the lower lattice.
 instance (Join a, Join b) => Semilattice 'L (Either a b) where
-    bound = ConnL (const $ Left bottom) (const ())
-    semilattice = ConnL (uncurry joinEither) fork
+    bound = CastL (const $ Left bottom) (const ())
+    semilattice = CastL (uncurry joinEither) fork
 
 instance (Meet a, Meet b) => Semilattice 'R (Either a b) where
-    bound = ConnR (const ()) (const $ Right top)
-    semilattice = ConnR fork (uncurry meetEither)
+    bound = CastR (const ()) (const $ Right top)
+    semilattice = CastR fork (uncurry meetEither)
 
 -- |
 -- Subdirectly irreducible Algebra algebra.
@@ -727,36 +727,36 @@ instance Heyting a => Algebra 'R (Either () a) where
 
 {-
 instance Total a => Connection k (Set.Set a, Set.Set a) (Set.Set a) where
-    semilattice = Conn (uncurry Set.union) fork (uncurry Set.intersection)
+    semilattice = Cast (uncurry Set.union) fork (uncurry Set.intersection)
 
 instance Connection 'L () IntSet.IntSet where
-    bound = ConnL (const IntSet.empty) (const ())
+    bound = CastL (const IntSet.empty) (const ())
 
 instance Connection k (IntSet.IntSet, IntSet.IntSet) IntSet.IntSet where
-    semilattice = Conn (uncurry IntSet.union) fork (uncurry IntSet.intersection)
+    semilattice = Cast (uncurry IntSet.union) fork (uncurry IntSet.intersection)
 
 instance (Total a, Preorder b) => Connection 'L () (Map.Map a b) where
-    bound = ConnL (const Map.empty) (const ())
+    bound = CastL (const Map.empty) (const ())
 
 instance (Total a, Left (b, b) b) => Connection 'L (Map.Map a b, Map.Map a b) (Map.Map a b) where
-    semilattice = ConnL (uncurry $ Map.unionWith join) fork
+    semilattice = CastL (uncurry $ Map.unionWith join) fork
 
 instance (Total a, Right (b, b) b) => Connection 'R (Map.Map a b, Map.Map a b) (Map.Map a b) where
-    semilattice = ConnR fork (uncurry $ Map.intersectionWith meet)
+    semilattice = CastR fork (uncurry $ Map.intersectionWith meet)
 
 instance Preorder a => Connection 'L () (IntMap.IntMap a) where
-    bound = ConnL (const IntMap.empty) (const ())
+    bound = CastL (const IntMap.empty) (const ())
 
 instance Left (a, a) a => Connection 'L (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
-    semilattice = ConnL (uncurry $ IntMap.unionWith join) fork
+    semilattice = CastL (uncurry $ IntMap.unionWith join) fork
 
 instance Right (a, a) a => Connection 'R (IntMap.IntMap a, IntMap.IntMap a) (IntMap.IntMap a) where
-    semilattice = ConnR fork (uncurry $ IntMap.intersectionWith meet)
+    semilattice = CastR fork (uncurry $ IntMap.intersectionWith meet)
 -}
 
 instance Total a => Semilattice 'L (Set.Set a) where
-    bound = ConnL (const Set.empty) (const ())
-    semilattice = ConnL (uncurry Set.union) fork
+    bound = CastL (const Set.empty) (const ())
+    semilattice = CastL (uncurry Set.union) fork
 
 instance Total a => Algebra 'L (Set.Set a) where
     algebra = coheyting (Set.\\)
@@ -770,8 +770,8 @@ instance Total a => Algebra 'L (Set.Set a) where
 --instance (Total a, U.Finite a) => Boolean (Set.Set a) where
 
 instance Semilattice k IntSet.IntSet where
-    bound = Conn (const IntSet.empty) (const ()) (const $ IntSet.fromList [minBound .. maxBound])
-    semilattice = Conn (uncurry IntSet.union) fork (uncurry IntSet.intersection)
+    bound = Cast (const IntSet.empty) (const ()) (const $ IntSet.fromList [minBound .. maxBound])
+    semilattice = Cast (uncurry IntSet.union) fork (uncurry IntSet.intersection)
 
 instance Algebra 'L IntSet.IntSet where
     algebra = coheyting (IntSet.\\)
@@ -796,9 +796,9 @@ instance Boolean IntSet.IntSet where
 -}
 
 instance (Total k, Join a) => Semilattice 'L (Map.Map k a) where
-    bound = ConnL (const Map.empty) (const ())
+    bound = CastL (const Map.empty) (const ())
 
-    semilattice = ConnL f fork
+    semilattice = CastL f fork
       where
         f = uncurry $ Map.unionWith (\/)
 
@@ -806,9 +806,9 @@ instance (Total k, Join a) => Algebra 'L (Map.Map k a) where
     algebra = coheyting (Map.\\)
 
 instance (Join a) => Semilattice 'L (IntMap.IntMap a) where
-    bound = ConnL (const IntMap.empty) (const ())
+    bound = CastL (const IntMap.empty) (const ())
 
-    semilattice = ConnL f fork
+    semilattice = CastL f fork
       where
         f = uncurry $ IntMap.unionWith (\/)
 

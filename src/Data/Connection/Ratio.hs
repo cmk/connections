@@ -25,11 +25,10 @@ module Data.Connection.Ratio (
 ) where
 
 import safe Data.Bool
-import safe Data.Connection.Conn hiding (ceiling, floor, lower)
+import safe Data.Connection.Cast hiding (ceiling, floor, lower)
 import safe Data.Int
 import safe Data.Order
 import safe Data.Order.Syntax
-import safe Data.Ratio
 import safe Data.Word
 import safe GHC.Real (Ratio (..), Rational)
 import safe Numeric.Natural
@@ -50,23 +49,23 @@ shiftr n (x :% y) = (n + x) :% y
 -- Ratio Integer
 ---------------------------------------------------------------------
 
-ratw08 :: Conn k Rational (Extended Word8)
+ratw08 :: Cast k Rational (Extended Word8)
 ratw08 = ratext
 
-ratw16 :: Conn k Rational (Extended Word16)
+ratw16 :: Cast k Rational (Extended Word16)
 ratw16 = ratext
 
-ratw32 :: Conn k Rational (Extended Word32)
+ratw32 :: Cast k Rational (Extended Word32)
 ratw32 = ratext
 
-ratw64 :: Conn k Rational (Extended Word64)
+ratw64 :: Cast k Rational (Extended Word64)
 ratw64 = ratext
 
-ratwxx :: Conn k Rational (Extended Word)
+ratwxx :: Cast k Rational (Extended Word)
 ratwxx = ratext
 
-ratnat :: Conn k Rational (Extended Natural)
-ratnat = Conn f g h
+ratnat :: Cast k Rational (Extended Natural)
+ratnat = Cast f g h
   where
     f = extend (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) (ceiling . max 0)
 
@@ -74,23 +73,23 @@ ratnat = Conn f g h
 
     h = extend (\x -> x ~~ nan || x < 0) (~~ pinf) (floor . max 0)
 
-rati08 :: Conn k Rational (Extended Int8)
+rati08 :: Cast k Rational (Extended Int8)
 rati08 = ratext
 
-rati16 :: Conn k Rational (Extended Int16)
+rati16 :: Cast k Rational (Extended Int16)
 rati16 = ratext
 
-rati32 :: Conn k Rational (Extended Int32)
+rati32 :: Cast k Rational (Extended Int32)
 rati32 = ratext
 
-rati64 :: Conn k Rational (Extended Int64)
+rati64 :: Cast k Rational (Extended Int64)
 rati64 = ratext
 
-ratixx :: Conn k Rational (Extended Int)
+ratixx :: Cast k Rational (Extended Int)
 ratixx = ratext
 
-ratint :: Conn k Rational (Extended Integer)
-ratint = Conn f g h
+ratint :: Cast k Rational (Extended Integer)
+ratint = Cast f g h
   where
     f = extend (~~ ninf) (\x -> x ~~ nan || x ~~ pinf) ceiling
 
@@ -98,8 +97,8 @@ ratint = Conn f g h
 
     h = extend (\x -> x ~~ nan || x ~~ ninf) (~~ pinf) floor
 
-ratrat :: Conn k (Rational, Rational) Rational
-ratrat = Conn f g h
+ratrat :: Cast k (Rational, Rational) Rational
+ratrat = Cast f g h
   where
     -- join
     f (x, y) = maybe (1 / 0) (bool y x . (>= EQ)) (pcompare x y)
@@ -122,8 +121,8 @@ ninf = (-1) :% 0
 nan :: Num a => Ratio a
 nan = 0 :% 0
 
-ratext :: forall a k. (Bounded a, Integral a) => Conn k Rational (Extended a)
-ratext = Conn f g h
+ratext :: forall a k. (Bounded a, Integral a) => Cast k Rational (Extended a)
+ratext = Cast f g h
   where
     f = extend (~~ ninf) (\x -> x ~~ nan || x > high) $ \x -> if x < low then minBound else ceiling x
 

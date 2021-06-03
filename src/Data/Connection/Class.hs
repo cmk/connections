@@ -15,17 +15,17 @@ module Data.Connection.Class (
     castL,
     castR,
     Triple,
-    ConnInteger,
+    CastInteger,
     fromInteger,
-    ConnRational,
+    CastRational,
     fromRational,
-    ConnFloating,
+    CastFloating,
     fromFloating,
     Connection (..),
 ) where
 
 import safe Control.Category ((>>>))
-import safe Data.Connection.Conn
+import safe Data.Connection.Cast
 import safe Data.Connection.Fixed
 import safe Data.Connection.Float
 import safe Data.Connection.Int
@@ -45,34 +45,32 @@ type Triple a b = (Connection 'L a b, Connection 'R a b)
 -- | A < https://ncatlab.org/nlab/show/adjoint+string chain > of Galois connections of length 2 or 3.
 class (Preorder a, Preorder b) => Connection k a b where
 
-    cast :: Conn k a b
+    cast :: Cast k a b
 
--- | A specialization of /conn/ to left-side connections.
-castL :: Connection 'L a b => ConnL a b
+-- | A specialization of 'cast' to left-side connections.
+castL :: Connection 'L a b => Cast 'L a b
 castL = cast @ 'L
 
--- | A specialization of /conn/ to right-side connections.
-castR :: Connection 'R a b => ConnR a b
+-- | A specialization of 'cast' to right-side connections.
+castR :: Connection 'R a b => Cast 'R a b
 castR = cast @ 'R
 
--- | A constraint kind for 'Integer' conversions.
-type ConnInteger a = Connection 'L a (Maybe Integer)
+type CastInteger a = Connection 'L a (Maybe Integer)
 
 -- | A replacement for the version in /base/.
 --
 --  Usable in conjunction with /RebindableSyntax/:
 {-# INLINE fromInteger #-}
-fromInteger :: ConnInteger a => Integer -> a
+fromInteger :: CastInteger a => Integer -> a
 fromInteger = upper cast . Just
 
--- | A constraint kind for 'Rational' conversions.
-type ConnRational a = Triple Rational a
+type CastRational a = Triple Rational a
 
 -- | A replacement for the version in /base/.
 --
 -- Usable in conjunction with /RebindableSyntax/:
 {-# INLINE fromRational #-}
-fromRational :: forall a. ConnRational a => Rational -> a
+fromRational :: forall a. CastRational a => Rational -> a
 fromRational x = case pcompare r l of
     Just GT -> ceiling castL x
     Just LT -> floor castR x
@@ -81,15 +79,14 @@ fromRational x = case pcompare r l of
     r = x - lower1 (castR @Rational @a) id x -- dist from lower bound
     l = upper1 (castL @Rational @a) id x - x -- dist from upper bound
 
--- | A constraint kind for floating point-integral conversions.
-type ConnFloating a b = Connection 'L a (Extended b)
+type CastFloating a b = Connection 'L a (Extended b)
 
 -- | Convert a rational or floating-point value.
 --
 --  The extra two arguments correspond to negative infinity and
 --  to NaN / positive infinity.
 {-# INLINE fromFloating #-}
-fromFloating :: ConnFloating a b => b -> b -> a -> b
+fromFloating :: CastFloating a b => b -> b -> a -> b
 fromFloating ninf inf = extended ninf inf id . ceiling cast
 
 ---------------------------------------------------------------------
@@ -234,8 +231,8 @@ instance Connection 'L Integer (Maybe Integer) where
     -- It is lawful for /abs i <= maxBound @Int64/
     cast = c1 >>> intnat >>> natint >>> c2
       where
-        c1 = Conn shiftR shiftL shiftR
-        c2 = Conn (fmap shiftL) (fmap shiftR) (fmap shiftL)
+        c1 = Cast shiftR shiftL shiftR
+        c2 = Cast (fmap shiftL) (fmap shiftR) (fmap shiftL)
 
         shiftR x = x + m
         shiftL x = x - m
@@ -289,20 +286,20 @@ instance Connection 'L Double (Extended Integer) where cast = f64int
 instance HasResolution res => Connection 'L Double (Extended (Fixed res)) where cast = f64fix
 
 instance Connection k a b => Connection k (Identity a) b where
-    cast = Conn runIdentity Identity runIdentity >>> cast
+    cast = Cast runIdentity Identity runIdentity >>> cast
 
 instance Connection k a b => Connection k a (Identity b) where
-    cast = cast >>> Conn Identity runIdentity Identity
+    cast = cast >>> Cast Identity runIdentity Identity
 
 -- Internal
 
 -------------------------
 
-bounds' :: (Eq a, Bounded a) => Conn k a Bool
+bounds' :: (Eq a, Bounded a) => Cast k a Bool
 bounds' = bounds minBound maxBound
 
-bounds :: Eq a => a -> a -> Conn k a Bool
-bounds x y = Conn f g h
+bounds :: Eq a => a -> a -> Cast k a Bool
+bounds x y = Cast f g h
   where
     g False = x
     g True = y

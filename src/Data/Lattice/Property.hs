@@ -149,7 +149,7 @@ coheyting20 x y = boundary (x \/ y) \/ boundary (x /\ y) == boundary x \/ bounda
 --
 --
 
--- adjointL $ ConnL (\x -> y \\ not x) (\z -> not z // not y)
+-- adjointL $ CastL (\x -> y \\ not x) (\z -> not z // not y)
 symmetric1 :: Biheyting a => a -> Bool
 symmetric1 x = neg x <= non x
 

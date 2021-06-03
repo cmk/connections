@@ -21,23 +21,16 @@ module Data.Connection (
    
     -- $example
     
-    -- * Types
-    Conn,
     Side(..),
     
-    -- ** Conn L
-    ConnL,
-    pattern ConnL,
+    -- * Types
+    Cast,
+    pattern Cast,
+    pattern CastL,
+    pattern CastR,
     swapL,
-   
-    -- ** Conn R
-    ConnR,
-    pattern ConnR,
     swapR,
-    
-    -- ** Conn k
-    pattern Conn,
-    
+
     -- * Combinators
     (>>>),
     (<<<),
@@ -48,14 +41,20 @@ module Data.Connection (
     divide,
     
     -- * Accessors
-    upper,
-    lower,
-    inner,
+    half,
     outer,
+    inner,
+    upper,
+    upper1,
+    upper2,
+    lower,
+    lower1,
+    lower2,
     
     -- ** max/min
     maximize,
     minimize,
+    midpoint,
     median,
     
     -- ** ceiling
@@ -282,7 +281,7 @@ module Data.Connection (
 
 ) where
 
-import safe Data.Connection.Conn
+import safe Data.Connection.Cast
 import safe Data.Connection.Fixed
 import safe Data.Connection.Float
 import safe Data.Connection.Int
