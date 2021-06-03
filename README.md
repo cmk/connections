@@ -21,7 +21,7 @@ For illustration, here is a simple example from [7 Sketches](https://math.mit.ed
 
 ![](img/example.png)
 
-Connections are useful for performing lawful conversions between different types [among other things](#what). This library provides connections between common types, combinators & accessors, including lawful versions of [`floor`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Conn.html#v:floor), [`ceiling`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Conn.html#v:ceiling), [`round`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Conn.html#v:round), and [`truncate`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Conn.html#v:truncate).
+Connections are useful for performing lawful conversions between different types [among other things](#what). This library provides connections between common types, combinators & accessors, including lawful versions of [`floor`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Cast.html#v:floor), [`ceiling`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Cast.html#v:ceiling), [`round`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Cast.html#v:round), and [`truncate`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Cast.html#v:truncate).
 
 There is also a [class](https://hackage.haskell.org/package/connections/docs/Data-Connection-Class.html#t:Connection) with lawful versions of `fromInteger` and `fromRational`, suitable for use with `-XRebindableSyntax`
 
@@ -67,7 +67,7 @@ binord = CastL g h where
 
 It turns out that this situation happens fairly frequently- the three functions are called an adjoint [string](https://ncatlab.org/nlab/show/adjoint+string) or chain of length 3 (i.e. `f` is adjoint to `g` is adjoint to `h`). It is useful to be able to work with these length-3 chains directly, because the choice of two routes back from P to Q is what enables lawful rounding and truncation. 
 
-Therefore the connection type in `Data.Connection.Conn` is parametrized over a data kind (e.g. `'L`) that specifies which pair we are talking about (`f`/`g` or `g`/`h`). When a chain is available the data kind is existentialized (see the view pattern `Conn`).
+Therefore the connection type in `Data.Connection.Cast` is parametrized over a data kind (e.g. `'L`) that specifies which pair we are talking about (`f`/`g` or `g`/`h`). When a chain is available the data kind is existentialized (see the view pattern `Cast`).
 
 In our example above, it turns out that a small change in the adjoints on each side enables such a chain:
 
