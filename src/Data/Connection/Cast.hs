@@ -49,10 +49,8 @@ module Data.Connection.Cast (
 
     -- * Cast k
     pattern Cast,
-    inner,
-    outer,
-    half,
     midpoint,
+    interval,
     round,
     round1,
     round2,
@@ -70,11 +68,9 @@ module Data.Connection.Cast (
     filterR,
 
     -- * Extended
-    Lifted,
-    Lowered,
-    Extended (..),
-    extended,
     extend,
+    extended,
+    Extended (..),
 ) where
 
 import safe Control.Arrow ((&&&))
@@ -83,16 +79,20 @@ import safe qualified Control.Category as C
 import safe Data.Bifunctor (bimap)
 import safe Data.ExtendedReal
 import safe Data.Order
-import safe Data.Order.Syntax
-import safe Prelude hiding (Ord (..), ceiling, floor, round, truncate)
+import safe Prelude hiding (ceiling, floor, round, truncate)
 
 -- $setup
 -- >>> :set -XTypeApplications
+-- >>> import Control.Arrow ((&&&))
 -- >>> import Data.Int
 -- >>> import Data.Ord (Down(..))
 -- >>> import Data.Ratio ((%))
 -- >>> import GHC.Real (Ratio(..))
--- >>> :load Data.Connection
+-- >>> import Data.Connection.Cast
+-- >>> import Data.Connection.Float
+-- >>> import Data.Connection.Ratio
+-- >>> import Prelude hiding (floor, ceiling, round, truncate)
+
 
 -- | A data kind distinguishing links in a < https://ncatlab.org/nlab/show/adjoint+string chain > of Galois connections of length 2 or 3.
 --
@@ -111,13 +111,13 @@ data Side = L | R
 --
 -- Connections have many nice properties wrt numerical conversion:
 --
--- >>> inner ratf32 (1 / 8)    -- eighths are exactly representable in a float
+-- >>> upper ratf32 (1 / 8)    -- eighths are exactly representable in a float
 -- 1 % 8
--- >>> outer ratf32 (1 % 8)
--- (0.125,0.125)
--- >>> inner ratf32 (1 / 7)    -- sevenths are not
+-- >>> upper ratf32 (1 / 7)    -- sevenths are not
 -- 9586981 % 67108864
--- >>> outer ratf32 (1 % 7)
+-- >>> floor ratf32 &&& ceiling ratf32 $ 1 % 8
+-- (0.125,0.125)
+-- >>> floor ratf32 &&& ceiling ratf32 $ 1 % 7
 -- (0.14285713,0.14285715)
 --
 -- Another example avoiding loss-of-precision:
@@ -146,6 +146,11 @@ _1 (Cast_ f _) = fst . f
 _2 :: Cast k a b -> a -> b
 _2 (Cast_ f _) = snd . f
 {-# INLINE _2 #-}
+
+-- Extract the upper adjoint of a 'CastL', or lower adjoint of a 'CastR'.
+inner :: Cast k a b -> b -> a
+inner (Cast_ _ g) = g
+{-# INLINE inner #-}
 
 -- | Lift a 'Cast' into a functor.
 --
@@ -188,7 +193,7 @@ strong (Cast ab ba ab') (Cast cd dc cd') = Cast f g h
 infixr 4 `divide`
 
 -- | Lift two connections into a connection on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
-divide :: Total c => Cast k a c -> Cast k b c -> Cast k (a, b) c
+divide :: Ord c => Cast k a c -> Cast k b c -> Cast k (a, b) c
 divide f g = f `strong` g >>> ordered
 {-# INLINE divide #-}
 
@@ -199,9 +204,9 @@ bounded = Cast (const minBound) (const ()) (const maxBound)
 
 -- | The defining connections of a total order.
 --
--- >>> outer ordered (True, False)
+-- >>> floor ordered &&& ceiling ordered $ (True, False)
 -- (False,True)
-ordered :: Total a => Cast k (a, a) a
+ordered :: Ord a => Cast k (a, a) a
 ordered = Cast (uncurry max) (id &&& id) (uncurry min)
 {-# INLINE ordered #-}
 
@@ -241,12 +246,17 @@ swapL :: Cast 'R a b -> Cast 'L b a
 swapL (CastR f g) = CastL f g
 {-# INLINE swapL #-}
 
--- | Extract the upper adjoint of a 'Cast'.
+-- | Extract the upper half of a 'CastL'.
+--
+-- >>> upper ratf32 (1 / 8)    -- eighths are exactly representable in a float
+-- 1 % 8
+-- >>> upper ratf32 (1 / 7)    -- sevenths are not
+-- 9586981 % 67108864
 upper :: Cast 'L a b -> b -> a
 upper = inner
 {-# INLINE upper #-}
 
--- | Map over a 'Cast' from the right.
+-- | Map over a 'CastL' from the right.
 --
 -- This is the unit of the resulting monad:
 --
@@ -258,29 +268,29 @@ upper1 :: Cast 'L a b -> (b -> b) -> a -> a
 upper1 (CastL f g) h a = g $ h (f a)
 {-# INLINE upper1 #-}
 
--- | Zip over a 'Cast' from the right.
+-- | Zip over a 'CastL' from the right.
 upper2 :: Cast 'L a b -> (b -> b -> b) -> a -> a -> a
 upper2 (CastL f g) h a1 a2 = g $ h (f a1) (f a2)
 {-# INLINE upper2 #-}
 
--- | Extract the lower half of a 'Cast'.
+-- | Extract the lower half of a 'CastL'.
 --
 -- > ceiling identity = id
 -- > ceiling c (x \/ y) = ceiling c x \/ ceiling c y
 --
 -- The latter law is the adjoint functor theorem for preorders.
 --
--- >>> Data.Connection.ceiling ratf32 (0 :% 0)
+-- >>> ceiling ratf32 (0 :% 0)
 -- NaN
--- >>> Data.Connection.ceiling ratf32 (13 :% 10)
+-- >>> ceiling ratf32 (13 :% 10)
 -- 1.3000001
--- >>> Data.Connection.ceiling f64f32 pi
+-- >>> ceiling f64f32 pi
 -- 3.1415927
 ceiling :: Cast 'L a b -> a -> b
 ceiling (CastL f _) = f
 {-# INLINE ceiling #-}
 
--- | Map over a 'Cast' from the left.
+-- | Map over a 'CastL' from the left.
 --
 -- > ceiling1 identity = id
 --
@@ -292,7 +302,7 @@ ceiling1 :: Cast 'L a b -> (a -> a) -> b -> b
 ceiling1 (CastL f g) h b = f $ h (g b)
 {-# INLINE ceiling1 #-}
 
--- | Zip over a 'Cast' from the left.
+-- | Zip over a 'CastL' from the left.
 ceiling2 :: Cast 'L a b -> (a -> a -> a) -> b -> b -> b
 ceiling2 (CastL f g) h b1 b2 = f $ h (g b1) (g b2)
 {-# INLINE ceiling2 #-}
@@ -331,12 +341,12 @@ swapR :: Cast 'L a b -> Cast 'R b a
 swapR (CastL f g) = CastR f g
 {-# INLINE swapR #-}
 
--- | Extract the lower adjoint of a 'Cast'.
+-- | Extract the lower half of a 'CastR'.
 lower :: Cast 'R a b -> b -> a
 lower = inner
 {-# INLINE lower #-}
 
--- | Map over a 'Cast' from the left.
+-- | Map over a 'CastR' from the left.
 --
 -- This is the counit of the resulting comonad:
 --
@@ -348,29 +358,29 @@ lower1 :: Cast 'R a b -> (b -> b) -> a -> a
 lower1 (CastR f g) h a = f $ h (g a)
 {-# INLINE lower1 #-}
 
--- | Zip over a 'Cast' from the left.
+-- | Zip over a 'CastR' from the left.
 lower2 :: Cast 'R a b -> (b -> b -> b) -> a -> a -> a
 lower2 (CastR f g) h a1 a2 = f $ h (g a1) (g a2)
 {-# INLINE lower2 #-}
 
--- | Extract the upper half of a 'Cast'
+-- | Extract the upper half of a 'CastR'
 --
 -- > floor identity = id
 -- > floor c (x /\ y) = floor c x /\ floor c y
 --
 -- The latter law is the adjoint functor theorem for preorders.
 --
--- >>> Data.Connection.floor ratf32 (0 :% 0)
+-- >>> floor ratf32 (0 :% 0)
 -- NaN
--- >>> Data.Connection.floor ratf32 (13 :% 10)
+-- >>> floor ratf32 (13 :% 10)
 -- 1.3
--- >>> Data.Connection.floor f64f32 pi
+-- >>> floor f64f32 pi
 -- 3.1415925
 floor :: Cast 'R a b -> a -> b
 floor (CastR _ g) = g
 {-# INLINE floor #-}
 
--- | Map over a 'Cast' from the right.
+-- | Map over a 'CastR' from the right.
 --
 -- > floor1 identity = id
 --
@@ -382,7 +392,7 @@ floor1 :: Cast 'R a b -> (a -> a) -> b -> b
 floor1 (CastR f g) h b = g $ h (f b)
 {-# INLINE floor1 #-}
 
--- | Zip over a 'Cast' from the right.
+-- | Zip over a 'CastR' from the right.
 floor2 :: Cast 'R a b -> (a -> a -> a) -> b -> b -> b
 floor2 (CastR f g) h b1 b2 = g $ h (f b1) (f b2)
 {-# INLINE floor2 #-}
@@ -412,43 +422,20 @@ pattern Cast f g h <- (inner &&& _1 &&& _2 -> (g, (h, f))) where Cast f g h = Ca
 
 {-# COMPLETE Cast #-}
 
--- | Extract the upper adjoint of a 'CastL', or lower adjoint of a 'CastR'.
---
--- When the connection is an adjoint triple the inner function is returned:
---
--- >>> inner ratf32 (1 / 8)    -- eighths are exactly representable in a float
--- 1 % 8
--- >>> inner ratf32 (1 / 7)    -- sevenths are not
--- 9586981 % 67108864
-inner :: Cast k a b -> b -> a
-inner (Cast_ _ g) = g
-{-# INLINE inner #-}
-
--- | Extract the left and/or right adjoints of a connection.
---
--- When the connection is an adjoint triple the outer functions are returned:
---
--- > outer c = floor c &&& ceiling c
---
--- >>> outer ratf32 (1 % 8)    -- eighths are exactly representable in a float
--- (0.125,0.125)
--- >>> outer ratf32 (1 % 7)    -- sevenths are not
--- (0.14285713,0.14285715)
-outer :: Cast k a b -> a -> (b, b)
-outer (Cast_ f _) = f
-{-# INLINE outer #-}
-
 -- | Determine which half of the interval between 2 representations of /a/ a particular value lies.
 --
--- @ 'half' c x = 'pcompare' (x - 'lower1' c 'id' x) ('upper1' c 'id' x - x) @
+-- @ 'interval' c x = 'pcompare' (x - 'lower1' c 'id' x) ('upper1' c 'id' x - x) @
 --
--- >>> maybe False (== EQ) $ half f64f32 (midpoint f64f32 pi)
+-- >>> maybe False (== EQ) $ interval f64f32 (midpoint f64f32 pi)
 -- True
-half :: (Num a, Preorder a) => (forall k. Cast k a b) -> a -> Maybe Ordering
-half c x = pcompare (x - lower1 c id x) (upper1 c id x - x)
-{-# INLINE half #-}
+interval :: (Num a, Preorder a) => (forall k. Cast k a b) -> a -> Maybe Ordering
+interval c x = pcompare (x - lower1 c id x) (upper1 c id x - x)
+{-# INLINE interval #-}
 
 -- | Return the midpoint of the interval containing x.
+--
+-- For example, the (double-precision) error of the single-precision floating
+-- point approximation of pi is:
 --
 -- >>> pi - midpoint f64f32 pi
 -- 3.1786509424591713e-8
@@ -465,7 +452,7 @@ midpoint c x = lower1 c id x / 2 + upper1 c id x / 2
 --
 -- See <https://en.wikipedia.org/wiki/Rounding>.
 round :: (Num a, Preorder a) => (forall k. Cast k a b) -> a -> b
-round c x = case half c x of
+round c x = case interval c x of
     Just GT -> ceiling c x
     Just LT -> floor c x
     _ -> truncate c x
@@ -486,7 +473,7 @@ round1 c f x = round c $ f (inner c x)
 --
 -- Results are rounded to the nearest value with ties away from 0.
 --
--- Example avoiding loss-of-precision:
+-- For example, to avoid a loss of precision:
 --
 -- >>> f x y = (x + y) - x
 -- >>> maxOdd32 = 1.6777215e7
@@ -630,17 +617,6 @@ filterR c a b = b <~ floor c a
 -- Extended
 ---------------------------------------------------------------------
 
-type Lifted = Either ()
-
-type Lowered a = Either a ()
-
--- | Eliminate an 'Extended'.
-{-# INLINE extended #-}
-extended :: b -> b -> (a -> b) -> Extended a -> b
-extended b _ _ NegInf = b
-extended _ t _ PosInf = t
-extended _ _ f (Finite x) = f x
-
 {-# INLINE extend #-}
 extend :: (a -> Bool) -> (a -> Bool) -> (a -> b) -> a -> Extended b
 extend p q f = g
@@ -649,3 +625,10 @@ extend p q f = g
         | p i = NegInf
         | q i = PosInf
         | otherwise = Finite $ f i
+
+-- | Eliminate an 'Extended'.
+{-# INLINE extended #-}
+extended :: b -> b -> (a -> b) -> Extended a -> b
+extended b _ _ NegInf = b
+extended _ t _ PosInf = t
+extended _ _ f (Finite x) = f x

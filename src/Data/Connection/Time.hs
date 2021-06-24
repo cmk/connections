@@ -43,18 +43,18 @@ sysixx = Cast f g h
 
 -- | The 'Float' is valued in seconds.
 --
--- >>> Data.Connection.ceiling f32sys (0/0)
+-- >>> Data.Connection.Cast.ceiling f32sys (0/0)
 -- PosInf
--- >>> Data.Connection.ceiling f32sys pi
+-- >>> Data.Connection.Cast.ceiling f32sys pi
 -- Finite (MkSystemTime {systemSeconds = 3, systemNanoseconds = 141592742})
 f32sys :: Cast 'L Float (Extended SystemTime)
 f32sys = swapL ratf32 >>> ratsys
 
 -- | The 'Double' is valued in seconds.
 --
--- >>> Data.Connection.ceiling f64sys (0/0)
+-- >>> Data.Connection.Cast.ceiling f64sys (0/0)
 -- PosInf
--- >>> Data.Connection.ceiling f64sys pi
+-- >>> Data.Connection.Cast.ceiling f64sys pi
 -- Finite (MkSystemTime {systemSeconds = 3, systemNanoseconds = 141592654})
 f64sys :: Cast 'L Double (Extended SystemTime)
 f64sys = swapL ratf64 >>> ratsys
@@ -89,7 +89,7 @@ f09sys = Cast f g h
 -- >>> divMod (maxBound @Word32) (10^9)
 -- (4,294967295)
 diffSystemTime :: SystemTime -> SystemTime -> Double
-diffSystemTime x y = inner f64sys $ round2 ratsys (-) (Finite x) (Finite y)
+diffSystemTime x y = upper f64sys $ round2 ratsys (-) (Finite x) (Finite y)
 
 -- Internal
 
