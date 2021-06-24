@@ -12,20 +12,19 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Data.Connection.Class (
-    castL,
-    castR,
-    Triple,
-    CastInteger,
-    fromInteger,
-    CastRational,
-    fromRational,
-    CastFloating,
-    fromFloating,
+    Ceiling,
+    ceiling,
+    Floor,
+    floor,
+    Round,
+    round,
+    truncate,
+    -- * Connection
     Connection (..),
 ) where
 
 import safe Control.Category ((>>>))
-import safe Data.Connection.Cast
+import safe Data.Connection.Cast hiding (ceiling, floor, round, truncate)
 import safe Data.Connection.Fixed
 import safe Data.Connection.Float
 import safe Data.Connection.Int
@@ -37,57 +36,40 @@ import safe Data.Int
 import safe Data.Order
 import safe Data.Word
 import safe Numeric.Natural
-import safe Prelude hiding (ceiling, floor, fromInteger, fromRational, round, truncate)
+import safe Prelude hiding (ceiling, floor, round, truncate)
 
--- | A constraint kind representing an <https://ncatlab.org/nlab/show/adjoint+triple adjoint triple> of Galois connections.
-type Triple a b = (Connection 'L a b, Connection 'R a b)
+type Ceiling = Connection 'L
+
+ceiling :: Ceiling a b => a -> b
+ceiling = f where CastL f _ = cast
+{-# INLINE ceiling #-}
+
+type Floor = Connection 'R
+
+floor :: Floor a b => a -> b
+floor = g where CastR _ g = cast
+{-# INLINE floor #-}
+
+type Round a b = (Num a, Ceiling a b, Floor a b)
+
+round :: forall a b. Round a b => a -> b
+round x = case pcompare r l of
+    Just GT -> ceiling x
+    Just LT -> floor x
+    _ -> truncate x
+  where
+    r = x - lower1 (cast @'R @a @b) id x -- dist from lower bound
+    l = upper1 (cast @'L @a @b) id x - x -- dist from upper bound
+{-# INLINE round #-}
+
+truncate :: Round a b => a -> b
+truncate x = if x >~ 0 then floor x else ceiling x
+{-# INLINE truncate #-}
 
 -- | A < https://ncatlab.org/nlab/show/adjoint+string chain > of Galois connections of length 2 or 3.
 class (Preorder a, Preorder b) => Connection k a b where
 
     cast :: Cast k a b
-
--- | A specialization of 'cast' to left-side connections.
-castL :: Connection 'L a b => Cast 'L a b
-castL = cast @ 'L
-
--- | A specialization of 'cast' to right-side connections.
-castR :: Connection 'R a b => Cast 'R a b
-castR = cast @ 'R
-
-type CastInteger a = Connection 'L a (Maybe Integer)
-
--- | A replacement for the version in /base/.
---
---  Usable in conjunction with /RebindableSyntax/:
-{-# INLINE fromInteger #-}
-fromInteger :: CastInteger a => Integer -> a
-fromInteger = upper cast . Just
-
-type CastRational a = Triple Rational a
-
--- | A replacement for the version in /base/.
---
--- Usable in conjunction with /RebindableSyntax/:
-{-# INLINE fromRational #-}
-fromRational :: forall a. CastRational a => Rational -> a
-fromRational x = case pcompare r l of
-    Just GT -> ceiling castL x
-    Just LT -> floor castR x
-    _ -> if x >~ 0 then floor castR x else ceiling castL x
-  where
-    r = x - lower1 (castR @Rational @a) id x -- dist from lower bound
-    l = upper1 (castL @Rational @a) id x - x -- dist from upper bound
-
-type CastFloating a b = Connection 'L a (Extended b)
-
--- | Convert a rational or floating-point value.
---
---  The extra two arguments correspond to negative infinity and
---  to NaN / positive infinity.
-{-# INLINE fromFloating #-}
-fromFloating :: CastFloating a b => b -> b -> a -> b
-fromFloating ninf inf = extended ninf inf id . ceiling cast
 
 ---------------------------------------------------------------------
 -- Instances
@@ -95,20 +77,31 @@ fromFloating ninf inf = extended ninf inf id . ceiling cast
 
 instance Preorder a => Connection k a a where cast = identity
 
-instance Connection k Ordering Bool where cast = bounds'
-instance Connection k Word8 Bool where cast = bounds'
-instance Connection k Word16 Bool where cast = bounds'
-instance Connection k Word32 Bool where cast = bounds'
-instance Connection k Word64 Bool where cast = bounds'
-instance Connection k Word Bool where cast = bounds'
-instance Connection k Int8 Bool where cast = bounds'
-instance Connection k Int16 Bool where cast = bounds'
-instance Connection k Int32 Bool where cast = bounds'
-instance Connection k Int64 Bool where cast = bounds'
-instance Connection k Int Bool where cast = bounds'
-instance Connection k Rational Bool where cast = bounds (-1 :% 0) (1 :% 0)
-instance Connection k Float Bool where cast = bounds (-1 / 0) (1 / 0)
-instance Connection k Double Bool where cast = bounds (-1 / 0) (1 / 0)
+bounds :: (Eq a, Bounded a) => Cast k a Bool
+bounds = Cast f g h
+  where
+    g False = minBound
+    g True = maxBound
+
+    f i
+        | i == minBound = False
+        | otherwise = True
+
+    h i
+        | i == maxBound = True
+        | otherwise = False
+
+instance Connection k Ordering Bool where cast = bounds
+instance Connection k Word8 Bool where cast = bounds
+instance Connection k Word16 Bool where cast = bounds
+instance Connection k Word32 Bool where cast = bounds
+instance Connection k Word64 Bool where cast = bounds
+instance Connection k Word Bool where cast = bounds
+instance Connection k Int8 Bool where cast = bounds
+instance Connection k Int16 Bool where cast = bounds
+instance Connection k Int32 Bool where cast = bounds
+instance Connection k Int64 Bool where cast = bounds
+instance Connection k Int Bool where cast = bounds
 
 instance Connection 'L Int8 Word8 where cast = i08w08
 
@@ -291,23 +284,3 @@ instance Connection k a b => Connection k (Identity a) b where
 instance Connection k a b => Connection k a (Identity b) where
     cast = cast >>> Cast Identity runIdentity Identity
 
--- Internal
-
--------------------------
-
-bounds' :: (Eq a, Bounded a) => Cast k a Bool
-bounds' = bounds minBound maxBound
-
-bounds :: Eq a => a -> a -> Cast k a Bool
-bounds x y = Cast f g h
-  where
-    g False = x
-    g True = y
-
-    f i
-        | i == x = False
-        | otherwise = True
-
-    h i
-        | i == y = True
-        | otherwise = False

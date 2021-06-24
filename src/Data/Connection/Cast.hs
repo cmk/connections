@@ -49,8 +49,8 @@ module Data.Connection.Cast (
 
     -- * Cast k
     pattern Cast,
-    outer,
     inner,
+    outer,
     half,
     midpoint,
     round,
@@ -190,6 +190,7 @@ infixr 4 `divide`
 -- | Lift two connections into a connection on the <https://en.wikibooks.org/wiki/Order_Theory/Preordered_classes_and_poclasses#product_order product order>
 divide :: Total c => Cast k a c -> Cast k b c -> Cast k (a, b) c
 divide f g = f `strong` g >>> ordered
+{-# INLINE divide #-}
 
 -- | The defining connections of a bounded preorder.
 bounded :: Bounded a => Cast k () a
@@ -411,6 +412,18 @@ pattern Cast f g h <- (inner &&& _1 &&& _2 -> (g, (h, f))) where Cast f g h = Ca
 
 {-# COMPLETE Cast #-}
 
+-- | Extract the upper adjoint of a 'CastL', or lower adjoint of a 'CastR'.
+--
+-- When the connection is an adjoint triple the inner function is returned:
+--
+-- >>> inner ratf32 (1 / 8)    -- eighths are exactly representable in a float
+-- 1 % 8
+-- >>> inner ratf32 (1 / 7)    -- sevenths are not
+-- 9586981 % 67108864
+inner :: Cast k a b -> b -> a
+inner (Cast_ _ g) = g
+{-# INLINE inner #-}
+
 -- | Extract the left and/or right adjoints of a connection.
 --
 -- When the connection is an adjoint triple the outer functions are returned:
@@ -424,18 +437,6 @@ pattern Cast f g h <- (inner &&& _1 &&& _2 -> (g, (h, f))) where Cast f g h = Ca
 outer :: Cast k a b -> a -> (b, b)
 outer (Cast_ f _) = f
 {-# INLINE outer #-}
-
--- | Extract the upper adjoint of a 'CastL', or lower adjoint of a 'CastR'.
---
--- When the connection is an adjoint triple the inner function is returned:
---
--- >>> inner ratf32 (1 / 8)    -- eighths are exactly representable in a float
--- 1 % 8
--- >>> inner ratf32 (1 / 7)    -- sevenths are not
--- 9586981 % 67108864
-inner :: Cast k a b -> b -> a
-inner (Cast_ _ g) = g
-{-# INLINE inner #-}
 
 -- | Determine which half of the interval between 2 representations of /a/ a particular value lies.
 --
@@ -476,7 +477,7 @@ round c x = case half c x of
 --
 -- Results are rounded to the nearest value with ties away from 0.
 round1 :: (Num a, Preorder a) => (forall k. Cast k a b) -> (a -> a) -> b -> b
-round1 c f x = round c $ f (g x) where Cast _ g _ = c
+round1 c f x = round c $ f (inner c x)
 {-# INLINE round1 #-}
 
 -- | Lift a binary function over an adjoint triple.
@@ -494,7 +495,7 @@ round1 c f x = round c $ f (g x) where Cast _ g _ = c
 -- >>> round2 ratf32 f maxOdd32 2.0
 -- 2.0
 round2 :: (Num a, Preorder a) => (forall k. Cast k a b) -> (a -> a -> a) -> b -> b -> b
-round2 c f x y = round c $ f (g x) (g y) where Cast _ g _ = c
+round2 c f x y = round c $ f (inner c x) (inner c y)
 {-# INLINE round2 #-}
 
 -- | Truncate towards zero.
@@ -510,7 +511,7 @@ truncate c x = if x >~ 0 then floor c x else ceiling c x
 --
 -- Results are truncated towards zero.
 truncate1 :: (Num a, Preorder a) => (forall k. Cast k a b) -> (a -> a) -> b -> b
-truncate1 c f x = truncate c $ f (g x) where Cast _ g _ = c
+truncate1 c f x = truncate c $ f (inner c x)
 {-# INLINE truncate1 #-}
 
 -- | Lift a binary function over an adjoint triple.
@@ -519,7 +520,7 @@ truncate1 c f x = truncate c $ f (g x) where Cast _ g _ = c
 --
 -- Results are truncated towards zero.
 truncate2 :: (Num a, Preorder a) => (forall k. Cast k a b) -> (a -> a -> a) -> b -> b -> b
-truncate2 c f x y = truncate c $ f (g x) (g y) where Cast _ g _ = c
+truncate2 c f x y = truncate c $ f (inner c x) (inner c y)
 {-# INLINE truncate2 #-}
 
 -- | Birkoff's < https://en.wikipedia.org/wiki/Median_algebra median > operator.

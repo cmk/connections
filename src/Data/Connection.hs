@@ -292,7 +292,8 @@ import safe Data.Connection.Word
 import safe Prelude hiding (ceiling, floor, round, truncate)
 
 
- 
+
+
 {- $example
  
  ==== What is a Galois connection?
