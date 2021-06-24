@@ -7,7 +7,6 @@ main :: IO ()
 main =
     doctest
         [ "-isrc"
-        , "src/Data/Connection.hs"
         , "src/Data/Connection/Cast.hs"
         , "src/Data/Connection/Class.hs"
         , "src/Data/Connection/Float.hs"
