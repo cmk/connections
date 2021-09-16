@@ -1,8 +1,10 @@
 # Revision history for connections
 
-## 0.3.2  -- 2021-xx-xx
+## 0.3.2  -- 2021-09-16
 
+* Add double-sided Extended integer connections.
 * Add left-hand float and double connections.
+* Re-export Connection class from top.
 
 ## 0.3.1  -- 2021-05-30
 
