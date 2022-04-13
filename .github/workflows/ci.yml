@@ -9,6 +9,7 @@ on:
       - synchronize
 jobs:
   build:
+    name: properties
     runs-on: ubuntu-latest
     strategy:
       matrix:
