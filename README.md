@@ -1,6 +1,4 @@
-# connections
-
-[![Build Status](https://travis-ci.com/cmk/connections.svg?branch=master)](https://travis-ci.com/cmk/connections)
+# connections ![Build status](https://github.com/cmk/connections/actions/workflows/ci.yml/badge.svg?branch=master)
 
 `connections` is a library for working with Galois connections on various common preorders.
 
@@ -36,12 +34,12 @@ ordbin :: Cast 'L Ordering Bool
 ordbin = CastL f g where
   f LT = False
   f _  = True
- 
+
   g False = LT
   g True = GT
 ```
 
-The two component functions are each monotonic (i.e. `x1 <= x2` implies `f x1 <= f x2`), and are 'interlocked' or adjoint in the specific way outlined above: `f x <= y` if and only if `x <= g y`. 
+The two component functions are each monotonic (i.e. `x1 <= x2` implies `f x1 <= f x2`), and are 'interlocked' or adjoint in the specific way outlined above: `f x <= y` if and only if `x <= g y`.
 
 We can easily verify the adjointness property by hand in this case:
 
@@ -60,12 +58,12 @@ binord :: Cast 'L Bool Ordering
 binord = CastL g h where
   g False = LT
   g True  = GT
-  
+
   h GT = True
   h _  = False
 ```
 
-It turns out that this situation happens fairly frequently- the three functions are called an adjoint [string](https://ncatlab.org/nlab/show/adjoint+string) or chain of length 3 (i.e. `f` is adjoint to `g` is adjoint to `h`). It is useful to be able to work with these length-3 chains directly, because the choice of two routes back from P to Q is what enables lawful rounding and truncation. 
+It turns out that this situation happens fairly frequently- the three functions are called an adjoint [string](https://ncatlab.org/nlab/show/adjoint+string) or chain of length 3 (i.e. `f` is adjoint to `g` is adjoint to `h`). It is useful to be able to work with these length-3 chains directly, because the choice of two routes back from P to Q is what enables lawful rounding and truncation.
 
 Therefore the connection type in `Data.Connection.Cast` is parametrized over a data kind (e.g. `'L`) that specifies which pair we are talking about (`f`/`g` or `g`/`h`). When a chain is available the data kind is existentialized (see the view pattern `Cast`).
 
@@ -77,16 +75,16 @@ ordbin = Cast f g h
   where
     f LT = False
     f _  = True
-        
+
     g False = LT
     g True = GT
-    
+
     h GT = True
     h _  = False
 ```
 
 Once again we can check the adjointness property for each of the two connections (`f`/`g` or `g`/`h`):
- 
+
  `f`/`g`/`h` |   `False`   |    `True`   |
 ------------ | ----------- | ----------- |
  `LT`        | `=`/`=`/`=` | `<`/`<`/`<` |
@@ -147,7 +145,7 @@ Finite (-3)
 9.0
 ```
 
-You can also lift functions over connections: 
+You can also lift functions over connections:
 
 ```
 λ> :t round1 f64f32
@@ -198,13 +196,13 @@ From an industrial user's perspective, `base` is unfortunately in pretty bad sha
 
 ![](img/haskell-typeclasses.png)
 
-With respect to numerical conversions there are two classes of problem: 
+With respect to numerical conversions there are two classes of problem:
 
 * the non-integral instances of `Ord` (e.g. `Float`, `Double`, `Rational`, `Scientific`, etc.)
 * the interfaces of `Integral`, `Num`, `Real`, `Fractional`, and `RealFrac`
 
 
-#### Orders: total and partial 
+#### Orders: total and partial
 
 The root problem here is quite old: `NaN` values (e.g. `0/0`, `0 * 1/0`, `1/0 - 1/0`, etc) are not comparable to any finite number, so fractional and floating point types cannot be totally ordered.
 
@@ -222,7 +220,7 @@ True
 GT
 λ> compare @Float (1/0) (0/0)
 GT
-λ> max @Float 0 (-0.0) 
+λ> max @Float 0 (-0.0)
 -0.0
 λ> max @Float (-0.0) 0
 0.0
@@ -299,11 +297,11 @@ Infinity
 128
 λ> fromIntegral @Int8 @Word 128
 18446744073709551488
-λ> fromIntegral @Int8 @Natural 128 -- your colleagues will appreciate this _underflow_ exception 
+λ> fromIntegral @Int8 @Natural 128 -- your colleagues will appreciate this _underflow_ exception
 *** Exception: arithmetic underflow
 ```
 
-What happened in that last example to create an underflow exception? If anything you would expect overflow. 
+What happened in that last example to create an underflow exception? If anything you would expect overflow.
 
 This is what happened:
 
@@ -314,12 +312,12 @@ This is what happened:
 *** Exception: arithmetic underflow
 ```
 
-It's a good example of why composition is only your friend if it comes with composable guarantees. 
+It's a good example of why composition is only your friend if it comes with composable guarantees.
 
 
 Finally, let's look at [`RealFrac`](www.hackage.haskell.org/package/base/docs/GHC-Real.html#t:RealFrac):
 
-```  
+```
 -- | Extracting components of fractions.
 class  (Real a, Fractional a) => RealFrac a where
 
@@ -334,17 +332,17 @@ class  (Real a, Fractional a) => RealFrac a where
     -- The default definitions of the 'ceiling', 'floor', 'truncate'
     -- and 'round' functions are in terms of 'properFraction'.
     properFraction      :: (Integral b) => a -> (b,a)
-    
+
     -- | @'truncate' x@ returns the integer nearest @x@ between zero and @x@
     truncate            :: (Integral b) => a -> b
-    
+
     -- | @'round' x@ returns the nearest integer to @x@;
     --   the even integer if @x@ is equidistant between two integers
     round               :: (Integral b) => a -> b
-    
+
     -- | @'ceiling' x@ returns the least integer not less than @x@
     ceiling             :: (Integral b) => a -> b
-    
+
     -- | @'floor' x@ returns the greatest integer not greater than @x@
     floor               :: (Integral b) => a -> b
 
@@ -387,4 +385,3 @@ Infinity
 ```
 
 The meta-problem behind all of these problems is the mis-specification of the numeric type classes in `base`. Functions that can only be meaningfully given laws in pairs (like `toRational` and `fromRational`) are instead broken up between different classes, laws are either non-existant or (worse) misleading, and users are left to fend for themselves.
-
