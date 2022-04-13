@@ -2,10 +2,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE Safe #-}
 
 module Data.Connection.Fixed (
-    
+
     -- * Uni
     Uni,
     f00int,
@@ -59,15 +58,15 @@ module Data.Connection.Fixed (
     HasResolution (..),
 ) where
 
-import safe Data.Connection.Cast
-import safe Data.Connection.Float
-import safe Data.Connection.Ratio
-import safe Data.Fixed
-import safe Data.Order
-import safe Data.Order.Syntax
-import safe Data.Proxy
-import safe GHC.Real (Ratio (..), Rational)
-import safe Prelude hiding (Eq (..), Ord (..))
+import Data.Connection.Cast
+import Data.Connection.Float
+import Data.Connection.Ratio
+import Data.Fixed
+import Data.Order
+import Data.Order.Syntax
+import Data.Proxy
+import GHC.Real (Ratio (..), Rational)
+import Prelude hiding (Eq (..), Ord (..))
 
 -- | Shift by n 'units of least precision' where the ULP is determined by the precision.
 --

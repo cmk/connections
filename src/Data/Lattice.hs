@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -60,24 +59,24 @@ module Data.Lattice (
     Boolean (..),
 ) where
 
-import safe Data.Bifunctor (bimap)
-import safe Data.Bool hiding (not)
-import safe Data.Connection.Cast
-import safe Data.Either
-import safe Data.Int
-import safe qualified Data.IntMap as IntMap
-import safe qualified Data.IntSet as IntSet
-import safe qualified Data.Map as Map
-import safe Data.Order
-import safe Data.Order.Syntax
-import safe qualified Data.Set as Set
-import safe Data.Word
-import safe Prelude hiding (Eq (..), Ord (..), ceiling, floor, not)
-import safe qualified Prelude as P
+import Data.Bifunctor (bimap)
+import Data.Bool hiding (not)
+import Data.Connection.Cast
+import Data.Either
+import Data.Int
+import qualified Data.IntMap as IntMap
+import qualified Data.IntSet as IntSet
+import qualified Data.Map as Map
+import Data.Order
+import Data.Order.Syntax
+import qualified Data.Set as Set
+import Data.Word
+import Prelude hiding (Eq (..), Ord (..), ceiling, floor, not)
+import qualified Prelude as P
 
--- >>> import safe Data.IntSet (IntSet,fromList)
+-- >>> import Data.IntSet (IntSet,fromList)
 -- >>> :load Data.Connection
--- >>> import safe Prelude hiding (round, floor, ceiling, truncate)
+-- >>> import Prelude hiding (round, floor, ceiling, truncate)
 
 -------------------------------------------------------------------------------
 -- Lattices

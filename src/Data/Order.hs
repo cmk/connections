@@ -7,7 +7,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -31,30 +30,30 @@ module Data.Order (
     Down (..),
 ) where
 
-import safe Control.Applicative
-import safe Data.Bool
-import safe Data.Complex
-import safe Data.Either
-import safe qualified Data.Eq as Eq
-import safe Data.ExtendedReal
-import safe Data.Fixed
-import safe Data.Functor.Identity
-import safe Data.Int
-import safe qualified Data.IntMap as IntMap
-import safe qualified Data.IntSet as IntSet
-import safe Data.List.NonEmpty
-import safe qualified Data.Map as Map
-import safe Data.Maybe
-import safe Data.Ord (Down (..))
-import safe qualified Data.Ord as Ord
-import safe Data.Semigroup
-import safe qualified Data.Set as Set
-import safe Data.Time.Clock.System
-import safe Data.Void
-import safe Data.Word
-import safe GHC.Real
-import safe Numeric.Natural
-import safe Prelude hiding (Bounded, Ord (..), until)
+import Control.Applicative
+import Data.Bool
+import Data.Complex
+import Data.Either
+import qualified Data.Eq as Eq
+import Data.ExtendedReal
+import Data.Fixed
+import Data.Functor.Identity
+import Data.Int
+import qualified Data.IntMap as IntMap
+import qualified Data.IntSet as IntSet
+import Data.List.NonEmpty
+import qualified Data.Map as Map
+import Data.Maybe
+import Data.Ord (Down (..))
+import qualified Data.Ord as Ord
+import Data.Semigroup
+import qualified Data.Set as Set
+import Data.Time.Clock.System
+import Data.Void
+import Data.Word
+import GHC.Real
+import Numeric.Natural
+import Prelude hiding (Bounded, Ord (..), until)
 
 -- | An < https://en.wikipedia.org/wiki/Order_theory#Partially_ordered_sets order > on /a/.
 --

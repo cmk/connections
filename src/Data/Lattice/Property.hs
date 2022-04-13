@@ -1,15 +1,14 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Data.Lattice.Property where
 
-import safe Data.Lattice
-import safe Data.Order.Property
-import safe Data.Order.Syntax
-import safe Prelude hiding (Bounded, Eq (..), Ord (..), not)
+import Data.Lattice
+import Data.Order.Property
+import Data.Order.Syntax
+import Prelude hiding (Bounded, Eq (..), Ord (..), not)
 
 
 heyting0 :: Heyting a => a -> a -> a -> Bool
@@ -209,4 +208,3 @@ boolean5 x y = x \\ y == neg (neg y // neg x)
 
 boolean6 :: Biheyting a => a -> a -> Bool
 boolean6 x y = x // y == non (non y \\ non x)
-

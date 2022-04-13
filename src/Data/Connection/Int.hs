@@ -1,6 +1,5 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -46,9 +45,9 @@ module Data.Connection.Int (
     ixxint,
 ) where
 
-import safe Data.Connection.Cast
-import safe Data.Int
-import safe Data.Word
+import Data.Connection.Cast
+import Data.Int
+import Data.Word
 
 -- Int16
 w08i16 :: Cast k (Extended Word8) Int16
@@ -153,13 +152,13 @@ ixxint = extint
 
 {-# INLINE conn #-}
 conn :: forall a b k. (Bounded a, Bounded b, Integral a, Integral b) => Cast k (Extended a) b
-conn = Cast f g h 
+conn = Cast f g h
   where
     below = fromIntegral @a minBound - 1
     above = fromIntegral @a maxBound + 1
-    
+
     f = extended minBound above $ fromIntegral
-    
+
     g x | x <= below = NegInf
         | x >= above = PosInf
         | otherwise = Finite $ fromIntegral x
@@ -172,10 +171,9 @@ extint = CastL f $ maybe NegInf g
   where
     below = fromIntegral @a minBound - 1
     above = fromIntegral @a maxBound + 1
-    
+
     f = extended Nothing (Just above) (Just . fromIntegral)
-    
+
     g x | x <= below = NegInf
         | x >= above = PosInf
         | otherwise = Finite $ fromIntegral x
-

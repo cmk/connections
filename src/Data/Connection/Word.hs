@@ -1,4 +1,4 @@
-{-# LANGUAGE Safe #-}
+
 {-# LANGUAGE DataKinds #-}
 
 module Data.Connection.Word (
@@ -56,10 +56,10 @@ module Data.Connection.Word (
     intnat,
 ) where
 
-import safe Data.Connection.Cast
-import safe Data.Int
-import safe Data.Word
-import safe Numeric.Natural
+import Data.Connection.Cast
+import Data.Int
+import Data.Word
+import Numeric.Natural
 
 {-# INLINEABLE bndbin #-}
 bndbin :: (Eq a, Bounded a) => Cast k a Bool
@@ -68,7 +68,7 @@ bndbin = Cast f g h
     f i
         | i == minBound = False
         | otherwise = True
-    
+
     g x = if x then maxBound else minBound
 
     h i

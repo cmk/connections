@@ -1,6 +1,5 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -17,13 +16,13 @@ module Data.Connection.Time (
     SystemTime (..),
 ) where
 
-import safe Data.Connection.Cast
-import safe Data.Connection.Fixed
-import safe Data.Connection.Float
-import safe Data.Int
-import safe Data.Order.Syntax
-import safe Data.Time.Clock.System
-import safe Prelude hiding (Eq (..), Ord (..), ceiling)
+import Data.Connection.Cast
+import Data.Connection.Fixed
+import Data.Connection.Float
+import Data.Int
+import Data.Order.Syntax
+import Data.Time.Clock.System
+import Prelude hiding (Eq (..), Ord (..), ceiling)
 
 -- $setup
 -- >>> :set -XTypeApplications

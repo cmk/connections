@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -13,16 +12,16 @@ module Data.Connection.Class (
     Connection (..),
 ) where
 
-import safe Data.Connection.Cast
-import safe Data.Connection.Fixed
-import safe Data.Connection.Float
-import safe Data.Connection.Int
-import safe Data.Connection.Ratio
-import safe Data.Connection.Time
-import safe Data.Connection.Word
-import safe Data.Int
-import safe Data.Word
-import safe Numeric.Natural
+import Data.Connection.Cast
+import Data.Connection.Fixed
+import Data.Connection.Float
+import Data.Connection.Int
+import Data.Connection.Ratio
+import Data.Connection.Time
+import Data.Connection.Word
+import Data.Int
+import Data.Word
+import Numeric.Natural
 
 castL :: Connection 'L a b => Cast 'L a b
 castL = cast @'L

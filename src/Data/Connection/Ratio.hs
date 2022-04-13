@@ -2,7 +2,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE Safe #-}
 
 module Data.Connection.Ratio (
     -- * Rational
@@ -24,15 +23,15 @@ module Data.Connection.Ratio (
     Ratio (..),
 ) where
 
-import safe Data.Bool
-import safe Data.Connection.Cast hiding (ceiling, floor, lower)
-import safe Data.Int
-import safe Data.Order
-import safe Data.Order.Syntax
-import safe Data.Word
-import safe GHC.Real (Ratio (..), Rational)
-import safe Numeric.Natural
-import safe Prelude hiding (Eq (..), Ord (..), until)
+import Data.Bool
+import Data.Connection.Cast hiding (ceiling, floor, lower)
+import Data.Int
+import Data.Order
+import Data.Order.Syntax
+import Data.Word
+import GHC.Real (Ratio (..), Rational)
+import Numeric.Natural
+import Prelude hiding (Eq (..), Ord (..), until)
 
 -- | A total version of 'GHC.Real.reduce'.
 reduce :: Integral a => Ratio a -> Ratio a
