@@ -3,7 +3,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE Safe #-}
 
 module Data.Connection.Float (
     -- * Float
@@ -46,18 +45,18 @@ module Data.Connection.Float (
     shift64,
 ) where
 
-import safe Data.Bool
-import safe Data.Connection.Cast hiding (ceiling, floor)
-import safe Data.Connection.Ratio
-import safe Data.Int
-import safe Data.Order
-import safe Data.Order.Syntax
-import safe Data.Ratio (approxRational)
-import safe Data.Word
-import safe GHC.Float as F
-import safe Numeric.Natural
-import safe Prelude hiding (Eq (..), Ord (..), until)
-import safe qualified Prelude as P
+import Data.Bool
+import Data.Connection.Cast hiding (ceiling, floor)
+import Data.Connection.Ratio
+import Data.Int
+import Data.Order
+import Data.Order.Syntax
+import Data.Ratio (approxRational)
+import Data.Word
+import GHC.Float as F
+import Numeric.Natural
+import Prelude hiding (Eq (..), Ord (..), until)
+import qualified Prelude as P
 
 ---------------------------------------------------------------------
 -- Float

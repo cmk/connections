@@ -1,7 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -41,10 +40,10 @@ module Data.Connection.Property (
     projective,
 ) where
 
-import safe Data.Connection.Cast
-import safe Data.Order
-import safe Data.Order.Property
-import safe Prelude hiding (Num (..), Ord (..), ceiling, floor)
+import Data.Connection.Cast
+import Data.Order
+import Data.Order.Property
+import Prelude hiding (Num (..), Ord (..), ceiling, floor)
 
 -- Adjointness
 

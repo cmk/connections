@@ -1,5 +1,4 @@
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE Safe #-}
 {-# OPTIONS_HADDOCK show-extensions #-}
 
 -- |
@@ -16,60 +15,60 @@
 -- these are runnable as a standalone executable. See the /doctest/ stanza in the
 -- library's cabal file.
 module Data.Connection (
-   
+
     -- $example
-    
+
     Side(..),
-    
+
     -- * Types
 
     -- ** CastL
     castL,
     pattern CastL,
-    
+
     -- ** CastR
     castR,
     pattern CastR,
-    
+
     -- ** Cast
     cast,
     pattern Cast,
     Cast,
-    
+
     -- * Accessors
     midpoint,
     interval,
-    
+
     -- ** upper
     upper,
     upper1,
     upper2,
-    
+
     -- ** lower
     lower,
     lower1,
     lower2,
-    
+
     -- ** ceiling
     ceiling,
     ceiling1,
     ceiling2,
-   
+
     -- ** floor
     floor,
     floor1,
     floor2,
-   
+
     -- ** round
     round,
     round1,
     round2,
-    
+
     -- ** truncate
     truncate,
     truncate1,
     truncate2,
-    
+
     -- ** max/min
     maximize,
     minimize,
@@ -85,22 +84,22 @@ module Data.Connection (
     select,
     strong,
     divide,
-    
+
     -- * Extended
     extended,
     Extended (..),
 
 ) where
 
-import safe Data.Connection.Cast
-import safe Data.Connection.Class
-import safe Prelude hiding (ceiling, floor, round, truncate)
+import Data.Connection.Cast
+import Data.Connection.Class
+import Prelude hiding (ceiling, floor, round, truncate)
 
 {- $example
- 
+
  ==== What is a Galois connection?
 
- A [Galois connection](https://en.wikipedia.org/wiki/Galois_connection) is an 
+ A [Galois connection](https://en.wikipedia.org/wiki/Galois_connection) is an
  adjunction in the category of preorders: a pair of monotone maps /f :: p -> q/
  and /g :: q -> p/ between preorders /p/ and /q/, such that
 

@@ -5,7 +5,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -73,13 +72,13 @@ module Data.Connection.Cast (
     Extended (..),
 ) where
 
-import safe Control.Arrow ((&&&))
-import safe Control.Category (Category, (<<<), (>>>))
-import safe qualified Control.Category as C
-import safe Data.Bifunctor (bimap)
-import safe Data.ExtendedReal
-import safe Data.Order
-import safe Prelude hiding (ceiling, floor, round, truncate)
+import Control.Arrow ((&&&))
+import Control.Category (Category, (<<<), (>>>))
+import qualified Control.Category as C
+import Data.Bifunctor (bimap)
+import Data.ExtendedReal
+import Data.Order
+import Prelude hiding (ceiling, floor, round, truncate)
 
 -- $setup
 -- >>> :set -XTypeApplications
@@ -103,7 +102,7 @@ import safe Prelude hiding (ceiling, floor, round, truncate)
 --  If a connection is existentialized over this value (i.e. has type /forall k. Cast k a b/) then it can
 --  provide either of two functions /f, h :: a -> b/.
 --
---  This is useful because it enables rounding, truncation, medians, etc. 
+--  This is useful because it enables rounding, truncation, medians, etc.
 --
 data Side = L | R
 

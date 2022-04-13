@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE Safe #-}
 
 module Data.Order.Interval (
     Interval (),
@@ -11,11 +10,11 @@ module Data.Order.Interval (
     endpts,
 ) where
 
-import safe Data.Bifunctor (bimap)
-import safe qualified Data.Eq as Eq
-import safe Data.Order
-import safe Data.Order.Syntax
-import safe Prelude hiding (Bounded, Eq (..), Ord (..), until)
+import Data.Bifunctor (bimap)
+import qualified Data.Eq as Eq
+import Data.Order
+import Data.Order.Syntax
+import Prelude hiding (Bounded, Eq (..), Ord (..), until)
 
 ---------------------------------------------------------------------
 -- Intervals

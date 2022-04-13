@@ -1,5 +1,4 @@
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE Safe #-}
 
 -- | Utilities for custom preludes and RebindableSyntax.
 module Data.Order.Syntax (
@@ -26,12 +25,12 @@ module Data.Order.Syntax (
     Ord.Ord (),
 ) where
 
-import safe Control.Exception
-import safe qualified Data.Eq as Eq
-import safe qualified Data.Ord as Ord
-import safe Data.Order
+import Control.Exception
+import qualified Data.Eq as Eq
+import qualified Data.Ord as Ord
+import Data.Order
 
-import safe Prelude hiding (Eq (..), Ord (..))
+import Prelude hiding (Eq (..), Ord (..))
 
 infix 4 <, >
 

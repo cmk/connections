@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE Safe #-}
 
 -- | See <https://en.wikipedia.org/wiki/Binary_relation#Properties>.
 module Data.Order.Property (
@@ -51,10 +50,10 @@ module Data.Order.Property (
     antisymmetric,
 ) where
 
-import safe Data.Lattice hiding (not)
-import safe Data.Order
-import safe Data.Order.Syntax
-import safe Prelude hiding (Eq (..), Ord (..))
+import Data.Lattice hiding (not)
+import Data.Order
+import Data.Order.Syntax
+import Prelude hiding (Eq (..), Ord (..))
 
 -- | See <https://en.wikipedia.org/wiki/Binary_relation#Properties>.
 --
