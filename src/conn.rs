@@ -1,0 +1,209 @@
+/// A Galois connection (adjoint triple) between preordered sets `A` and `B`.
+///
+/// Carries three monotone functions:
+/// - `ceil`: lower adjoint (rounds up)
+/// - `inner`: shared middle adjoint (embedding)
+/// - `floor`: upper adjoint (rounds down)
+///
+/// For a one-sided connection (only `ceil ⊣ inner`), `floor == ceil`.
+pub struct Conn<A, B> {
+    pub(crate) ceil: fn(A) -> B,
+    pub(crate) inner: fn(B) -> A,
+    pub(crate) floor: fn(A) -> B,
+}
+
+impl<A, B> Clone for Conn<A, B> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<A, B> Copy for Conn<A, B> {}
+
+impl<A, B> Conn<A, B> {
+    /// Construct a full adjoint triple `ceil ⊣ inner ⊣ floor`.
+    pub fn new(ceil: fn(A) -> B, inner: fn(B) -> A, floor: fn(A) -> B) -> Self {
+        Conn { ceil, inner, floor }
+    }
+
+    /// Construct a one-sided connection `ceil ⊣ inner` (no distinct floor).
+    ///
+    /// Sets `floor = ceil`, matching the Haskell `CastL` representation.
+    pub fn new_left(ceil: fn(A) -> B, inner: fn(B) -> A) -> Self {
+        Conn { ceil, inner, floor: ceil }
+    }
+
+    /// Apply the lower adjoint (ceiling / round-up).
+    pub fn ceil(&self, a: A) -> B {
+        (self.ceil)(a)
+    }
+
+    /// Apply the middle adjoint (embedding).
+    pub fn inner(&self, b: B) -> A {
+        (self.inner)(b)
+    }
+
+    /// Apply the upper adjoint (floor / round-down).
+    pub fn floor(&self, a: A) -> B {
+        (self.floor)(a)
+    }
+}
+
+impl<T> Conn<T, T> {
+    /// The identity connection: `ceil = inner = floor = id`.
+    pub fn identity() -> Self {
+        fn id<T>(x: T) -> T { x }
+        Conn { ceil: id, inner: id, floor: id }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::order::Ple;
+    use proptest::prelude::*;
+
+    #[test]
+    fn identity_ceil() {
+        let c = Conn::<i32, i32>::identity();
+        assert_eq!(c.ceil(42), 42);
+    }
+
+    #[test]
+    fn identity_inner() {
+        let c = Conn::<i32, i32>::identity();
+        assert_eq!(c.inner(42), 42);
+    }
+
+    #[test]
+    fn identity_floor() {
+        let c = Conn::<i32, i32>::identity();
+        assert_eq!(c.floor(42), 42);
+    }
+
+    #[test]
+    fn new_left_floor_eq_ceil() {
+        fn double(x: i32) -> i64 { x as i64 * 2 }
+        fn halve(x: i64) -> i32 { (x / 2) as i32 }
+        let c = Conn::new_left(double, halve);
+        // floor should behave identically to ceil
+        assert_eq!(c.ceil(5), c.floor(5));
+        assert_eq!(c.ceil(-3), c.floor(-3));
+    }
+
+    // ── Property tests for identity connection ─────────────────────
+
+    /// Adjointness: `f(a) ≤ b ⟺ a ≤ g(b)`
+    fn adjoint_id(a: i32, b: i32) -> bool {
+        let c = Conn::<i32, i32>::identity();
+        let fa = c.ceil(a);
+        let gb = c.inner(b);
+        (fa <= b) == (a <= gb)
+    }
+
+    /// Closure: `a ≤ g(f(a))`
+    fn closed_id(a: i32) -> bool {
+        let c = Conn::<i32, i32>::identity();
+        a <= c.inner(c.ceil(a))
+    }
+
+    /// Kernel: `f(g(b)) ≤ b`
+    fn kernel_id(b: i32) -> bool {
+        let c = Conn::<i32, i32>::identity();
+        c.ceil(c.inner(b)) <= b
+    }
+
+    /// Monotonicity: `a1 ≤ a2 ⟹ f(a1) ≤ f(a2)` and `b1 ≤ b2 ⟹ g(b1) ≤ g(b2)`
+    #[allow(clippy::nonminimal_bool)]
+    fn monotonic_id(a1: i32, a2: i32, b1: i32, b2: i32) -> bool {
+        let c = Conn::<i32, i32>::identity();
+        // Written as implication (not `a1 > a2`) to match the partial-order form.
+        let mf = !(a1 <= a2) || c.ceil(a1) <= c.ceil(a2);
+        let mg = !(b1 <= b2) || c.inner(b1) <= c.inner(b2);
+        mf && mg
+    }
+
+    /// Idempotence: `g(f(g(f(a)))) == g(f(a))`
+    fn idempotent_id(a: i32) -> bool {
+        let c = Conn::<i32, i32>::identity();
+        let gfa = c.inner(c.ceil(a));
+        let gfgfa = c.inner(c.ceil(gfa));
+        gfa == gfgfa
+    }
+
+    proptest! {
+        #[test]
+        fn prop_identity_adjoint(a: i32, b: i32) {
+            prop_assert!(adjoint_id(a, b));
+        }
+
+        #[test]
+        fn prop_identity_closed(a: i32) {
+            prop_assert!(closed_id(a));
+        }
+
+        #[test]
+        fn prop_identity_kernel(b: i32) {
+            prop_assert!(kernel_id(b));
+        }
+
+        #[test]
+        fn prop_identity_monotonic(a1: i32, a2: i32, b1: i32, b2: i32) {
+            prop_assert!(monotonic_id(a1, a2, b1, b2));
+        }
+
+        #[test]
+        fn prop_identity_idempotent(a: i32) {
+            prop_assert!(idempotent_id(a));
+        }
+    }
+
+    // ── Property tests for identity on f64 (exercises N5 ordering) ─
+
+    fn arb_f64() -> impl Strategy<Value = f64> {
+        prop_oneof![
+            4 => any::<f64>(),
+            1 => prop_oneof![
+                Just(f64::NAN),
+                Just(f64::INFINITY),
+                Just(f64::NEG_INFINITY),
+                Just(0.0_f64),
+                Just(-0.0_f64),
+            ],
+        ]
+    }
+
+    fn adjoint_id_f64(a: f64, b: f64) -> bool {
+        let c = Conn::<f64, f64>::identity();
+        let fa = c.ceil(a);
+        let gb = c.inner(b);
+        fa.ple(&b) == a.ple(&gb)
+    }
+
+    fn closed_id_f64(a: f64) -> bool {
+        let c = Conn::<f64, f64>::identity();
+        a.ple(&c.inner(c.ceil(a)))
+    }
+
+    fn kernel_id_f64(b: f64) -> bool {
+        let c = Conn::<f64, f64>::identity();
+        c.ceil(c.inner(b)).ple(&b)
+    }
+
+    proptest! {
+        #[test]
+        fn prop_identity_f64_adjoint(a in arb_f64(), b in arb_f64()) {
+            prop_assert!(adjoint_id_f64(a, b));
+        }
+
+        #[test]
+        fn prop_identity_f64_closed(a in arb_f64()) {
+            prop_assert!(closed_id_f64(a));
+        }
+
+        #[test]
+        fn prop_identity_f64_kernel(b in arb_f64()) {
+            prop_assert!(kernel_id_f64(b));
+        }
+    }
+}
