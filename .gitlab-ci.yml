@@ -1,0 +1,18 @@
+stages:
+  - test
+
+test:
+  stage: test
+  image: rust:latest
+  variables:
+    CARGO_TERM_COLOR: always
+  before_script:
+    - rustup component add clippy
+  script:
+    - cargo test
+    - cargo clippy --all-targets -- -D warnings
+  cache:
+    key: cargo
+    paths:
+      - target/
+      - .cargo/
