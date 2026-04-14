@@ -12,5 +12,8 @@ Cargo.lock
 # OS
 **/*.DS_Store
 
+# Agent
+doc/chats/
+
 # MCP server config — contains machine-local binary paths
 .mcp.json
