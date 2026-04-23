@@ -22,14 +22,14 @@ impl<A, B> Copy for Conn<A, B> {}
 
 impl<A, B> Conn<A, B> {
     /// Construct a full adjoint triple `ceil ⊣ inner ⊣ floor`.
-    pub fn new(ceil: fn(A) -> B, inner: fn(B) -> A, floor: fn(A) -> B) -> Self {
+    pub const fn new(ceil: fn(A) -> B, inner: fn(B) -> A, floor: fn(A) -> B) -> Self {
         Conn { ceil, inner, floor }
     }
 
     /// Construct a one-sided connection `ceil ⊣ inner` (no distinct floor).
     ///
     /// Sets `floor = ceil`, matching the Haskell `CastL` representation.
-    pub fn new_left(ceil: fn(A) -> B, inner: fn(B) -> A) -> Self {
+    pub const fn new_left(ceil: fn(A) -> B, inner: fn(B) -> A) -> Self {
         Conn { ceil, inner, floor: ceil }
     }
 
@@ -51,7 +51,7 @@ impl<A, B> Conn<A, B> {
 
 impl<T> Conn<T, T> {
     /// The identity connection: `ceil = inner = floor = id`.
-    pub fn identity() -> Self {
+    pub const fn identity() -> Self {
         fn id<T>(x: T) -> T { x }
         Conn { ceil: id, inner: id, floor: id }
     }

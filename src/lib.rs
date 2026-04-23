@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
 pub mod conn;
+pub mod fixed;
 pub mod float;
 pub mod order;
