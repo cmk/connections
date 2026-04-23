@@ -3,6 +3,9 @@ debug/
 target/
 Cargo.lock
 
+# Proptest regression reproducers (local, noisy)
+proptest-regressions/
+
 # Editor
 .vscode/
 .idea
