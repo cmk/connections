@@ -175,12 +175,12 @@ macro_rules! rate_conn {
 }
 
 // Integer ratios (power-of-two intra-family).
-rate_conn!(S88_S44,  S88,  S44,  2, 1);
-rate_conn!(S176_S44, S176, S44,  4, 1);
-rate_conn!(S176_S88, S176, S88,  2, 1);
-rate_conn!(S96_S48,  S96,  S48,  2, 1);
-rate_conn!(S192_S48, S192, S48,  4, 1);
-rate_conn!(S192_S96, S192, S96,  2, 1);
+rate_conn!(S88S44,  S88,  S44,  2, 1);
+rate_conn!(S176S44, S176, S44,  4, 1);
+rate_conn!(S176S88, S176, S88,  2, 1);
+rate_conn!(S96S48,  S96,  S48,  2, 1);
+rate_conn!(S192S48, S192, S48,  4, 1);
+rate_conn!(S192S96, S192, S96,  2, 1);
 
 // Rational ratios (cross-family). Naming convention: `SXX_SYY` has
 // `SXX` as the Fine side (higher Q48.16-bits-per-second) and `SYY` as
@@ -188,15 +188,15 @@ rate_conn!(S192_S96, S192, S96,  2, 1);
 // upscale. Reduced ratios; gcd(NUM, 147) = 1 in every case so 147
 // (= 3² · 7²) stays in the denominator whenever one side is from the
 // 44.1k family.
-rate_conn!(S48_S44,   S48,  S44,  160, 147);
-rate_conn!(S88_S48,   S88,  S48,  147, 80);
-rate_conn!(S176_S48,  S176, S48,  147, 40);
-rate_conn!(S96_S44,   S96,  S44,  320, 147);
-rate_conn!(S96_S88,   S96,  S88,  160, 147);
-rate_conn!(S176_S96,  S176, S96,  147, 80);
-rate_conn!(S192_S44,  S192, S44,  640, 147);
-rate_conn!(S192_S88,  S192, S88,  320, 147);
-rate_conn!(S192_S176, S192, S176, 160, 147);
+rate_conn!(S48S44,   S48,  S44,  160, 147);
+rate_conn!(S88S48,   S88,  S48,  147, 80);
+rate_conn!(S176S48,  S176, S48,  147, 40);
+rate_conn!(S96S44,   S96,  S44,  320, 147);
+rate_conn!(S96S88,   S96,  S88,  160, 147);
+rate_conn!(S176S96,  S176, S96,  147, 80);
+rate_conn!(S192S44,  S192, S44,  640, 147);
+rate_conn!(S192S88,  S192, S88,  320, 147);
+rate_conn!(S192S176, S192, S176, 160, 147);
 
 // ─────────────────────────────────────────────────────────────────
 // Rate ↔ Pico connections
@@ -265,12 +265,12 @@ macro_rules! pico_conn {
     };
 }
 
-pico_conn!(PICO_S44,  S44,  9_765_625,  28_224);
-pico_conn!(PICO_S48,  S48,  1_953_125,  6_144);
-pico_conn!(PICO_S88,  S88,  9_765_625,  56_448);
-pico_conn!(PICO_S96,  S96,  1_953_125,  12_288);
-pico_conn!(PICO_S176, S176, 9_765_625,  112_896);
-pico_conn!(PICO_S192, S192, 1_953_125,  24_576);
+pico_conn!(F12S44,  S44,  9_765_625,  28_224);
+pico_conn!(F12S48,  S48,  1_953_125,  6_144);
+pico_conn!(F12S88,  S88,  9_765_625,  56_448);
+pico_conn!(F12S96,  S96,  1_953_125,  12_288);
+pico_conn!(F12S176, S176, 9_765_625,  112_896);
+pico_conn!(F12S192, S192, 1_953_125,  24_576);
 
 #[cfg(test)]
 mod tests {
@@ -304,32 +304,32 @@ mod tests {
     #[test]
     fn s88_s44_power_of_two_exact_embed() {
         // 1 S44 sample = 2 S88 samples, bit-exact.
-        assert_eq!(S88_S44.inner(S44::from_sample(7)), S88::from_sample(14));
+        assert_eq!(S88S44.inner(S44::from_sample(7)), S88::from_sample(14));
         // ceil and floor agree on values that land cleanly.
-        assert_eq!(S88_S44.ceil(S88::from_sample(14)), S44::from_sample(7));
-        assert_eq!(S88_S44.floor(S88::from_sample(14)), S44::from_sample(7));
+        assert_eq!(S88S44.ceil(S88::from_sample(14)), S44::from_sample(7));
+        assert_eq!(S88S44.floor(S88::from_sample(14)), S44::from_sample(7));
         // Off-by-one S88 bit → ceil/floor differ by 1 S44 bit.
         let s88_odd = S88::from_bits(S88::from_sample(14).to_bits() + 1);
-        assert_eq!(S88_S44.ceil(s88_odd), S44::from_bits(S44::from_sample(7).to_bits() + 1));
-        assert_eq!(S88_S44.floor(s88_odd), S44::from_bits(S44::from_sample(7).to_bits()));
+        assert_eq!(S88S44.ceil(s88_odd), S44::from_bits(S44::from_sample(7).to_bits() + 1));
+        assert_eq!(S88S44.floor(s88_odd), S44::from_bits(S44::from_sample(7).to_bits()));
     }
 
     #[test]
     fn s48_s44_rational_boundary() {
         // 1 S44 bit = 160/147 S48 bits (floor), so inner(S44(147)) = S48(160) exactly.
         let s44 = S44::from_bits(147);
-        assert_eq!(S48_S44.inner(s44), S48::from_bits(160));
+        assert_eq!(S48S44.inner(s44), S48::from_bits(160));
         // Round-trip at the boundary.
-        assert_eq!(S48_S44.ceil(S48::from_bits(160)), S44::from_bits(147));
-        assert_eq!(S48_S44.floor(S48::from_bits(160)), S44::from_bits(147));
+        assert_eq!(S48S44.ceil(S48::from_bits(160)), S44::from_bits(147));
+        assert_eq!(S48S44.floor(S48::from_bits(160)), S44::from_bits(147));
         // At x=161, inner(148) = floor(148·160/147) = floor(161.088) = 161. So
         // both ceil and floor of 161 land on 148.
-        assert_eq!(S48_S44.ceil(S48::from_bits(161)), S44::from_bits(148));
-        assert_eq!(S48_S44.floor(S48::from_bits(161)), S44::from_bits(148));
+        assert_eq!(S48S44.ceil(S48::from_bits(161)), S44::from_bits(148));
+        assert_eq!(S48S44.floor(S48::from_bits(161)), S44::from_bits(148));
         // A value skipped by the staircase: inner(11) = 11, inner(12) = 13,
         // so x=12 is not hit. ceil(12) = 12, floor(12) = 11.
-        assert_eq!(S48_S44.ceil(S48::from_bits(12)), S44::from_bits(12));
-        assert_eq!(S48_S44.floor(S48::from_bits(12)), S44::from_bits(11));
+        assert_eq!(S48S44.ceil(S48::from_bits(12)), S44::from_bits(12));
+        assert_eq!(S48S44.floor(S48::from_bits(12)), S44::from_bits(11));
     }
 
     #[test]
@@ -338,12 +338,12 @@ mod tests {
         // inner(S48::from_sample(1)) should be the floor_div version.
         // S48(1 sample) = 65_536 bits. inner = floor_div(65_536 · 1_953_125, 6_144).
         // = floor_div(128_000_000_000, 6_144) = 20_833_333.
-        let p = PICO_S48.inner(S48::from_sample(1));
+        let p = F12S48.inner(S48::from_sample(1));
         assert_eq!(p.0, 20_833_333);
         // ceil of that same Pico is back to exactly 1 S48 sample.
-        assert_eq!(PICO_S48.ceil(Pico(20_833_333)), S48::from_sample(1));
+        assert_eq!(F12S48.ceil(Pico(20_833_333)), S48::from_sample(1));
         // floor of one ps higher is still 1 sample.
-        assert_eq!(PICO_S48.floor(Pico(20_833_333)), S48::from_sample(1));
+        assert_eq!(F12S48.floor(Pico(20_833_333)), S48::from_sample(1));
     }
 
     // ─────────────────────────────────────────────
@@ -481,23 +481,23 @@ mod tests {
     }
 
     // Integer-ratio pairs.
-    props_for_conn!(p_s88_s44,  S88_S44,  S88,  S44,  2, 1);
-    props_for_conn!(p_s176_s44, S176_S44, S176, S44,  4, 1);
-    props_for_conn!(p_s176_s88, S176_S88, S176, S88,  2, 1);
-    props_for_conn!(p_s96_s48,  S96_S48,  S96,  S48,  2, 1);
-    props_for_conn!(p_s192_s48, S192_S48, S192, S48,  4, 1);
-    props_for_conn!(p_s192_s96, S192_S96, S192, S96,  2, 1);
+    props_for_conn!(p_s88s44,  S88S44,  S88,  S44,  2, 1);
+    props_for_conn!(p_s176s44, S176S44, S176, S44,  4, 1);
+    props_for_conn!(p_s176s88, S176S88, S176, S88,  2, 1);
+    props_for_conn!(p_s96s48,  S96S48,  S96,  S48,  2, 1);
+    props_for_conn!(p_s192s48, S192S48, S192, S48,  4, 1);
+    props_for_conn!(p_s192s96, S192S96, S192, S96,  2, 1);
 
     // Cross-family rational pairs.
-    props_for_conn!(p_s48_s44,   S48_S44,   S48,  S44,  160, 147);
-    props_for_conn!(p_s88_s48,   S88_S48,   S88,  S48,  147, 80);
-    props_for_conn!(p_s176_s48,  S176_S48,  S176, S48,  147, 40);
-    props_for_conn!(p_s96_s44,   S96_S44,   S96,  S44,  320, 147);
-    props_for_conn!(p_s96_s88,   S96_S88,   S96,  S88,  160, 147);
-    props_for_conn!(p_s176_s96,  S176_S96,  S176, S96,  147, 80);
-    props_for_conn!(p_s192_s44,  S192_S44,  S192, S44,  640, 147);
-    props_for_conn!(p_s192_s88,  S192_S88,  S192, S88,  320, 147);
-    props_for_conn!(p_s192_s176, S192_S176, S192, S176, 160, 147);
+    props_for_conn!(p_s48s44,   S48S44,   S48,  S44,  160, 147);
+    props_for_conn!(p_s88s48,   S88S48,   S88,  S48,  147, 80);
+    props_for_conn!(p_s176s48,  S176S48,  S176, S48,  147, 40);
+    props_for_conn!(p_s96s44,   S96S44,   S96,  S44,  320, 147);
+    props_for_conn!(p_s96s88,   S96S88,   S96,  S88,  160, 147);
+    props_for_conn!(p_s176s96,  S176S96,  S176, S96,  147, 80);
+    props_for_conn!(p_s192s44,  S192S44,  S192, S44,  640, 147);
+    props_for_conn!(p_s192s88,  S192S88,  S192, S88,  320, 147);
+    props_for_conn!(p_s192s176, S192S176, S192, S176, 160, 147);
 
     // Pico connections. Here Fine = Pico, Coarse = Sxx. The macro is
     // identical but Pico is not an Sxx — write a tailored mod per conn
@@ -612,12 +612,12 @@ mod tests {
         };
     }
 
-    props_for_pico_conn!(p_pico_s44,  PICO_S44,  S44,  9_765_625,  28_224);
-    props_for_pico_conn!(p_pico_s48,  PICO_S48,  S48,  1_953_125,  6_144);
-    props_for_pico_conn!(p_pico_s88,  PICO_S88,  S88,  9_765_625,  56_448);
-    props_for_pico_conn!(p_pico_s96,  PICO_S96,  S96,  1_953_125,  12_288);
-    props_for_pico_conn!(p_pico_s176, PICO_S176, S176, 9_765_625,  112_896);
-    props_for_pico_conn!(p_pico_s192, PICO_S192, S192, 1_953_125,  24_576);
+    props_for_pico_conn!(p_f12s44,  F12S44,  S44,  9_765_625,  28_224);
+    props_for_pico_conn!(p_f12s48,  F12S48,  S48,  1_953_125,  6_144);
+    props_for_pico_conn!(p_f12s88,  F12S88,  S88,  9_765_625,  56_448);
+    props_for_pico_conn!(p_f12s96,  F12S96,  S96,  1_953_125,  12_288);
+    props_for_pico_conn!(p_f12s176, F12S176, S176, 9_765_625,  112_896);
+    props_for_pico_conn!(p_f12s192, F12S192, S192, 1_953_125,  24_576);
 
     // Sanity-check the Pico↔sample rate against the transcendental
     // definition: inner(Sxx::from_sample(1)) should be within 0.5 ps
@@ -631,11 +631,11 @@ mod tests {
             let ideal = 1.0e12 / (R::HZ as f64);
             assert!((got - ideal).abs() <= 1.0, "Rate {}: got {}, ideal {}", R::HZ, got, ideal);
         }
-        check(PICO_S44,  S44::from_sample(1));
-        check(PICO_S48,  S48::from_sample(1));
-        check(PICO_S88,  S88::from_sample(1));
-        check(PICO_S96,  S96::from_sample(1));
-        check(PICO_S176, S176::from_sample(1));
-        check(PICO_S192, S192::from_sample(1));
+        check(F12S44,  S44::from_sample(1));
+        check(F12S48,  S48::from_sample(1));
+        check(F12S88,  S88::from_sample(1));
+        check(F12S96,  S96::from_sample(1));
+        check(F12S176, S176::from_sample(1));
+        check(F12S192, S192::from_sample(1));
     }
 }
