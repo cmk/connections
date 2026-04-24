@@ -11,28 +11,33 @@
 //! shape: two tier codes separated by `f` / `s`, smaller-bit tier on
 //! the left.
 //!
-//! | code   | module              | type              | resolution           |
-//! |--------|---------------------|-------------------|----------------------|
-//! | `F00`  | [`fixed::Uni`]      | `i64 × 10⁰`       | 1 s                  |
-//! | `F01`  | [`fixed::Deci`]     | `i64 × 10⁻¹`      | 100 ms               |
-//! | `F02`  | [`fixed::Centi`]    | `i64 × 10⁻²`      | 10 ms                |
-//! | `F03`  | [`fixed::Milli`]    | `i64 × 10⁻³`      | 1 ms                 |
-//! | `F06`  | [`fixed::Micro`]    | `i64 × 10⁻⁶`      | 1 µs                 |
-//! | `F09`  | [`fixed::Nano`]     | `i64 × 10⁻⁹`      | 1 ns                 |
-//! | `F12`  | [`fixed::Pico`]     | `i64 × 10⁻¹²`     | 1 ps                 |
-//! | `F64`  | [`float_ext`]       | `FloatExt<f64>`   | IEEE double          |
-//! | `S44`  | [`sample::S44`]     | `Q48.16 / 44100`  | 1 sample @ 44.1 kHz  |
-//! | `S48`  | [`sample::S48`]     | `Q48.16 / 48000`  | 1 sample @ 48 kHz    |
-//! | `S88`  | [`sample::S88`]     | `Q48.16 / 88200`  | 1 sample @ 88.2 kHz  |
-//! | `S96`  | [`sample::S96`]     | `Q48.16 / 96000`  | 1 sample @ 96 kHz    |
-//! | `S176` | [`sample::S176`]    | `Q48.16 / 176400` | 1 sample @ 176.4 kHz |
-//! | `S192` | [`sample::S192`]    | `Q48.16 / 192000` | 1 sample @ 192 kHz   |
+//! Tier codes name a *type*, not a module. All `F??F??` Conn
+//! constants (pairs of decimal-rung tiers, or float × decimal-rung)
+//! live in [`fixed`]; all `S???S???` rate-pair constants and
+//! `F??S???` cross-tier constants live in [`sample`].
+//!
+//! | code   | type                          | resolution           |
+//! |--------|-------------------------------|----------------------|
+//! | `F00`  | [`fixed::Uni`]                | 1 s                  |
+//! | `F01`  | [`fixed::Deci`]               | 100 ms               |
+//! | `F02`  | [`fixed::Centi`]              | 10 ms                |
+//! | `F03`  | [`fixed::Milli`]              | 1 ms                 |
+//! | `F06`  | [`fixed::Micro`]              | 1 µs                 |
+//! | `F09`  | [`fixed::Nano`]               | 1 ns                 |
+//! | `F12`  | [`fixed::Pico`]               | 1 ps                 |
+//! | `F64`  | [`float_ext::FloatExt<f64>`]  | IEEE double          |
+//! | `S44`  | [`sample::S44`]               | 1 sample @ 44.1 kHz  |
+//! | `S48`  | [`sample::S48`]               | 1 sample @ 48 kHz    |
+//! | `S88`  | [`sample::S88`]               | 1 sample @ 88.2 kHz  |
+//! | `S96`  | [`sample::S96`]               | 1 sample @ 96 kHz    |
+//! | `S176` | [`sample::S176`]              | 1 sample @ 176.4 kHz |
+//! | `S192` | [`sample::S192`]              | 1 sample @ 192 kHz   |
 //!
 //! Examples:
 //!
 //! - [`fixed::F12F06`] — `Pico → Micro` (exact decimal-ladder embed).
-//! - [`fixed::F64F06`] — `FloatExt<f64> → Extended<Micro>` (lawful over
-//!   the full IEEE domain, with saturation on the Rung side).
+//! - [`fixed::F64F06`] — `FloatExt<f64> → Extended<Micro>` (lawful
+//!   over the full IEEE domain, with saturation on the Rung side).
 //! - [`sample::F12S48`] — `Pico → S48` (cross-tier to sample rate).
 //! - [`sample::S88S44`] — `S88 → S44` (rate-pair).
 //!
