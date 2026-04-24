@@ -60,3 +60,71 @@ count 505 → 512, all green; clippy clean.
   confirming the macro interoperates with `Conn::identity()`.
 - [x] Seven representative values cross-checked against the hand-
   written `F12F00` (boundaries 0, ±1, ±10¹², exact + off-by-one).
+
+## Local review (2026-04-24)
+
+**Branch:** `feat/compose-macro`
+**Commits:** 3 (origin/main..feat/compose-macro)
+**Reviewer:** Claude (sonnet, independent)
+
+---
+
+### Commit Hygiene
+
+`plan:` + `feat:` + `doc:` across three atomic commits, all under
+72 characters, conventional prefixes, each leaves the repo buildable.
+
+### Code Quality
+
+- **Macro correctness**: ceil/floor compose covariantly (`FIRST → SECOND`),
+  inner contravariantly (`SECOND → FIRST`); matches Galois
+  composition and design.md §Composition.
+- **Macro hygiene**: `$crate::conn::Conn` path-qualified in the
+  expansion, so external callers don't need `Conn` imported for
+  anything except the user-written type annotation.
+- **Const correctness**: expansion is a real `const`-init; the test
+  module declares `F12F00_VIA_MICRO`, `LEFT_ID_COMPOSED`, and
+  `RIGHT_ID_COMPOSED` all at `const` scope — no runtime allocation.
+- **Clippy**: clean under `-D warnings`.
+
+### Test Coverage
+
+Eight new tests covering: construction (three composed `const`s),
+parity vs. hand-written `F12F00`, left + right identity, four
+proptests on the composed Conn (agreement + Galois upper/lower),
+plus an explicit spot check at the Uni safe boundary
+(`|c| = i64::MAX / 10¹²`). `bounded_pico` uses the same
+`Just(i64::MAX)` / `Just(i64::MIN + 1)` + `any::<i64>()` pattern
+as the existing `bounded_fine` — no generator-bounded-to-safe-
+region anti-pattern.
+
+### Plan Conformance
+
+T1, T2, T3 all implemented as specified. No deviations.
+
+### Risks
+
+- `#[macro_export]` is a semver commitment at the next minor bump;
+  acknowledged in the MR description.
+- `$FIRST`/`$SECOND` evaluate once per `ceil/floor/inner` call.
+  Callers pass `const` identifiers (the macro's purpose), so side-
+  effect expressions are not a real concern.
+
+### Recommendations
+
+**Must fix before push:**
+- ~~`bounded_uni` lacks an explicit boundary spot check per
+  CLAUDE.md.~~ **Addressed** — added
+  `compose_conn_inner_at_uni_safe_boundary`, which exercises
+  `Uni(±limit)` and `Uni(±(limit − 1))` with parity against the
+  hand-written `F12F00`.
+
+**Follow-up (not blocking):**
+- Monotonicity / `floor_le_ceil` proptests on the composed Conn.
+  Composition preserves both structurally; adding them would catch
+  future compose-refactor regressions earlier than a Galois
+  failure.
+- A `compose_conn!` expansion inside `fixed.rs` to replace one of
+  the non-adjacent `fix_fix!` constants as a compile-time parity
+  regression. Captured in the plan's Deferred section; out of scope
+  for this MR.

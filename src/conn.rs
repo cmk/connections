@@ -358,6 +358,25 @@ mod tests {
     }
 
     #[test]
+    fn compose_conn_inner_at_uni_safe_boundary() {
+        // `bounded_uni` in the proptests narrows to |c| ≤ i64::MAX / 10¹²
+        // because `inner(c) = c · 10¹²` overflows past that. The narrowing
+        // is architectural (it applies identically to `F12F00.inner`),
+        // so the CLAUDE.md rule on bounded generators asks for an explicit
+        // spot check AT the boundary — confirming composed and hand-
+        // written agree at the last sampled value, and documenting the
+        // point beyond which both panic in debug / wrap in release.
+        let limit = i64::MAX / PICO_UNI_PREC;
+        assert_eq!(F12F00_VIA_MICRO.inner(Uni(limit)), F12F00.inner(Uni(limit)));
+        assert_eq!(F12F00_VIA_MICRO.inner(Uni(-limit)), F12F00.inner(Uni(-limit)));
+        assert_eq!(F12F00_VIA_MICRO.inner(Uni(limit - 1)), F12F00.inner(Uni(limit - 1)));
+        assert_eq!(
+            F12F00_VIA_MICRO.inner(Uni(-limit + 1)),
+            F12F00.inner(Uni(-limit + 1))
+        );
+    }
+
+    #[test]
     fn compose_conn_right_identity() {
         for p in [0_i64, 1, -1, 1_500_000, -1_500_000, 999_999, -999_999] {
             let x = Pico(p);
