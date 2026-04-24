@@ -34,7 +34,7 @@
 use crate::conn::Conn;
 use crate::conn::float::ExtendedFloat;
 use crate::extended::Extended;
-use crate::order::Ple;
+use crate::lattice::Ple;
 
 macro_rules! def_fixed {
     ($name:ident, $prec:expr) => {

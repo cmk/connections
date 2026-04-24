@@ -1,4 +1,14 @@
-/// N5 lattice partial order for IEEE 754 floats.
+//! Lattice hierarchy and the N5 preorder on IEEE floats.
+//!
+//! This module collects the trait hierarchy described in
+//! `doc/design.md` §"Lattice hierarchy": [`Ple`] (the N5 partial
+//! less-or-equal used by the float connections) plus placeholder
+//! signatures for [`Join`], [`Meet`], [`Heyting`], [`Coheyting`],
+//! [`Symmetric`], and [`Boolean`]. The [`Ple`] trait is fully
+//! implemented; the rest are signatures only — their implementations
+//! are deferred to a later sprint.
+
+/// Partial less-or-equal under the N5 lattice ordering.
 ///
 /// Extends the standard float ordering so that:
 /// - NaN is reflexive: `ple(NaN, NaN)` is true
@@ -7,10 +17,59 @@
 /// - NaN is incomparable with all finite values and with each ±∞ in the other direction
 ///
 /// This recovers the N5 lattice shape used in the Haskell `connections` library.
-/// Partial less-or-equal under the N5 lattice ordering.
 pub trait Ple {
     fn ple(&self, other: &Self) -> bool;
 }
+
+// ── Deferred lattice trait signatures ──────────────────────────────
+//
+// These capture the hierarchy from doc/design.md §"Lattice hierarchy".
+// Implementations are deferred; for now the traits exist only so
+// downstream code can reference them by name.
+
+/// Join-semilattice: least upper bound with a bottom.
+///
+/// Implementations deferred.
+pub trait Join: PartialOrd {
+    fn bot() -> Self;
+    fn join(&self, other: &Self) -> Self;
+}
+
+/// Meet-semilattice: greatest lower bound with a top.
+///
+/// Implementations deferred.
+pub trait Meet: PartialOrd {
+    fn top() -> Self;
+    fn meet(&self, other: &Self) -> Self;
+}
+
+/// Heyting algebra: bounded lattice with implication.
+///
+/// Implementations deferred.
+pub trait Heyting: Join + Meet {
+    fn imp(&self, other: &Self) -> Self;
+}
+
+/// Co-Heyting algebra: bounded lattice with subtraction (the dual of
+/// [`Heyting`]).
+///
+/// Implementations deferred.
+pub trait Coheyting: Join + Meet {
+    fn sub(&self, other: &Self) -> Self;
+}
+
+/// Symmetric Heyting algebra: both Heyting and co-Heyting, with
+/// complement.
+///
+/// Implementations deferred.
+pub trait Symmetric: Heyting + Coheyting {
+    fn not(&self) -> Self;
+}
+
+/// Boolean algebra: symmetric Heyting satisfying the excluded middle.
+///
+/// Implementations deferred.
+pub trait Boolean: Symmetric {}
 
 impl Ple for f32 {
     fn ple(&self, other: &Self) -> bool {

@@ -25,7 +25,7 @@
 //! bare-float connections, ready to be used.
 
 use crate::conn::Conn;
-use crate::order::Ple;
+use crate::lattice::Ple;
 use std::cmp::Ordering;
 
 #[derive(Copy, Clone, Debug)]

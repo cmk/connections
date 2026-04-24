@@ -51,5 +51,5 @@
 
 pub mod conn;
 pub mod extended;
-pub mod order;
+pub mod lattice;
 pub mod property;

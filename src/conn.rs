@@ -79,7 +79,7 @@ impl<T> Conn<T, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::order::Ple;
+    use crate::lattice::Ple;
     use proptest::prelude::*;
 
     #[test]
