@@ -85,7 +85,9 @@ Keep subjects under 72 characters. Use the body for non-obvious decisions.
 
 ## TDD workflow
 
-Every sprint follows this order:
+Every sprint follows this order. This is a **two-tier review loop**:
+Tier 1 is local (`/sprint-review` pre-push), Tier 2 is GitLab MR
+round-trip (`/pull-reviews` → fix → `/reply-reviews` → push).
 
 1. Write the plan to `doc/plans/plan-YYYY-MM-DD-nn.md` before touching source.
    The plan's **Verification** table must list the property tests that
@@ -96,20 +98,89 @@ Every sprint follows this order:
 3. Write proptest properties and test skeletons that compile but
    trivially fail. Properties come first — they define the contract.
 4. Implement the module until all tests are green.
-5. Commit on the branch, when green.
-6. Run `/sprint-review` against the branch before merging.
-7. Rebase onto main: `git rebase main` then fast-forward main.
-8. Clean up: `git worktree remove ../project-<sprint>`.
-9. Append deferred/review sections to the plan document. If any
-   property tests were `#[ignore]`d during implementation, document
-   the reason and the re-enablement plan here.
+5. Commit on the branch, when green. Conventional subjects
+   (`feat:`/`fix:`/`test:`/`doc:`/`task:`/`debt:`), ≤72 chars.
+6. Append **Deferred** and **Review** sections to the plan document.
+7. **Finalize the plan and draft the MR description.** Predict the MR
+   iid via `scripts/next_mr_number.sh`, create
+   `doc/reviews/review-NNNNN.md` with a `## Summary` section holding the
+   1–3 bullet MR description, and `## Test plan`. Commit it as a
+   `doc:` or fold into the last `plan:` commit. The review file is the
+   single source of truth for the MR description — `glab mr create`
+   pulls from it verbatim via `scripts/extract_mr_body.sh`.
+8. Run `/sprint-review` — Tier 1 local review against `origin/main...HEAD`.
+   Appends a `## Local review (YYYY-MM-DD)` section to
+   `doc/reviews/review-NNNNN.md`. If the review lists must-fix items,
+   loop back to step 4.
+9. Push and open the MR:
+   ```
+   git push -u origin sprint/<name>
+   glab mr create --title "<title>" \
+     --description "$(scripts/extract_mr_body.sh NNNNN)"
+   ```
+   Tier 2 CI (`.gitlab-ci.yml`) and any configured reviewers start
+   immediately.
+10. **Per review round**: `/pull-reviews <N>` fetches new discussions,
+    fix them as a single **unpushed** fix commit, then `/reply-reviews <N>`
+    posts replies, mirrors them back into the review doc, and amends
+    the mirror into the fix commit. Push once — code + replies + audit
+    trail in one trip. For unattended polling, `/watch-mr <N>` (with
+    or without `/loop`) automates this per round.
+11. Rebase onto main: `git rebase main` then fast-forward main.
+12. Clean up: `git worktree remove ../project-<sprint>`.
+13. If any property tests were `#[ignore]`d during implementation,
+    document the reason and the re-enablement plan in the plan's
+    Review section before merge.
+
+### CI-repair / fix commits
+
+Review-round fixes are full commits (`fix: Address review feedback on
+MR !<N>`); `/reply-reviews` amends the review-doc mirror into that same
+commit via `git commit --amend --no-edit`, so each round is exactly one
+push.
+
+**CI-repair fixups** are a separate case: when CI on a pushed branch
+fails (a test flake, a clippy lint only the linux image catches), make
+a `git commit --fixup <sha>` commit against whichever earlier commit
+owns the regression. Before the next push/merge, collapse fixups via
+`scripts/autosquash.sh` so `main`'s linear history doesn't gain commits
+that temporarily broke the build. `/sprint-review` runs this check
+automatically at Step 0.
 
 ### Pre-commit hook
 
-A Claude Code hook in `.claude/settings.json` runs `cargo test` and
-`cargo clippy` before every `git commit` tool call. If either fails,
-the commit is blocked. This is the automated quality gate; `/sprint-review`
-is the manual one.
+A Claude Code hook in `.claude/settings.json` runs, in order, on every
+`git commit` tool call:
+
+1. `cargo fmt --all -- --check` — non-blocking, logs a warning.
+2. `scripts/check-pii.sh` — blocking; fails if staged diff contains
+   absolute user-home paths or common API-token shapes.
+3. `cargo test --workspace --quiet` — blocking.
+4. `cargo clippy --all-targets --quiet -- -D warnings` — blocking.
+
+If any blocking step fails, the commit is aborted. This is the
+automated quality gate; `/sprint-review` is the manual one. Never
+bypass with `--no-verify` unless Chris explicitly authorizes it.
+
+### Commands (`.claude/commands/`)
+
+- **`/sprint-review`** — Tier 1 local pre-push review. Appends to
+  `doc/reviews/review-NNNNN.md`. Gates the push.
+- **`/pull-reviews <N>`** — fetch GitLab MR discussions into the review
+  doc. Idempotent via `<!-- glab-id: -->` markers.
+- **`/reply-reviews <N>`** — post replies, mirror back, amend into the
+  round's unpushed fix commit. Refuses to run if the fix commit is
+  already pushed.
+- **`/watch-mr <N>`** — one polling tick: triage new items, auto-fix
+  the trivially-clear ones, run `/reply-reviews`, stop before push.
+  Designed for `/loop /watch-mr <N>` dynamic backoff.
+
+### `doc/reviews/` audit trail
+
+One file per MR: `doc/reviews/review-NNNNN.md` (zero-padded iid). Its
+`## Summary` is the MR description (pulled by `extract_mr_body.sh`);
+subsequent sections accumulate local reviews and GitLab discussion
+mirrors. `review-00000.md` is a deliberate sentinel — do not delete.
 
 ## Sprint plan format
 
