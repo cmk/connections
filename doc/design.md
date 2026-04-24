@@ -240,18 +240,23 @@ correctness regardless of the implementation strategy.
 
 ```
 src/
-├── lib.rs              — public API, re-exports
-├── conn.rs             — Conn type, composition, combinators
-├── float_ext.rs        — ExtendedFloat type, PartialOrd impl
-├── extended.rs         — Extended type for integer range extension
-├── lattice.rs          — Join, Meet, Heyting, Boolean traits
-├── conn/
-│   ├── int.rs          — integer ↔ integer connections
-│   ├── word.rs         — word ↔ word connections
-│   ├── float.rs        — float ↔ float, float ↔ int connections
-│   └── ratio.rs        — rational connections (if needed)
-└── property.rs         — proptest helpers: adjointness, closure, etc.
+├── lib.rs              — crate-level API docs, module declarations
+├── conn.rs             — Conn type, composition, combinators + `conn::*` submodule decls
+├── extended.rs         — Extended<T> type for integer range extension
+├── lattice.rs          — Ple trait (N5 preorder) + Join/Meet/Heyting/Coheyting/Symmetric/Boolean stubs
+├── property.rs         — shared proptest strategies and property helpers (Sprint C)
+└── conn/
+    ├── int.rs          — integer ↔ integer connections (stub)
+    ├── word.rs         — word ↔ word connections (stub)
+    ├── float.rs        — ExtendedFloat type + PartialOrd impl + float ↔ float connections
+    ├── fixed.rs        — decimal fixed-point ladder (Uni..Pico) with tier-pair connections
+    └── sample.rs       — rate-typed sample-indexed time; rate ↔ rate and rate ↔ pico connections
 ```
+
+Why no `float_ext.rs` at the crate root: the `ExtendedFloat` wrapper
+is only useful *in combination with* the float connections, so
+keeping its definition alongside those connections in
+`src/conn/float.rs` keeps related code together.
 
 ## Lattice hierarchy
 
