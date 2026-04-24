@@ -377,6 +377,34 @@ mod tests {
         ]
     }
 
+    /// Fine-side strategy restricted to values whose `inner(ceil(_))`
+    /// round-trip does not overflow.
+    ///
+    /// `inner(c) = c * PREC`, so the safe Fine range is
+    /// `|fine| ≤ (i64::MAX / PREC) * PREC` — i.e. every Fine value
+    /// that `ceil` can map without pushing the resulting Coarse past
+    /// `i64::MAX / PREC`, since `inner` then multiplies by PREC.
+    ///
+    /// Use for properties that round-trip through `inner` (closure,
+    /// idempotent). Non-round-trip properties (adjoint / monotone /
+    /// galois_{upper,lower} / kernel) can use the full-range
+    /// [`bounded_fine`] instead.
+    fn safe_fine(prec: i64) -> impl Strategy<Value = i64> {
+        let limit = (i64::MAX / prec) * prec;
+        prop_oneof![
+            1 => Just(0_i64),
+            1 => Just(prec),
+            1 => Just(-prec),
+            1 => Just(prec - 1),
+            1 => Just(-(prec - 1)),
+            1 => Just(prec + 1),
+            1 => Just(-(prec + 1)),
+            1 => Just(limit),
+            1 => Just(-limit),
+            5 => -limit..=limit,
+        ]
+    }
+
     // Each test is written for one Conn and one (Fine, Coarse) pair,
     // then expanded via macro across the 21 connections.
 
@@ -446,6 +474,31 @@ mod tests {
                             $conn.inner(cx) <= fx,
                             cx <= $conn.floor(fx)
                         );
+                    }
+
+                    // Closure: a ≤ inner(ceil(a))
+                    // Uses safe_fine because inner(ceil(a)) multiplies
+                    // by PREC and must fit i64; see safe_fine docs.
+                    #[test]
+                    fn prop_closure_l(x in safe_fine($prec)) {
+                        let a = $Fine(x);
+                        prop_assert!(a <= $conn.inner($conn.ceil(a)));
+                    }
+
+                    // Closure dual: inner(floor(a)) ≤ a
+                    #[test]
+                    fn prop_closure_r(x in safe_fine($prec)) {
+                        let a = $Fine(x);
+                        prop_assert!($conn.inner($conn.floor(a)) <= a);
+                    }
+
+                    // Idempotent: inner∘ceil is idempotent on its image.
+                    #[test]
+                    fn prop_idempotent(x in safe_fine($prec)) {
+                        let a = $Fine(x);
+                        let once = $conn.inner($conn.ceil(a));
+                        let twice = $conn.inner($conn.ceil(once));
+                        prop_assert_eq!(once, twice);
                     }
                 }
             }
