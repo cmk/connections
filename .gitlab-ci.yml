@@ -37,10 +37,13 @@ test:
 deny:
   stage: audit
   before_script:
-    # Pin cargo-deny below 0.19: 0.19+ bumped its MSRV to rustc 1.88,
-    # and this project pins the toolchain at 1.85 (rust-toolchain.toml).
-    # `<0.19` tracks patch-level updates of the latest 0.18 line.
-    - cargo install --locked cargo-deny --version '<0.19'
+    # Pin cargo-deny exactly to 0.18.3 — the last release compatible
+    # with rustc 1.85 (this project's rust-toolchain.toml pin).
+    # cargo-deny 0.18.9 and 0.19.x bumped MSRV to 1.88; cargo's own
+    # install error suggests 0.18.3 as the supported version.
+    # Bump both cargo-deny and rust-toolchain together if we need
+    # newer deny rules.
+    - cargo install --locked cargo-deny --version '=0.18.3'
   script:
     - cargo deny check
 
