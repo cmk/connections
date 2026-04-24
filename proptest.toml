@@ -1,0 +1,18 @@
+# Global proptest config. Overridden per-macro where tighter bounds
+# are needed (see `float_conn_props!` in src/conn/fixed.rs, which
+# pins `cases: 64, max_shrink_iters: 512` for the float × extended
+# pairs whose shrink phase is pathological on the full domain).
+#
+# Rationale for the defaults here:
+# - `cases = 256` is proptest's own default; making it explicit
+#   surfaces the intent and makes future bumps one-line.
+# - `max_shrink_iters = 8192` is ~128× below proptest's default of
+#   ~1M. The default explores shrink trees for pathologically long
+#   on real-number generators; 8k is long enough to converge on
+#   minimal counterexamples for the bounded-domain strategies this
+#   crate uses while keeping a single failing test from wedging the
+#   whole suite for minutes. Keep the per-macro 512 override where
+#   the domain is wider still.
+
+cases = 256
+max_shrink_iters = 8192
