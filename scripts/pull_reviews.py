@@ -142,7 +142,12 @@ def collect_items(project_id: str, iid: int) -> list[dict]:
             items.append(
                 {
                     "ts": created_at,
-                    "id": n["id"],
+                    # Coerce to int at the API boundary: `existing_ids()`
+                    # parses ids from the review file as ints, and some
+                    # GitLab API versions return note ids as strings.
+                    # Mismatched types would silently break idempotency
+                    # (int ≠ str, so seen-check never hits).
+                    "id": int(n["id"]),
                     "user": (n.get("author") or {}).get("username", "unknown"),
                     "body": n["body"],
                     "path": path_hit,

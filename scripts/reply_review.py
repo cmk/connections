@@ -57,7 +57,16 @@ def find_discussion_for_note(project_id: str, mr: int, note_id: int) -> str:
             break
         for d in raw:
             for n in d.get("notes", []) or []:
-                if n.get("id") == note_id:
+                # Coerce both sides: `note_id` comes from argparse as
+                # int, but some GitLab API versions return note ids as
+                # strings. Type-mismatched `==` is always False and
+                # would exhaust the paging loop with a misleading
+                # "not found" error.
+                try:
+                    api_id = int(n.get("id", 0))
+                except (TypeError, ValueError):
+                    continue
+                if api_id == note_id:
                     return d["id"]
         if len(raw) < 100:
             break

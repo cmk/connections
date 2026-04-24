@@ -132,3 +132,78 @@ None.
 4. `doc/reviews/review-00002.md` Test plan hard-codes "349 tests";
    that will go stale after Sprint B/C. Either omit the count or
    note it is a point-in-time snapshot.
+
+<!-- glab-id: 3281848279 -->
+<!-- glab-discussion: e975b87346d3d0e9fe4250cf8d9e00c1d1d0c529 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `scripts/claude_review.py:290` (2026-04-24 02:31 UTC) [open]
+
+**[follow-up]** The `git_diff` call uses `f"{base}...{head}"` (three-dot notation), which resolves to the diff between the merge-base and `head` — correct for MR review. However, the error message on line 296 says `` `git diff {base_sha}...{head_sha}` `` with three dots, matching the actual call, so the diagnostic is accurate. The real risk is that `CI_MERGE_REQUEST_DIFF_BASE_SHA` is not always the true merge-base on GitLab (it can be the target branch tip); if this produces an oversized or wrong diff, there's no fallback. Consider documenting this assumption or falling back to `git merge-base` when the env var looks stale.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3281848289 -->
+<!-- glab-discussion: faa91bcb48d98ba7f8805e96aa1c23117debc001 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `scripts/pull_reviews.py:152` (2026-04-24 02:31 UTC) [open]
+
+**[must-fix]** The `existing_ids` function parses `<!-- glab-id: (\d+) -->` and casts matches to `int`, but note ids from GitLab's REST API are integers while `it['id']` is stored directly from the API response without explicit int-casting in `collect_items`. If GitLab ever returns note ids as strings (which it does in some API versions), `it['id'] not in seen` will always be `False` (str ≠ int), causing every note to be appended on every run, breaking idempotency. Both the `existing_ids` return set and the `it['id']` value should be cast to the same type consistently.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3281848304 -->
+<!-- glab-discussion: 44f0ac9daa8fe07c9e8b2a8b4e712d94cd3448b3 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `scripts/reply_review.py:96` (2026-04-24 02:31 UTC) [open]
+
+**[follow-up]** The `find_discussion_for_note` function compares `n.get('id') == note_id` where `note_id` is an `int` (from `argparse type=int`) and the API may return note ids as integers or strings depending on GitLab version. This is the same type-mismatch risk as in `pull_reviews.py` — a string id from the API will never equal the int argument, causing the search to exhaust all pages and raise `SystemExit(1)` with a misleading 'note id not found' error. Cast both sides to `int` or `str` for the comparison.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3281848317 -->
+<!-- glab-discussion: ad56ec3a8ec143601bcb24332c669de693ecaf6c -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `.claude/commands/watch-mr.md:186` (2026-04-24 02:31 UTC) [open]
+
+**[follow-up]** The backoff table comment says `BACKOFF_MINUTES=(5 5 5 10 10)` has 5 slots and quits on the "6th quiet tick (after the 5 slots are exhausted)", but the decision logic reads `if [ "$new" -gt "$N_SLOTS" ]` where `N_SLOTS=5`. After the 5th unproductive tick `new` becomes 5 — which is not `> 5` — so the quit fires on the *6th* quiet tick (when `new` becomes 6), meaning the actual silence budget is 5+5+5+10+10 minutes plus one more 10-minute tick before quitting, not 35 minutes as stated in the table. The table's `Tick 5 → quit` annotation is misleading and should reflect the actual `> N_SLOTS` condition.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3281848331 -->
+<!-- glab-discussion: 726d1d79d19fe3f914d02095fe6c20cd3ad5223a -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `scripts/claude_review.py:242` (2026-04-24 02:31 UTC) [open]
+
+**[follow-up]** The `post_finding` function sets `old_path` equal to `new_path` for every finding, which is correct for files that were not renamed but will produce wrong inline anchors for renamed files. GitLab requires `old_path` to be the pre-rename path to anchor correctly on a renamed file's diff; using `new_path` for both will cause GitLab to reject the inline position and fall back to a general comment, silently degrading anchor quality. Consider accepting an optional `old_path` field in the finding schema or documenting this limitation.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3281852689 -->
+<!-- glab-discussion: faa91bcb48d98ba7f8805e96aa1c23117debc001 -->
+#### ↳ cmk (2026-04-24 02:35 UTC) [open]
+
+Fixed — added `int()` coercion at the API boundary in `collect_items()` (f4380ea). Same commit also fixes the parallel case in `reply_review.py:96`.
+
+<!-- glab-id: 3281852817 -->
+<!-- glab-discussion: 44f0ac9daa8fe07c9e8b2a8b4e712d94cd3448b3 -->
+#### ↳ cmk (2026-04-24 02:35 UTC) [open]
+
+Fixed — same commit (f4380ea). `find_discussion_for_note` now casts via `int(n.get("id", 0))` with a TypeError/ValueError guard so a non-numeric id is skipped rather than crashing the pager.
+
+<!-- glab-id: 3281852935 -->
+<!-- glab-discussion: e975b87346d3d0e9fe4250cf8d9e00c1d1d0c529 -->
+#### ↳ cmk (2026-04-24 02:35 UTC) [open]
+
+Deferred — tracked as a follow-up. `CI_MERGE_REQUEST_DIFF_BASE_SHA` being stale is an uncommon GitLab rarity, and the `MAX_DIFF_CHARS` truncation bounds the worst-case blast radius. Will revisit with a `git merge-base` fallback if we see a wrong-diff incident.
+
+<!-- glab-id: 3281853092 -->
+<!-- glab-discussion: 726d1d79d19fe3f914d02095fe6c20cd3ad5223a -->
+#### ↳ cmk (2026-04-24 02:36 UTC) [open]
+
+Deferred — tracked as a follow-up. The general-comment fallback already handles rename-anchor rejections cleanly; adding a rename-aware `old_path` in the finding schema would require Claude to know about renames, which adds prompt complexity for an edge case. Will revisit if we see frequent anchor rejections on renamed files.
+
+<!-- glab-id: 3281853219 -->
+<!-- glab-discussion: ad56ec3a8ec143601bcb24332c669de693ecaf6c -->
+#### ↳ cmk (2026-04-24 02:36 UTC) [open]
+
+Push-back — the table matches the code. Tracing: tick 0 at t=0 increments count 0→1 (not `>5`, sleep 5m); tick 4 at t=25 increments 4→5 (not `>5`, sleep 10m); tick 5 at t=35 increments 5→6 (`>5`, **quit — no additional sleep**). Total silence 5+5+5+10+10 = 35m, matching the `Tick 5 | 35m | quiet | **quit**` row. The "6th quiet tick" phrasing uses 1-based ordinal counting of fires, consistent with `Tick 5` being the 6th index-0 tick.
