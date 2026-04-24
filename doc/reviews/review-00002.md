@@ -1,4 +1,4 @@
-# MR !1 — GitLab workflow port from template-rust
+# MR !2 — GitLab workflow port from template-rust
 
 ## Summary
 
@@ -129,6 +129,6 @@ None.
    probe for forward compatibility with newer `glab` versions.
 3. Add `.gitleaks.toml` with path-based skips for `doc/plans/`
    before the first MR push, per the plan's existing recommendation.
-4. `doc/reviews/review-00001.md` Test plan hard-codes "349 tests";
+4. `doc/reviews/review-00002.md` Test plan hard-codes "349 tests";
    that will go stale after Sprint B/C. Either omit the count or
    note it is a point-in-time snapshot.
