@@ -170,10 +170,13 @@ macro_rules! float_conn {
             const PREC: i64 = $prec;
             const PREC_F: f64 = PREC as f64;
 
-            // `inner(Rung)` reinterpreted as f64 for comparisons with
-            // `x as f64`. For f32 conns this narrows-then-widens so
-            // the adjoint condition holds against the value f32
-            // actually stores, not the f64 intermediate.
+            // `inner(Rung)` reinterpreted as f64 for the correction-loop
+            // comparisons. The `as $float as f64` round-trip is a no-op
+            // for f64 (the only shipped instantiation); it's kept so a
+            // future F32Fxx instantiation compiles — but F32Fxx is
+            // deferred precisely because that round-trip creates plateau
+            // collapse classes that turn the correction loops into
+            // O(plateau) walks. See §Deferred in plan-2026-04-24-01.
             fn inner_as_f64(c: i64) -> f64 {
                 ((c as f64) / PREC_F) as $float as f64
             }
@@ -195,9 +198,16 @@ macro_rules! float_conn {
                 }
                 let xf = f as f64;
                 let scaled = xf * PREC_F;
+                // `i64::MAX as f64` rounds to 2^63 (i64::MAX itself isn't
+                // representable); the guard is therefore `scaled > 2^63`.
+                // Values equal to 2^63 fall through to the correction
+                // path, where `scaled.ceil() as i64` saturates to
+                // `i64::MAX` — the right answer, just reached via the
+                // loop rather than the early return.
                 if scaled > i64::MAX as f64 {
                     return Extended::PosInf;
                 }
+                // `i64::MIN as f64` is exact (-2^63 is representable).
                 if scaled < i64::MIN as f64 {
                     return Extended::Finite($Rung(i64::MIN));
                 }
@@ -208,6 +218,11 @@ macro_rules! float_conn {
                 while c < i64::MAX && inner_as_f64(c) < xf {
                     c += 1;
                 }
+                // `c > i64::MIN + 1` (not `> i64::MIN`) because the
+                // next iteration reads `inner_as_f64(c - 1)`. Any input
+                // that would legitimately round to `c = i64::MIN` was
+                // already caught by the `scaled < i64::MIN as f64`
+                // early return above.
                 while c > i64::MIN + 1 && inner_as_f64(c - 1) >= xf {
                     c -= 1;
                 }
@@ -241,6 +256,9 @@ macro_rules! float_conn {
                 }
                 let xf = f as f64;
                 let scaled = xf * PREC_F;
+                // Saturation bounds mirror `ceil` — see that function
+                // for why `i64::MAX as f64` is +2^63 (not exact) but
+                // `i64::MIN as f64` is exact.
                 if scaled > i64::MAX as f64 {
                     return Extended::Finite($Rung(i64::MAX));
                 }
@@ -582,6 +600,52 @@ mod tests {
         // bounds outside the float range), NOT to Finite(±f64::INFINITY).
         assert_eq!(F64F06.inner(Extended::PosInf), FloatExt::Top);
         assert_eq!(F64F06.inner(Extended::NegInf), FloatExt::Bot);
+    }
+
+    // F64F00 (PREC=1) is the identity-like regime — `inner(c) = c as f64`
+    // with no division, so the correction loop is vacuous and saturation
+    // is the only behaviour that can go wrong. Covered separately because
+    // the proptest battery above exercises F64F06 and F64F12 only.
+    #[test]
+    fn f64f00_saturation() {
+        assert_eq!(F64F00.ceil(FloatExt::Bot), Extended::NegInf);
+        assert_eq!(F64F00.floor(FloatExt::Bot), Extended::NegInf);
+        assert_eq!(F64F00.ceil(FloatExt::Top), Extended::PosInf);
+        assert_eq!(F64F00.floor(FloatExt::Top), Extended::PosInf);
+
+        let nan: FloatExt<f64> = FloatExt::Finite(f64::NAN);
+        assert_eq!(F64F00.ceil(nan), Extended::PosInf);
+        assert_eq!(F64F00.floor(nan), Extended::NegInf);
+
+        let pos_inf: FloatExt<f64> = FloatExt::Finite(f64::INFINITY);
+        assert_eq!(F64F00.ceil(pos_inf), Extended::PosInf);
+        assert_eq!(F64F00.floor(pos_inf), Extended::Finite(Uni(i64::MAX)));
+
+        let neg_inf: FloatExt<f64> = FloatExt::Finite(f64::NEG_INFINITY);
+        assert_eq!(F64F00.ceil(neg_inf), Extended::Finite(Uni(i64::MIN)));
+        assert_eq!(F64F00.floor(neg_inf), Extended::NegInf);
+
+        // Identity on exact integers.
+        assert_eq!(F64F00.ceil(FloatExt::Finite(42.0)), Extended::Finite(Uni(42)));
+        assert_eq!(F64F00.floor(FloatExt::Finite(42.0)), Extended::Finite(Uni(42)));
+        assert_eq!(F64F00.ceil(FloatExt::Finite(-42.0)), Extended::Finite(Uni(-42)));
+        assert_eq!(F64F00.floor(FloatExt::Finite(-42.0)), Extended::Finite(Uni(-42)));
+
+        // Non-integer: ceil up, floor down.
+        assert_eq!(F64F00.ceil(FloatExt::Finite(0.25)), Extended::Finite(Uni(1)));
+        assert_eq!(F64F00.floor(FloatExt::Finite(0.25)), Extended::Finite(Uni(0)));
+        assert_eq!(F64F00.ceil(FloatExt::Finite(-0.25)), Extended::Finite(Uni(0)));
+        assert_eq!(F64F00.floor(FloatExt::Finite(-0.25)), Extended::Finite(Uni(-1)));
+
+        // Very large finite: saturating, into Finite at the ceil/floor
+        // boundary rather than flowing to ±Inf on the target.
+        let huge = FloatExt::Finite(2.0_f64.powi(70));  // > i64::MAX
+        assert_eq!(F64F00.ceil(huge), Extended::PosInf);
+        assert_eq!(F64F00.floor(huge), Extended::Finite(Uni(i64::MAX)));
+
+        let tiny = FloatExt::Finite(-2.0_f64.powi(70));  // < i64::MIN
+        assert_eq!(F64F00.ceil(tiny), Extended::Finite(Uni(i64::MIN)));
+        assert_eq!(F64F00.floor(tiny), Extended::NegInf);
     }
 
     // Helper: partial-order "less than or equal" — Galois laws read
