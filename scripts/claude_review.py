@@ -105,12 +105,15 @@ def git_fetch_sha(sha: str) -> None:
         pass
     # Either a direct fetch-by-sha (server must have
     # `uploadpack.allowReachableSHA1InWant`, which gitlab.com does), or
-    # a deep-ish fetch of the ref that contains it.
+    # a plain full fetch. `--unshallow` is not safe here — it errors
+    # on a complete clone ("fatal: --unshallow on a complete repository
+    # does not make sense"), and the MR-event job already uses
+    # GIT_DEPTH: 0 (complete clone). Plain `git fetch origin` works
+    # on both shallow and complete clones.
     try:
         sh(["git", "fetch", "--depth=200", "origin", sha])
     except subprocess.CalledProcessError:
-        # Fall back to a full fetch.
-        sh(["git", "fetch", "--unshallow", "origin"])
+        sh(["git", "fetch", "origin"])
 
 
 def glab_fetch_mr(project_id: str, mr_iid: int, token: str, host: str) -> dict:
@@ -368,7 +371,12 @@ def resolve_mr_inputs(host: str, project_id: str, token: str) -> tuple[int, str,
         return None
     diff_refs = mr.get("diff_refs") or {}
     base_sha = diff_refs.get("base_sha")
-    head_sha = mr.get("sha") or diff_refs.get("head_sha")
+    # Prefer diff_refs.head_sha: it is the sibling of diff_refs.base_sha
+    # from the same diff version snapshot, which is exactly what
+    # `git diff base...head` needs. The top-level `mr.sha` can drift
+    # from diff_refs if a new push arrives between this API call and
+    # the fetch, producing a cross-version diff.
+    head_sha = diff_refs.get("head_sha") or mr.get("sha")
     if not base_sha or not head_sha:
         print(
             f"error: MR !{mr_iid} API response missing diff_refs.base_sha or sha. "

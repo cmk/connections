@@ -208,7 +208,7 @@ Claude's JSON finding array and POSTs each to
 `/projects/:id/merge_requests/:iid/discussions` with the required
 `position[*]` fields for inline anchoring. The Anthropic client is
 configured with `max_retries=5` for transient 5xx/529 windows, and
-the job has `retry: 2` so GitLab rerunts the whole thing if the SDK
+the job has `retry: 2` so GitLab reruns the whole thing if the SDK
 still surfaces an error (two layers of backoff, one in-process, one
 scheduled by the runner).
 

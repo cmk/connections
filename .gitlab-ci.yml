@@ -81,8 +81,10 @@ claude-review:
     # ANTHROPIC_API_KEY and GITLAB_TOKEN set.
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $ANTHROPIC_API_KEY && $GITLAB_TOKEN
     # Manual re-trigger: `glab ci run --variables CLAUDE_REVIEW_MR=N
-    # --branch <mr-source-branch>` (or the "Run pipeline" web UI with
-    # CLAUDE_REVIEW_MR set). The script reads CLAUDE_REVIEW_MR when
-    # the MR-event vars aren't present and fetches base/head from the
-    # GitLab API.
+    # --branch <any-branch>` (or the "Run pipeline" web UI with
+    # CLAUDE_REVIEW_MR set). The branch is irrelevant — the script
+    # reads CLAUDE_REVIEW_MR, fetches the MR's actual base/head SHAs
+    # from the GitLab API, and runs `git fetch origin <sha>` to pull
+    # them into the local clone. CI_COMMIT_SHA (main's tip or whatever
+    # branch was chosen) is ignored on this path.
     - if: $CLAUDE_REVIEW_MR && $ANTHROPIC_API_KEY && $GITLAB_TOKEN
