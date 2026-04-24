@@ -776,6 +776,17 @@ mod tests {
                             prop_assert!(le(&$conn.floor(a1), &$conn.floor(a2)));
                         }
                     }
+
+                    // Idempotent: inner∘ceil is idempotent on its image.
+                    // ExtendedFloat<f64>'s PartialEq treats
+                    // Finite(NaN) == Finite(NaN) as true, so `==` is
+                    // the right comparison here.
+                    #[test]
+                    fn prop_idempotent(a in $arb_src()) {
+                        let once = $conn.inner($conn.ceil(a));
+                        let twice = $conn.inner($conn.ceil(once));
+                        prop_assert!(once == twice);
+                    }
                 }
 
                 // Type-check the rung binding so the macro input
