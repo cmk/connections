@@ -32,6 +32,9 @@
 //! plain `div`, matching this port.)
 
 use crate::conn::Conn;
+use crate::extended::Extended;
+use crate::float_ext::FloatExt;
+use crate::order::Ple;
 
 macro_rules! def_fixed {
     ($name:ident, $prec:expr) => {
@@ -41,6 +44,12 @@ macro_rules! def_fixed {
 
         impl HasResolution for $name {
             const PREC: i64 = $prec;
+        }
+
+        impl Ple for $name {
+            fn ple(&self, other: &Self) -> bool {
+                self.0 <= other.0
+            }
         }
 
         impl $name {
@@ -122,6 +131,153 @@ fix_fix!(F12F01, Pico,  Deci,  100_000_000_000);
 fix_fix!(F12F02, Pico,  Centi, 10_000_000_000);
 fix_fix!(F12F03, Pico,  Milli, 1_000_000_000);
 fix_fix!(F12F06, Pico,  Micro, 1_000_000);
+
+// FloatExt<f??> → Extended<Rung>. Lawful under `PartialOrd` on both
+// sides.
+//
+// Source lattice (`FloatExt<T>`):
+//   `Bot` < `Finite(-∞)` < `Finite(finite)` < `Finite(+∞)` < `Top`,
+//   with `Finite(NaN)` reflexive and incomparable with every other
+//   `Finite(_)`.
+//
+// Target lattice (`Extended<Rung>`):
+//   `NegInf` < `Finite(Rung(i64::MIN))` < … < `Finite(Rung(i64::MAX))`
+//   < `PosInf`.
+//
+// `inner` embeds the target into the source: `NegInf → Bot`,
+// `PosInf → Top`, `Finite(r) → Finite(r/PREC)`. The adjoint laws then
+// fix the saturation behaviour of `ceil` and `floor`:
+//
+// | source input          | ceil                 | floor                 |
+// |-----------------------|----------------------|-----------------------|
+// | `Bot`                 | `NegInf`             | `NegInf`              |
+// | `Top`                 | `PosInf`             | `PosInf`              |
+// | `Finite(NaN)`         | `PosInf`             | `NegInf`              |
+// | `Finite(-∞)`          | `Finite(Rung::MIN)`  | `NegInf`              |
+// | `Finite(+∞)`          | `PosInf`             | `Finite(Rung::MAX)`   |
+// | finite < inner(MIN)   | `Finite(Rung::MIN)`  | `NegInf`              |
+// | finite > inner(MAX)   | `PosInf`             | `Finite(Rung::MAX)`   |
+// | finite in range       | round-up rung        | round-down rung       |
+//
+// Note the asymmetry: source ±∞ maps to `Finite(Rung::MIN/MAX)` under
+// the "inward" adjoint and to `±Inf` under the "outward" one. That
+// falls directly out of the Galois law — target ±Inf is above/below
+// every Finite, and inner(±Inf) = Bot/Top sit strictly outside the
+// source's ±∞.
+macro_rules! float_conn {
+    ($const_name:ident, $float:ty, $Rung:ident, $prec:expr) => {
+        pub const $const_name: Conn<FloatExt<$float>, Extended<$Rung>> = {
+            const PREC: i64 = $prec;
+            const PREC_F: f64 = PREC as f64;
+
+            // `inner(Rung)` reinterpreted as f64 for comparisons with
+            // `x as f64`. For f32 conns this narrows-then-widens so
+            // the adjoint condition holds against the value f32
+            // actually stores, not the f64 intermediate.
+            fn inner_as_f64(c: i64) -> f64 {
+                ((c as f64) / PREC_F) as $float as f64
+            }
+
+            fn ceil(x: FloatExt<$float>) -> Extended<$Rung> {
+                let f = match x {
+                    FloatExt::Bot => return Extended::NegInf,
+                    FloatExt::Top => return Extended::PosInf,
+                    FloatExt::Finite(v) => v,
+                };
+                if f.is_nan() {
+                    return Extended::PosInf;
+                }
+                if f == <$float>::INFINITY {
+                    return Extended::PosInf;
+                }
+                if f == <$float>::NEG_INFINITY {
+                    return Extended::Finite($Rung(i64::MIN));
+                }
+                let xf = f as f64;
+                let scaled = xf * PREC_F;
+                if scaled > i64::MAX as f64 {
+                    return Extended::PosInf;
+                }
+                if scaled < i64::MIN as f64 {
+                    return Extended::Finite($Rung(i64::MIN));
+                }
+                // Initial estimate from f64 math; correct for drift
+                // (bounded by ±1 ULP of the scaled product) so the
+                // Galois law holds exactly.
+                let mut c = scaled.ceil() as i64;
+                while c < i64::MAX && inner_as_f64(c) < xf {
+                    c += 1;
+                }
+                while c > i64::MIN + 1 && inner_as_f64(c - 1) >= xf {
+                    c -= 1;
+                }
+                Extended::Finite($Rung(c))
+            }
+
+            fn inner(b: Extended<$Rung>) -> FloatExt<$float> {
+                match b {
+                    Extended::NegInf => FloatExt::Bot,
+                    Extended::PosInf => FloatExt::Top,
+                    Extended::Finite(r) => {
+                        FloatExt::Finite(((r.0 as f64) / PREC_F) as $float)
+                    }
+                }
+            }
+
+            fn floor(x: FloatExt<$float>) -> Extended<$Rung> {
+                let f = match x {
+                    FloatExt::Bot => return Extended::NegInf,
+                    FloatExt::Top => return Extended::PosInf,
+                    FloatExt::Finite(v) => v,
+                };
+                if f.is_nan() {
+                    return Extended::NegInf;
+                }
+                if f == <$float>::INFINITY {
+                    return Extended::Finite($Rung(i64::MAX));
+                }
+                if f == <$float>::NEG_INFINITY {
+                    return Extended::NegInf;
+                }
+                let xf = f as f64;
+                let scaled = xf * PREC_F;
+                if scaled > i64::MAX as f64 {
+                    return Extended::Finite($Rung(i64::MAX));
+                }
+                if scaled < i64::MIN as f64 {
+                    return Extended::NegInf;
+                }
+                let mut c = scaled.floor() as i64;
+                while c > i64::MIN + 1 && inner_as_f64(c) > xf {
+                    c -= 1;
+                }
+                while c < i64::MAX && inner_as_f64(c + 1) <= xf {
+                    c += 1;
+                }
+                Extended::Finite($Rung(c))
+            }
+
+            Conn::new(ceil, inner, floor)
+        };
+    };
+}
+
+// F64Fxx only. An f32 version would have the same shape but inner
+// would narrow i64 → f32, which can collapse up to ~120k consecutive
+// Rung values onto the same f32 (for Pico scale). The adjoint law
+// still holds, but ceil/floor would have to walk the full collapse
+// class to find the smallest lawful c — O(plateau size) per call.
+//
+// f32 callers widen losslessly at the boundary —
+// `F64F06.ceil(FloatExt::Finite(arg_f32 as f64))` — and get the
+// same adjoint answer as native f64 input.
+float_conn!(F64F00, f64, Uni,   1);
+float_conn!(F64F01, f64, Deci,  10);
+float_conn!(F64F02, f64, Centi, 100);
+float_conn!(F64F03, f64, Milli, 1_000);
+float_conn!(F64F06, f64, Micro, 1_000_000);
+float_conn!(F64F09, f64, Nano,  1_000_000_000);
+float_conn!(F64F12, f64, Pico,  1_000_000_000_000);
 
 #[cfg(test)]
 mod tests {
@@ -332,4 +488,208 @@ mod tests {
         assert_eq!(F03F00.ceil(Milli(-1_001)), Uni(-1));
         assert_eq!(F03F00.floor(Milli(-1_001)), Uni(-2));
     }
+
+    // ── FloatExt<f??> → Extended<Rung> connections ─────────────────
+
+    // Narrow float generators: arbitrary-bit-pattern `any::<f??>()` shrinks
+    // bit-by-bit and dominates proptest runtime without finding structural
+    // bugs. A bounded range plus explicit boundaries gives wide enough
+    // adjoint-law coverage.
+    fn arb_f64_full() -> impl Strategy<Value = f64> {
+        prop_oneof![
+            6 => -1.0e9_f64..1.0e9_f64,
+            1 => prop_oneof![
+                Just(f64::NAN),
+                Just(f64::INFINITY),
+                Just(f64::NEG_INFINITY),
+                Just(0.0_f64),
+                Just(-0.0_f64),
+                Just(f64::MIN_POSITIVE),
+                Just(f64::MAX),
+                Just(f64::MIN),
+            ],
+        ]
+    }
+
+    fn arb_float_ext_f64() -> impl Strategy<Value = FloatExt<f64>> {
+        prop_oneof![
+            1 => Just(FloatExt::Bot),
+            1 => Just(FloatExt::Top),
+            8 => arb_f64_full().prop_map(FloatExt::Finite),
+        ]
+    }
+
+    // Bounded rung generators: arbitrary i64 shrinks bit-by-bit over
+    // pathologically large integers. Cap to `±i64::MAX / PREC` (the
+    // "inside-the-ladder" region) and add explicit i64 edges as `Just`.
+    fn arb_extended_micro() -> impl Strategy<Value = Extended<Micro>> {
+        let limit = i64::MAX / Micro::PREC;
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            1 => Just(Extended::Finite(Micro(i64::MAX))),
+            1 => Just(Extended::Finite(Micro(i64::MIN))),
+            8 => (-limit..=limit).prop_map(|x| Extended::Finite(Micro(x))),
+        ]
+    }
+
+    fn arb_extended_pico() -> impl Strategy<Value = Extended<Pico>> {
+        let limit = i64::MAX / Pico::PREC;
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            1 => Just(Extended::Finite(Pico(i64::MAX))),
+            1 => Just(Extended::Finite(Pico(i64::MIN))),
+            8 => (-limit..=limit).prop_map(|x| Extended::Finite(Pico(x))),
+        ]
+    }
+
+    // Spot checks with exactly-representable f64 values.
+    #[test]
+    fn float_conn_spot() {
+        let half = FloatExt::Finite(0.5_f64);
+        assert_eq!(F64F03.ceil(half), Extended::Finite(Milli(500)));
+        assert_eq!(F64F03.floor(half), Extended::Finite(Milli(500)));
+        assert_eq!(F64F06.ceil(half), Extended::Finite(Micro(500_000)));
+        assert_eq!(F64F12.ceil(FloatExt::Finite(0.25_f64)),
+                   Extended::Finite(Pico(250_000_000_000)));
+
+        let one_and_half = FloatExt::Finite(1.5_f64);
+        assert_eq!(F64F06.ceil(one_and_half), Extended::Finite(Micro(1_500_000)));
+        assert_eq!(F64F06.floor(one_and_half), Extended::Finite(Micro(1_500_000)));
+        assert_eq!(F64F06.inner(Extended::Finite(Micro(1_500_000))),
+                   FloatExt::Finite(1.5_f64));
+
+        // Saturation map (matches the table in the macro doc comment).
+        assert_eq!(F64F06.ceil(FloatExt::Bot), Extended::NegInf);
+        assert_eq!(F64F06.floor(FloatExt::Bot), Extended::NegInf);
+        assert_eq!(F64F06.ceil(FloatExt::Top), Extended::PosInf);
+        assert_eq!(F64F06.floor(FloatExt::Top), Extended::PosInf);
+
+        let nan: FloatExt<f64> = FloatExt::Finite(f64::NAN);
+        assert_eq!(F64F06.ceil(nan), Extended::PosInf);
+        assert_eq!(F64F06.floor(nan), Extended::NegInf);
+
+        let pos_inf: FloatExt<f64> = FloatExt::Finite(f64::INFINITY);
+        assert_eq!(F64F06.ceil(pos_inf), Extended::PosInf);
+        assert_eq!(F64F06.floor(pos_inf), Extended::Finite(Micro(i64::MAX)));
+
+        let neg_inf: FloatExt<f64> = FloatExt::Finite(f64::NEG_INFINITY);
+        assert_eq!(F64F06.ceil(neg_inf), Extended::Finite(Micro(i64::MIN)));
+        assert_eq!(F64F06.floor(neg_inf), Extended::NegInf);
+
+        // Inner maps target ±Inf to FloatExt's Top/Bot (synthetic
+        // bounds outside the float range), NOT to Finite(±f64::INFINITY).
+        assert_eq!(F64F06.inner(Extended::PosInf), FloatExt::Top);
+        assert_eq!(F64F06.inner(Extended::NegInf), FloatExt::Bot);
+    }
+
+    // Helper: partial-order "less than or equal" — Galois laws read
+    // cleanest phrased as `partial_cmp != Some(Greater)`, which means
+    // "either less, equal, or incomparable".
+    //
+    // That's not the adjoint law, though. The adjoint law needs
+    // *strict* ≤ — incomparable inputs return `false`, not silently
+    // `true`. Use this helper everywhere and avoid `<=` (which panics
+    // on `None` with some trait combos).
+    fn le<T: PartialOrd>(a: &T, b: &T) -> bool {
+        matches!(a.partial_cmp(b), Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal))
+    }
+
+    // Adjoint + closure + kernel + monotonicity, stated over
+    // PartialOrd on both sides. Mirrors `doc/design.md §Testing`.
+    macro_rules! float_conn_props {
+        ($mod:ident, $conn:ident, $Rung:ident, $arb_src:ident, $arb_tgt:ident) => {
+            mod $mod {
+                use super::*;
+
+                proptest! {
+                    // Float-Conn shrinks on this domain are expensive:
+                    // cap cases at 64 (4 conns × 7 props × 64 = 1 792)
+                    // and shrink iters at 512 (default ~1M is ruinous
+                    // and finds no bugs the first few hundred miss).
+                    #![proptest_config(ProptestConfig {
+                        cases: 64,
+                        max_shrink_iters: 512,
+                        .. ProptestConfig::default()
+                    })]
+
+                    // ceil(a) ≤ b ⟺ a ≤ inner(b)
+                    #[test]
+                    fn prop_adjoint_l(
+                        a in $arb_src(),
+                        b in $arb_tgt(),
+                    ) {
+                        let fa = $conn.ceil(a);
+                        let gb = $conn.inner(b);
+                        prop_assert_eq!(le(&fa, &b), le(&a, &gb));
+                    }
+
+                    // b ≤ floor(a) ⟺ inner(b) ≤ a
+                    #[test]
+                    fn prop_adjoint_r(
+                        a in $arb_src(),
+                        b in $arb_tgt(),
+                    ) {
+                        let ha = $conn.floor(a);
+                        let gb = $conn.inner(b);
+                        prop_assert_eq!(le(&b, &ha), le(&gb, &a));
+                    }
+
+                    // a ≤ inner(ceil(a))
+                    #[test]
+                    fn prop_closed_l(a in $arb_src()) {
+                        let gfa = $conn.inner($conn.ceil(a));
+                        prop_assert!(le(&a, &gfa));
+                    }
+
+                    // inner(floor(a)) ≤ a
+                    #[test]
+                    fn prop_closed_r(a in $arb_src()) {
+                        let gha = $conn.inner($conn.floor(a));
+                        prop_assert!(le(&gha, &a));
+                    }
+
+                    // ceil(inner(b)) ≤ b
+                    #[test]
+                    fn prop_kernel_l(b in $arb_tgt()) {
+                        let fgb = $conn.ceil($conn.inner(b));
+                        prop_assert!(le(&fgb, &b));
+                    }
+
+                    // b ≤ floor(inner(b))
+                    #[test]
+                    fn prop_kernel_r(b in $arb_tgt()) {
+                        let hgb = $conn.floor($conn.inner(b));
+                        prop_assert!(le(&b, &hgb));
+                    }
+
+                    // a1 ≤ a2 ⟹ ceil(a1) ≤ ceil(a2); floor likewise.
+                    #[test]
+                    fn prop_monotone(a1 in $arb_src(), a2 in $arb_src()) {
+                        if le(&a1, &a2) {
+                            prop_assert!(le(&$conn.ceil(a1), &$conn.ceil(a2)));
+                            prop_assert!(le(&$conn.floor(a1), &$conn.floor(a2)));
+                        }
+                    }
+                }
+
+                // Type-check the rung binding so the macro input
+                // doesn't silently diverge from the conn's actual
+                // target.
+                #[allow(dead_code)]
+                fn _type_assert(x: Extended<$Rung>) -> Extended<$Rung> {
+                    let _: Conn<_, Extended<$Rung>> = $conn;
+                    x
+                }
+            }
+        };
+    }
+
+    // F64F06 and F64F12 exercise the two structurally distinct cases:
+    // PREC well below mantissa (F06) and PREC approaching mantissa (F12).
+    // Other rungs share the adjoint-law machinery with one of these, so
+    // the spot checks above are sufficient regression coverage.
+    float_conn_props!(p_f64f06, F64F06, Micro, arb_float_ext_f64, arb_extended_micro);
+    float_conn_props!(p_f64f12, F64F12, Pico,  arb_float_ext_f64, arb_extended_pico);
 }
