@@ -96,6 +96,37 @@ def git_diff(base: str, head: str) -> str:
     return sh(["git", "diff", f"{base}...{head}"])
 
 
+def git_fetch_sha(sha: str) -> None:
+    """Ensure `sha` is present locally. No-op if already fetched."""
+    try:
+        sh(["git", "cat-file", "-e", sha])
+        return
+    except subprocess.CalledProcessError:
+        pass
+    # Either a direct fetch-by-sha (server must have
+    # `uploadpack.allowReachableSHA1InWant`, which gitlab.com does), or
+    # a deep-ish fetch of the ref that contains it.
+    try:
+        sh(["git", "fetch", "--depth=200", "origin", sha])
+    except subprocess.CalledProcessError:
+        # Fall back to a full fetch.
+        sh(["git", "fetch", "--unshallow", "origin"])
+
+
+def glab_fetch_mr(project_id: str, mr_iid: int, token: str, host: str) -> dict:
+    """Fetch MR details from GitLab. Used by the manual-trigger path
+    when CI_MERGE_REQUEST_DIFF_BASE_SHA isn't provided by the runner.
+    """
+    url = (
+        f"https://{host}/api/v4/projects/"
+        f"{urllib.parse.quote(project_id, safe='')}"
+        f"/merge_requests/{mr_iid}"
+    )
+    req = urllib.request.Request(url, headers={"PRIVATE-TOKEN": token})
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
 def read_optional(path: str) -> str:
     try:
         return Path(path).read_text(encoding="utf-8")
@@ -139,7 +170,12 @@ def build_user_content(diff: str, conventions: str, calibration: str) -> list[di
 
 
 def call_claude(model: str, user_content: list[dict]) -> str:
-    client = anthropic.Anthropic()
+    # max_retries=5 (up from the SDK default of 2) to ride through
+    # transient 5xx / 529 Overloaded blips that last a few seconds.
+    # The SDK applies exponential backoff between retries. If it still
+    # fails after 5 attempts the CI job's own `retry: 2` takes another
+    # swing minutes later when Anthropic's load window has shifted.
+    client = anthropic.Anthropic(max_retries=5)
     msg = client.messages.create(
         model=model,
         max_tokens=4096,
@@ -285,16 +321,79 @@ def require_env(name: str) -> str | None:
     return v if v else None
 
 
+def resolve_mr_inputs(host: str, project_id: str, token: str) -> tuple[int, str, str] | None:
+    """Return (mr_iid, base_sha, head_sha) or None on missing/invalid input.
+
+    Two envelopes:
+
+    - **merge_request_event pipeline** — `CI_MERGE_REQUEST_IID`,
+      `CI_MERGE_REQUEST_DIFF_BASE_SHA`, `CI_COMMIT_SHA` are all
+      provided by GitLab. Use them directly.
+    - **manual trigger** — user sets `CLAUDE_REVIEW_MR` via
+      `glab ci run --variables` or the web UI. We look up the MR's
+      base and head SHAs via the GitLab API, then ensure both are
+      fetched locally so `git diff base...head` works regardless of
+      which branch the manual pipeline happened to check out.
+    """
+    mr_iid_s = os.environ.get("CI_MERGE_REQUEST_IID") or os.environ.get(
+        "CLAUDE_REVIEW_MR"
+    )
+    if not mr_iid_s:
+        print(
+            "claude-review: no MR iid in environment "
+            "(CI_MERGE_REQUEST_IID or CLAUDE_REVIEW_MR). Nothing to review.",
+            file=sys.stderr,
+        )
+        return None
+    try:
+        mr_iid = int(mr_iid_s)
+    except ValueError:
+        print(f"error: MR iid is not an integer: {mr_iid_s!r}", file=sys.stderr)
+        return None
+
+    base_sha = os.environ.get("CI_MERGE_REQUEST_DIFF_BASE_SHA")
+    head_sha = os.environ.get("CI_COMMIT_SHA")
+    if base_sha and head_sha and os.environ.get("CI_MERGE_REQUEST_IID"):
+        # MR-event envelope: CI gave us everything.
+        return mr_iid, base_sha, head_sha
+
+    # Manual envelope: ask GitLab for the SHAs.
+    try:
+        mr = glab_fetch_mr(project_id, mr_iid, token, host)
+    except urllib.error.HTTPError as e:
+        print(
+            f"error: GET /merge_requests/{mr_iid} failed: {e.code} {e.reason}",
+            file=sys.stderr,
+        )
+        return None
+    diff_refs = mr.get("diff_refs") or {}
+    base_sha = diff_refs.get("base_sha")
+    head_sha = mr.get("sha") or diff_refs.get("head_sha")
+    if not base_sha or not head_sha:
+        print(
+            f"error: MR !{mr_iid} API response missing diff_refs.base_sha or sha. "
+            "Is the MR closed/unavailable?",
+            file=sys.stderr,
+        )
+        return None
+
+    # Ensure both SHAs are in the local clone before git diff.
+    try:
+        git_fetch_sha(base_sha)
+        git_fetch_sha(head_sha)
+    except subprocess.CalledProcessError as e:
+        print(
+            f"error: could not fetch MR SHAs ({base_sha[:8]}, {head_sha[:8]}) "
+            f"into the local clone: {(e.stderr or '').strip()}",
+            file=sys.stderr,
+        )
+        return None
+    return mr_iid, base_sha, head_sha
+
+
 def main() -> int:
-    required = [
-        "ANTHROPIC_API_KEY",
-        "GITLAB_TOKEN",
-        "CI_PROJECT_ID",
-        "CI_MERGE_REQUEST_IID",
-        "CI_MERGE_REQUEST_DIFF_BASE_SHA",
-        "CI_COMMIT_SHA",
-    ]
-    missing = [n for n in required if not os.environ.get(n)]
+    required_secrets = ["ANTHROPIC_API_KEY", "GITLAB_TOKEN", "CI_PROJECT_ID"]
+    missing = [n for n in required_secrets if not os.environ.get(n)]
     if missing:
         print(
             f"claude-review: missing env var(s): {', '.join(missing)} — "
@@ -305,18 +404,22 @@ def main() -> int:
 
     host = os.environ.get("GITLAB_HOST", "gitlab.com")
     project_id = os.environ["CI_PROJECT_ID"]
-    mr_iid = int(os.environ["CI_MERGE_REQUEST_IID"])
-    base_sha = os.environ["CI_MERGE_REQUEST_DIFF_BASE_SHA"]
-    head_sha = os.environ["CI_COMMIT_SHA"]
     gitlab_token = os.environ["GITLAB_TOKEN"]
     model = os.environ.get("CLAUDE_MODEL", DEFAULT_MODEL)
+
+    resolved = resolve_mr_inputs(host, project_id, gitlab_token)
+    if resolved is None:
+        return 0  # already logged a diagnostic
+    mr_iid, base_sha, head_sha = resolved
 
     try:
         diff = git_diff(base_sha, head_sha)
     except subprocess.CalledProcessError as e:
         print(
-            f"error: `git diff {base_sha}...{head_sha}` failed. Ensure "
-            "GIT_DEPTH: 0 in the CI job so the base sha is present.",
+            f"error: `git diff {base_sha}...{head_sha}` failed. "
+            "For MR-event pipelines ensure GIT_DEPTH: 0; for manual "
+            "triggers the script attempts to fetch both SHAs itself, "
+            "so this failure means the fetch step also failed.",
             file=sys.stderr,
         )
         print(f"  stderr: {(e.stderr or '').strip()}", file=sys.stderr)
