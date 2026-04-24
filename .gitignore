@@ -20,3 +20,14 @@ doc/chats/
 
 # MCP server config — contains machine-local binary paths
 .mcp.json
+
+# Python bytecode from scripts/
+scripts/__pycache__/
+
+# /watch-mr state counter (per-MR, gitignored by design)
+.watch-mr/
+
+# CLAUDE.md backup files (policy: backup before edit)
+CLAUDE.md.bak.*
+PROJECT.md.bak.*
+*.md.bak.*
