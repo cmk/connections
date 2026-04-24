@@ -39,7 +39,14 @@ fi
 # GitLab's MR list endpoint rejects `order_by=iid`; valid values are
 # `created_at` (the default) and `updated_at`. Default + `sort=desc`
 # returns the most recently created MR, whose iid is the current
-# project max because iids are assigned monotonically on creation.
+# project max.
+#
+# This relies on iids being monotonic with creation order — true for
+# organic MRs on a project, but may break if MRs are imported from
+# another project (GitLab preserves source iids on import, which can
+# shuffle the created_at-vs-iid ordering). For cmk/connections this
+# assumption holds; revisit if importing MRs from elsewhere.
+#
 # `glab api` does not support a `--jq` flag; pipe to jq instead.
 if ! raw=$(glab api "${api_base}?state=all&sort=desc&per_page=1" 2>/dev/null); then
   echo "error: glab api failed for ${api_base} (check auth, network, and that the repo is on GitLab)" >&2

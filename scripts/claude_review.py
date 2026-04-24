@@ -356,8 +356,11 @@ def resolve_mr_inputs(host: str, project_id: str, token: str) -> tuple[int, str,
 
     base_sha = os.environ.get("CI_MERGE_REQUEST_DIFF_BASE_SHA")
     head_sha = os.environ.get("CI_COMMIT_SHA")
-    if base_sha and head_sha and os.environ.get("CI_MERGE_REQUEST_IID"):
-        # MR-event envelope: CI gave us everything.
+    # MR-event envelope detection: CI_MERGE_REQUEST_IID is the
+    # load-bearing marker. CI_COMMIT_SHA is set in every pipeline
+    # (including manual ones), so its presence alone does not
+    # distinguish the envelope.
+    if os.environ.get("CI_MERGE_REQUEST_IID") and base_sha and head_sha:
         return mr_iid, base_sha, head_sha
 
     # Manual envelope: ask GitLab for the SHAs.
@@ -379,8 +382,10 @@ def resolve_mr_inputs(host: str, project_id: str, token: str) -> tuple[int, str,
     head_sha = diff_refs.get("head_sha") or mr.get("sha")
     if not base_sha or not head_sha:
         print(
-            f"error: MR !{mr_iid} API response missing diff_refs.base_sha or sha. "
-            "Is the MR closed/unavailable?",
+            f"error: MR !{mr_iid} API response missing diff_refs.base_sha "
+            "or head sha. Possible causes: MR is closed/unavailable, or "
+            "diff_refs has not been computed yet (common on freshly-opened "
+            "MRs — retry in a few seconds).",
             file=sys.stderr,
         )
         return None
