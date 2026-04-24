@@ -4,8 +4,8 @@
 //! for a specific domain:
 //!
 //! - `int` / `word` — integer ↔ integer connections (stubs for now).
-//! - `float` — float ↔ float connections; also hosts the `FloatExt`
-//!   wrapper type used by N5 lattice connections.
+//! - `float` — float ↔ float connections; also hosts the
+//!   `ExtendedFloat` wrapper type used by N5 lattice connections.
 //! - `fixed` — decimal fixed-point ladder (Uni..Pico) with the
 //!   adjacent and non-adjacent pair connections.
 //! - `sample` — rate-typed sample-indexed time; rate ↔ rate and

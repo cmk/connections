@@ -32,7 +32,7 @@
 //! plain `div`, matching this port.)
 
 use crate::conn::Conn;
-use crate::conn::float::FloatExt;
+use crate::conn::float::ExtendedFloat;
 use crate::extended::Extended;
 use crate::order::Ple;
 
@@ -132,10 +132,10 @@ fix_fix!(F12F02, Pico,  Centi, 10_000_000_000);
 fix_fix!(F12F03, Pico,  Milli, 1_000_000_000);
 fix_fix!(F12F06, Pico,  Micro, 1_000_000);
 
-// FloatExt<f??> → Extended<Rung>. Lawful under `PartialOrd` on both
+// ExtendedFloat<f??> → Extended<Rung>. Lawful under `PartialOrd` on both
 // sides.
 //
-// Source lattice (`FloatExt<T>`):
+// Source lattice (`ExtendedFloat<T>`):
 //   `Bot` < `Finite(-∞)` < `Finite(finite)` < `Finite(+∞)` < `Top`,
 //   with `Finite(NaN)` reflexive and incomparable with every other
 //   `Finite(_)`.
@@ -166,7 +166,7 @@ fix_fix!(F12F06, Pico,  Micro, 1_000_000);
 // source's ±∞.
 macro_rules! float_conn {
     ($const_name:ident, $float:ty, $Rung:ident, $prec:expr) => {
-        pub const $const_name: Conn<FloatExt<$float>, Extended<$Rung>> = {
+        pub const $const_name: Conn<ExtendedFloat<$float>, Extended<$Rung>> = {
             const PREC: i64 = $prec;
             const PREC_F: f64 = PREC as f64;
 
@@ -181,11 +181,11 @@ macro_rules! float_conn {
                 ((c as f64) / PREC_F) as $float as f64
             }
 
-            fn ceil(x: FloatExt<$float>) -> Extended<$Rung> {
+            fn ceil(x: ExtendedFloat<$float>) -> Extended<$Rung> {
                 let f = match x {
-                    FloatExt::Bot => return Extended::NegInf,
-                    FloatExt::Top => return Extended::PosInf,
-                    FloatExt::Finite(v) => v,
+                    ExtendedFloat::Bot => return Extended::NegInf,
+                    ExtendedFloat::Top => return Extended::PosInf,
+                    ExtendedFloat::Finite(v) => v,
                 };
                 if f.is_nan() {
                     return Extended::PosInf;
@@ -229,21 +229,21 @@ macro_rules! float_conn {
                 Extended::Finite($Rung(c))
             }
 
-            fn inner(b: Extended<$Rung>) -> FloatExt<$float> {
+            fn inner(b: Extended<$Rung>) -> ExtendedFloat<$float> {
                 match b {
-                    Extended::NegInf => FloatExt::Bot,
-                    Extended::PosInf => FloatExt::Top,
+                    Extended::NegInf => ExtendedFloat::Bot,
+                    Extended::PosInf => ExtendedFloat::Top,
                     Extended::Finite(r) => {
-                        FloatExt::Finite(((r.0 as f64) / PREC_F) as $float)
+                        ExtendedFloat::Finite(((r.0 as f64) / PREC_F) as $float)
                     }
                 }
             }
 
-            fn floor(x: FloatExt<$float>) -> Extended<$Rung> {
+            fn floor(x: ExtendedFloat<$float>) -> Extended<$Rung> {
                 let f = match x {
-                    FloatExt::Bot => return Extended::NegInf,
-                    FloatExt::Top => return Extended::PosInf,
-                    FloatExt::Finite(v) => v,
+                    ExtendedFloat::Bot => return Extended::NegInf,
+                    ExtendedFloat::Top => return Extended::PosInf,
+                    ExtendedFloat::Finite(v) => v,
                 };
                 if f.is_nan() {
                     return Extended::NegInf;
@@ -287,7 +287,7 @@ macro_rules! float_conn {
 // class to find the smallest lawful c — O(plateau size) per call.
 //
 // f32 callers widen losslessly at the boundary —
-// `F64F06.ceil(FloatExt::Finite(arg_f32 as f64))` — and get the
+// `F64F06.ceil(ExtendedFloat::Finite(arg_f32 as f64))` — and get the
 // same adjoint answer as native f64 input.
 float_conn!(F64F00, f64, Uni,   1);
 float_conn!(F64F01, f64, Deci,  10);
@@ -507,7 +507,7 @@ mod tests {
         assert_eq!(F03F00.floor(Milli(-1_001)), Uni(-2));
     }
 
-    // ── FloatExt<f??> → Extended<Rung> connections ─────────────────
+    // ── ExtendedFloat<f??> → Extended<Rung> connections ─────────────────
 
     // Narrow float generators: arbitrary-bit-pattern `any::<f??>()` shrinks
     // bit-by-bit and dominates proptest runtime without finding structural
@@ -529,11 +529,11 @@ mod tests {
         ]
     }
 
-    fn arb_float_ext_f64() -> impl Strategy<Value = FloatExt<f64>> {
+    fn arb_float_ext_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
         prop_oneof![
-            1 => Just(FloatExt::Bot),
-            1 => Just(FloatExt::Top),
-            8 => arb_f64_full().prop_map(FloatExt::Finite),
+            1 => Just(ExtendedFloat::Bot),
+            1 => Just(ExtendedFloat::Top),
+            8 => arb_f64_full().prop_map(ExtendedFloat::Finite),
         ]
     }
 
@@ -565,41 +565,41 @@ mod tests {
     // Spot checks with exactly-representable f64 values.
     #[test]
     fn float_conn_spot() {
-        let half = FloatExt::Finite(0.5_f64);
+        let half = ExtendedFloat::Finite(0.5_f64);
         assert_eq!(F64F03.ceil(half), Extended::Finite(Milli(500)));
         assert_eq!(F64F03.floor(half), Extended::Finite(Milli(500)));
         assert_eq!(F64F06.ceil(half), Extended::Finite(Micro(500_000)));
-        assert_eq!(F64F12.ceil(FloatExt::Finite(0.25_f64)),
+        assert_eq!(F64F12.ceil(ExtendedFloat::Finite(0.25_f64)),
                    Extended::Finite(Pico(250_000_000_000)));
 
-        let one_and_half = FloatExt::Finite(1.5_f64);
+        let one_and_half = ExtendedFloat::Finite(1.5_f64);
         assert_eq!(F64F06.ceil(one_and_half), Extended::Finite(Micro(1_500_000)));
         assert_eq!(F64F06.floor(one_and_half), Extended::Finite(Micro(1_500_000)));
         assert_eq!(F64F06.inner(Extended::Finite(Micro(1_500_000))),
-                   FloatExt::Finite(1.5_f64));
+                   ExtendedFloat::Finite(1.5_f64));
 
         // Saturation map (matches the table in the macro doc comment).
-        assert_eq!(F64F06.ceil(FloatExt::Bot), Extended::NegInf);
-        assert_eq!(F64F06.floor(FloatExt::Bot), Extended::NegInf);
-        assert_eq!(F64F06.ceil(FloatExt::Top), Extended::PosInf);
-        assert_eq!(F64F06.floor(FloatExt::Top), Extended::PosInf);
+        assert_eq!(F64F06.ceil(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(F64F06.floor(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(F64F06.ceil(ExtendedFloat::Top), Extended::PosInf);
+        assert_eq!(F64F06.floor(ExtendedFloat::Top), Extended::PosInf);
 
-        let nan: FloatExt<f64> = FloatExt::Finite(f64::NAN);
+        let nan: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
         assert_eq!(F64F06.ceil(nan), Extended::PosInf);
         assert_eq!(F64F06.floor(nan), Extended::NegInf);
 
-        let pos_inf: FloatExt<f64> = FloatExt::Finite(f64::INFINITY);
+        let pos_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::INFINITY);
         assert_eq!(F64F06.ceil(pos_inf), Extended::PosInf);
         assert_eq!(F64F06.floor(pos_inf), Extended::Finite(Micro(i64::MAX)));
 
-        let neg_inf: FloatExt<f64> = FloatExt::Finite(f64::NEG_INFINITY);
+        let neg_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NEG_INFINITY);
         assert_eq!(F64F06.ceil(neg_inf), Extended::Finite(Micro(i64::MIN)));
         assert_eq!(F64F06.floor(neg_inf), Extended::NegInf);
 
-        // Inner maps target ±Inf to FloatExt's Top/Bot (synthetic
+        // Inner maps target ±Inf to ExtendedFloat's Top/Bot (synthetic
         // bounds outside the float range), NOT to Finite(±f64::INFINITY).
-        assert_eq!(F64F06.inner(Extended::PosInf), FloatExt::Top);
-        assert_eq!(F64F06.inner(Extended::NegInf), FloatExt::Bot);
+        assert_eq!(F64F06.inner(Extended::PosInf), ExtendedFloat::Top);
+        assert_eq!(F64F06.inner(Extended::NegInf), ExtendedFloat::Bot);
     }
 
     // F64F00 (PREC=1) is the identity-like regime — `inner(c) = c as f64`
@@ -608,42 +608,42 @@ mod tests {
     // the proptest battery above exercises F64F06 and F64F12 only.
     #[test]
     fn f64f00_saturation() {
-        assert_eq!(F64F00.ceil(FloatExt::Bot), Extended::NegInf);
-        assert_eq!(F64F00.floor(FloatExt::Bot), Extended::NegInf);
-        assert_eq!(F64F00.ceil(FloatExt::Top), Extended::PosInf);
-        assert_eq!(F64F00.floor(FloatExt::Top), Extended::PosInf);
+        assert_eq!(F64F00.ceil(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(F64F00.floor(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(F64F00.ceil(ExtendedFloat::Top), Extended::PosInf);
+        assert_eq!(F64F00.floor(ExtendedFloat::Top), Extended::PosInf);
 
-        let nan: FloatExt<f64> = FloatExt::Finite(f64::NAN);
+        let nan: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
         assert_eq!(F64F00.ceil(nan), Extended::PosInf);
         assert_eq!(F64F00.floor(nan), Extended::NegInf);
 
-        let pos_inf: FloatExt<f64> = FloatExt::Finite(f64::INFINITY);
+        let pos_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::INFINITY);
         assert_eq!(F64F00.ceil(pos_inf), Extended::PosInf);
         assert_eq!(F64F00.floor(pos_inf), Extended::Finite(Uni(i64::MAX)));
 
-        let neg_inf: FloatExt<f64> = FloatExt::Finite(f64::NEG_INFINITY);
+        let neg_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NEG_INFINITY);
         assert_eq!(F64F00.ceil(neg_inf), Extended::Finite(Uni(i64::MIN)));
         assert_eq!(F64F00.floor(neg_inf), Extended::NegInf);
 
         // Identity on exact integers.
-        assert_eq!(F64F00.ceil(FloatExt::Finite(42.0)), Extended::Finite(Uni(42)));
-        assert_eq!(F64F00.floor(FloatExt::Finite(42.0)), Extended::Finite(Uni(42)));
-        assert_eq!(F64F00.ceil(FloatExt::Finite(-42.0)), Extended::Finite(Uni(-42)));
-        assert_eq!(F64F00.floor(FloatExt::Finite(-42.0)), Extended::Finite(Uni(-42)));
+        assert_eq!(F64F00.ceil(ExtendedFloat::Finite(42.0)), Extended::Finite(Uni(42)));
+        assert_eq!(F64F00.floor(ExtendedFloat::Finite(42.0)), Extended::Finite(Uni(42)));
+        assert_eq!(F64F00.ceil(ExtendedFloat::Finite(-42.0)), Extended::Finite(Uni(-42)));
+        assert_eq!(F64F00.floor(ExtendedFloat::Finite(-42.0)), Extended::Finite(Uni(-42)));
 
         // Non-integer: ceil up, floor down.
-        assert_eq!(F64F00.ceil(FloatExt::Finite(0.25)), Extended::Finite(Uni(1)));
-        assert_eq!(F64F00.floor(FloatExt::Finite(0.25)), Extended::Finite(Uni(0)));
-        assert_eq!(F64F00.ceil(FloatExt::Finite(-0.25)), Extended::Finite(Uni(0)));
-        assert_eq!(F64F00.floor(FloatExt::Finite(-0.25)), Extended::Finite(Uni(-1)));
+        assert_eq!(F64F00.ceil(ExtendedFloat::Finite(0.25)), Extended::Finite(Uni(1)));
+        assert_eq!(F64F00.floor(ExtendedFloat::Finite(0.25)), Extended::Finite(Uni(0)));
+        assert_eq!(F64F00.ceil(ExtendedFloat::Finite(-0.25)), Extended::Finite(Uni(0)));
+        assert_eq!(F64F00.floor(ExtendedFloat::Finite(-0.25)), Extended::Finite(Uni(-1)));
 
         // Very large finite: saturating, into Finite at the ceil/floor
         // boundary rather than flowing to ±Inf on the target.
-        let huge = FloatExt::Finite(2.0_f64.powi(70));  // > i64::MAX
+        let huge = ExtendedFloat::Finite(2.0_f64.powi(70));  // > i64::MAX
         assert_eq!(F64F00.ceil(huge), Extended::PosInf);
         assert_eq!(F64F00.floor(huge), Extended::Finite(Uni(i64::MAX)));
 
-        let tiny = FloatExt::Finite(-2.0_f64.powi(70));  // < i64::MIN
+        let tiny = ExtendedFloat::Finite(-2.0_f64.powi(70));  // < i64::MIN
         assert_eq!(F64F00.ceil(tiny), Extended::Finite(Uni(i64::MIN)));
         assert_eq!(F64F00.floor(tiny), Extended::NegInf);
     }

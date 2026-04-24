@@ -1,10 +1,10 @@
-//! `FloatExt<T>` extends an IEEE float type with synthetic `Bot` and
+//! `ExtendedFloat<T>` extends an IEEE float type with synthetic `Bot` and
 //! `Top` elements outside the float range, recovering the N5 lattice
 //! structure the Galois-connection machinery requires.
 //!
 //! Rust's built-in float `PartialOrd` is a partial order: NaN is
 //! incomparable with every value including itself, and there are no
-//! canonical top/bottom elements. `FloatExt` addresses both:
+//! canonical top/bottom elements. `ExtendedFloat` addresses both:
 //!
 //! - `Bot ≤ x` and `x ≤ Top` for every `x` (including `NaN`, `±∞`).
 //! - `Finite(NaN)` is reflexive: `Finite(NaN) == Finite(NaN)` and
@@ -19,7 +19,7 @@
 //! `PartialOrd` on the wrapped `T`.
 //!
 //! This module also defines the connections between bare float types
-//! (`f64 ↔ f32`). Connections involving `FloatExt` wrappers will be
+//! (`f64 ↔ f32`). Connections involving `ExtendedFloat` wrappers will be
 //! added when the design.md §"Connections involving floats" is
 //! implemented; for now, the wrapper type lives here alongside the
 //! bare-float connections, ready to be used.
@@ -29,7 +29,7 @@ use crate::order::Ple;
 use std::cmp::Ordering;
 
 #[derive(Copy, Clone, Debug)]
-pub enum FloatExt<T> {
+pub enum ExtendedFloat<T> {
     Bot,
     Finite(T),
     Top,
@@ -37,9 +37,9 @@ pub enum FloatExt<T> {
 
 macro_rules! impl_float_ext {
     ($T:ty) => {
-        impl PartialEq for FloatExt<$T> {
+        impl PartialEq for ExtendedFloat<$T> {
             fn eq(&self, other: &Self) -> bool {
-                use FloatExt::*;
+                use ExtendedFloat::*;
                 match (self, other) {
                     (Bot, Bot) | (Top, Top) => true,
                     (Finite(a), Finite(b)) => {
@@ -54,9 +54,9 @@ macro_rules! impl_float_ext {
             }
         }
 
-        impl PartialOrd for FloatExt<$T> {
+        impl PartialOrd for ExtendedFloat<$T> {
             fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-                use FloatExt::*;
+                use ExtendedFloat::*;
                 match (self, other) {
                     (Bot, Bot) | (Top, Top) => Some(Ordering::Equal),
                     (Bot, _) => Some(Ordering::Less),
@@ -496,58 +496,58 @@ mod tests {
         }
     }
 
-    // ── FloatExt tests (folded in from former src/float_ext.rs) ────
+    // ── ExtendedFloat tests (folded in from former src/float_ext.rs) ────
 
     #[test]
     fn bot_below_everything_f64() {
-        assert!(FloatExt::<f64>::Bot < FloatExt::Finite(0.0));
-        assert!(FloatExt::<f64>::Bot < FloatExt::Finite(f64::NEG_INFINITY));
-        assert!(FloatExt::<f64>::Bot < FloatExt::Finite(f64::NAN));
-        assert!(FloatExt::<f64>::Bot < FloatExt::<f64>::Top);
+        assert!(ExtendedFloat::<f64>::Bot < ExtendedFloat::Finite(0.0));
+        assert!(ExtendedFloat::<f64>::Bot < ExtendedFloat::Finite(f64::NEG_INFINITY));
+        assert!(ExtendedFloat::<f64>::Bot < ExtendedFloat::Finite(f64::NAN));
+        assert!(ExtendedFloat::<f64>::Bot < ExtendedFloat::<f64>::Top);
     }
 
     #[test]
     fn top_above_everything_f64() {
-        assert!(FloatExt::Finite(0.0_f64) < FloatExt::<f64>::Top);
-        assert!(FloatExt::Finite(f64::INFINITY) < FloatExt::<f64>::Top);
-        assert!(FloatExt::Finite(f64::NAN) < FloatExt::<f64>::Top);
+        assert!(ExtendedFloat::Finite(0.0_f64) < ExtendedFloat::<f64>::Top);
+        assert!(ExtendedFloat::Finite(f64::INFINITY) < ExtendedFloat::<f64>::Top);
+        assert!(ExtendedFloat::Finite(f64::NAN) < ExtendedFloat::<f64>::Top);
     }
 
     #[test]
     fn nan_reflexive_f64() {
-        let n: FloatExt<f64> = FloatExt::Finite(f64::NAN);
-        assert_eq!(n, FloatExt::Finite(f64::NAN));
-        assert_eq!(n.partial_cmp(&FloatExt::Finite(f64::NAN)), Some(Ordering::Equal));
+        let n: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
+        assert_eq!(n, ExtendedFloat::Finite(f64::NAN));
+        assert_eq!(n.partial_cmp(&ExtendedFloat::Finite(f64::NAN)), Some(Ordering::Equal));
     }
 
     #[test]
     fn nan_incomparable_with_finite_f64() {
-        let n: FloatExt<f64> = FloatExt::Finite(f64::NAN);
-        assert!(n.partial_cmp(&FloatExt::Finite(1.0)).is_none());
-        assert!(FloatExt::Finite(1.0_f64).partial_cmp(&n).is_none());
+        let n: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
+        assert!(n.partial_cmp(&ExtendedFloat::Finite(1.0)).is_none());
+        assert!(ExtendedFloat::Finite(1.0_f64).partial_cmp(&n).is_none());
     }
 
     #[test]
     fn nan_incomparable_with_infinity_f64() {
-        let n: FloatExt<f64> = FloatExt::Finite(f64::NAN);
-        let i: FloatExt<f64> = FloatExt::Finite(f64::INFINITY);
+        let n: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
+        let i: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::INFINITY);
         assert!(n.partial_cmp(&i).is_none());
         assert!(i.partial_cmp(&n).is_none());
     }
 
     #[test]
     fn standard_order_preserved_f64() {
-        assert!(FloatExt::Finite(1.0_f64) < FloatExt::Finite(2.0));
-        assert!(FloatExt::Finite(f64::NEG_INFINITY) < FloatExt::Finite(0.0_f64));
-        assert!(FloatExt::Finite(0.0_f64) < FloatExt::Finite(f64::INFINITY));
+        assert!(ExtendedFloat::Finite(1.0_f64) < ExtendedFloat::Finite(2.0));
+        assert!(ExtendedFloat::Finite(f64::NEG_INFINITY) < ExtendedFloat::Finite(0.0_f64));
+        assert!(ExtendedFloat::Finite(0.0_f64) < ExtendedFloat::Finite(f64::INFINITY));
     }
 
     #[test]
     fn f32_same_shape() {
-        let n: FloatExt<f32> = FloatExt::Finite(f32::NAN);
-        assert_eq!(n, FloatExt::Finite(f32::NAN));
-        assert!(FloatExt::<f32>::Bot < n);
-        assert!(n < FloatExt::<f32>::Top);
-        assert!(n.partial_cmp(&FloatExt::Finite(1.0_f32)).is_none());
+        let n: ExtendedFloat<f32> = ExtendedFloat::Finite(f32::NAN);
+        assert_eq!(n, ExtendedFloat::Finite(f32::NAN));
+        assert!(ExtendedFloat::<f32>::Bot < n);
+        assert!(n < ExtendedFloat::<f32>::Top);
+        assert!(n.partial_cmp(&ExtendedFloat::Finite(1.0_f32)).is_none());
     }
 }

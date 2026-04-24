@@ -125,7 +125,7 @@ coproduct, and functor structures. The following translate directly:
 | `ordered`    | `Conn::ordered()` | `(A, A) → A` via min/max            |
 | `mapped`     | *(omitted)*  | Requires HKT; specialize per container   |
 
-## Float lattice: `FloatExt<T>`
+## Float lattice: `ExtendedFloat<T>`
 
 IEEE 754 floats under Rust's `PartialOrd` form a partial order where NaN is
 incomparable with all values including itself. This is almost the right
@@ -145,11 +145,11 @@ ordering where NaN sits between ±∞:
 ```
 
 Rather than fighting Rust's float `PartialOrd`, this library introduces
-`FloatExt<T>` — an extension that adds synthetic top and bottom elements
+`ExtendedFloat<T>` — an extension that adds synthetic top and bottom elements
 outside the float range:
 
 ```rust
-pub enum FloatExt<T> {
+pub enum ExtendedFloat<T> {
     Bot,        // synthetic bottom, below -∞
     Finite(T),  // the float value (including NaN, ±∞)
     Top,        // synthetic top, above +∞
@@ -182,7 +182,7 @@ The key properties:
 - **NaN is comparable** to `Bot` and `Top` (via the synthetic bounds)
 - **NaN is incomparable** with all finite values and ±∞ (via float `PartialOrd`)
 - **NaN is reflexive**: `NaN ≤ NaN` (patched in the `PartialOrd` impl)
-- **No wrapper on bare floats**: `FloatExt` is only used at the boundary
+- **No wrapper on bare floats**: `ExtendedFloat` is only used at the boundary
   of connections involving floats; internal arithmetic uses bare `f32`/`f64`
 
 ### Why not a custom `Preorder` trait?
@@ -190,24 +190,24 @@ The key properties:
 The Haskell library defines a `Preorder` class to work around the broken
 `Ord` instance for floats. Rust's `PartialOrd` already captures partial
 orders correctly — the problem is only NaN self-incomparability, which is
-localized to the `FloatExt` impl. Introducing a separate `Preorder` trait
+localized to the `ExtendedFloat` impl. Introducing a separate `Preorder` trait
 would duplicate the ecosystem's `PartialOrd` for no additional expressiveness.
 
 ### Connections involving floats
 
-Connections between float types are typed over `FloatExt`:
+Connections between float types are typed over `ExtendedFloat`:
 
-- `f64_f32: Conn<FloatExt<f64>, FloatExt<f32>>` — not `Conn<f64, f32>`
+- `f64_f32: Conn<ExtendedFloat<f64>, ExtendedFloat<f32>>` — not `Conn<f64, f32>`
 
-The `inner` function embeds `FloatExt<f32>` into `FloatExt<f64>` preserving
+The `inner` function embeds `ExtendedFloat<f32>` into `ExtendedFloat<f64>` preserving
 `Bot`/`Top`/`NaN`/finite structure. The `ceil` and `floor` functions convert
 in the other direction with appropriate rounding.
 
-Connections between integer types do not need `FloatExt` — integer `Ord` is
+Connections between integer types do not need `ExtendedFloat` — integer `Ord` is
 total and well-behaved. The `Extended<T>` enum (with `NegInf`, `Finite(T)`,
 `PosInf`) from the Haskell library is only needed for connections where the
 target type cannot represent the full range of the source (e.g. `f32 →
-Extended<u8>`). This is a separate type from `FloatExt`.
+Extended<u8>`). This is a separate type from `ExtendedFloat`.
 
 ## Float conversion performance
 
@@ -242,7 +242,7 @@ correctness regardless of the implementation strategy.
 src/
 ├── lib.rs              — public API, re-exports
 ├── conn.rs             — Conn type, composition, combinators
-├── float_ext.rs        — FloatExt type, PartialOrd impl
+├── float_ext.rs        — ExtendedFloat type, PartialOrd impl
 ├── extended.rs         — Extended type for integer range extension
 ├── lattice.rs          — Join, Meet, Heyting, Boolean traits
 ├── conn/
