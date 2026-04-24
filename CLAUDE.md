@@ -206,7 +206,33 @@ Implementation: `scripts/claude_review.py` — prompt-cached system
 prompt + CLAUDE.md + calibration examples, then the diff. Parses
 Claude's JSON finding array and POSTs each to
 `/projects/:id/merge_requests/:iid/discussions` with the required
-`position[*]` fields for inline anchoring.
+`position[*]` fields for inline anchoring. The Anthropic client is
+configured with `max_retries=5` for transient 5xx/529 windows, and
+the job has `retry: 2` so GitLab rerunts the whole thing if the SDK
+still surfaces an error (two layers of backoff, one in-process, one
+scheduled by the runner).
+
+#### Re-triggering a review manually
+
+Useful when the prior review was truncated, hit 529 Overloaded too
+many times, or you just want a fresh read. Two ways:
+
+**CLI:**
+
+```
+glab ci run --variables "CLAUDE_REVIEW_MR=<iid>" \
+  --branch "$(glab mr view <iid> -F json | jq -r .source_branch)"
+```
+
+**Web UI:** Project → Build → Pipelines → **Run pipeline** → Ref =
+the MR's source branch → add variable `CLAUDE_REVIEW_MR` = iid →
+Run.
+
+When triggered this way, the script reads `CLAUDE_REVIEW_MR` instead
+of the MR-event env vars, fetches the MR's base/head SHAs from
+`/projects/:id/merge_requests/:iid` via the GitLab API, ensures both
+are present locally (`git fetch origin <sha>`), then runs the same
+review and posts findings to the same MR.
 
 ## Sprint plan format
 
