@@ -32,8 +32,8 @@
 //! plain `div`, matching this port.)
 
 use crate::conn::Conn;
+use crate::conn::float::FloatExt;
 use crate::extended::Extended;
-use crate::float_ext::FloatExt;
 use crate::order::Ple;
 
 macro_rules! def_fixed {

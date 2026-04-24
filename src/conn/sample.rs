@@ -63,7 +63,7 @@
 //! ratios (`DEN = 1`) it collapses to the familiar `floor_div(x, NUM)`.
 
 use crate::conn::Conn;
-use crate::fixed::Pico;
+use crate::conn::fixed::Pico;
 use fixed::FixedI64;
 use fixed::types::extra::U16;
 
