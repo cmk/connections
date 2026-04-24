@@ -264,41 +264,8 @@ fn clamp32(x: i32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::property::{arb_f32, arb_f64};
     use proptest::prelude::*;
-
-    // ── Strategies ─────────────────────────────────────────────────
-
-    fn arb_f64() -> impl Strategy<Value = f64> {
-        prop_oneof![
-            4 => any::<f64>(),
-            1 => prop_oneof![
-                Just(f64::NAN),
-                Just(f64::INFINITY),
-                Just(f64::NEG_INFINITY),
-                Just(0.0_f64),
-                Just(-0.0_f64),
-                Just(f64::MIN_POSITIVE),
-                Just(f64::MAX),
-                Just(f64::MIN),
-            ],
-        ]
-    }
-
-    fn arb_f32() -> impl Strategy<Value = f32> {
-        prop_oneof![
-            4 => any::<f32>(),
-            1 => prop_oneof![
-                Just(f32::NAN),
-                Just(f32::INFINITY),
-                Just(f32::NEG_INFINITY),
-                Just(0.0_f32),
-                Just(-0.0_f32),
-                Just(f32::MIN_POSITIVE),
-                Just(f32::MAX),
-                Just(f32::MIN),
-            ],
-        ]
-    }
 
     // ── Helpers ────────────────────────────────────────────────────
 

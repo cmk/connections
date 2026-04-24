@@ -52,4 +52,9 @@
 pub mod conn;
 pub mod extended;
 pub mod lattice;
-pub mod property;
+
+// Test-only: shared proptest strategies for the `conn::*` and
+// `lattice` `#[cfg(test)]` blocks. Gated on `cfg(test)` so the
+// `proptest` dev-dep doesn't leak into the public build.
+#[cfg(test)]
+pub(crate) mod property;

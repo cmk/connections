@@ -80,6 +80,7 @@ impl<T> Conn<T, T> {
 mod tests {
     use super::*;
     use crate::lattice::Ple;
+    use crate::property::arb_f64;
     use proptest::prelude::*;
 
     #[test]
@@ -178,19 +179,6 @@ mod tests {
     }
 
     // ── Property tests for identity on f64 (exercises N5 ordering) ─
-
-    fn arb_f64() -> impl Strategy<Value = f64> {
-        prop_oneof![
-            4 => any::<f64>(),
-            1 => prop_oneof![
-                Just(f64::NAN),
-                Just(f64::INFINITY),
-                Just(f64::NEG_INFINITY),
-                Just(0.0_f64),
-                Just(-0.0_f64),
-            ],
-        ]
-    }
 
     fn adjoint_id_f64(a: f64, b: f64) -> bool {
         let c = Conn::<f64, f64>::identity();

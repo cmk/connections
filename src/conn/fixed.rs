@@ -300,6 +300,7 @@ float_conn!(F64F12, f64, Pico,  1_000_000_000_000);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::property::arb_f64_bounded;
     use proptest::prelude::*;
 
     // Sanity spot checks (hand-computed).
@@ -508,32 +509,18 @@ mod tests {
     }
 
     // ── ExtendedFloat<f??> → Extended<Rung> connections ─────────────────
-
-    // Narrow float generators: arbitrary-bit-pattern `any::<f??>()` shrinks
-    // bit-by-bit and dominates proptest runtime without finding structural
-    // bugs. A bounded range plus explicit boundaries gives wide enough
-    // adjoint-law coverage.
-    fn arb_f64_full() -> impl Strategy<Value = f64> {
-        prop_oneof![
-            6 => -1.0e9_f64..1.0e9_f64,
-            1 => prop_oneof![
-                Just(f64::NAN),
-                Just(f64::INFINITY),
-                Just(f64::NEG_INFINITY),
-                Just(0.0_f64),
-                Just(-0.0_f64),
-                Just(f64::MIN_POSITIVE),
-                Just(f64::MAX),
-                Just(f64::MIN),
-            ],
-        ]
-    }
+    //
+    // Float source uses `arb_f64_bounded` from `crate::property` —
+    // `any::<f64>()` shrinks bit-by-bit through the mantissa and
+    // dominates runtime without finding structural bugs. A bounded
+    // range plus explicit boundaries gives wide enough adjoint-law
+    // coverage. See `property.rs` for the rationale.
 
     fn arb_extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
         prop_oneof![
             1 => Just(ExtendedFloat::Bot),
             1 => Just(ExtendedFloat::Top),
-            8 => arb_f64_full().prop_map(ExtendedFloat::Finite),
+            8 => arb_f64_bounded().prop_map(ExtendedFloat::Finite),
         ]
     }
 
