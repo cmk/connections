@@ -110,6 +110,28 @@ The result of composing a one-sided connection with a two-sided connection is
 a one-sided connection — because if `self.ceil == self.floor`, then the
 composed `ceil` and `floor` are also equal.
 
+### `.then()` vs. `compose_conn!`
+
+The `.then()` method above is the aspirational API; `Conn<A, B>`
+currently stores three bare `fn(_) -> _` pointers (not closures), so a
+generic `.then()` would need to capture both inputs and can't —
+a bare `fn` has no captures. Until a closure-capturing
+[`DynConn`](#runtime-composition-future) lands, compile-time
+composition uses the [`compose_conn!`] declarative macro, which takes
+two `const Conn`s and expands to a fresh `const Conn` whose
+`ceil`/`inner`/`floor` fn-items invoke the inputs by name:
+
+```rust
+compose_conn! {
+    pub const F12F00_VIA_MICRO: Conn<Pico, Uni> = F12F06, F06F00;
+}
+```
+
+The intermediate type (`Micro` here) is inferred and never appears
+in the emitted source. This covers the compile-time-known case that
+accounts for ~95 % of real usage; runtime composition remains
+deferred.
+
 ### Combinators
 
 The Haskell library defines several ways to lift connections into product,

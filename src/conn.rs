@@ -17,6 +17,79 @@ pub mod int;
 pub mod sample;
 pub mod word;
 
+/// Compose two `const Conn`s into a third `const Conn`.
+///
+/// Given `$FIRST: Conn<A, B>` and `$SECOND: Conn<B, C>` already in
+/// scope as constants, expands to a full `pub const` declaration of a
+/// fresh `Conn<A, C>` whose adjoint triple applies the two components
+/// in category order (covariant `ceil`/`floor`, contravariant
+/// `inner`). The intermediate type `B` is inferred and never appears
+/// in the emitted source — the caller names only the boundary types.
+///
+/// ## Shape
+///
+/// ```ignore
+/// compose_conn! {
+///     $(#[$m:meta])*
+///     $v:vis const $NAME:ident : Conn<$A:ty, $C:ty> = $FIRST:expr, $SECOND:expr $(,)?;
+/// }
+/// ```
+///
+/// Expands to:
+///
+/// ```ignore
+/// $(#[$m])*
+/// $v const $NAME: $crate::conn::Conn<$A, $C> = {
+///     fn ceil(x: $A) -> $C  { $SECOND.ceil($FIRST.ceil(x)) }
+///     fn inner(x: $C) -> $A { $FIRST.inner($SECOND.inner(x)) }
+///     fn floor(x: $A) -> $C { $SECOND.floor($FIRST.floor(x)) }
+///     $crate::conn::Conn::new(ceil, inner, floor)
+/// };
+/// ```
+///
+/// ## Example
+///
+/// ```
+/// use connections::compose_conn;
+/// use connections::conn::Conn;
+/// use connections::conn::fixed::{F12F06, F06F00, Pico, Uni};
+///
+/// compose_conn! {
+///     /// Pico → Uni routed via Micro. Equivalent to the hand-written
+///     /// `F12F00` at every input.
+///     pub const F12F00_VIA_MICRO: Conn<Pico, Uni> = F12F06, F06F00;
+/// }
+///
+/// assert_eq!(F12F00_VIA_MICRO.ceil(Pico(1_500_000_000_000)), Uni(2));
+/// assert_eq!(F12F00_VIA_MICRO.floor(Pico(1_500_000_000_000)), Uni(1));
+/// assert_eq!(F12F00_VIA_MICRO.inner(Uni(3)), Pico(3_000_000_000_000));
+/// ```
+///
+/// ## Why a full-const-decl form
+///
+/// The macro needs to emit `fn` items with explicit signatures
+/// (`fn ceil(x: A) -> C`), which can't be inferred. Bundling the whole
+/// `const NAME: Conn<A, C> = ...` declaration into the invocation
+/// gives the user one place to name the boundary types and the macro
+/// one unambiguous parse. Only the two end types appear at the call
+/// site; the intermediate `B` is threaded through by type inference
+/// on `$FIRST.ceil(x)` and never written down.
+#[macro_export]
+macro_rules! compose_conn {
+    (
+        $(#[$m:meta])*
+        $v:vis const $NAME:ident : Conn<$A:ty, $C:ty> = $FIRST:expr, $SECOND:expr $(,)?;
+    ) => {
+        $(#[$m])*
+        $v const $NAME: $crate::conn::Conn<$A, $C> = {
+            fn ceil(x: $A) -> $C  { $SECOND.ceil($FIRST.ceil(x)) }
+            fn inner(x: $C) -> $A { $FIRST.inner($SECOND.inner(x)) }
+            fn floor(x: $A) -> $C { $SECOND.floor($FIRST.floor(x)) }
+            $crate::conn::Conn::new(ceil, inner, floor)
+        };
+    };
+}
+
 /// A Galois connection (adjoint triple) between preordered sets `A` and `B`.
 ///
 /// Carries three monotone functions:
@@ -211,6 +284,153 @@ mod tests {
         #[test]
         fn prop_identity_f64_kernel(b in arb_f64()) {
             prop_assert!(kernel_id_f64(b));
+        }
+    }
+
+    // ── compose_conn! macro ─────────────────────────────────────────
+    //
+    // The composed Conn's adjoint laws follow from the components'
+    // (both already proptested across the fixed-ladder module), but we
+    // still check (1) construction, (2) behaviour parity against the
+    // hand-written direct Conn, (3) the adjoint laws directly on the
+    // composition, and (4) identity element left/right to confirm the
+    // macro doesn't interact weirdly with `Conn::identity()`.
+
+    use crate::compose_conn;
+    use crate::conn::fixed::{F06F00, F12F00, F12F06, Micro, Pico, Uni};
+
+    // Expands at the test module scope: two component Conns compose
+    // into a fresh Conn<Pico, Uni>. Proves the macro parses the full
+    // const-decl form and that the resulting value lives at `const`
+    // (not just runtime) scope.
+    compose_conn! {
+        /// Pico → Uni routed through Micro. Equivalent to the hand-
+        /// written `F12F00` at every input.
+        const F12F00_VIA_MICRO: Conn<Pico, Uni> = F12F06, F06F00;
+    }
+
+    const ID_PICO: Conn<Pico, Pico> = Conn::identity();
+    const ID_MICRO: Conn<Micro, Micro> = Conn::identity();
+
+    compose_conn! {
+        const LEFT_ID_COMPOSED: Conn<Pico, Micro> = ID_PICO, F12F06;
+    }
+    compose_conn! {
+        const RIGHT_ID_COMPOSED: Conn<Pico, Micro> = F12F06, ID_MICRO;
+    }
+
+    #[test]
+    fn compose_conn_matches_hand_written_at_representative_values() {
+        // Exact-boundary, off-boundary positive, off-boundary negative.
+        for p in [
+            0_i64,
+            1,
+            -1,
+            1_000_000_000_000,
+            -1_000_000_000_000,
+            1_500_000_000_000,
+            -1_500_000_000_000,
+            999_999_999_999,
+            -999_999_999_999,
+        ] {
+            let x = Pico(p);
+            assert_eq!(F12F00_VIA_MICRO.ceil(x), F12F00.ceil(x), "ceil @ {p}");
+            assert_eq!(F12F00_VIA_MICRO.floor(x), F12F00.floor(x), "floor @ {p}");
+        }
+        for u in [0_i64, 1, -1, 42, -42] {
+            let x = Uni(u);
+            assert_eq!(F12F00_VIA_MICRO.inner(x), F12F00.inner(x), "inner @ {u}");
+        }
+    }
+
+    #[test]
+    fn compose_conn_left_identity() {
+        // id ∘ F12F06 must equal F12F06 pointwise.
+        for p in [0_i64, 1, -1, 1_500_000, -1_500_000, 999_999, -999_999] {
+            let x = Pico(p);
+            assert_eq!(LEFT_ID_COMPOSED.ceil(x), F12F06.ceil(x));
+            assert_eq!(LEFT_ID_COMPOSED.floor(x), F12F06.floor(x));
+        }
+        for u in [0_i64, 1, -1, 42, -42] {
+            let x = Micro(u);
+            assert_eq!(LEFT_ID_COMPOSED.inner(x), F12F06.inner(x));
+        }
+    }
+
+    #[test]
+    fn compose_conn_right_identity() {
+        for p in [0_i64, 1, -1, 1_500_000, -1_500_000, 999_999, -999_999] {
+            let x = Pico(p);
+            assert_eq!(RIGHT_ID_COMPOSED.ceil(x), F12F06.ceil(x));
+            assert_eq!(RIGHT_ID_COMPOSED.floor(x), F12F06.floor(x));
+        }
+        for u in [0_i64, 1, -1, 42, -42] {
+            let x = Micro(u);
+            assert_eq!(RIGHT_ID_COMPOSED.inner(x), F12F06.inner(x));
+        }
+    }
+
+    // Composite ratio for F12F00 is 10^12; inner(c) = c * 10^12 must
+    // fit i64, so bound the Uni side to |c| ≤ i64::MAX / 10^12.
+    const PICO_UNI_PREC: i64 = 1_000_000_000_000;
+
+    fn bounded_pico() -> impl Strategy<Value = i64> {
+        prop_oneof![
+            1 => Just(0_i64),
+            1 => Just(PICO_UNI_PREC),
+            1 => Just(-PICO_UNI_PREC),
+            1 => Just(PICO_UNI_PREC - 1),
+            1 => Just(-(PICO_UNI_PREC - 1)),
+            1 => Just(i64::MAX),
+            1 => Just(i64::MIN + 1),
+            5 => any::<i64>(),
+        ]
+    }
+
+    fn bounded_uni() -> impl Strategy<Value = i64> {
+        let limit = i64::MAX / PICO_UNI_PREC;
+        prop_oneof![
+            1 => Just(0_i64),
+            1 => Just(limit),
+            1 => Just(-limit),
+            5 => -limit..=limit,
+        ]
+    }
+
+    proptest! {
+        #[test]
+        fn compose_conn_agrees_with_hand_written(p in bounded_pico()) {
+            let x = Pico(p);
+            prop_assert_eq!(F12F00_VIA_MICRO.ceil(x), F12F00.ceil(x));
+            prop_assert_eq!(F12F00_VIA_MICRO.floor(x), F12F00.floor(x));
+        }
+
+        #[test]
+        fn compose_conn_inner_agrees_with_hand_written(u in bounded_uni()) {
+            let x = Uni(u);
+            prop_assert_eq!(F12F00_VIA_MICRO.inner(x), F12F00.inner(x));
+        }
+
+        #[test]
+        fn compose_conn_galois_upper(p in bounded_pico(), u in bounded_uni()) {
+            // ceil(x) ≤ c  ⟺  x ≤ inner(c)
+            let fx = Pico(p);
+            let cx = Uni(u);
+            prop_assert_eq!(
+                F12F00_VIA_MICRO.ceil(fx) <= cx,
+                fx <= F12F00_VIA_MICRO.inner(cx)
+            );
+        }
+
+        #[test]
+        fn compose_conn_galois_lower(p in bounded_pico(), u in bounded_uni()) {
+            // inner(c) ≤ x  ⟺  c ≤ floor(x)
+            let fx = Pico(p);
+            let cx = Uni(u);
+            prop_assert_eq!(
+                F12F00_VIA_MICRO.inner(cx) <= fx,
+                cx <= F12F00_VIA_MICRO.floor(fx)
+            );
         }
     }
 }

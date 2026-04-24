@@ -46,6 +46,29 @@
 //! f32, forcing an O(plateau) correction per ceil/floor call. f32
 //! callers widen losslessly at the boundary:
 //! `F64F06.ceil(ExtendedFloat::Finite(arg_f32 as f64))`.
+//!
+//! ## Composition
+//!
+//! [`Conn<A, B>`](conn::Conn) stores three bare `fn` pointers so the
+//! type is `Copy`, const-constructible, and heap-free — which
+//! prevents a generic `.then()` method (a composed fn would need to
+//! capture both inputs, which bare `fn` cannot). For the
+//! compile-time-known case, the [`compose_conn!`] declarative macro
+//! takes two `const Conn`s and expands to a fresh `const Conn`:
+//!
+//! ```
+//! use connections::compose_conn;
+//! use connections::conn::Conn;
+//! use connections::conn::fixed::{F06F00, F12F06, Pico, Uni};
+//!
+//! compose_conn! {
+//!     pub const F12F00_VIA_MICRO: Conn<Pico, Uni> = F12F06, F06F00;
+//! }
+//! ```
+//!
+//! The intermediate type (`Micro` here) is inferred and never named.
+//! Runtime composition is deferred until a closure-capturing
+//! `DynConn` variant lands.
 
 #![forbid(unsafe_code)]
 
