@@ -1,0 +1,32 @@
+# gitleaks config.
+#
+# Inherits the full default rule set, then adds allow-listed paths for
+# content that contains token-SHAPED regex fragments (not actual
+# secrets). These would otherwise cause false positives on every
+# commit that touches the scanner's own config or the plans that
+# reference the patterns.
+#
+# References:
+# - https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
+# - https://github.com/gitleaks/gitleaks#configuration
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Paths that contain token-shaped regex fragments, not real secrets"
+paths = [
+    # scripts/check-pii.sh contains patterns like `sk-[A-Za-z0-9]{20,}`
+    # and `ghp_[A-Za-z0-9]{36}` as DETECTION regexes — these are
+    # fragments, not live tokens, but gitleaks' default rules match
+    # them as shapes.
+    '''scripts/check-pii\.sh''',
+    # Plans under doc/plans/ sometimes quote these patterns when
+    # describing the PII scanner.
+    '''doc/plans/.*\.md''',
+    # review-calibration.md paraphrases real historical findings and
+    # may quote patterns.
+    '''doc/reviews/review-calibration\.md''',
+    # This config itself lists the patterns it is allow-listing.
+    '''\.gitleaks\.toml''',
+]

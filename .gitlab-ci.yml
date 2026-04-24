@@ -37,16 +37,26 @@ test:
 deny:
   stage: audit
   before_script:
-    - cargo install --locked cargo-deny
+    # Pin cargo-deny below 0.19: 0.19+ bumped its MSRV to rustc 1.88,
+    # and this project pins the toolchain at 1.85 (rust-toolchain.toml).
+    # `<0.19` tracks patch-level updates of the latest 0.18 line.
+    - cargo install --locked cargo-deny --version '<0.19'
   script:
     - cargo deny check
 
 gitleaks:
   stage: audit
-  image: zricethezav/gitleaks:latest
+  # The `zricethezav/gitleaks:latest` image has `gitleaks` as its
+  # ENTRYPOINT, so GitLab's default shell-based script invocation fails
+  # with `unknown command "sh" for "gitleaks"`. Override the entrypoint
+  # to empty so GitLab can run its own shell; the script then calls
+  # gitleaks explicitly.
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
   cache: []
   script:
-    - gitleaks detect --source . --verbose
+    - gitleaks detect --source . --verbose --config .gitleaks.toml
 
 claude-review:
   stage: audit
