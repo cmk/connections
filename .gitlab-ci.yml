@@ -65,8 +65,24 @@ claude-review:
   # wedge a merge. Findings land as MR discussions — triage via the
   # usual /pull-reviews → fix → /reply-reviews loop.
   allow_failure: true
+  # Job-level retry rides out longer Anthropic 5xx / 529 windows than
+  # the SDK's in-process backoff. On script_failure GitLab reruns the
+  # whole job up to 2 more times (each retry is scheduled by the
+  # runner; load blips of a minute or two usually clear between).
+  retry:
+    max: 2
+    when:
+      - script_failure
+      - api_failure
+      - runner_system_failure
   rules:
-    # Only on MR events, and only when both secrets are wired. This
-    # keeps the job invisible until Project → Settings → CI/CD →
-    # Variables has ANTHROPIC_API_KEY and GITLAB_TOKEN set.
+    # Fire on MR events when both secrets are wired. This keeps the
+    # job invisible until Project → Settings → CI/CD → Variables has
+    # ANTHROPIC_API_KEY and GITLAB_TOKEN set.
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $ANTHROPIC_API_KEY && $GITLAB_TOKEN
+    # Manual re-trigger: `glab ci run --variables CLAUDE_REVIEW_MR=N
+    # --branch <mr-source-branch>` (or the "Run pipeline" web UI with
+    # CLAUDE_REVIEW_MR set). The script reads CLAUDE_REVIEW_MR when
+    # the MR-event vars aren't present and fetches base/head from the
+    # GitLab API.
+    - if: $CLAUDE_REVIEW_MR && $ANTHROPIC_API_KEY && $GITLAB_TOKEN
