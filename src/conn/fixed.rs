@@ -529,7 +529,7 @@ mod tests {
         ]
     }
 
-    fn arb_float_ext_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
+    fn arb_extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
         prop_oneof![
             1 => Just(ExtendedFloat::Bot),
             1 => Just(ExtendedFloat::Top),
@@ -754,6 +754,6 @@ mod tests {
     // PREC well below mantissa (F06) and PREC approaching mantissa (F12).
     // Other rungs share the adjoint-law machinery with one of these, so
     // the spot checks above are sufficient regression coverage.
-    float_conn_props!(p_f64f06, F64F06, Micro, arb_float_ext_f64, arb_extended_micro);
-    float_conn_props!(p_f64f12, F64F12, Pico,  arb_float_ext_f64, arb_extended_pico);
+    float_conn_props!(p_f64f06, F64F06, Micro, arb_extended_float_f64, arb_extended_micro);
+    float_conn_props!(p_f64f12, F64F12, Pico,  arb_extended_float_f64, arb_extended_pico);
 }

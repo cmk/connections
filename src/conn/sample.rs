@@ -46,7 +46,7 @@
 //! ```
 //!
 //! Plus one `Conn<Pico, Sxx>` per rate connecting the sample tier to
-//! the decimal SI-time tier from [`crate::fixed`].
+//! the decimal SI-time tier from [`crate::conn::fixed`].
 //!
 //! # Galois semantics for lossy `inner`
 //!

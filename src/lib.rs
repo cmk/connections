@@ -25,7 +25,7 @@
 //! | `F06`  | [`conn::fixed::Micro`]             | 1 µs                 |
 //! | `F09`  | [`conn::fixed::Nano`]              | 1 ns                 |
 //! | `F12`  | [`conn::fixed::Pico`]              | 1 ps                 |
-//! | `F64`  | [`conn::float::ExtendedFloat<f64>`]     | IEEE double          |
+//! | `F64`  | [`ExtendedFloat<f64>`](conn::float::ExtendedFloat) | IEEE double          |
 //! | `S44`  | [`conn::sample::S44`]              | 1 sample @ 44.1 kHz  |
 //! | `S48`  | [`conn::sample::S48`]              | 1 sample @ 48 kHz    |
 //! | `S88`  | [`conn::sample::S88`]              | 1 sample @ 88.2 kHz  |

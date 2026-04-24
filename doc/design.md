@@ -203,6 +203,14 @@ The `inner` function embeds `ExtendedFloat<f32>` into `ExtendedFloat<f64>` prese
 `Bot`/`Top`/`NaN`/finite structure. The `ceil` and `floor` functions convert
 in the other direction with appropriate rounding.
 
+> **Status (2026-04-23):** This shape is aspirational — the current
+> `f64_f32()` function in `src/conn/float.rs` still returns
+> `Conn<f64, f32>` over bare floats and ULP-walks under the N5
+> preorder from `lattice::Ple`. Switching to `ExtendedFloat`-typed
+> connections is its own sprint; `ExtendedFloat` lives alongside
+> the bare-float connections in `src/conn/float.rs` waiting to be
+> used.
+
 Connections between integer types do not need `ExtendedFloat` — integer `Ord` is
 total and well-behaved. The `Extended<T>` enum (with `NegInf`, `Finite(T)`,
 `PosInf`) from the Haskell library is only needed for connections where the
