@@ -408,7 +408,11 @@ mod tests {
     /// idempotent). Non-round-trip properties can use the looser
     /// [`bounded_fine`] instead.
     fn safe_fine_rate(num: i128) -> impl Strategy<Value = i64> {
-        let guard = num as i64;
+        // All current NUM values (≤ 640) fit trivially in i64. The
+        // i128 parameter carries the API shape; `as i64` would
+        // silently truncate a future NUM > i64::MAX, so use
+        // try_from so the assumption trips in tests if violated.
+        let guard: i64 = i64::try_from(num).expect("NUM fits i64");
         let limit = i64::MAX - guard;
         prop_oneof![
             1 => Just(0_i64),
@@ -593,7 +597,12 @@ mod tests {
                 /// scales that back up by NUM/DEN). Cap at
                 /// `|p| ≤ i64::MAX − NUM`.
                 fn safe_pico_bounded() -> impl Strategy<Value = i64> {
-                    let guard = $num as i64;
+                    // All current NUM values (max 9_765_625) fit in
+                    // i64. `as i64` would silently truncate a future
+                    // NUM > i64::MAX; try_from documents the
+                    // assumption and fails loudly if violated.
+                    let guard: i64 =
+                        i64::try_from($num as i128).expect("NUM fits i64");
                     let limit = i64::MAX - guard;
                     prop_oneof![
                         1 => Just(0_i64),

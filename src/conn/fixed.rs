@@ -389,6 +389,17 @@ mod tests {
     /// idempotent). Non-round-trip properties (adjoint / monotone /
     /// galois_{upper,lower} / kernel) can use the full-range
     /// [`bounded_fine`] instead.
+    ///
+    /// **Coverage note.** For large PREC (e.g. 10¹² on the F12F?? pair)
+    /// this cap shrinks the domain to roughly 1/PREC of i64's full
+    /// range, so closure/idempotent are only validated over a small
+    /// slice of the extreme values that adjoint/monotone reach via
+    /// [`bounded_fine`]. That is mathematically acceptable because
+    /// closure + idempotent follow from the adjoint law — a bug at
+    /// the extreme range would surface as an adjoint failure first.
+    /// The three new properties cover the algebraic identities, not
+    /// the extreme domain; [`galois_upper`]/[`galois_lower`] remain
+    /// the load-bearing extreme-domain coverage.
     fn safe_fine(prec: i64) -> impl Strategy<Value = i64> {
         let limit = (i64::MAX / prec) * prec;
         prop_oneof![

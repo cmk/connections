@@ -36,3 +36,67 @@ Deferred (tracked in plan Review):
 - Property-helper macros (`prop_adjoint!`, `prop_closure!`, …).
 - Lifting `arb_extended_*` into `property.rs` (only if another tier needs them).
 - `cargo fmt --all` sweep + rust-toolchain bump — good CI-hardening sprint.
+
+## Local review (2026-04-23)
+
+**Branch:** sprint/proptest-audit
+**Commits:** 7 (origin/sprint/file-tree-reorg..HEAD post-follow-ups)
+**Reviewer:** Claude (sonnet, independent)
+
+---
+
+### Findings
+
+Tier-1 reviewed the Sprint C delta (888 lines, 6 commits) against
+plan + calibration. **Zero must-fix.** Two follow-ups, both
+addressed in the subsequent `fix:` commit:
+
+1. **[follow-up] Coverage note for `safe_fine`.** Reviewer observed
+   that for large PREC (10¹² on F12F??), the cap shrinks the domain
+   to ~1/PREC of i64 range. Mathematically sound (closure follows
+   from adjoint, which tests the extreme range via `bounded_fine`)
+   but worth documenting. Added a `**Coverage note**` block to the
+   `safe_fine` docstring making the tradeoff explicit and pointing
+   at `galois_upper`/`galois_lower` as the load-bearing extreme-
+   domain coverage.
+
+2. **[follow-up] Silent `i128 → i64` truncation.** `safe_fine_rate`
+   and `safe_pico_bounded` cast `NUM as i64` which would truncate
+   silently if a future connection had NUM > i64::MAX (not current,
+   all NUM values ≤ 9_765_625). Replaced both casts with
+   `i64::try_from(num).expect("NUM fits i64")` so the assumption
+   documents itself and trips loudly if violated.
+
+### Verified correct (no change needed)
+
+- Cap derivations for all three safe strategies
+  (`safe_fine`, `safe_fine_rate`, `safe_pico_bounded`).
+- Property predicates match design.md §"Key properties".
+- NaN equality correctly uses custom `PartialEq` on
+  `ExtendedFloat<f64>` (via `once == twice`) in `float_conn_props!`
+  and `prop_assert_eq!` on integer tiers.
+- `#[cfg(test)] pub(crate) mod property` gates `proptest` dev-dep
+  from public build.
+- `proptest.toml` at crate root is picked up by cargo test;
+  per-block `ProptestConfig` overrides take precedence (documented
+  priority).
+- 6-law contract covered across all 44 conns (21 ladder + 2
+  float-conn + 15 rate↔rate + 6 pico↔rate).
+
+### Plan Conformance
+
+| Task | Status |
+|------|--------|
+| T1 property.rs populate | ✓ |
+| T2 centralize + rewire | ✓ |
+| T3 ladder +closure +idempotent | ✓ (+63) |
+| T4 float-conn +idempotent | ✓ (+2) |
+| T5 sample +closure +idempotent | ✓ (+63) |
+| T6 proptest.toml + review | ✓ |
+
+### Recommendations
+
+**Must fix before push:** None.
+
+**Follow-up:** Already tracked in plan Review and addressed in the
+follow-up fix commit.
