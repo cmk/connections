@@ -1,18 +1,49 @@
 stages:
+  - check
   - test
+  - audit
 
-test:
-  stage: test
-  image: rust:latest
-  variables:
-    CARGO_TERM_COLOR: always
-  before_script:
-    - rustup component add clippy
-  script:
-    - cargo test
-    - cargo clippy --all-targets -- -D warnings
+default:
+  image: rust:1.85
   cache:
     key: cargo
     paths:
       - target/
       - .cargo/
+
+variables:
+  CARGO_TERM_COLOR: always
+
+fmt:
+  stage: check
+  before_script:
+    - rustup component add rustfmt
+  script:
+    - cargo fmt --all -- --check
+  allow_failure: true
+
+clippy:
+  stage: check
+  before_script:
+    - rustup component add clippy
+  script:
+    - cargo clippy --all-targets -- -D warnings
+
+test:
+  stage: test
+  script:
+    - cargo test --workspace
+
+deny:
+  stage: audit
+  before_script:
+    - cargo install --locked cargo-deny
+  script:
+    - cargo deny check
+
+gitleaks:
+  stage: audit
+  image: zricethezav/gitleaks:latest
+  cache: []
+  script:
+    - gitleaks detect --source . --verbose
