@@ -395,6 +395,31 @@ mod tests {
         ]
     }
 
+    /// Fine-side strategy restricted to values whose round-trip
+    /// `inner(ceil(_))` fits in i64.
+    ///
+    /// `ceil(Fine(x))` produces `Coarse(q)` where
+    /// `q = ⌈x · den / num⌉`. `inner(Coarse(q)) = Fine(q · num / den)`.
+    /// Algebra: `q · num / den − x ∈ [0, num/den)`, so the round-trip
+    /// output can exceed the input by up to `num − 1`. To keep the
+    /// output in i64, cap `|x| ≤ i64::MAX − num`.
+    ///
+    /// Use for properties that round-trip through `inner` (closure,
+    /// idempotent). Non-round-trip properties can use the looser
+    /// [`bounded_fine`] instead.
+    fn safe_fine_rate(num: i128) -> impl Strategy<Value = i64> {
+        let guard = num as i64;
+        let limit = i64::MAX - guard;
+        prop_oneof![
+            1 => Just(0_i64),
+            1 => Just(1_i64),
+            1 => Just(-1_i64),
+            1 => Just(limit),
+            1 => Just(-limit),
+            5 => -limit..=limit,
+        ]
+    }
+
     macro_rules! props_for_conn {
         ($mod:ident, $conn:ident, $Fine:ident, $Coarse:ident, $num:expr, $den:expr) => {
             mod $mod {
@@ -475,6 +500,31 @@ mod tests {
                             prop_assert_eq!($conn.floor($conn.inner(cb)), cb);
                         }
                     }
+
+                    // Closure: a ≤ inner(ceil(a))
+                    // Uses safe_fine_rate because the round-trip can
+                    // grow by up to num/den < num units; see its docs.
+                    #[test]
+                    fn prop_closure_l(x in safe_fine_rate($num)) {
+                        let a = $Fine::from_bits(x);
+                        prop_assert!(a <= $conn.inner($conn.ceil(a)));
+                    }
+
+                    // Closure dual: inner(floor(a)) ≤ a
+                    #[test]
+                    fn prop_closure_r(x in safe_fine_rate($num)) {
+                        let a = $Fine::from_bits(x);
+                        prop_assert!($conn.inner($conn.floor(a)) <= a);
+                    }
+
+                    // Idempotent: inner∘ceil is idempotent on its image.
+                    #[test]
+                    fn prop_idempotent(x in safe_fine_rate($num)) {
+                        let a = $Fine::from_bits(x);
+                        let once = $conn.inner($conn.ceil(a));
+                        let twice = $conn.inner($conn.ceil(once));
+                        prop_assert_eq!(once, twice);
+                    }
                 }
             }
         };
@@ -526,6 +576,25 @@ mod tests {
                     // iff |bits| < i64::MAX · DEN / NUM.
                     let limit = (i64::MAX as i128 * $den / ($num as i128).max(1)) as i64;
                     let limit = limit.max(1);
+                    prop_oneof![
+                        1 => Just(0_i64),
+                        1 => Just(1_i64),
+                        1 => Just(-1_i64),
+                        1 => Just(limit),
+                        1 => Just(-limit),
+                        5 => -limit..=limit,
+                    ]
+                }
+
+                /// Pico bits restricted so `inner(ceil(p))` fits i64.
+                ///
+                /// Round-trip growth is at most NUM/DEN < NUM picoseconds
+                /// (worst-case: ceil rounds up by < 1 Sxx-bit, inner
+                /// scales that back up by NUM/DEN). Cap at
+                /// `|p| ≤ i64::MAX − NUM`.
+                fn safe_pico_bounded() -> impl Strategy<Value = i64> {
+                    let guard = $num as i64;
+                    let limit = i64::MAX - guard;
                     prop_oneof![
                         1 => Just(0_i64),
                         1 => Just(1_i64),
@@ -606,6 +675,31 @@ mod tests {
                             $conn.inner(ss) <= pp,
                             ss <= $conn.floor(pp)
                         );
+                    }
+
+                    // Closure: a ≤ inner(ceil(a))
+                    // Uses safe_pico_bounded because the round-trip
+                    // can grow p by up to NUM/DEN picoseconds.
+                    #[test]
+                    fn prop_closure_l(p in safe_pico_bounded()) {
+                        let a = Pico(p);
+                        prop_assert!(a <= $conn.inner($conn.ceil(a)));
+                    }
+
+                    // Closure dual: inner(floor(a)) ≤ a
+                    #[test]
+                    fn prop_closure_r(p in safe_pico_bounded()) {
+                        let a = Pico(p);
+                        prop_assert!($conn.inner($conn.floor(a)) <= a);
+                    }
+
+                    // Idempotent: inner∘ceil is idempotent on its image.
+                    #[test]
+                    fn prop_idempotent(p in safe_pico_bounded()) {
+                        let a = Pico(p);
+                        let once = $conn.inner($conn.ceil(a));
+                        let twice = $conn.inner($conn.ceil(once));
+                        prop_assert_eq!(once, twice);
                     }
                 }
             }
