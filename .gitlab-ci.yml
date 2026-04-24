@@ -47,3 +47,26 @@ gitleaks:
   cache: []
   script:
     - gitleaks detect --source . --verbose
+
+claude-review:
+  stage: audit
+  image: python:3.12-slim
+  cache: []
+  # Needs full history so `git diff base...head` can resolve the
+  # merge-base commit; GitLab's default GIT_DEPTH is shallow.
+  variables:
+    GIT_DEPTH: "0"
+  before_script:
+    - apt-get update -qq && apt-get install -qq -y git
+    - pip install --quiet anthropic
+  script:
+    - python3 scripts/claude_review.py
+  # Advisory, never blocking: a misread from the AI reviewer must not
+  # wedge a merge. Findings land as MR discussions — triage via the
+  # usual /pull-reviews → fix → /reply-reviews loop.
+  allow_failure: true
+  rules:
+    # Only on MR events, and only when both secrets are wired. This
+    # keeps the job invisible until Project → Settings → CI/CD →
+    # Variables has ANTHROPIC_API_KEY and GITLAB_TOKEN set.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $ANTHROPIC_API_KEY && $GITLAB_TOKEN

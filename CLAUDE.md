@@ -182,6 +182,32 @@ One file per MR: `doc/reviews/review-NNNNN.md` (zero-padded iid). Its
 subsequent sections accumulate local reviews and GitLab discussion
 mirrors. `review-00000.md` is a deliberate sentinel — do not delete.
 
+### Automated MR reviewer (`claude-review` CI job)
+
+`.gitlab-ci.yml` runs a `claude-review` job on every MR that posts
+Claude's review findings as MR discussion notes, anchored inline
+(file:line) where the diff permits, falling back to general comments
+otherwise. The job is **advisory-only** (`allow_failure: true`) — the
+AI never blocks merges; its findings flow through the normal
+`/pull-reviews` → fix → `/reply-reviews` loop.
+
+The job is gated behind two CI variables and silently no-ops if
+either is missing:
+
+- `ANTHROPIC_API_KEY` — Claude API key (Project → Settings → CI/CD →
+  Variables; masked, protected).
+- `GITLAB_TOKEN` — Project Access Token or PAT with `api` scope
+  (same place; masked). Required for posting discussions.
+
+Optional `CLAUDE_MODEL` overrides the default `claude-sonnet-4-6`
+(set to `claude-opus-4-7` for deeper review at ~2× cost and latency).
+
+Implementation: `scripts/claude_review.py` — prompt-cached system
+prompt + CLAUDE.md + calibration examples, then the diff. Parses
+Claude's JSON finding array and POSTs each to
+`/projects/:id/merge_requests/:iid/discussions` with the required
+`position[*]` fields for inline anchoring.
+
 ## Sprint plan format
 
 ```markdown
