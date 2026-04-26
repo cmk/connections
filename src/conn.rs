@@ -300,9 +300,10 @@ mod tests {
 
     use crate::compose;
     use crate::conn::fixed::{
-        bounded_coarse, bounded_fine, safe_fine, HasResolution, Micro, Milli, Pico, Uni, F03F00,
-        F06F03, F06F00, F09F06, F12F00, F12F06, F12F09,
+        HasResolution, Micro, Milli, Pico, Uni, F03F00, F06F03, F06F00, F09F06, F12F00, F12F06,
+        F12F09,
     };
+    use crate::property::arb::{fixed_coarse, fixed_fine, fixed_safe_fine};
 
     const COMPOSED_F12F00: Conn<Pico, Uni> = compose!(F12F09, F09F06, F06F03, F03F00);
 
@@ -370,7 +371,7 @@ mod tests {
 
     #[test]
     fn compose_inner_at_uni_safe_boundary() {
-        // `bounded_coarse(Pico::PREC)` narrows to |c| ≤ i64::MAX / 1e12
+        // `fixed_coarse(Pico::PREC)` narrows to |c| ≤ i64::MAX / 1e12
         // because `inner(c) = c · 1e12` overflows past that. The
         // narrowing is architectural (it applies identically to
         // `F12F00.inner`); confirm composed and hand-written agree at
@@ -393,7 +394,7 @@ mod tests {
         // Pico (×1e3), total ratio 1e6.
         #[test]
         fn compose_two_step_ceil_floor_match_nested(
-            p in bounded_fine(1_000_000_000_000i64),
+            p in fixed_fine(1_000_000_000_000i64),
         ) {
             let composed: Conn<Pico, Micro> = compose!(F12F09, F09F06);
             let pico = Pico(p);
@@ -403,7 +404,7 @@ mod tests {
 
         #[test]
         fn compose_two_step_inner_matches_nested(
-            m in bounded_coarse(Pico::PREC / Micro::PREC),
+            m in fixed_coarse(Pico::PREC / Micro::PREC),
         ) {
             let composed: Conn<Pico, Micro> = compose!(F12F09, F09F06);
             let micro = Micro(m);
@@ -421,8 +422,8 @@ mod tests {
         // capped at i64::MAX / 1e9.
         #[test]
         fn compose_three_step_matches_nested(
-            p in bounded_fine(1_000_000_000_000i64),
-            m in bounded_coarse(Pico::PREC / Milli::PREC),
+            p in fixed_fine(1_000_000_000_000i64),
+            m in fixed_coarse(Pico::PREC / Milli::PREC),
         ) {
             let composed: Conn<Pico, Milli> = compose!(F12F09, F09F06, F06F03);
             let pico  = Pico(p);
@@ -444,7 +445,7 @@ mod tests {
         // Four-step (Pico→Uni). Same domain split as two-step.
         #[test]
         fn compose_four_step_ceil_floor_match_handcoded(
-            p in bounded_fine(1_000_000_000_000i64),
+            p in fixed_fine(1_000_000_000_000i64),
         ) {
             let pico = Pico(p);
             prop_assert_eq!(COMPOSED_F12F00.ceil(pico),  F12F00.ceil(pico));
@@ -453,7 +454,7 @@ mod tests {
 
         #[test]
         fn compose_four_step_inner_matches_handcoded(
-            u in bounded_coarse(Pico::PREC),
+            u in fixed_coarse(Pico::PREC),
         ) {
             let uni = Uni(u);
             prop_assert_eq!(COMPOSED_F12F00.inner(uni), F12F00.inner(uni));
@@ -463,13 +464,13 @@ mod tests {
         // Mirrors the invariants `props_for_pair!` checks; uses
         // F12F00's PREC (1e12) to scope the Coarse generators.
         #[test]
-        fn compose_inner_then_ceil_is_id(c in bounded_coarse(1_000_000_000_000i64)) {
+        fn compose_inner_then_ceil_is_id(c in fixed_coarse(1_000_000_000_000i64)) {
             let b = Uni(c);
             prop_assert_eq!(COMPOSED_F12F00.ceil(COMPOSED_F12F00.inner(b)), b);
         }
 
         #[test]
-        fn compose_inner_then_floor_is_id(c in bounded_coarse(1_000_000_000_000i64)) {
+        fn compose_inner_then_floor_is_id(c in fixed_coarse(1_000_000_000_000i64)) {
             let b = Uni(c);
             prop_assert_eq!(COMPOSED_F12F00.floor(COMPOSED_F12F00.inner(b)), b);
         }
@@ -481,7 +482,7 @@ mod tests {
         // `F12F00` directly by `props_for_pair!` in
         // `src/conn/fixed.rs`; we don't re-assert it here.
         #[test]
-        fn compose_floor_le_ceil(p in bounded_fine(1_000_000_000_000i64)) {
+        fn compose_floor_le_ceil(p in fixed_fine(1_000_000_000_000i64)) {
             let pico = Pico(p);
             let c = COMPOSED_F12F00.ceil(pico);
             let f = COMPOSED_F12F00.floor(pico);
@@ -490,8 +491,8 @@ mod tests {
 
         #[test]
         fn compose_galois_upper(
-            p in bounded_fine(1_000_000_000_000i64),
-            c in bounded_coarse(1_000_000_000_000i64),
+            p in fixed_fine(1_000_000_000_000i64),
+            c in fixed_coarse(1_000_000_000_000i64),
         ) {
             let pico = Pico(p);
             let uni  = Uni(c);
@@ -503,8 +504,8 @@ mod tests {
 
         #[test]
         fn compose_galois_lower(
-            p in bounded_fine(1_000_000_000_000i64),
-            c in bounded_coarse(1_000_000_000_000i64),
+            p in fixed_fine(1_000_000_000_000i64),
+            c in fixed_coarse(1_000_000_000_000i64),
         ) {
             let pico = Pico(p);
             let uni  = Uni(c);
@@ -515,7 +516,7 @@ mod tests {
         }
 
         #[test]
-        fn compose_idempotent(p in safe_fine(1_000_000_000_000i64)) {
+        fn compose_idempotent(p in fixed_safe_fine(1_000_000_000_000i64)) {
             let pico = Pico(p);
             let once  = COMPOSED_F12F00.inner(COMPOSED_F12F00.ceil(pico));
             let twice = COMPOSED_F12F00.inner(COMPOSED_F12F00.ceil(once));

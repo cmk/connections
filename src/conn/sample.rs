@@ -275,6 +275,9 @@ pico_conn!(F12S192, S192, 1_953_125,  24_576);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::property::arb::{
+        pico_coarse, pico_fine, pico_safe, rate_coarse, rate_fine, rate_safe_fine,
+    };
     use proptest::prelude::*;
 
     // ─────────────────────────────────────────────
@@ -359,70 +362,9 @@ mod tests {
     //     the embedding is lossy so the round-trip may differ by 1 ULP,
     //     which the Galois laws already bound)
     //
-    // To keep NUM overflows tame, bound `Coarse` bits so
-    // |bits · NUM| < i128::MAX / 2.
+    // Strategies (`rate_coarse`, `rate_fine`, `rate_safe_fine`) live
+    // in `crate::property::arb`.
     // ─────────────────────────────────────────────
-
-    fn bounded_coarse(num: i128) -> impl Strategy<Value = i64> {
-        // `inner(c)` computes `c · NUM / DEN` and casts to i64. For
-        // that to fit, |c · NUM| must be < i64::MAX, so
-        // |c| < i64::MAX / NUM.
-        let limit = (i64::MAX as i128 / num.max(1)) as i64;
-        let limit = limit.max(1);
-        prop_oneof![
-            1 => Just(0_i64),
-            1 => Just(1_i64),
-            1 => Just(-1_i64),
-            1 => Just(limit),
-            1 => Just(-limit),
-            5 => -limit..=limit,
-        ]
-    }
-
-    fn bounded_fine(den: i128, _num: i128) -> impl Strategy<Value = i64> {
-        // ceil / floor compute `x · DEN ± (DEN-1)` as i128 (never
-        // overflows for DEN ≤ 10^7 and x in i64). The i64 cast of the
-        // result fits because dividing by NUM ≥ DEN shrinks or
-        // preserves magnitude. Any i64 is safe; bias to boundaries.
-        let near_max = i64::MAX - den as i64 - 1;
-        prop_oneof![
-            1 => Just(0_i64),
-            1 => Just(1_i64),
-            1 => Just(-1_i64),
-            1 => Just(near_max),
-            1 => Just(-near_max),
-            5 => -near_max..=near_max,
-        ]
-    }
-
-    /// Fine-side strategy restricted to values whose round-trip
-    /// `inner(ceil(_))` fits in i64.
-    ///
-    /// `ceil(Fine(x))` produces `Coarse(q)` where
-    /// `q = ⌈x · den / num⌉`. `inner(Coarse(q)) = Fine(q · num / den)`.
-    /// Algebra: `q · num / den − x ∈ [0, num/den)`, so the round-trip
-    /// output can exceed the input by up to `num − 1`. To keep the
-    /// output in i64, cap `|x| ≤ i64::MAX − num`.
-    ///
-    /// Use for properties that round-trip through `inner` (closure,
-    /// idempotent). Non-round-trip properties can use the looser
-    /// [`bounded_fine`] instead.
-    fn safe_fine_rate(num: i128) -> impl Strategy<Value = i64> {
-        // All current NUM values (≤ 640) fit trivially in i64. The
-        // i128 parameter carries the API shape; `as i64` would
-        // silently truncate a future NUM > i64::MAX, so use
-        // try_from so the assumption trips in tests if violated.
-        let guard: i64 = i64::try_from(num).expect("NUM fits i64");
-        let limit = i64::MAX - guard;
-        prop_oneof![
-            1 => Just(0_i64),
-            1 => Just(1_i64),
-            1 => Just(-1_i64),
-            1 => Just(limit),
-            1 => Just(-limit),
-            5 => -limit..=limit,
-        ]
-    }
 
     macro_rules! props_for_conn {
         ($mod:ident, $conn:ident, $Fine:ident, $Coarse:ident, $num:expr, $den:expr) => {
@@ -432,8 +374,8 @@ mod tests {
                 proptest! {
                     #[test]
                     fn ceil_monotone(
-                        x in bounded_fine($den, $num),
-                        y in bounded_fine($den, $num),
+                        x in rate_fine($den, $num),
+                        y in rate_fine($den, $num),
                     ) {
                         let (lo, hi) = if x <= y { ($Fine::from_bits(x), $Fine::from_bits(y)) }
                                        else     { ($Fine::from_bits(y), $Fine::from_bits(x)) };
@@ -442,8 +384,8 @@ mod tests {
 
                     #[test]
                     fn floor_monotone(
-                        x in bounded_fine($den, $num),
-                        y in bounded_fine($den, $num),
+                        x in rate_fine($den, $num),
+                        y in rate_fine($den, $num),
                     ) {
                         let (lo, hi) = if x <= y { ($Fine::from_bits(x), $Fine::from_bits(y)) }
                                        else     { ($Fine::from_bits(y), $Fine::from_bits(x)) };
@@ -452,8 +394,8 @@ mod tests {
 
                     #[test]
                     fn inner_monotone(
-                        a in bounded_coarse($num),
-                        b in bounded_coarse($num),
+                        a in rate_coarse($num),
+                        b in rate_coarse($num),
                     ) {
                         let (lo, hi) = if a <= b { ($Coarse::from_bits(a), $Coarse::from_bits(b)) }
                                        else     { ($Coarse::from_bits(b), $Coarse::from_bits(a)) };
@@ -461,15 +403,15 @@ mod tests {
                     }
 
                     #[test]
-                    fn floor_le_ceil(x in bounded_fine($den, $num)) {
+                    fn floor_le_ceil(x in rate_fine($den, $num)) {
                         let fx = $Fine::from_bits(x);
                         prop_assert!($conn.floor(fx) <= $conn.ceil(fx));
                     }
 
                     #[test]
                     fn galois_upper(
-                        x in bounded_fine($den, $num),
-                        b in bounded_coarse($num),
+                        x in rate_fine($den, $num),
+                        b in rate_coarse($num),
                     ) {
                         let fx = $Fine::from_bits(x);
                         let cb = $Coarse::from_bits(b);
@@ -481,8 +423,8 @@ mod tests {
 
                     #[test]
                     fn galois_lower(
-                        x in bounded_fine($den, $num),
-                        b in bounded_coarse($num),
+                        x in rate_fine($den, $num),
+                        b in rate_coarse($num),
                     ) {
                         let fx = $Fine::from_bits(x);
                         let cb = $Coarse::from_bits(b);
@@ -493,7 +435,7 @@ mod tests {
                     }
 
                     #[test]
-                    fn inner_then_ceil_integer_ratio(b in bounded_coarse($num)) {
+                    fn inner_then_ceil_integer_ratio(b in rate_coarse($num)) {
                         // For DEN = 1 the embedding is exact, so
                         // ceil(inner(b)) == b and floor(inner(b)) == b.
                         // For DEN > 1 the embedding is lossy; skip this
@@ -506,24 +448,24 @@ mod tests {
                     }
 
                     // Closure: a ≤ inner(ceil(a))
-                    // Uses safe_fine_rate because the round-trip can
+                    // Uses rate_safe_fine because the round-trip can
                     // grow by up to num/den < num units; see its docs.
                     #[test]
-                    fn prop_closure_l(x in safe_fine_rate($num)) {
+                    fn prop_closure_l(x in rate_safe_fine($num)) {
                         let a = $Fine::from_bits(x);
                         prop_assert!(a <= $conn.inner($conn.ceil(a)));
                     }
 
                     // Closure dual: inner(floor(a)) ≤ a
                     #[test]
-                    fn prop_closure_r(x in safe_fine_rate($num)) {
+                    fn prop_closure_r(x in rate_safe_fine($num)) {
                         let a = $Fine::from_bits(x);
                         prop_assert!($conn.inner($conn.floor(a)) <= a);
                     }
 
                     // Idempotent: inner∘ceil is idempotent on its image.
                     #[test]
-                    fn prop_idempotent(x in safe_fine_rate($num)) {
+                    fn prop_idempotent(x in rate_safe_fine($num)) {
                         let a = $Fine::from_bits(x);
                         let once = $conn.inner($conn.ceil(a));
                         let twice = $conn.inner($conn.ceil(once));
@@ -561,64 +503,11 @@ mod tests {
             mod $mod {
                 use super::*;
 
-                fn pico_bounded() -> impl Strategy<Value = i64> {
-                    // ceil/floor of Pico produce Sxx-bits: pico · DEN / NUM,
-                    // which shrinks by DEN/NUM < 1, so any i64 fits.
-                    // `pico · DEN` stays in i128 trivially for DEN ≤ 113_000.
-                    prop_oneof![
-                        1 => Just(0_i64),
-                        1 => Just(1_i64),
-                        1 => Just(-1_i64),
-                        1 => Just(i64::MAX),
-                        1 => Just(i64::MIN + 1),
-                        5 => any::<i64>(),
-                    ]
-                }
-
-                fn sample_bounded() -> impl Strategy<Value = i64> {
-                    // inner(Sxx) returns Pico(bits · NUM / DEN). Fits i64
-                    // iff |bits| < i64::MAX · DEN / NUM.
-                    let limit = (i64::MAX as i128 * $den / ($num as i128).max(1)) as i64;
-                    let limit = limit.max(1);
-                    prop_oneof![
-                        1 => Just(0_i64),
-                        1 => Just(1_i64),
-                        1 => Just(-1_i64),
-                        1 => Just(limit),
-                        1 => Just(-limit),
-                        5 => -limit..=limit,
-                    ]
-                }
-
-                /// Pico bits restricted so `inner(ceil(p))` fits i64.
-                ///
-                /// Round-trip growth is at most NUM/DEN < NUM picoseconds
-                /// (worst-case: ceil rounds up by < 1 Sxx-bit, inner
-                /// scales that back up by NUM/DEN). Cap at
-                /// `|p| ≤ i64::MAX − NUM`.
-                fn safe_pico_bounded() -> impl Strategy<Value = i64> {
-                    // All current NUM values (max 9_765_625) fit in
-                    // i64. `as i64` would silently truncate a future
-                    // NUM > i64::MAX; try_from documents the
-                    // assumption and fails loudly if violated.
-                    let guard: i64 =
-                        i64::try_from($num as i128).expect("NUM fits i64");
-                    let limit = i64::MAX - guard;
-                    prop_oneof![
-                        1 => Just(0_i64),
-                        1 => Just(1_i64),
-                        1 => Just(-1_i64),
-                        1 => Just(limit),
-                        1 => Just(-limit),
-                        5 => -limit..=limit,
-                    ]
-                }
-
                 proptest! {
                     #[test]
                     fn ceil_monotone(
-                        a in pico_bounded(),
-                        b in pico_bounded(),
+                        a in pico_fine(),
+                        b in pico_fine(),
                     ) {
                         let (lo, hi) = if a <= b { (Pico(a), Pico(b)) }
                                        else     { (Pico(b), Pico(a)) };
@@ -627,8 +516,8 @@ mod tests {
 
                     #[test]
                     fn floor_monotone(
-                        a in pico_bounded(),
-                        b in pico_bounded(),
+                        a in pico_fine(),
+                        b in pico_fine(),
                     ) {
                         let (lo, hi) = if a <= b { (Pico(a), Pico(b)) }
                                        else     { (Pico(b), Pico(a)) };
@@ -637,8 +526,8 @@ mod tests {
 
                     #[test]
                     fn inner_monotone(
-                        a in sample_bounded(),
-                        b in sample_bounded(),
+                        a in pico_coarse($num, $den),
+                        b in pico_coarse($num, $den),
                     ) {
                         let (lo, hi) = if a <= b { ($Rate::from_bits(a), $Rate::from_bits(b)) }
                                        else     { ($Rate::from_bits(b), $Rate::from_bits(a)) };
@@ -646,12 +535,12 @@ mod tests {
                     }
 
                     #[test]
-                    fn floor_le_ceil(p in pico_bounded()) {
+                    fn floor_le_ceil(p in pico_fine()) {
                         prop_assert!($conn.floor(Pico(p)) <= $conn.ceil(Pico(p)));
                     }
 
                     #[test]
-                    fn ulp_bound(p in pico_bounded()) {
+                    fn ulp_bound(p in pico_fine()) {
                         // Rate ↔ Pico is a monotone fractional ratio;
                         // ceil and floor can differ by at most one
                         // Sxx Q48.16 ULP for any input.
@@ -662,8 +551,8 @@ mod tests {
 
                     #[test]
                     fn galois_upper(
-                        p in pico_bounded(),
-                        s in sample_bounded(),
+                        p in pico_fine(),
+                        s in pico_coarse($num, $den),
                     ) {
                         let pp = Pico(p);
                         let ss = $Rate::from_bits(s);
@@ -675,8 +564,8 @@ mod tests {
 
                     #[test]
                     fn galois_lower(
-                        p in pico_bounded(),
-                        s in sample_bounded(),
+                        p in pico_fine(),
+                        s in pico_coarse($num, $den),
                     ) {
                         let pp = Pico(p);
                         let ss = $Rate::from_bits(s);
@@ -687,24 +576,24 @@ mod tests {
                     }
 
                     // Closure: a ≤ inner(ceil(a))
-                    // Uses safe_pico_bounded because the round-trip
+                    // Uses pico_safe because the round-trip
                     // can grow p by up to NUM/DEN picoseconds.
                     #[test]
-                    fn prop_closure_l(p in safe_pico_bounded()) {
+                    fn prop_closure_l(p in pico_safe($num)) {
                         let a = Pico(p);
                         prop_assert!(a <= $conn.inner($conn.ceil(a)));
                     }
 
                     // Closure dual: inner(floor(a)) ≤ a
                     #[test]
-                    fn prop_closure_r(p in safe_pico_bounded()) {
+                    fn prop_closure_r(p in pico_safe($num)) {
                         let a = Pico(p);
                         prop_assert!($conn.inner($conn.floor(a)) <= a);
                     }
 
                     // Idempotent: inner∘ceil is idempotent on its image.
                     #[test]
-                    fn prop_idempotent(p in safe_pico_bounded()) {
+                    fn prop_idempotent(p in pico_safe($num)) {
                         let a = Pico(p);
                         let once = $conn.inner($conn.ceil(a));
                         let twice = $conn.inner($conn.ceil(once));

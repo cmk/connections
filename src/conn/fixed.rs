@@ -297,86 +297,13 @@ float_conn!(F64F06, f64, Micro, 1_000_000);
 float_conn!(F64F09, f64, Nano,  1_000_000_000);
 float_conn!(F64F12, f64, Pico,  1_000_000_000_000);
 
-// ────────────────────────────────────────────────────────────
-// Proptest strategies (test-only, crate-visible)
-//
-// For each (Fine, Coarse) pair with ratio PREC, the `inner` call
-// computes `coarse * PREC` which must fit i64. Strategies clamp
-// the coarse-side input to `|x| < i64::MAX / PREC` to avoid
-// overflow inside the connection itself. The fine-side input is
-// bounded by i64 range naturally.
-//
-// These are `pub(crate)` so `crate::conn`'s test module can reuse
-// them when exercising the `compose!` macro on the F-ladder.
-// ────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-pub(crate) fn bounded_coarse(prec: i64) -> impl proptest::strategy::Strategy<Value = i64> {
-    use proptest::prelude::*;
-    let limit = i64::MAX / prec;
-    prop_oneof![
-        1 => Just(0_i64),
-        1 => Just(1_i64),
-        1 => Just(-1_i64),
-        1 => Just(limit),
-        1 => Just(-limit),
-        5 => -limit..=limit,
-    ]
-}
-
-#[cfg(test)]
-pub(crate) fn bounded_fine(prec: i64) -> impl proptest::strategy::Strategy<Value = i64> {
-    use proptest::prelude::*;
-    // Fine-side can hit full i64 range safely; `floor(fine, prec)`
-    // and `ceil(fine, prec)` both fit in i64. Bias toward boundaries.
-    prop_oneof![
-        1 => Just(0_i64),
-        1 => Just(prec),
-        1 => Just(-prec),
-        1 => Just(prec - 1),
-        1 => Just(-(prec - 1)),
-        1 => Just(prec + 1),
-        1 => Just(-(prec + 1)),
-        1 => Just(i64::MAX),
-        1 => Just(i64::MIN + 1), // i64::MIN causes overflow under negation in some checks
-        5 => any::<i64>(),
-    ]
-}
-
-/// Fine-side strategy restricted to values whose `inner(ceil(_))`
-/// round-trip does not overflow.
-///
-/// `inner(c) = c * PREC`, so the safe Fine range is
-/// `|fine| ≤ (i64::MAX / PREC) * PREC` — i.e. every Fine value
-/// that `ceil` can map without pushing the resulting Coarse past
-/// `i64::MAX / PREC`, since `inner` then multiplies by PREC.
-///
-/// Use for properties that round-trip through `inner` (closure,
-/// idempotent). Non-round-trip properties (adjoint / monotone /
-/// galois_{upper,lower} / kernel) can use the full-range
-/// [`bounded_fine`] instead.
-#[cfg(test)]
-pub(crate) fn safe_fine(prec: i64) -> impl proptest::strategy::Strategy<Value = i64> {
-    use proptest::prelude::*;
-    let limit = (i64::MAX / prec) * prec;
-    prop_oneof![
-        1 => Just(0_i64),
-        1 => Just(prec),
-        1 => Just(-prec),
-        1 => Just(prec - 1),
-        1 => Just(-(prec - 1)),
-        1 => Just(prec + 1),
-        1 => Just(-(prec + 1)),
-        1 => Just(limit),
-        1 => Just(-limit),
-        5 => -limit..=limit,
-    ]
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::arb_f64_bounded;
+    use crate::property::arb::{
+        extended_float_f64, extended_micro, extended_pico, fixed_coarse, fixed_fine,
+        fixed_safe_fine,
+    };
     use proptest::prelude::*;
 
     // Sanity spot checks (hand-computed).
@@ -414,11 +341,6 @@ mod tests {
         assert_eq!(F12F06.ceil(F12F06.inner(Micro(987))), Micro(987));
     }
 
-    // Proptest strategies live at module scope as `pub(crate)` so the
-    // crate's other test modules (e.g. `crate::conn`) can reuse them.
-    // See [`super::bounded_coarse`] / [`super::bounded_fine`] /
-    // [`super::safe_fine`] for the actual definitions.
-
     // Each test is written for one Conn and one (Fine, Coarse) pair,
     // then expanded via macro across the 21 connections.
 
@@ -429,31 +351,31 @@ mod tests {
 
                 proptest! {
                     #[test]
-                    fn inner_then_ceil_is_id(c in bounded_coarse($prec)) {
+                    fn inner_then_ceil_is_id(c in fixed_coarse($prec)) {
                         let b = $Coarse(c);
                         prop_assert_eq!($conn.ceil($conn.inner(b)), b);
                     }
 
                     #[test]
-                    fn inner_then_floor_is_id(c in bounded_coarse($prec)) {
+                    fn inner_then_floor_is_id(c in fixed_coarse($prec)) {
                         let b = $Coarse(c);
                         prop_assert_eq!($conn.floor($conn.inner(b)), b);
                     }
 
                     #[test]
-                    fn ceil_monotone(x in bounded_fine($prec), y in bounded_fine($prec)) {
+                    fn ceil_monotone(x in fixed_fine($prec), y in fixed_fine($prec)) {
                         let (lo, hi) = if x <= y { ($Fine(x), $Fine(y)) } else { ($Fine(y), $Fine(x)) };
                         prop_assert!($conn.ceil(lo) <= $conn.ceil(hi));
                     }
 
                     #[test]
-                    fn floor_monotone(x in bounded_fine($prec), y in bounded_fine($prec)) {
+                    fn floor_monotone(x in fixed_fine($prec), y in fixed_fine($prec)) {
                         let (lo, hi) = if x <= y { ($Fine(x), $Fine(y)) } else { ($Fine(y), $Fine(x)) };
                         prop_assert!($conn.floor(lo) <= $conn.floor(hi));
                     }
 
                     #[test]
-                    fn floor_le_ceil(x in bounded_fine($prec)) {
+                    fn floor_le_ceil(x in fixed_fine($prec)) {
                         let fx = $Fine(x);
                         let c = $conn.ceil(fx);
                         let f = $conn.floor(fx);
@@ -464,8 +386,8 @@ mod tests {
 
                     #[test]
                     fn galois_upper(
-                        x in bounded_fine($prec),
-                        c in bounded_coarse($prec),
+                        x in fixed_fine($prec),
+                        c in fixed_coarse($prec),
                     ) {
                         let fx = $Fine(x);
                         let cx = $Coarse(c);
@@ -478,8 +400,8 @@ mod tests {
 
                     #[test]
                     fn galois_lower(
-                        x in bounded_fine($prec),
-                        c in bounded_coarse($prec),
+                        x in fixed_fine($prec),
+                        c in fixed_coarse($prec),
                     ) {
                         let fx = $Fine(x);
                         let cx = $Coarse(c);
@@ -494,21 +416,21 @@ mod tests {
                     // Uses safe_fine because inner(ceil(a)) multiplies
                     // by PREC and must fit i64; see safe_fine docs.
                     #[test]
-                    fn prop_closure_l(x in safe_fine($prec)) {
+                    fn prop_closure_l(x in fixed_safe_fine($prec)) {
                         let a = $Fine(x);
                         prop_assert!(a <= $conn.inner($conn.ceil(a)));
                     }
 
                     // Closure dual: inner(floor(a)) ≤ a
                     #[test]
-                    fn prop_closure_r(x in safe_fine($prec)) {
+                    fn prop_closure_r(x in fixed_safe_fine($prec)) {
                         let a = $Fine(x);
                         prop_assert!($conn.inner($conn.floor(a)) <= a);
                     }
 
                     // Idempotent: inner∘ceil is idempotent on its image.
                     #[test]
-                    fn prop_idempotent(x in safe_fine($prec)) {
+                    fn prop_idempotent(x in fixed_safe_fine($prec)) {
                         let a = $Fine(x);
                         let once = $conn.inner($conn.ceil(a));
                         let twice = $conn.inner($conn.ceil(once));
@@ -563,44 +485,10 @@ mod tests {
 
     // ── ExtendedFloat<f??> → Extended<Rung> connections ─────────────────
     //
-    // Float source uses `arb_f64_bounded` from `crate::property` —
-    // `any::<f64>()` shrinks bit-by-bit through the mantissa and
-    // dominates runtime without finding structural bugs. A bounded
-    // range plus explicit boundaries gives wide enough adjoint-law
-    // coverage. See `property.rs` for the rationale.
-
-    fn arb_extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
-        prop_oneof![
-            1 => Just(ExtendedFloat::Bot),
-            1 => Just(ExtendedFloat::Top),
-            8 => arb_f64_bounded().prop_map(ExtendedFloat::Finite),
-        ]
-    }
-
-    // Bounded rung generators: arbitrary i64 shrinks bit-by-bit over
-    // pathologically large integers. Cap to `±i64::MAX / PREC` (the
-    // "inside-the-ladder" region) and add explicit i64 edges as `Just`.
-    fn arb_extended_micro() -> impl Strategy<Value = Extended<Micro>> {
-        let limit = i64::MAX / Micro::PREC;
-        prop_oneof![
-            1 => Just(Extended::NegInf),
-            1 => Just(Extended::PosInf),
-            1 => Just(Extended::Finite(Micro(i64::MAX))),
-            1 => Just(Extended::Finite(Micro(i64::MIN))),
-            8 => (-limit..=limit).prop_map(|x| Extended::Finite(Micro(x))),
-        ]
-    }
-
-    fn arb_extended_pico() -> impl Strategy<Value = Extended<Pico>> {
-        let limit = i64::MAX / Pico::PREC;
-        prop_oneof![
-            1 => Just(Extended::NegInf),
-            1 => Just(Extended::PosInf),
-            1 => Just(Extended::Finite(Pico(i64::MAX))),
-            1 => Just(Extended::Finite(Pico(i64::MIN))),
-            8 => (-limit..=limit).prop_map(|x| Extended::Finite(Pico(x))),
-        ]
-    }
+    // Strategies (`extended_float_f64`, `extended_micro`,
+    // `extended_pico`) live in `crate::property::arb`; see the doc
+    // there for the `arb_f64_bounded` rationale on why a bounded
+    // range beats `any::<f64>()` for these saturation-prone inputs.
 
     // Spot checks with exactly-representable f64 values.
     #[test]
@@ -805,6 +693,6 @@ mod tests {
     // PREC well below mantissa (F06) and PREC approaching mantissa (F12).
     // Other rungs share the adjoint-law machinery with one of these, so
     // the spot checks above are sufficient regression coverage.
-    float_conn_props!(p_f64f06, F64F06, Micro, arb_extended_float_f64, arb_extended_micro);
-    float_conn_props!(p_f64f12, F64F12, Pico,  arb_extended_float_f64, arb_extended_pico);
+    float_conn_props!(p_f64f06, F64F06, Micro, extended_float_f64, extended_micro);
+    float_conn_props!(p_f64f12, F64F12, Pico,  extended_float_f64, extended_pico);
 }
