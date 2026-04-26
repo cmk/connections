@@ -151,3 +151,33 @@ No dead code, no redundant logic. `pub const` visibility is correct for all 28 c
 2. `src/conn/int.rs`, `ceil_monotone` / `floor_monotone` in `ext_int_props!` — replace the `if a1 <= a2 { check }` guard pattern (lines 214–225) with the sort pattern used elsewhere (`let (lo, hi) = if a1 <= a2 { (a1, a2) } else { (a2, a1) }`). For a totally ordered source this doesn't affect correctness, but the inconsistency with `single_sided_props!` and with `inner_monotone` in the same macro is confusing and wastes half the generated trials.
 
 3. Consider an end-to-end `compose_conn!` smoke test composing two integer conns (e.g., `U08U64 via U08U16, U16U64`) as the plan's §End-to-end described. The plan left this out; it's low-effort and makes the interoperability story concrete.
+
+<!-- glab-id: 3287363071 -->
+<!-- glab-discussion: cbdcbc08f862e688867021a25e1b8f5087deb9c5 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/int.rs:214` (2026-04-26 10:21 UTC) [open]
+
+**[follow-up]** The `ceil_monotone` and `floor_monotone` properties in `ext_int_props!` use an `if a1 <= a2 { check }` guard (silently discarding trials where `a1 > a2`) instead of the sort pattern used in `inner_monotone` (line 229) and in the analogous `single_sided_props!` macro in `uint.rs`. Since `Extended<T>` is totally ordered, the sort idiom would double effective trial coverage and remove the internal inconsistency. The local review already flags this as a follow-up recommendation.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287363077 -->
+<!-- glab-discussion: 0a5dae6256d91b6da30a41cb3b90684bf38282bf -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/lib.rs:46` (2026-04-26 10:21 UTC) [open]
+
+**[follow-up]** The prose note says `I??I??` and `U??I??` wrap the source in `Extended`, but gives only `U08I16` as a concrete example (line 65); the signed-widening family (`I??I??`, e.g. `I08I16 : Conn<Extended<i8>, i16>`) has no example. A user reaching for `I08I16` expecting `Conn<i8, i16>` will be surprised; adding a second example line for `I08I16` alongside `U08I16` would close the gap the local review already identifies.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287364713 -->
+<!-- glab-discussion: cbdcbc08f862e688867021a25e1b8f5087deb9c5 -->
+#### ↳ cmk (2026-04-26 10:24 UTC) [open]
+
+Fixed in e498624 — `ceil_monotone` and `floor_monotone` now use the sort idiom `let (lo, hi) = if a1 <= a2 { (a1, a2) } else { (a2, a1) }`, matching `inner_monotone` in the same macro and `single_sided_props!` in uint.rs. No more silent trial discards.
+
+<!-- glab-id: 3287364780 -->
+<!-- glab-discussion: 0a5dae6256d91b6da30a41cb3b90684bf38282bf -->
+#### ↳ cmk (2026-04-26 10:24 UTC) [open]
+
+Fixed in e498624 — added a `conn::int::I08I16` example next to `U08I16` so the signed-widening family's `Extended<i_N>` source is visible directly in the legend.

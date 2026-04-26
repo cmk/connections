@@ -59,7 +59,8 @@
 //! - [`conn::sample::F12S48`] — `Pico → S48` (cross-tier to sample rate).
 //! - [`conn::sample::S88S44`] — `S88 → S44` (rate-pair).
 //! - [`conn::uint::U08U16`] — `u8 → u16` saturating widen.
-//! - [`conn::int::U08I16`] — `Extended<u8> → i16` (range-extended source).
+//! - [`conn::int::I08I16`] — `Extended<i8> → i16` (signed widening, range-extended source).
+//! - [`conn::int::U08I16`] — `Extended<u8> → i16` (unsigned source into signed target).
 //!
 //! An `F32` code is not (yet) exported: an `inner` that narrows
 //! `i64 → f32` collapses large runs of Rung values onto the same

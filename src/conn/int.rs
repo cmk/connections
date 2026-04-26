@@ -212,16 +212,14 @@ mod tests {
 
                     #[test]
                     fn ceil_monotone(a1 in $arb_src, a2 in $arb_src) {
-                        if a1 <= a2 {
-                            prop_assert!($CONN.ceil(a1) <= $CONN.ceil(a2));
-                        }
+                        let (lo, hi) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
+                        prop_assert!($CONN.ceil(lo) <= $CONN.ceil(hi));
                     }
 
                     #[test]
                     fn floor_monotone(a1 in $arb_src, a2 in $arb_src) {
-                        if a1 <= a2 {
-                            prop_assert!($CONN.floor(a1) <= $CONN.floor(a2));
-                        }
+                        let (lo, hi) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
+                        prop_assert!($CONN.floor(lo) <= $CONN.floor(hi));
                     }
 
                     #[test]
