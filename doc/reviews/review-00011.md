@@ -174,3 +174,80 @@ No silent ULP-check drops at any `conn_ulp_bound` call site (verified). No old s
 3. **Fix stale doc comment in `src/property/arb.rs` lines 21–23.** Replace "will land here in subsequent commits" with a description of what tier-specific strategies are actually present.
 
 4. **Consider adding a `conn_counit_idempotent` predicate** (or extending `conn_idempotent` to cover the `ceil ∘ inner` composition) and driving it from `float_conn_props!` and `conn/float.rs` tests. The removed coverage is non-critical (it follows from the kernel laws for correct implementations), but provides defense-in-depth for the lossy `f64 ↔ f32` connection specifically.
+
+<!-- glab-id: 3287381076 -->
+<!-- glab-discussion: df2f71de93a376fd424062340570f7c36ebf7faa -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/property/arb.rs:23` (2026-04-26 11:00 UTC) [open]
+
+**[follow-up]** The module-level doc comment says "Tier-specific strategies (e.g. `arb_extended_micro`, `bounded_coarse`) will land here in subsequent commits as the property tidy-up proceeds." All those strategies are already present in this file (moved in this very sprint). The forward-looking language is factually wrong and will mislead readers of `cargo doc --features testing`.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287381083 -->
+<!-- glab-discussion: e660952a54a31c7a4d2a8fe3aa4e561519c7ec51 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/property/arb.rs:25` (2026-04-26 11:00 UTC) [open]
+
+**[follow-up]** `#![allow(dead_code)]` suppresses dead-code warnings for the entire module. The local review (review-00011.md) correctly flags this as unnecessary for public items and notes it will mask genuinely dead functions added in the future. The attribute was inherited from the old test-only `property.rs` and should be removed now that the module is public.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287381089 -->
+<!-- glab-discussion: 095e4145da1562af808a8a479c8ee227d5ddd0f9 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/property/laws.rs:354` (2026-04-26 11:00 UTC) [open]
+
+**[must-fix]** The `#![allow(dead_code)]` attribute at the top of `laws.rs` (inherited from the old `property.rs`) suppresses dead-code warnings for the entire file of public predicates. The lattice predicates (`heyting_*`, `coheyting_*`, `biheyting_*`, `symmetric_*`, `boolean_*`) have no in-crate call sites (T7 was deferred), so without this attribute the compiler would emit dead-code warnings that would break `cargo clippy -D warnings`. The attribute papers over the symptom instead of fixing it: those public `pub fn`s are genuinely reachable from downstream and should not be `dead_code` — but the `#![allow(dead_code)]` also silences any truly dead helper that might be introduced later. Either add `#[allow(dead_code)]` only to the specific unreachable items, or confirm clippy is satisfied without the attribute (public items are never considered dead by the linter), and remove it.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287381110 -->
+<!-- glab-discussion: 20b202f07e042677dd2c3cfca8e77a68e726c049 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 — (2026-04-26 11:00 UTC) [open]
+
+**[must-fix]** `src/property/laws.rs:354` — The `#![allow(dead_code)]` attribute at the top of `laws.rs` (inherited from the old `property.rs`) suppresses dead-code warnings for the entire file of public predicates. The lattice predicates (`heyting_*`, `coheyting_*`, `biheyting_*`, `symmetric_*`, `boolean_*`) have no in-crate call sites (T7 was deferred), so without this attribute the compiler would emit dead-code warnings that would break `cargo clippy -D warnings`. The attribute papers over the symptom instead of fixing it: those public `pub fn`s are genuinely reachable from downstream and should not be `dead_code` — but the `#![allow(dead_code)]` also silences any truly dead helper that might be introduced later. Either add `#[allow(dead_code)]` only to the specific unreachable items, or confirm clippy is satisfied without the attribute (public items are never considered dead by the linter), and remove it.
+
+*(inline anchor rejected by GitLab: 500)*
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287381113 -->
+<!-- glab-discussion: ef2cd6e02cb4d63b3fa50a7461daab755dc1ebc6 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/property/laws.rs:436` (2026-04-26 11:00 UTC) [open]
+
+**[follow-up]** The `conn_idempotent` predicate checks only `(inner ∘ ceil)²  = inner ∘ ceil` (closure idempotence on the source side). The plan's Review section documents that the original `idempotent` helper in `conn/float.rs` also checked `(ceil ∘ inner)² = ceil ∘ inner` (counit idempotence) and the floor-side duals, and flags the reduction as a coverage regression for the lossy `f64 ↔ f32` connection. The plan says to add a `conn_counit_idempotent` predicate or extend this one if a future bug surfaces — but the plan Review section does not document this as intentional for the `float_conn_props!` macro. Consider adding a `conn_counit_idempotent` predicate (checking `ceil(inner(ceil(inner(b)))) ~~ ceil(inner(b))`) and driving it from `float_conn_props!` to restore defense-in-depth coverage for lossy connections.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287382562 -->
+<!-- glab-discussion: df2f71de93a376fd424062340570f7c36ebf7faa -->
+#### ↳ cmk (2026-04-26 11:03 UTC) [open]
+
+Fixed in commit 4028cc0 — replaced the stale forward-looking sentence with a description of the four tier families (`fixed_*` / `rate_*` / `pico_*` / `extended_*`) actually present in this module.
+
+<!-- glab-id: 3287382590 -->
+<!-- glab-discussion: e660952a54a31c7a4d2a8fe3aa4e561519c7ec51 -->
+#### ↳ cmk (2026-04-26 11:04 UTC) [open]
+
+Fixed in commit 4028cc0 — dropped the attribute. Verified `cargo clippy --features testing -- -D warnings` stays clean (public items aren't dead-code-checked).
+
+<!-- glab-id: 3287382617 -->
+<!-- glab-discussion: 095e4145da1562af808a8a479c8ee227d5ddd0f9 -->
+#### ↳ cmk (2026-04-26 11:04 UTC) [open]
+
+Fixed in commit 4028cc0 — dropped the attribute. Confirmed clippy stays clean even with the orphan Heyting/Coheyting/Boolean/Symmetric predicates that have no in-crate callers; `pub fn`s are exempt from the dead-code lint by default.
+
+<!-- glab-id: 3287382644 -->
+<!-- glab-discussion: 20b202f07e042677dd2c3cfca8e77a68e726c049 -->
+#### ↳ cmk (2026-04-26 11:04 UTC) [open]
+
+Same finding as the inline anchor on `src/property/laws.rs:354` — fixed in commit 4028cc0. See that thread for the full reply.
+
+<!-- glab-id: 3287382671 -->
+<!-- glab-discussion: ef2cd6e02cb4d63b3fa50a7461daab755dc1ebc6 -->
+#### ↳ cmk (2026-04-26 11:04 UTC) [open]
+
+Deferred — tracked in plan-2026-04-26-04 §"Additional deviations" and as Recommendation #4 in the local Tier-1 review. The closure-side idempotence we kept (`inner ∘ ceil`) plus the now-explicit `conn_kernel_l`/`conn_kernel_r` tests cover the same invariants for any correct Galois connection. We'll add `conn_counit_idempotent` if a future bug surfaces in a lossy connection that the kernel laws miss.

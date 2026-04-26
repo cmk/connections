@@ -19,10 +19,7 @@
 //! Naming convention: `<algebra>_<lawname>` — `heyting_*`,
 //! `coheyting_*`, `biheyting_*`, `symmetric_*`, `boolean_*` for the
 //! lattice families; `conn_*` and `lattice_*` for Galois-connection
-//! laws and bare-preorder laws (added in subsequent commits of the
-//! property tidy-up sprint).
-
-#![allow(dead_code)]
+//! laws and bare-preorder laws.
 
 use crate::conn::Conn;
 use crate::lattice::{Coheyting, Heyting, Ple};

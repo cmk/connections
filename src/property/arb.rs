@@ -18,11 +18,12 @@
 //!   teaching nothing about the adjoint law. See
 //!   `doc/plans/plan-2026-04-23-05.md` for the discussion.
 //!
-//! Tier-specific strategies (e.g. `arb_extended_micro`,
-//! `bounded_coarse`) will land here in subsequent commits as the
-//! property tidy-up proceeds.
-
-#![allow(dead_code)]
+//! Tier-specific strategies live here too: `fixed_*` for the
+//! decimal fixed-point ladder, `rate_*` for sample-rate rationals,
+//! `pico_*` for cross-tier Pico↔Sample conns, and `extended_*` for
+//! `Extended`-wrapped variants of those. Naming is `<tier>_<role>`
+//! to disambiguate the same algebraic role across the four
+//! families.
 
 use proptest::prelude::*;
 
