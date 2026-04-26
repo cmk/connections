@@ -134,7 +134,7 @@ pub trait Heyting: Join + Meet {
     /// top.neg() == bot
     /// x <= x.neg().neg()                           // double neg monad
     /// x.neg().join(y) <= x.imp(y)
-    /// x.neg().imp(y) == x.neg().neg().meet(y.neg()) // de Morgan
+    /// x.imp(y).neg() == x.neg().neg().meet(y.neg()) // de Morgan
     /// x.join(y).neg() == x.neg().meet(y.neg())      // de Morgan
     /// x.meet(x.neg()) == bot                        // non-contradiction
     /// x.neg().neg().neg() == x.neg()                // triple neg
@@ -275,7 +275,7 @@ pub trait Coheyting: Join + Meet {
 /// And:
 ///
 /// ```text
-/// converse_r(x) <= converse_l(x)
+/// convr(x) <= convl(x)
 /// ```
 ///
 /// with equality occurring iff the algebra is Boolean.
@@ -283,10 +283,10 @@ pub trait Coheyting: Join + Meet {
 /// Derived identities:
 ///
 /// ```text
-/// neg(x) == converse_r(not(x)) == not(converse_l(x))
-/// coneg(x) == not(converse_r(x)) == converse_l(not(x))
-/// neg(neg(x)) == converse_r(converse_l(x))
-/// coneg(coneg(x)) == converse_l(converse_r(x))
+/// neg(x) == convr(not(x)) == not(convl(x))
+/// coneg(x) == not(convr(x)) == convl(not(x))
+/// neg(neg(x)) == convr(convl(x))
+/// coneg(coneg(x)) == convl(convr(x))
 /// ```
 pub trait Symmetric: Heyting + Coheyting {
     /// Symmetric negation (complement).
@@ -314,20 +314,20 @@ pub trait Symmetric: Heyting + Coheyting {
 /// Left converse operator: `top.coimp(&x.not())`.
 ///
 /// ```text
-/// converse_l(x.join(y)) == converse_l(x).join(converse_l(y))
-/// converse_l(x.meet(y)) == coneg(coneg(converse_l(x).meet(converse_l(y))))
+/// convl(x.join(y)) == convl(x).join(convl(y))
+/// convl(x.meet(y)) == coneg(coneg(convl(x).meet(convl(y))))
 /// ```
-pub fn converse_l<T: Symmetric + Sized>(x: &T) -> T {
+pub fn convl<T: Symmetric + Sized>(x: &T) -> T {
     T::top().coimp(&x.not())
 }
 
 /// Right converse operator: `x.not().imp(&T::bot())`.
 ///
 /// ```text
-/// converse_r(x.meet(y)) == converse_r(x).meet(converse_r(y))
-/// converse_r(x.join(y)) == neg(neg(converse_r(x).join(converse_r(y))))
+/// convr(x.meet(y)) == convr(x).meet(convr(y))
+/// convr(x.join(y)) == neg(neg(convr(x).join(convr(y))))
 /// ```
-pub fn converse_r<T: Symmetric + Sized>(x: &T) -> T {
+pub fn convr<T: Symmetric + Sized>(x: &T) -> T {
     x.not().imp(&T::bot())
 }
 
