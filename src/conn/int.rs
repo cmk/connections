@@ -51,6 +51,11 @@ macro_rules! ext_int {
                     "` adjoint triple."
                 )]
         pub const $NAME: Conn<Extended<$A>, $B> = {
+            // `BELOW` is one below the source's MIN; `ABOVE` is one
+            // above the source's MAX. Both are themselves in the
+            // infinity regions: `inner(BELOW) == NegInf` and
+            // `inner(ABOVE) == PosInf` (the `<=` / `>=` are inclusive).
+            // `Finite(_)` only covers the open interval (BELOW, ABOVE).
             const BELOW: $B = (<$A>::MIN as $B) - 1;
             const ABOVE: $B = (<$A>::MAX as $B) + 1;
             fn ceil(x: Extended<$A>) -> $B {

@@ -181,3 +181,63 @@ Fixed in e498624 — `ceil_monotone` and `floor_monotone` now use the sort idiom
 #### ↳ cmk (2026-04-26 10:24 UTC) [open]
 
 Fixed in e498624 — added a `conn::int::I08I16` example next to `U08I16` so the signed-widening family's `Extended<i_N>` source is visible directly in the legend.
+
+<!-- glab-id: 3287365925 -->
+<!-- glab-discussion: 847fa773e26f4e42f93894f846c56ede14fc003a -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/int.rs:52` (2026-04-26 10:26 UTC) [open]
+
+**[must-fix]** The `inner` function uses `x <= BELOW` to detect the NegInf region, but `BELOW` is defined as `(<$A>::MIN as $B) - 1`. For the `I08I16` instantiation this works fine, but the **condition is logically too broad**: `inner` maps `x <= BELOW` to `NegInf` and `x >= ABOVE` to `PosInf`; the claimed Galois law requires that `inner` maps `x` to `NegInf` exactly when `x < ceil(NegInf) = i_M::MIN`, yet `i_M::MIN <= BELOW` is always true so all `x <= BELOW` (not just `x < i_M::MIN`) map to `NegInf`. The real issue surfaces at `x = i_M::MIN`: `inner(i_M::MIN) = NegInf` and `ceil(NegInf) = i_M::MIN`, so `galois_upper` requires `ceil(NegInf) <= i_M::MIN` iff `NegInf <= inner(i_M::MIN)`, i.e. `i_M::MIN <= i_M::MIN` iff `NegInf <= NegInf` — this holds. However the *spot check* at line 150 (`I08I16.inner(i16::MIN) == Extended::NegInf`) is only correct because `i16::MIN <= BELOW = -129` is **false** (`i16::MIN = -32768 <= -129` is true), so the test actually passes, but the semantics are: every value below -128 (the source min) — including -32768 — collapses to `NegInf`, which is the intended behaviour. Verify this is intentional by cross-checking against the Haskell reference; as stated in the module doc the NegInf region is `x <= BELOW` which means `-32768..-129` all become `NegInf`, matching the plan's spec. No bug here — but the `inner` boundary condition uses `<=` (inclusive) for `BELOW` and `>=` (inclusive) for `ABOVE`, meaning the values `BELOW` and `ABOVE` themselves map to the infinities rather than to `Finite`. This is correct per the adjoint law but is undocumented and may mislead maintainers adding future conns; add a comment noting that `BELOW` and `ABOVE` are themselves in the infinity regions.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287365929 -->
+<!-- glab-discussion: e79d4637b4e994e9ce71a3f9ec67aa616381af9b -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/uint.rs:79` (2026-04-26 10:26 UTC) [open]
+
+**[must-fix]** The `I??U??` family (`int_uint!` macro) builds a `Conn::new_left(ceil, inner)` where `ceil(x) = 0` for all `x < 0`. This means the Galois law `ceil(a) <= b <=> a <= inner(b)` must hold for all `(a, b)`. Consider `a = -1, b = 0`: `ceil(-1) = 0 <= 0` is true, so we need `(-1) <= inner(0)`. `inner(0) = 0 as $A` which for `I08U08` is `0i8`, and `-1 <= 0i8` is true — OK. But now `a = i8::MIN = -128, b = 0`: `ceil(-128) = 0 <= 0` is true, requiring `-128 <= inner(0) = 0` — true. And `a = -1, b`: for any `b`, `ceil(-1) = 0 <= b` is `b >= 0`, always true since `b: u*` — so we need `-1 <= inner(b)` always, and `inner(b): i8` is always `>= -128` and since it's non-negative (cap-clipped from `u*`), always `>= 0 > -1` — OK. The law holds for all negative `a`. However the `galois_upper` proptest uses `prop_assert_eq!(CONN.ceil(a) <= b, a <= CONN.inner(b))` — this is testing *equality of two booleans*, which is correct. The `ceil` side returning `0` for all negatives means every negative `a` is in the same "equivalence class" under `ceil`, and `inner(b)` for all `b` is non-negative, so `a <= inner(b)` is always true for negative `a` — consistent. The law is satisfied. No bug, but the `galois_upper` property is weaker than it looks for the `I??U??` family since negative `a` values never exercise the `ceil(a) > 0` branch; consider adding a spot check that explicitly verifies `ceil(a) <= b` and `a <= inner(b)` agree for a mid-range positive `a`.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287365932 -->
+<!-- glab-discussion: 70e988e641bb043f2d39956f728d8fb501c15c16 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/int.rs:95` (2026-04-26 10:26 UTC) [open]
+
+**[follow-up]** The plan's Verification table (plan line 370) specifies `<name>_floor_le_ceil × 6` as a property that must pass for the sprint to ship, but the Review section (plan line 480) documents dropping it and replacing it with `kernel_upper`/`kernel_lower`. The CLAUDE.md convention (§TDD workflow step 13) requires that any dropped property have its reason and re-enablement plan documented in the plan's Review section before merge — the plan does document the reason, but does not provide a re-enablement plan (i.e. no statement of whether this property is permanently inapplicable or would be reinstated under a different formulation). Add a note to the plan's Review section explicitly stating that `floor_le_ceil` is permanently inapplicable for full-triple Extended-source conns (not just deferred), so future reviewers don't expect it to be re-enabled.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287365937 -->
+<!-- glab-discussion: 2904fe7c31a8b352284615e5755a8dddbaef381d -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `doc/reviews/review-00010.md:159` (2026-04-26 10:26 UTC) [open]
+
+**[follow-up]** The review doc records the author's reply (line 159, cmk 2026-04-26 10:24 UTC) as fixing `ceil_monotone`/`floor_monotone` in commit `e498624`, but that commit does not appear in the MR diff — the `ext_int_props!` macro in the submitted `src/conn/int.rs` already shows the sort idiom at lines 214–225 (the `let (lo, hi) = ...` pattern). Either the fix was squashed into the `feat:` commit before the diff was generated (obscuring the history) or the review reply references a commit that hasn't been pushed. Per the CLAUDE.md workflow (step 10), reply commits should be a single unpushed fix commit — verify the fix commit `e498624` is included in the branch and not missing from the pushed diff.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287368930 -->
+<!-- glab-discussion: 847fa773e26f4e42f93894f846c56ede14fc003a -->
+#### ↳ cmk (2026-04-26 10:31 UTC) [open]
+
+Comment added in 66fe0ff inside the `ext_int!` const block: `BELOW` and `ABOVE` are themselves in the infinity regions (inclusive `<=` / `>=`); `Finite(_)` covers only the open interval `(BELOW, ABOVE)`. Tagging this `[must-fix]` was inflated — your own analysis concludes there is no bug.
+
+<!-- glab-id: 3287368951 -->
+<!-- glab-discussion: e79d4637b4e994e9ce71a3f9ec67aa616381af9b -->
+#### ↳ cmk (2026-04-26 10:31 UTC) [open]
+
+Added `int_uint_galois_at_mid_positive` in 66fe0ff — fixes (50, 100), (50, 49), (100, 100) as representative non-boundary points to complement proptest's boundary-skewed `any::<iN>()`. As with the sibling thread, `[must-fix]` was inflated — your own analysis confirms the law holds.
+
+<!-- glab-id: 3287368964 -->
+<!-- glab-discussion: 70e988e641bb043f2d39956f728d8fb501c15c16 -->
+#### ↳ cmk (2026-04-26 10:32 UTC) [open]
+
+Plan Review section updated in 66fe0ff to state that `floor_le_ceil` is permanently inapplicable for full-triple Extended-source conns — intrinsic to non-injective `inner` whenever the source is range-extended, no re-enablement plan, future conns of the same shape should use the same six-property contract.
+
+<!-- glab-id: 3287368979 -->
+<!-- glab-discussion: 2904fe7c31a8b352284615e5755a8dddbaef381d -->
+#### ↳ cmk (2026-04-26 10:32 UTC) [open]
+
+GitLab's MR diff is cumulative `branch...main`, not per-commit, so what you see at lines 214–225 is the post-fix state — that's exactly why the sort idiom appears there. Commit `e498624` was the round-1 fix; it was amended to `e39cb45` when `/reply-reviews` folded the reply-mirror in (per CLAUDE.md TDD step 10) and then pushed. No squash, no missing commits — `git log origin/main..sprint/integer-conns` shows both `e39cb45` and the round-2 `66fe0ff`.

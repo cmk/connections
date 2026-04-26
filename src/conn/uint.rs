@@ -139,6 +139,21 @@ mod tests {
         assert_eq!(I16U32.inner(20_000), 20_000);
     }
 
+    #[test]
+    fn int_uint_galois_at_mid_positive() {
+        // Exercises the active branch (`a >= 0`, ceil widens, inner is
+        // below cap so identity-casts back) — proptest covers this too,
+        // but proptest's `any::<iN>()` weights heavily toward boundary
+        // values; this fixes a representative middle point.
+        for (a, b) in [(50i8, 100u16), (50i8, 49u16), (100i8, 100u16)] {
+            assert_eq!(
+                I08U16.ceil(a) <= b,
+                a as i32 <= I08U16.inner(b) as i32,
+                "I08U16 galois_upper @ ({a}, {b})"
+            );
+        }
+    }
+
     // ── Property tests ─────────────────────────────────────────────
     //
     // Single-sided Galois connection (`Conn::new_left`) laws:
