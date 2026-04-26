@@ -24,7 +24,8 @@
 
 #![allow(dead_code)]
 
-use crate::lattice::{Coheyting, Heyting};
+use crate::conn::Conn;
+use crate::lattice::{Coheyting, Heyting, Ple};
 
 // ── Heyting (h0–h17) ─────────────────────────────────────────────
 
@@ -350,4 +351,153 @@ pub fn boolean_coimp_from_imp<T: Heyting + Coheyting + Eq>(x: &T, y: &T) -> bool
 /// boolean6: `x.imp(y) == coneg(coneg(y).coimp(coneg(x)))` (Biheyting)
 pub fn boolean_imp_from_coimp<T: Heyting + Coheyting + Eq>(x: &T, y: &T) -> bool {
     x.imp(y) == y.coneg().coimp(&x.coneg()).coneg()
+}
+
+// ── Galois-connection laws ───────────────────────────────────────
+//
+// Predicates take `&Conn<A, B>` plus inputs by value (Conn types in
+// this crate are all `Copy`). `Ple`-bound for uniformity across
+// integer rungs and float ExtendedFloat. Downstream wraps in
+// `prop_assert!` in their own proptest blocks.
+
+/// Galois law (left): `ceil(a) ≤ b ⟺ a ≤ inner(b)`.
+pub fn conn_galois_l<A: Copy + Ple, B: Copy + Ple>(c: &Conn<A, B>, a: A, b: B) -> bool {
+    c.ceil(a).ple(&b) == a.ple(&c.inner(b))
+}
+
+/// Galois law (right): `inner(b) ≤ a ⟺ b ≤ floor(a)`.
+pub fn conn_galois_r<A: Copy + Ple, B: Copy + Ple>(c: &Conn<A, B>, a: A, b: B) -> bool {
+    c.inner(b).ple(&a) == b.ple(&c.floor(a))
+}
+
+/// Closure law (left): `a ≤ inner(ceil(a))` — the unit of the
+/// `inner ⊣ ceil` adjunction.
+pub fn conn_closure_l<A: Copy + Ple, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+    a.ple(&c.inner(c.ceil(a)))
+}
+
+/// Closure law (right): `inner(floor(a)) ≤ a` — the dual of [`conn_closure_l`].
+pub fn conn_closure_r<A: Copy + Ple, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+    c.inner(c.floor(a)).ple(&a)
+}
+
+/// Kernel law (left): `ceil(inner(b)) ≤ b` — the counit of the
+/// `inner ⊣ ceil` adjunction.
+pub fn conn_kernel_l<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bool {
+    c.ceil(c.inner(b)).ple(&b)
+}
+
+/// Kernel law (right): `b ≤ floor(inner(b))` — the dual of [`conn_kernel_l`].
+pub fn conn_kernel_r<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bool {
+    b.ple(&c.floor(c.inner(b)))
+}
+
+/// Monotonicity (left): `a1 ≤ a2 ⟹ ceil(a1) ≤ ceil(a2) ∧ floor(a1) ≤ floor(a2)`.
+pub fn conn_monotone_l<A: Copy + Ple, B: Copy + Ple>(
+    c: &Conn<A, B>,
+    a1: A,
+    a2: A,
+) -> bool {
+    if a1.ple(&a2) {
+        c.ceil(a1).ple(&c.ceil(a2)) && c.floor(a1).ple(&c.floor(a2))
+    } else {
+        true
+    }
+}
+
+/// Monotonicity (right): `b1 ≤ b2 ⟹ inner(b1) ≤ inner(b2)`.
+pub fn conn_monotone_r<A: Copy + Ple, B: Copy + Ple>(
+    c: &Conn<A, B>,
+    b1: B,
+    b2: B,
+) -> bool {
+    if b1.ple(&b2) {
+        c.inner(b1).ple(&c.inner(b2))
+    } else {
+        true
+    }
+}
+
+/// Idempotence: `(inner ∘ ceil) ∘ (inner ∘ ceil) = inner ∘ ceil` —
+/// the closure operator is idempotent on its image.
+pub fn conn_idempotent<A: Copy + Eq, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+    let once = c.inner(c.ceil(a));
+    let twice = c.inner(c.ceil(once));
+    once == twice
+}
+
+/// `floor(a) ≤ ceil(a)` — the floor never exceeds the ceiling.
+pub fn conn_floor_le_ceil<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, a: A) -> bool {
+    c.floor(a).ple(&c.ceil(a))
+}
+
+/// Round-trip via ceil: `ceil(inner(b)) = b` for exact-embedding
+/// connections (where `inner(b)` lands on a value that ceils back
+/// to `b`). Strictly stronger than [`conn_kernel_l`].
+pub fn conn_roundtrip_ceil<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool {
+    c.ceil(c.inner(b)) == b
+}
+
+/// Round-trip via floor: `floor(inner(b)) = b` for exact-embedding
+/// connections. Strictly stronger than [`conn_kernel_r`].
+pub fn conn_roundtrip_floor<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool {
+    c.floor(c.inner(b)) == b
+}
+
+/// ULP-bound: `ceil(a) - floor(a) ≤ 1` under a caller-provided
+/// rung-extractor. Specific to integer-tier connections (the rung
+/// types have an `i64` payload); downstream supplies the extractor
+/// closure (e.g. `|b| b.0`).
+pub fn conn_ulp_bound<A, B, F>(c: &Conn<A, B>, a: A, rung: F) -> bool
+where
+    A: Copy,
+    B: Copy,
+    F: Fn(B) -> i64,
+{
+    let c_val = rung(c.ceil(a));
+    let f_val = rung(c.floor(a));
+    c_val >= f_val && c_val - f_val <= 1
+}
+
+// ── Bare-preorder laws (for types impl'ing `Ple`) ────────────────
+
+/// Reflexivity: `x ≤ x` — every element is comparable to itself.
+pub fn lattice_reflexive<T: Ple>(x: &T) -> bool {
+    x.ple(x)
+}
+
+/// Transitivity: `x ≤ y ∧ y ≤ z ⟹ x ≤ z`.
+pub fn lattice_transitive<T: Ple>(x: &T, y: &T, z: &T) -> bool {
+    if x.ple(y) && y.ple(z) {
+        x.ple(z)
+    } else {
+        true
+    }
+}
+
+/// Antisymmetry under preorder equivalence: if `x ≤ y` and `y ≤ x`
+/// then `x` and `y` are interchangeable in every `ple` comparison
+/// against the supplied probes (typically `top` and `bot` of the
+/// type's lattice). For float `Ple` (the N5 lattice), where
+/// `NaN.ple(NaN)` is true but NaN ≠ any finite, this expresses the
+/// preorder equivalence class without demanding `Eq`.
+pub fn lattice_antisymmetric<T: Ple>(x: &T, y: &T, top: &T, bot: &T) -> bool {
+    if x.ple(y) && y.ple(x) {
+        x.ple(top) == y.ple(top)
+            && x.ple(bot) == y.ple(bot)
+            && top.ple(x) == top.ple(y)
+            && bot.ple(x) == bot.ple(y)
+    } else {
+        true
+    }
+}
+
+/// Bottom: `bot ≤ x` for every `x`.
+pub fn lattice_bot<T: Ple>(bot: &T, x: &T) -> bool {
+    bot.ple(x)
+}
+
+/// Top: `x ≤ top` for every `x`.
+pub fn lattice_top<T: Ple>(top: &T, x: &T) -> bool {
+    x.ple(top)
 }
