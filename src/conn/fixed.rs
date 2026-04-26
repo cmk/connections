@@ -297,6 +297,82 @@ float_conn!(F64F06, f64, Micro, 1_000_000);
 float_conn!(F64F09, f64, Nano,  1_000_000_000);
 float_conn!(F64F12, f64, Pico,  1_000_000_000_000);
 
+// ────────────────────────────────────────────────────────────
+// Proptest strategies (test-only, crate-visible)
+//
+// For each (Fine, Coarse) pair with ratio PREC, the `inner` call
+// computes `coarse * PREC` which must fit i64. Strategies clamp
+// the coarse-side input to `|x| < i64::MAX / PREC` to avoid
+// overflow inside the connection itself. The fine-side input is
+// bounded by i64 range naturally.
+//
+// These are `pub(crate)` so `crate::conn`'s test module can reuse
+// them when exercising the `compose!` macro on the F-ladder.
+// ────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+pub(crate) fn bounded_coarse(prec: i64) -> impl proptest::strategy::Strategy<Value = i64> {
+    use proptest::prelude::*;
+    let limit = i64::MAX / prec;
+    prop_oneof![
+        1 => Just(0_i64),
+        1 => Just(1_i64),
+        1 => Just(-1_i64),
+        1 => Just(limit),
+        1 => Just(-limit),
+        5 => -limit..=limit,
+    ]
+}
+
+#[cfg(test)]
+pub(crate) fn bounded_fine(prec: i64) -> impl proptest::strategy::Strategy<Value = i64> {
+    use proptest::prelude::*;
+    // Fine-side can hit full i64 range safely; `floor(fine, prec)`
+    // and `ceil(fine, prec)` both fit in i64. Bias toward boundaries.
+    prop_oneof![
+        1 => Just(0_i64),
+        1 => Just(prec),
+        1 => Just(-prec),
+        1 => Just(prec - 1),
+        1 => Just(-(prec - 1)),
+        1 => Just(prec + 1),
+        1 => Just(-(prec + 1)),
+        1 => Just(i64::MAX),
+        1 => Just(i64::MIN + 1), // i64::MIN causes overflow under negation in some checks
+        5 => any::<i64>(),
+    ]
+}
+
+/// Fine-side strategy restricted to values whose `inner(ceil(_))`
+/// round-trip does not overflow.
+///
+/// `inner(c) = c * PREC`, so the safe Fine range is
+/// `|fine| ≤ (i64::MAX / PREC) * PREC` — i.e. every Fine value
+/// that `ceil` can map without pushing the resulting Coarse past
+/// `i64::MAX / PREC`, since `inner` then multiplies by PREC.
+///
+/// Use for properties that round-trip through `inner` (closure,
+/// idempotent). Non-round-trip properties (adjoint / monotone /
+/// galois_{upper,lower} / kernel) can use the full-range
+/// [`bounded_fine`] instead.
+#[cfg(test)]
+pub(crate) fn safe_fine(prec: i64) -> impl proptest::strategy::Strategy<Value = i64> {
+    use proptest::prelude::*;
+    let limit = (i64::MAX / prec) * prec;
+    prop_oneof![
+        1 => Just(0_i64),
+        1 => Just(prec),
+        1 => Just(-prec),
+        1 => Just(prec - 1),
+        1 => Just(-(prec - 1)),
+        1 => Just(prec + 1),
+        1 => Just(-(prec + 1)),
+        1 => Just(limit),
+        1 => Just(-limit),
+        5 => -limit..=limit,
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -338,83 +414,10 @@ mod tests {
         assert_eq!(F12F06.ceil(F12F06.inner(Micro(987))), Micro(987));
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Proptest strategies
-    //
-    // For each (Fine, Coarse) pair with ratio PREC, the `inner` call
-    // computes `coarse * PREC` which must fit i64. Strategies clamp
-    // the coarse-side input to `|x| < i64::MAX / PREC` to avoid
-    // overflow inside the connection itself. The fine-side input is
-    // bounded by i64 range naturally.
-    // ────────────────────────────────────────────────────────────
-
-    fn bounded_coarse(prec: i64) -> impl Strategy<Value = i64> {
-        let limit = i64::MAX / prec;
-        prop_oneof![
-            1 => Just(0_i64),
-            1 => Just(1_i64),
-            1 => Just(-1_i64),
-            1 => Just(limit),
-            1 => Just(-limit),
-            5 => -limit..=limit,
-        ]
-    }
-
-    fn bounded_fine(prec: i64) -> impl Strategy<Value = i64> {
-        // Fine-side can hit full i64 range safely; `floor(fine, prec)`
-        // and `ceil(fine, prec)` both fit in i64. Bias toward boundaries.
-        prop_oneof![
-            1 => Just(0_i64),
-            1 => Just(prec),
-            1 => Just(-prec),
-            1 => Just(prec - 1),
-            1 => Just(-(prec - 1)),
-            1 => Just(prec + 1),
-            1 => Just(-(prec + 1)),
-            1 => Just(i64::MAX),
-            1 => Just(i64::MIN + 1), // i64::MIN causes overflow under negation in some checks
-            5 => any::<i64>(),
-        ]
-    }
-
-    /// Fine-side strategy restricted to values whose `inner(ceil(_))`
-    /// round-trip does not overflow.
-    ///
-    /// `inner(c) = c * PREC`, so the safe Fine range is
-    /// `|fine| ≤ (i64::MAX / PREC) * PREC` — i.e. every Fine value
-    /// that `ceil` can map without pushing the resulting Coarse past
-    /// `i64::MAX / PREC`, since `inner` then multiplies by PREC.
-    ///
-    /// Use for properties that round-trip through `inner` (closure,
-    /// idempotent). Non-round-trip properties (adjoint / monotone /
-    /// galois_{upper,lower} / kernel) can use the full-range
-    /// [`bounded_fine`] instead.
-    ///
-    /// **Coverage note.** For large PREC (e.g. 10¹² on the F12F?? pair)
-    /// this cap shrinks the domain to roughly 1/PREC of i64's full
-    /// range, so closure/idempotent are only validated over a small
-    /// slice of the extreme values that adjoint/monotone reach via
-    /// [`bounded_fine`]. That is mathematically acceptable because
-    /// closure + idempotent follow from the adjoint law — a bug at
-    /// the extreme range would surface as an adjoint failure first.
-    /// The three new properties cover the algebraic identities, not
-    /// the extreme domain; [`galois_upper`]/[`galois_lower`] remain
-    /// the load-bearing extreme-domain coverage.
-    fn safe_fine(prec: i64) -> impl Strategy<Value = i64> {
-        let limit = (i64::MAX / prec) * prec;
-        prop_oneof![
-            1 => Just(0_i64),
-            1 => Just(prec),
-            1 => Just(-prec),
-            1 => Just(prec - 1),
-            1 => Just(-(prec - 1)),
-            1 => Just(prec + 1),
-            1 => Just(-(prec + 1)),
-            1 => Just(limit),
-            1 => Just(-limit),
-            5 => -limit..=limit,
-        ]
-    }
+    // Proptest strategies live at module scope as `pub(crate)` so the
+    // crate's other test modules (e.g. `crate::conn`) can reuse them.
+    // See [`super::bounded_coarse`] / [`super::bounded_fine`] /
+    // [`super::safe_fine`] for the actual definitions.
 
     // Each test is written for one Conn and one (Fine, Coarse) pair,
     // then expanded via macro across the 21 connections.
@@ -541,137 +544,11 @@ mod tests {
     props_for_pair!(p_f12f03, F12F03, Pico,  Milli, 1_000_000_000);
     props_for_pair!(p_f12f06, F12F06, Pico,  Micro, 1_000_000);
 
-    // Composition via the `compose!` macro. Three flavours:
-    //
-    // 1. Two-step: confirms the macro's covariant-ceil/contravariant-inner
-    //    expansion against hand-nested calls.
-    // 2. Four-step Pico→Uni: confirms the macro agrees with the
-    //    hand-coded non-adjacent `F12F00`. (This subsumes the previous
-    //    `composition_pico_to_uni_matches_ladder_climb` test, which
-    //    exercised the same nested-call shape directly.)
-    // 3. Galois-law preservation: a macro-composed `Conn<Pico, Uni>`
-    //    must satisfy the same adjoint laws as any hand-coded Conn.
-    //
-    // Const-context coercion of the non-capturing closures inside
-    // `compose!` is exercised by `COMPOSED_F12F00` below.
-    const COMPOSED_F12F00: crate::conn::Conn<Pico, Uni> =
-        crate::compose!(F12F09, F09F06, F06F03, F03F00);
-
-    proptest! {
-        // Two-step (Pico→Nano→Micro). Source-side ceil/floor are
-        // exercised over the full `bounded_fine` Pico domain; the
-        // inner round-trip is exercised over the Micro coarse domain
-        // (`bounded_coarse(Micro::PREC)`) — `composed.inner(Micro)`
-        // multiplies through Nano (×1e3) and Pico (×1e3), so the
-        // input must be capped at `i64::MAX / 1e6`.
-        #[test]
-        fn compose_two_step_ceil_floor_match_nested(
-            p in bounded_fine(1_000_000_000_000i64),
-        ) {
-            let composed: crate::conn::Conn<Pico, Micro> =
-                crate::compose!(F12F09, F09F06);
-            let pico = Pico(p);
-            prop_assert_eq!(
-                composed.ceil(pico),
-                F09F06.ceil(F12F09.ceil(pico)),
-            );
-            prop_assert_eq!(
-                composed.floor(pico),
-                F09F06.floor(F12F09.floor(pico)),
-            );
-        }
-
-        #[test]
-        fn compose_two_step_inner_matches_nested(
-            m in bounded_coarse(Micro::PREC),
-        ) {
-            let composed: crate::conn::Conn<Pico, Micro> =
-                crate::compose!(F12F09, F09F06);
-            let micro = Micro(m);
-            prop_assert_eq!(
-                composed.inner(micro),
-                F12F09.inner(F09F06.inner(micro)),
-            );
-        }
-
-        // Four-step (Pico→Nano→Micro→Milli→Uni). Same domain split:
-        // `bounded_fine(Pico::PREC)` for the Pico-side ceil/floor;
-        // `bounded_coarse(Pico::PREC)` for the Uni-side inner.
-        #[test]
-        fn compose_four_step_ceil_floor_match_handcoded(
-            p in bounded_fine(1_000_000_000_000i64),
-        ) {
-            let pico = Pico(p);
-            prop_assert_eq!(COMPOSED_F12F00.ceil(pico),  F12F00.ceil(pico));
-            prop_assert_eq!(COMPOSED_F12F00.floor(pico), F12F00.floor(pico));
-        }
-
-        #[test]
-        fn compose_four_step_inner_matches_handcoded(
-            u in bounded_coarse(Pico::PREC),
-        ) {
-            let uni = Uni(u);
-            prop_assert_eq!(COMPOSED_F12F00.inner(uni), F12F00.inner(uni));
-        }
-
-        // Galois-law preservation on the macro-composed Pico→Uni Conn.
-        // Mirrors the invariants `props_for_pair!` checks; uses
-        // F12F00's PREC (1e12) to scope the Coarse generators.
-        #[test]
-        fn compose_inner_then_ceil_is_id(c in bounded_coarse(1_000_000_000_000i64)) {
-            let b = Uni(c);
-            prop_assert_eq!(COMPOSED_F12F00.ceil(COMPOSED_F12F00.inner(b)), b);
-        }
-
-        #[test]
-        fn compose_inner_then_floor_is_id(c in bounded_coarse(1_000_000_000_000i64)) {
-            let b = Uni(c);
-            prop_assert_eq!(COMPOSED_F12F00.floor(COMPOSED_F12F00.inner(b)), b);
-        }
-
-        #[test]
-        fn compose_floor_le_ceil(p in bounded_fine(1_000_000_000_000i64)) {
-            let pico = Pico(p);
-            let c = COMPOSED_F12F00.ceil(pico);
-            let f = COMPOSED_F12F00.floor(pico);
-            prop_assert!(f <= c);
-            prop_assert!(c.0 - f.0 <= 1);
-        }
-
-        #[test]
-        fn compose_galois_upper(
-            p in bounded_fine(1_000_000_000_000i64),
-            c in bounded_coarse(1_000_000_000_000i64),
-        ) {
-            let pico = Pico(p);
-            let uni  = Uni(c);
-            prop_assert_eq!(
-                COMPOSED_F12F00.ceil(pico) <= uni,
-                pico <= COMPOSED_F12F00.inner(uni),
-            );
-        }
-
-        #[test]
-        fn compose_galois_lower(
-            p in bounded_fine(1_000_000_000_000i64),
-            c in bounded_coarse(1_000_000_000_000i64),
-        ) {
-            let pico = Pico(p);
-            let uni  = Uni(c);
-            prop_assert_eq!(
-                COMPOSED_F12F00.inner(uni) <= pico,
-                uni <= COMPOSED_F12F00.floor(pico),
-            );
-        }
-
-        #[test]
-        fn compose_idempotent(p in safe_fine(1_000_000_000_000i64)) {
-            let pico = Pico(p);
-            let once  = COMPOSED_F12F00.inner(COMPOSED_F12F00.ceil(pico));
-            let twice = COMPOSED_F12F00.inner(COMPOSED_F12F00.ceil(once));
-            prop_assert_eq!(once, twice);
-        }
-    }
+    // `compose!`-macro tests live in `crate::conn`'s test module,
+    // alongside the macro itself. Composition is a property of the
+    // `Conn` abstraction, not of any one ladder pair; keeping the
+    // tests there preserves the invariant that `conn::fixed` only
+    // owns laws that are specific to fixed-point connections.
 
     // Negative-value regression: every Galois property holds for i < 0.
     // (Covered inside each pair's proptest since bounded_fine / bounded_coarse
