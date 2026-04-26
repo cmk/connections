@@ -151,13 +151,15 @@ pub fn heyting_modus_ponens<T: Heyting + Eq>(x: &T, y: &T) -> bool {
     x.meet(&x.imp(y)) == x.meet(y)
 }
 
-/// h8: neg boundary values — `bot.neg() == top && top.neg() == bot`
-pub fn heyting_neg_boundary<T: Heyting + Eq>() -> bool {
+/// h8: neg boundary values — `bot.neg() == top && top.neg() == bot`.
+/// Takes a dummy argument so it can be driven from a `proptest!` block.
+pub fn heyting_neg_boundary<T: Heyting + Eq>(_: &T) -> bool {
     T::bot().neg() == T::top() && T::top().neg() == T::bot()
 }
 
-/// c8: coneg boundary values — `bot.coneg() == top && top.coneg() == bot`
-pub fn coheyting_coneg_boundary<T: Coheyting + Eq>() -> bool {
+/// c8: coneg boundary values — `bot.coneg() == top && top.coneg() == bot`.
+/// Takes a dummy argument so it can be driven from a `proptest!` block.
+pub fn coheyting_coneg_boundary<T: Coheyting + Eq>(_: &T) -> bool {
     T::bot().coneg() == T::top() && T::top().coneg() == T::bot()
 }
 
@@ -340,7 +342,7 @@ pub fn symmetric_double_coneg_eq_convlr<T: Symmetric + Eq>(x: &T) -> bool {
 
 /// symmetric4: `coneg(x) == convl(not(x))` and `neg(x) == not(convl(x))`
 pub fn symmetric_coneg_neg_convl<T: Symmetric + Eq>(x: &T) -> bool {
-    x.coneg() == convl(&x.not()) && x.neg() == x.not().coneg()
+    x.coneg() == convl(&x.not()) && x.neg() == convl(x).not()
 }
 
 /// symmetric5: `coneg(x) == not(convr(x))` and `neg(x) == convr(not(x))`
