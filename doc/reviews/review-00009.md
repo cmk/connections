@@ -2,40 +2,51 @@
 
 ## Summary
 
-- **Add `compose!`** — variadic `macro_rules!` in `src/conn.rs` that
-  expands a chain of two or more `Conn` consts into a fresh
-  `Conn<Src, Dst>` via nested calls. Non-capturing closures coerce to
-  `fn(_) -> _` pointers at the `Conn::new` call site, so the result
-  preserves `Conn`'s `Copy` + `const`-constructible shape with no
-  changes to the struct itself.
-- **Tests** — replace the hand-nested
-  `composition_pico_to_uni_matches_ladder_climb` with macro-driven
-  equivalents (`compose_two_step_*`, `compose_four_step_*`) and add
-  Galois-law preservation checks against a macro-composed
-  `Conn<Pico, Uni>` (`compose_inner_then_ceil_is_id`,
-  `compose_floor_le_ceil`, `compose_galois_upper`,
-  `compose_galois_lower`, `compose_idempotent`). +9 proptest instances,
-  test count 505 → 514.
+- **Replace `compose_conn!` (MR !7) with `compose!`.** The new macro
+  is variadic over `N ≥ 2` parents — composing more than two
+  connections is common (the four-step ladder climb is the motivating
+  case), and the binary form forced a temporary intermediate const at
+  every odd step. Same compile-time-only model, no runtime dispatch,
+  no shape change to `Conn`.
+- **Implementation.** `macro_rules! compose` in `src/conn.rs` emits
+  `Conn::new(closure, closure, closure)`. The closures capture nothing
+  (they only reference module-scope parent `const`s) and coerce to
+  `fn(_) -> _` pointers at `Conn::new`'s argument site, preserving
+  `Conn`'s `Copy` + `const`-constructible shape. Const-context
+  coercion is verified by both an in-source `const COMPOSED_F12F00`
+  binding and a `rust,no_run` doctest.
+- **Tests.** Borrowed verbatim-in-spirit from `compose_conn!`'s suite:
+  representative-value spot checks, left- and right-identity laws,
+  Uni-side safe-boundary check, plus four proptests of pointwise
+  agreement and the Galois adjoint laws. New tests added for the
+  variadic capability: 2-, 3-, and 4-parent shapes against
+  hand-nested calls, plus the existing
+  `composition_pico_to_uni_matches_ladder_climb` (which exercised the
+  4-step nesting directly) folded into
+  `compose_four_step_ceil_floor_match_handcoded`. Test count
+  505 → 519 (+14).
 - **`doc/design.md`** — replace the broken pseudo-implementation of
-  `Conn::then` (lines 91–112, which couldn't compile against the
-  `fn`-pointer struct) with a "Why not a runtime `Conn::then`" section
+  `Conn::then` and the prior `### .then() vs. compose_conn!` section
+  with a single "Why not a runtime `Conn::then`" subsection
   documenting the storage-shape constraint and the two future shape
-  options (generic-default type params; boxed trait objects). Update
-  the combinator table at line 120: `compose!` is the implemented
-  primitive, `Conn::then` stays deferred.
+  options (generic-default type params; boxed trait objects). The
+  combinator table now lists `compose!` as the implemented primitive.
+- **`src/lib.rs`** — crate-level Composition section rewritten to
+  reference `compose!` and the variadic 4-parent example.
 
 ## Test plan
 
 - `cargo build` — clean.
-- `cargo test --workspace` — 514 passed, up from 505.
+- `cargo test --workspace` — 519 passed, up from 505.
+- `cargo test --doc` — 2 doctests pass (the in-macro example +
+  the crate-level lib.rs example).
 - `cargo clippy --all-targets -- -D warnings` — clean.
-- `cargo fmt --all -- --check` — matches main's pre-existing drift
-  (27 lines across files this MR doesn't touch); no new drift introduced.
+- `cargo fmt --all -- --check` — matches main's pre-existing drift;
+  no new drift introduced.
 - `const F12F00_BIS: Conn<Pico, Uni> = compose!(F12F09, F09F06, F06F03, F03F00);`
-  compiles in const context, exercising non-capturing-closure → fn-ptr
-  coercion at const-eval.
-- `cargo doc --no-deps` — zero warnings on the new macro and design
-  doc section.
+  compiles in const context (verified by `COMPOSED_F12F00` in
+  `src/conn.rs`'s test module + the doctest tagged `rust,no_run`).
+- `cargo doc --no-deps` — zero warnings.
 
 Deferred (tracked in plan Review):
 - Runtime `Conn::then` — re-open when a concrete consumer appears;
