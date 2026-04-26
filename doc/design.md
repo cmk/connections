@@ -38,6 +38,51 @@ Every Galois connection `f ⊣ g` satisfies:
 These properties are the test suite contract. Every connection value must
 satisfy all five.
 
+### Triple-only properties and the role of injectivity
+
+In an adjoint *triple* `f ⊣ g ⊣ h` (with `g` shared as the middle
+adjoint), both `f` and `h` have type `A → B`, so it becomes meaningful
+to compare them pointwise:
+
+- **Rounding sandwich**: `h(a) ≤ f(a)` for all `a`.
+
+This is *not* derivable from the adjoint axioms alone. From the two
+halves of the triple you can derive the inner-image sandwich
+
+```
+g(h(a)) ≤ a ≤ g(f(a))
+```
+
+To strip the outer `g` and recover `h(a) ≤ f(a)`, you need `g` to
+*reflect* the order — `g(x) ≤ g(y) ⟹ x ≤ y` — which, for a monotone
+embedding into a totally ordered set, is the same as saying `g` is
+injective (no plateaus where multiple `b`'s collapse to the same `a`).
+
+So `floor ≤ ceil` is two things at once:
+
+- **Structurally** triple-only: a plain adjoint pair `f ⊣ g` has no
+  second function `A → B` to compare against, so the property has no
+  statement.
+- **Logically** an extra side condition on the triple, namely that
+  `g` is injective.
+
+For lossless-embedding connections (any `inner` that is an exact
+bit-shift into a target with sufficient precision — e.g. the within-
+ladder `Pico → Pico` identity, or any cross-width `FixedI<W1><F1>` →
+`FixedI<W2><F2>` where the Coarse value range is a strict subset of
+Fine's), `inner` is injective and the rounding sandwich holds for
+free. For *saturating* `inner` (e.g. distinct fixed-point types where
+Coarse value range exceeds Fine's, forcing `inner(c) = Fine::MAX` for
+a plateau of large `c`), `floor(a) ≤ ceil(a)` fails at the plateau —
+multiple `c`'s map to the same `inner(c)`, so the smallest such `c`
+(returned by `ceil`) and the largest (returned by `floor`) differ in
+the wrong direction.
+
+Property-test consequence: the test suite asserts the five Galois
+axioms above for **every** connection. The rounding sandwich is
+asserted only for connections where `inner` is documented-injective.
+Per-connection module headers note which case they are in.
+
 ## Core type
 
 The [Haskell library](https://github.com/cmk/connections/) uses a phantom
