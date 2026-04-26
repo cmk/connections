@@ -79,6 +79,11 @@ SYSTEM = textwrap.dedent("""\
       that should block merge. Everything else is `follow-up`.
     - Skip nits (naming preferences, whitespace). CI handles those.
     - One finding per issue; no duplicates across files.
+    - For `conn::*` code: an adjoint triple `ceil ⊣ inner ⊣ floor` is
+      uniquely determined by `inner` and the orders. Don't speculate
+      about alternate `ceil` / `floor` implementations. Flag only if
+      `inner` itself looks wrong, the proptest doesn't cover the
+      Galois law, or there's a concrete bug.
     - If nothing warrants review, return `[]`.
 
     HARD OUTPUT CONSTRAINT: your entire response must be a single JSON
