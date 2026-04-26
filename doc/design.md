@@ -90,62 +90,75 @@ source of confusion, a future version could introduce marker types.
 
 ## Composition
 
+Composition is provided by the `compose!` macro. It expands a chain of
+compile-time-known `Conn` consts into a single fresh
+`Conn<Src, Dst>` whose `ceil` / `inner` / `floor` are nested calls
+into the parent consts. The result is `Copy` and `const`-constructible
+— same shape as a hand-written `Conn`.
+
 ```rust
-impl<A, B> Conn<A, B> {
-    pub fn then<C>(self, other: Conn<B, C>) -> Conn<A, C> {
-        Conn {
-            ceil:  |a| (other.ceil)((self.ceil)(a)),
-            inner: |c| (self.inner)((other.inner)(c)),
-            floor: |a| (other.floor)((self.floor)(a)),
-        }
-    }
+const F12F00_BIS: Conn<Pico, Uni> =
+    compose!(F12F09, F09F06, F06F03, F03F00);
+```
+
+Ceiling and floor compose covariantly (left-to-right); the inner
+adjoint composes contravariantly (right-to-left). This matches the
+Haskell `Category` instance. If every parent is one-sided
+(`self.ceil == self.floor`), the composed `ceil` and `floor` are also
+equal — the one-sided property is preserved.
+
+### Why not a runtime `Conn::then`?
+
+`Conn`'s fields are bare `fn` pointers:
+
+```rust
+pub struct Conn<A, B> {
+    pub(crate) ceil:  fn(A) -> B,
+    pub(crate) inner: fn(B) -> A,
+    pub(crate) floor: fn(A) -> B,
 }
 ```
 
-Ceiling and floor compose covariantly; the inner adjoint composes
-contravariantly (in the opposite direction). This matches the Haskell
-`Category` instance.
+A `fn` pointer is a single code address — there is no slot to stash
+captured state. A runtime `then` method would have to construct
+something like `|a| other.ceil(self.ceil(a))`, which captures `self`
+and `other`. That's a closure with state, not a `fn` pointer; it can't
+be stored in a `Conn` field as defined.
 
-The result of composing a one-sided connection with a two-sided connection is
-a one-sided connection — because if `self.ceil == self.floor`, then the
-composed `ceil` and `floor` are also equal.
+Two viable shape changes exist if a future consumer needs runtime
+composition:
 
-### `.then()` vs. `compose_conn!`
+1. **Generic type parameters with `fn`-pointer defaults:**
+   `pub struct Conn<A, B, F = fn(A) -> B, G = fn(B) -> A, H = fn(A) -> B>`.
+   Existing call sites stay source-compatible; `then` returns a
+   `Conn<A, C, impl Fn ..., impl Fn ..., impl Fn ...>` — a different
+   concrete type from the fn-pointer instantiation, but one that still
+   satisfies the same accessor surface. Preserves `Copy` (closures
+   capturing only `Copy` data are themselves `Copy`).
+2. **Boxed trait objects:** `ceil: Box<dyn Fn(A) -> B>`. Loses `Copy`
+   and `const`; adds heap allocation per `then`.
 
-The `.then()` method above is the aspirational API; `Conn<A, B>`
-currently stores three bare `fn(_) -> _` pointers (not closures), so a
-generic `.then()` would need to capture both inputs and can't —
-a bare `fn` has no captures. Until a closure-capturing
-[`DynConn`](#runtime-composition-future) lands, compile-time
-composition uses the [`compose_conn!`] declarative macro, which takes
-two `const Conn`s and expands to a fresh `const Conn` whose
-`ceil`/`inner`/`floor` fn-items invoke the inputs by name:
-
-```rust
-compose_conn! {
-    pub const F12F00_VIA_MICRO: Conn<Pico, Uni> = F12F06, F06F00;
-}
-```
-
-The intermediate type (`Micro` here) is inferred and never appears
-in the emitted source. This covers the compile-time-known case that
-accounts for ~95 % of real usage; runtime composition remains
-deferred.
+Both add real complexity that the macro avoids. The macro is preferred
+because the parents being composed are virtually always module-scope
+`const`s (the `F??F??` ladder, `S???S???` rate pairs, `F12S??`
+cross-tier conns), so the composition is fully known at compile time
+and pays no runtime cost.
 
 ### Combinators
 
 The Haskell library defines several ways to lift connections into product,
 coproduct, and functor structures. The following translate directly:
 
-| Haskell      | Rust         | Description                              |
-|--------------|--------------|------------------------------------------|
-| `>>>`        | `.then()`    | Sequential composition                   |
-| `strong`     | `product`    | Lift into product order `(A, C) → (B, D)`|
-| `choice`     | `coproduct`  | Lift into `Result<A, C> → Result<B, D>`  |
-| `identity`   | `Conn::id()` | Identity connection                      |
-| `bounded`    | `Conn::bounded()` | Bounded type → unit                 |
-| `ordered`    | `Conn::ordered()` | `(A, A) → A` via min/max            |
-| `mapped`     | *(omitted)*  | Requires HKT; specialize per container   |
+| Haskell      | Rust                  | Status                                |
+|--------------|-----------------------|---------------------------------------|
+| `>>>`        | `compose!(F, G, …)`   | **Implemented** — code-gen macro      |
+| `>>>`        | `Conn::then`          | *Deferred* — see "Why not …" above    |
+| `strong`     | `product`             | *Deferred* — same shape constraint    |
+| `choice`     | `coproduct`           | *Deferred* — same shape constraint    |
+| `identity`   | `Conn::identity()`    | Implemented                           |
+| `bounded`    | `Conn::bounded()`     | Future                                |
+| `ordered`    | `Conn::ordered()`     | Future                                |
+| `mapped`     | *(omitted)*           | Requires HKT; specialize per container |
 
 ## Float lattice: `ExtendedFloat<T>`
 

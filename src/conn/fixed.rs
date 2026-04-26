@@ -541,23 +541,135 @@ mod tests {
     props_for_pair!(p_f12f03, F12F03, Pico,  Milli, 1_000_000_000);
     props_for_pair!(p_f12f06, F12F06, Pico,  Micro, 1_000_000);
 
-    // Composition: the direct non-adjacent Conn agrees with climbing
-    // the ladder step-by-step. Check Pico→Uni against the 4-step climb.
+    // Composition via the `compose!` macro. Three flavours:
+    //
+    // 1. Two-step: confirms the macro's covariant-ceil/contravariant-inner
+    //    expansion against hand-nested calls.
+    // 2. Four-step Pico→Uni: confirms the macro agrees with the
+    //    hand-coded non-adjacent `F12F00`. (This subsumes the previous
+    //    `composition_pico_to_uni_matches_ladder_climb` test, which
+    //    exercised the same nested-call shape directly.)
+    // 3. Galois-law preservation: a macro-composed `Conn<Pico, Uni>`
+    //    must satisfy the same adjoint laws as any hand-coded Conn.
+    //
+    // Const-context coercion of the non-capturing closures inside
+    // `compose!` is exercised by `COMPOSED_F12F00` below.
+    const COMPOSED_F12F00: crate::conn::Conn<Pico, Uni> =
+        crate::compose!(F12F09, F09F06, F06F03, F03F00);
+
     proptest! {
+        // Two-step (Pico→Nano→Micro). Source-side ceil/floor are
+        // exercised over the full `bounded_fine` Pico domain; the
+        // inner round-trip is exercised over the Micro coarse domain
+        // (`bounded_coarse(Micro::PREC)`) — `composed.inner(Micro)`
+        // multiplies through Nano (×1e3) and Pico (×1e3), so the
+        // input must be capped at `i64::MAX / 1e6`.
         #[test]
-        fn composition_pico_to_uni_matches_ladder_climb(
+        fn compose_two_step_ceil_floor_match_nested(
+            p in bounded_fine(1_000_000_000_000i64),
+        ) {
+            let composed: crate::conn::Conn<Pico, Micro> =
+                crate::compose!(F12F09, F09F06);
+            let pico = Pico(p);
+            prop_assert_eq!(
+                composed.ceil(pico),
+                F09F06.ceil(F12F09.ceil(pico)),
+            );
+            prop_assert_eq!(
+                composed.floor(pico),
+                F09F06.floor(F12F09.floor(pico)),
+            );
+        }
+
+        #[test]
+        fn compose_two_step_inner_matches_nested(
+            m in bounded_coarse(Micro::PREC),
+        ) {
+            let composed: crate::conn::Conn<Pico, Micro> =
+                crate::compose!(F12F09, F09F06);
+            let micro = Micro(m);
+            prop_assert_eq!(
+                composed.inner(micro),
+                F12F09.inner(F09F06.inner(micro)),
+            );
+        }
+
+        // Four-step (Pico→Nano→Micro→Milli→Uni). Same domain split:
+        // `bounded_fine(Pico::PREC)` for the Pico-side ceil/floor;
+        // `bounded_coarse(Pico::PREC)` for the Uni-side inner.
+        #[test]
+        fn compose_four_step_ceil_floor_match_handcoded(
             p in bounded_fine(1_000_000_000_000i64),
         ) {
             let pico = Pico(p);
-            let direct_ceil = F12F00.ceil(pico);
-            let climb_ceil =
-                F03F00.ceil(F06F03.ceil(F09F06.ceil(F12F09.ceil(pico))));
-            prop_assert_eq!(direct_ceil, climb_ceil);
+            prop_assert_eq!(COMPOSED_F12F00.ceil(pico),  F12F00.ceil(pico));
+            prop_assert_eq!(COMPOSED_F12F00.floor(pico), F12F00.floor(pico));
+        }
 
-            let direct_floor = F12F00.floor(pico);
-            let climb_floor =
-                F03F00.floor(F06F03.floor(F09F06.floor(F12F09.floor(pico))));
-            prop_assert_eq!(direct_floor, climb_floor);
+        #[test]
+        fn compose_four_step_inner_matches_handcoded(
+            u in bounded_coarse(Pico::PREC),
+        ) {
+            let uni = Uni(u);
+            prop_assert_eq!(COMPOSED_F12F00.inner(uni), F12F00.inner(uni));
+        }
+
+        // Galois-law preservation on the macro-composed Pico→Uni Conn.
+        // Mirrors the invariants `props_for_pair!` checks; uses
+        // F12F00's PREC (1e12) to scope the Coarse generators.
+        #[test]
+        fn compose_inner_then_ceil_is_id(c in bounded_coarse(1_000_000_000_000i64)) {
+            let b = Uni(c);
+            prop_assert_eq!(COMPOSED_F12F00.ceil(COMPOSED_F12F00.inner(b)), b);
+        }
+
+        #[test]
+        fn compose_inner_then_floor_is_id(c in bounded_coarse(1_000_000_000_000i64)) {
+            let b = Uni(c);
+            prop_assert_eq!(COMPOSED_F12F00.floor(COMPOSED_F12F00.inner(b)), b);
+        }
+
+        #[test]
+        fn compose_floor_le_ceil(p in bounded_fine(1_000_000_000_000i64)) {
+            let pico = Pico(p);
+            let c = COMPOSED_F12F00.ceil(pico);
+            let f = COMPOSED_F12F00.floor(pico);
+            prop_assert!(f <= c);
+            prop_assert!(c.0 - f.0 <= 1);
+        }
+
+        #[test]
+        fn compose_galois_upper(
+            p in bounded_fine(1_000_000_000_000i64),
+            c in bounded_coarse(1_000_000_000_000i64),
+        ) {
+            let pico = Pico(p);
+            let uni  = Uni(c);
+            prop_assert_eq!(
+                COMPOSED_F12F00.ceil(pico) <= uni,
+                pico <= COMPOSED_F12F00.inner(uni),
+            );
+        }
+
+        #[test]
+        fn compose_galois_lower(
+            p in bounded_fine(1_000_000_000_000i64),
+            c in bounded_coarse(1_000_000_000_000i64),
+        ) {
+            let pico = Pico(p);
+            let uni  = Uni(c);
+            prop_assert_eq!(
+                COMPOSED_F12F00.inner(uni) <= pico,
+                uni <= COMPOSED_F12F00.floor(pico),
+            );
+        }
+
+        #[test]
+        fn compose_idempotent(p in safe_fine(1_000_000_000_000i64)) {
+            let pico = Pico(p);
+            let once  = COMPOSED_F12F00.inner(COMPOSED_F12F00.ceil(pico));
+            let twice = COMPOSED_F12F00.inner(COMPOSED_F12F00.ceil(once));
+            prop_assert_eq!(once, twice);
         }
     }
 

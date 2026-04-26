@@ -53,22 +53,21 @@
 //! type is `Copy`, const-constructible, and heap-free — which
 //! prevents a generic `.then()` method (a composed fn would need to
 //! capture both inputs, which bare `fn` cannot). For the
-//! compile-time-known case, the [`compose_conn!`] declarative macro
-//! takes two `const Conn`s and expands to a fresh `const Conn`:
+//! compile-time-known case, the [`compose!`] macro expands a chain of
+//! two or more `Conn` consts into a fresh `Conn<Src, Dst>`:
 //!
-//! ```
-//! use connections::compose_conn;
+//! ```rust,no_run
+//! use connections::compose;
 //! use connections::conn::Conn;
-//! use connections::conn::fixed::{F06F00, F12F06, Pico, Uni};
+//! use connections::conn::fixed::{F12F09, F09F06, F06F03, F03F00, Pico, Uni};
 //!
-//! compose_conn! {
-//!     pub const F12F00_VIA_MICRO: Conn<Pico, Uni> = F12F06, F06F00;
-//! }
+//! const F12F00_BIS: Conn<Pico, Uni> =
+//!     compose!(F12F09, F09F06, F06F03, F03F00);
 //! ```
 //!
-//! The intermediate type (`Micro` here) is inferred and never named.
-//! Runtime composition is deferred until a closure-capturing
-//! `DynConn` variant lands.
+//! Source/destination types come from the binding annotation;
+//! intermediates are inferred. Runtime composition is deferred until
+//! a closure-capturing `DynConn` variant lands — see `doc/design.md`.
 
 #![forbid(unsafe_code)]
 

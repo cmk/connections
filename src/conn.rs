@@ -17,76 +17,57 @@ pub mod int;
 pub mod sample;
 pub mod word;
 
-/// Compose two `const Conn`s into a third `const Conn`.
+/// Compose a chain of `Conn` consts into a single fresh `Conn<Src, Dst>`.
 ///
-/// Given `$FIRST: Conn<A, B>` and `$SECOND: Conn<B, C>` already in
-/// scope as constants, expands to a full `pub const` declaration of a
-/// fresh `Conn<A, C>` whose adjoint triple applies the two components
-/// in category order (covariant `ceil`/`floor`, contravariant
-/// `inner`). The intermediate type `B` is inferred and never appears
-/// in the emitted source — the caller names only the boundary types.
+/// Variadic over two or more parents. Source and destination types come
+/// from the binding's type annotation; the macro itself takes only the
+/// parents to compose, left-to-right.
 ///
-/// ## Shape
-///
-/// ```ignore
-/// compose_conn! {
-///     $(#[$m:meta])*
-///     $v:vis const $NAME:ident : Conn<$A:ty, $C:ty> = $FIRST:expr, $SECOND:expr $(,)?;
-/// }
-/// ```
-///
-/// Expands to:
-///
-/// ```ignore
-/// $(#[$m])*
-/// $v const $NAME: $crate::conn::Conn<$A, $C> = {
-///     fn ceil(x: $A) -> $C  { $SECOND.ceil($FIRST.ceil(x)) }
-///     fn inner(x: $C) -> $A { $FIRST.inner($SECOND.inner(x)) }
-///     fn floor(x: $A) -> $C { $SECOND.floor($FIRST.floor(x)) }
-///     $crate::conn::Conn::new(ceil, inner, floor)
-/// };
-/// ```
-///
-/// ## Example
-///
-/// ```
-/// use connections::compose_conn;
+/// ```rust,no_run
+/// use connections::compose;
 /// use connections::conn::Conn;
-/// use connections::conn::fixed::{F12F06, F06F00, Pico, Uni};
+/// use connections::conn::fixed::{Pico, Uni, F12F09, F09F06, F06F03, F03F00};
 ///
-/// compose_conn! {
-///     /// Pico → Uni routed via Micro. Equivalent to the hand-written
-///     /// `F12F00` at every input.
-///     pub const F12F00_VIA_MICRO: Conn<Pico, Uni> = F12F06, F06F00;
-/// }
-///
-/// assert_eq!(F12F00_VIA_MICRO.ceil(Pico(1_500_000_000_000)), Uni(2));
-/// assert_eq!(F12F00_VIA_MICRO.floor(Pico(1_500_000_000_000)), Uni(1));
-/// assert_eq!(F12F00_VIA_MICRO.inner(Uni(3)), Pico(3_000_000_000_000));
+/// const F12F00_BIS: Conn<Pico, Uni> =
+///     compose!(F12F09, F09F06, F06F03, F03F00);
 /// ```
 ///
-/// ## Why a full-const-decl form
+/// `ceil` and `floor` compose covariantly (left-to-right);
+/// `inner` composes contravariantly (right-to-left).
 ///
-/// The macro needs to emit `fn` items with explicit signatures
-/// (`fn ceil(x: A) -> C`), which can't be inferred. Bundling the whole
-/// `const NAME: Conn<A, C> = ...` declaration into the invocation
-/// gives the user one place to name the boundary types and the macro
-/// one unambiguous parse. Only the two end types appear at the call
-/// site; the intermediate `B` is threaded through by type inference
-/// on `$FIRST.ceil(x)` and never written down.
+/// The expansion uses non-capturing closures that only reference the
+/// module-scope parent `const`s, so each closure coerces to an
+/// `fn(_) -> _` pointer at the `Conn::new` call site — preserving
+/// `Conn`'s `Copy` / `const` shape.
 #[macro_export]
-macro_rules! compose_conn {
-    (
-        $(#[$m:meta])*
-        $v:vis const $NAME:ident : Conn<$A:ty, $C:ty> = $FIRST:expr, $SECOND:expr $(,)?;
-    ) => {
-        $(#[$m])*
-        $v const $NAME: $crate::conn::Conn<$A, $C> = {
-            fn ceil(x: $A) -> $C  { $SECOND.ceil($FIRST.ceil(x)) }
-            fn inner(x: $C) -> $A { $FIRST.inner($SECOND.inner(x)) }
-            fn floor(x: $A) -> $C { $SECOND.floor($FIRST.floor(x)) }
-            $crate::conn::Conn::new(ceil, inner, floor)
-        };
+macro_rules! compose {
+    ($first:path $(, $rest:path)+ $(,)?) => {
+        $crate::conn::Conn::new(
+            |a| $crate::compose!(@nest_ceil  a; $first $(, $rest)+),
+            |z| $crate::compose!(@nest_inner z; $first $(, $rest)+),
+            |a| $crate::compose!(@nest_floor a; $first $(, $rest)+),
+        )
+    };
+
+    // ── Internal recursive arms (`@`-prefixed so the user can never
+    //    invoke them directly) ────────────────────────────────────────
+
+    // `ceil` / `floor` are covariant: wrap left-to-right, so the
+    // leftmost parent runs first on the input.
+    (@nest_ceil $x:expr; $last:path) => { $last.ceil($x) };
+    (@nest_ceil $x:expr; $first:path $(, $rest:path)+) => {
+        $crate::compose!(@nest_ceil $first.ceil($x); $($rest),+)
+    };
+    (@nest_floor $x:expr; $last:path) => { $last.floor($x) };
+    (@nest_floor $x:expr; $first:path $(, $rest:path)+) => {
+        $crate::compose!(@nest_floor $first.floor($x); $($rest),+)
+    };
+
+    // `inner` is contravariant: the rightmost parent runs first on the
+    // input, so the leftmost parent's `inner` ends up on the outside.
+    (@nest_inner $z:expr; $last:path) => { $last.inner($z) };
+    (@nest_inner $z:expr; $first:path $(, $rest:path)+) => {
+        $first.inner($crate::compose!(@nest_inner $z; $($rest),+))
     };
 }
 
@@ -287,169 +268,7 @@ mod tests {
         }
     }
 
-    // ── compose_conn! macro ─────────────────────────────────────────
-    //
-    // The composed Conn's adjoint laws follow from the components'
-    // (both already proptested across the fixed-ladder module), but we
-    // still check (1) construction, (2) behaviour parity against the
-    // hand-written direct Conn, (3) the adjoint laws directly on the
-    // composition, and (4) identity element left/right to confirm the
-    // macro doesn't interact weirdly with `Conn::identity()`.
-
-    use crate::compose_conn;
-    use crate::conn::fixed::{F06F00, F12F00, F12F06, Micro, Pico, Uni};
-
-    // Expands at the test module scope: two component Conns compose
-    // into a fresh Conn<Pico, Uni>. Proves the macro parses the full
-    // const-decl form and that the resulting value lives at `const`
-    // (not just runtime) scope.
-    compose_conn! {
-        /// Pico → Uni routed through Micro. Equivalent to the hand-
-        /// written `F12F00` at every input.
-        const F12F00_VIA_MICRO: Conn<Pico, Uni> = F12F06, F06F00;
-    }
-
-    const ID_PICO: Conn<Pico, Pico> = Conn::identity();
-    const ID_MICRO: Conn<Micro, Micro> = Conn::identity();
-
-    compose_conn! {
-        const LEFT_ID_COMPOSED: Conn<Pico, Micro> = ID_PICO, F12F06;
-    }
-    compose_conn! {
-        const RIGHT_ID_COMPOSED: Conn<Pico, Micro> = F12F06, ID_MICRO;
-    }
-
-    #[test]
-    fn compose_conn_matches_hand_written_at_representative_values() {
-        // Exact-boundary, off-boundary positive, off-boundary negative.
-        for p in [
-            0_i64,
-            1,
-            -1,
-            1_000_000_000_000,
-            -1_000_000_000_000,
-            1_500_000_000_000,
-            -1_500_000_000_000,
-            999_999_999_999,
-            -999_999_999_999,
-        ] {
-            let x = Pico(p);
-            assert_eq!(F12F00_VIA_MICRO.ceil(x), F12F00.ceil(x), "ceil @ {p}");
-            assert_eq!(F12F00_VIA_MICRO.floor(x), F12F00.floor(x), "floor @ {p}");
-        }
-        for u in [0_i64, 1, -1, 42, -42] {
-            let x = Uni(u);
-            assert_eq!(F12F00_VIA_MICRO.inner(x), F12F00.inner(x), "inner @ {u}");
-        }
-    }
-
-    #[test]
-    fn compose_conn_left_identity() {
-        // id ∘ F12F06 must equal F12F06 pointwise.
-        for p in [0_i64, 1, -1, 1_500_000, -1_500_000, 999_999, -999_999] {
-            let x = Pico(p);
-            assert_eq!(LEFT_ID_COMPOSED.ceil(x), F12F06.ceil(x));
-            assert_eq!(LEFT_ID_COMPOSED.floor(x), F12F06.floor(x));
-        }
-        for u in [0_i64, 1, -1, 42, -42] {
-            let x = Micro(u);
-            assert_eq!(LEFT_ID_COMPOSED.inner(x), F12F06.inner(x));
-        }
-    }
-
-    #[test]
-    fn compose_conn_inner_at_uni_safe_boundary() {
-        // `bounded_uni` in the proptests narrows to |c| ≤ i64::MAX / 10¹²
-        // because `inner(c) = c · 10¹²` overflows past that. The narrowing
-        // is architectural (it applies identically to `F12F00.inner`),
-        // so the CLAUDE.md rule on bounded generators asks for an explicit
-        // spot check AT the boundary — confirming composed and hand-
-        // written agree at the last sampled value, and documenting the
-        // point beyond which both panic in debug / wrap in release.
-        let limit = i64::MAX / PICO_UNI_PREC;
-        assert_eq!(F12F00_VIA_MICRO.inner(Uni(limit)), F12F00.inner(Uni(limit)));
-        assert_eq!(F12F00_VIA_MICRO.inner(Uni(-limit)), F12F00.inner(Uni(-limit)));
-        assert_eq!(F12F00_VIA_MICRO.inner(Uni(limit - 1)), F12F00.inner(Uni(limit - 1)));
-        assert_eq!(
-            F12F00_VIA_MICRO.inner(Uni(-limit + 1)),
-            F12F00.inner(Uni(-limit + 1))
-        );
-    }
-
-    #[test]
-    fn compose_conn_right_identity() {
-        for p in [0_i64, 1, -1, 1_500_000, -1_500_000, 999_999, -999_999] {
-            let x = Pico(p);
-            assert_eq!(RIGHT_ID_COMPOSED.ceil(x), F12F06.ceil(x));
-            assert_eq!(RIGHT_ID_COMPOSED.floor(x), F12F06.floor(x));
-        }
-        for u in [0_i64, 1, -1, 42, -42] {
-            let x = Micro(u);
-            assert_eq!(RIGHT_ID_COMPOSED.inner(x), F12F06.inner(x));
-        }
-    }
-
-    // Composite ratio for F12F00 is 10^12; inner(c) = c * 10^12 must
-    // fit i64, so bound the Uni side to |c| ≤ i64::MAX / 10^12.
-    const PICO_UNI_PREC: i64 = 1_000_000_000_000;
-
-    fn bounded_pico() -> impl Strategy<Value = i64> {
-        prop_oneof![
-            1 => Just(0_i64),
-            1 => Just(PICO_UNI_PREC),
-            1 => Just(-PICO_UNI_PREC),
-            1 => Just(PICO_UNI_PREC - 1),
-            1 => Just(-(PICO_UNI_PREC - 1)),
-            1 => Just(i64::MAX),
-            1 => Just(i64::MIN + 1),
-            5 => any::<i64>(),
-        ]
-    }
-
-    fn bounded_uni() -> impl Strategy<Value = i64> {
-        let limit = i64::MAX / PICO_UNI_PREC;
-        prop_oneof![
-            1 => Just(0_i64),
-            1 => Just(limit),
-            1 => Just(-limit),
-            5 => -limit..=limit,
-        ]
-    }
-
-    proptest! {
-        #[test]
-        fn compose_conn_agrees_with_hand_written(p in bounded_pico()) {
-            let x = Pico(p);
-            prop_assert_eq!(F12F00_VIA_MICRO.ceil(x), F12F00.ceil(x));
-            prop_assert_eq!(F12F00_VIA_MICRO.floor(x), F12F00.floor(x));
-        }
-
-        #[test]
-        fn compose_conn_inner_agrees_with_hand_written(u in bounded_uni()) {
-            let x = Uni(u);
-            prop_assert_eq!(F12F00_VIA_MICRO.inner(x), F12F00.inner(x));
-        }
-
-        #[test]
-        fn compose_conn_galois_upper(p in bounded_pico(), u in bounded_uni()) {
-            // ceil(x) ≤ c  ⟺  x ≤ inner(c)
-            let fx = Pico(p);
-            let cx = Uni(u);
-            prop_assert_eq!(
-                F12F00_VIA_MICRO.ceil(fx) <= cx,
-                fx <= F12F00_VIA_MICRO.inner(cx)
-            );
-        }
-
-        #[test]
-        fn compose_conn_galois_lower(p in bounded_pico(), u in bounded_uni()) {
-            // inner(c) ≤ x  ⟺  c ≤ floor(x)
-            let fx = Pico(p);
-            let cx = Uni(u);
-            prop_assert_eq!(
-                F12F00_VIA_MICRO.inner(cx) <= fx,
-                cx <= F12F00_VIA_MICRO.floor(fx)
-            );
-        }
-    }
+    // `compose!` macro tests are added in a follow-up commit; this
+    // commit only introduces the macro and removes the prior
+    // `compose_conn!` binary form it replaces.
 }
