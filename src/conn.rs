@@ -134,8 +134,8 @@ impl<T> Conn<T, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lattice::Ple;
     use crate::property::arb::arb_f64;
+    use crate::property::laws;
     use proptest::prelude::*;
 
     #[test]
@@ -166,106 +166,60 @@ mod tests {
         assert_eq!(c.ceil(-3), c.floor(-3));
     }
 
-    // ── Property tests for identity connection ─────────────────────
+    // ── Property tests for identity connection (i32, exercises Ord) ──
 
-    /// Adjointness: `f(a) ≤ b ⟺ a ≤ g(b)`
-    fn adjoint_id(a: i32, b: i32) -> bool {
-        let c = Conn::<i32, i32>::identity();
-        let fa = c.ceil(a);
-        let gb = c.inner(b);
-        (fa <= b) == (a <= gb)
-    }
-
-    /// Closure: `a ≤ g(f(a))`
-    fn closed_id(a: i32) -> bool {
-        let c = Conn::<i32, i32>::identity();
-        a <= c.inner(c.ceil(a))
-    }
-
-    /// Kernel: `f(g(b)) ≤ b`
-    fn kernel_id(b: i32) -> bool {
-        let c = Conn::<i32, i32>::identity();
-        c.ceil(c.inner(b)) <= b
-    }
-
-    /// Monotonicity: `a1 ≤ a2 ⟹ f(a1) ≤ f(a2)` and `b1 ≤ b2 ⟹ g(b1) ≤ g(b2)`
-    #[allow(clippy::nonminimal_bool)]
-    fn monotonic_id(a1: i32, a2: i32, b1: i32, b2: i32) -> bool {
-        let c = Conn::<i32, i32>::identity();
-        // Written as implication (not `a1 > a2`) to match the partial-order form.
-        let mf = !(a1 <= a2) || c.ceil(a1) <= c.ceil(a2);
-        let mg = !(b1 <= b2) || c.inner(b1) <= c.inner(b2);
-        mf && mg
-    }
-
-    /// Idempotence: `g(f(g(f(a)))) == g(f(a))`
-    fn idempotent_id(a: i32) -> bool {
-        let c = Conn::<i32, i32>::identity();
-        let gfa = c.inner(c.ceil(a));
-        let gfgfa = c.inner(c.ceil(gfa));
-        gfa == gfgfa
-    }
+    const ID_I32: Conn<i32, i32> = Conn::identity();
 
     proptest! {
         #[test]
-        fn prop_identity_adjoint(a: i32, b: i32) {
-            prop_assert!(adjoint_id(a, b));
+        fn galois_l(a: i32, b: i32) {
+            prop_assert!(laws::conn_galois_l(&ID_I32, a, b));
         }
 
         #[test]
-        fn prop_identity_closed(a: i32) {
-            prop_assert!(closed_id(a));
+        fn closure_l(a: i32) {
+            prop_assert!(laws::conn_closure_l(&ID_I32, a));
         }
 
         #[test]
-        fn prop_identity_kernel(b: i32) {
-            prop_assert!(kernel_id(b));
+        fn kernel_l(b: i32) {
+            prop_assert!(laws::conn_kernel_l(&ID_I32, b));
         }
 
         #[test]
-        fn prop_identity_monotonic(a1: i32, a2: i32, b1: i32, b2: i32) {
-            prop_assert!(monotonic_id(a1, a2, b1, b2));
+        fn monotone_l(a1: i32, a2: i32) {
+            prop_assert!(laws::conn_monotone_l(&ID_I32, a1, a2));
         }
 
         #[test]
-        fn prop_identity_idempotent(a: i32) {
-            prop_assert!(idempotent_id(a));
+        fn monotone_r(b1: i32, b2: i32) {
+            prop_assert!(laws::conn_monotone_r(&ID_I32, b1, b2));
+        }
+
+        #[test]
+        fn idempotent(a: i32) {
+            prop_assert!(laws::conn_idempotent(&ID_I32, a));
         }
     }
 
     // ── Property tests for identity on f64 (exercises N5 ordering) ─
 
-    fn adjoint_id_f64(a: f64, b: f64) -> bool {
-        let c = Conn::<f64, f64>::identity();
-        let fa = c.ceil(a);
-        let gb = c.inner(b);
-        fa.ple(&b) == a.ple(&gb)
-    }
-
-    fn closed_id_f64(a: f64) -> bool {
-        let c = Conn::<f64, f64>::identity();
-        a.ple(&c.inner(c.ceil(a)))
-    }
-
-    fn kernel_id_f64(b: f64) -> bool {
-        let c = Conn::<f64, f64>::identity();
-        c.ceil(c.inner(b)).ple(&b)
-    }
+    const ID_F64: Conn<f64, f64> = Conn::identity();
 
     proptest! {
         #[test]
-        fn prop_identity_f64_adjoint(a in arb_f64(), b in arb_f64()) {
-            prop_assert!(adjoint_id_f64(a, b));
+        fn galois_l_f64(a in arb_f64(), b in arb_f64()) {
+            prop_assert!(laws::conn_galois_l(&ID_F64, a, b));
         }
 
         #[test]
-        fn prop_identity_f64_closed(a in arb_f64()) {
-            prop_assert!(closed_id_f64(a));
+        fn closure_l_f64(a in arb_f64()) {
+            prop_assert!(laws::conn_closure_l(&ID_F64, a));
         }
 
         #[test]
-        fn prop_identity_f64_kernel(b in arb_f64()) {
-            prop_assert!(kernel_id_f64(b));
+        fn kernel_l_f64(b in arb_f64()) {
+            prop_assert!(laws::conn_kernel_l(&ID_F64, b));
         }
     }
 
@@ -464,63 +418,44 @@ mod tests {
         // Mirrors the invariants `props_for_pair!` checks; uses
         // F12F00's PREC (1e12) to scope the Coarse generators.
         #[test]
-        fn compose_inner_then_ceil_is_id(c in fixed_coarse(1_000_000_000_000i64)) {
-            let b = Uni(c);
-            prop_assert_eq!(COMPOSED_F12F00.ceil(COMPOSED_F12F00.inner(b)), b);
+        fn compose_roundtrip_ceil(c in fixed_coarse(1_000_000_000_000i64)) {
+            prop_assert!(laws::conn_roundtrip_ceil(&COMPOSED_F12F00, Uni(c)));
         }
 
         #[test]
-        fn compose_inner_then_floor_is_id(c in fixed_coarse(1_000_000_000_000i64)) {
-            let b = Uni(c);
-            prop_assert_eq!(COMPOSED_F12F00.floor(COMPOSED_F12F00.inner(b)), b);
+        fn compose_roundtrip_floor(c in fixed_coarse(1_000_000_000_000i64)) {
+            prop_assert!(laws::conn_roundtrip_floor(&COMPOSED_F12F00, Uni(c)));
         }
 
         // `floor ≤ ceil` is a general Galois-connection invariant that
         // `compose!` must preserve. The stricter `ceil − floor ≤ 1`
-        // ULP property is fixed-point-ladder-specific (it depends on
-        // integer division by PREC) and is already covered for
-        // `F12F00` directly by `props_for_pair!` in
+        // ULP property is fixed-point-ladder-specific and is already
+        // covered for `F12F00` directly by `props_for_pair!` in
         // `src/conn/fixed.rs`; we don't re-assert it here.
         #[test]
         fn compose_floor_le_ceil(p in fixed_fine(1_000_000_000_000i64)) {
-            let pico = Pico(p);
-            let c = COMPOSED_F12F00.ceil(pico);
-            let f = COMPOSED_F12F00.floor(pico);
-            prop_assert!(f <= c);
+            prop_assert!(laws::conn_floor_le_ceil(&COMPOSED_F12F00, Pico(p)));
         }
 
         #[test]
-        fn compose_galois_upper(
+        fn compose_galois_l(
             p in fixed_fine(1_000_000_000_000i64),
             c in fixed_coarse(1_000_000_000_000i64),
         ) {
-            let pico = Pico(p);
-            let uni  = Uni(c);
-            prop_assert_eq!(
-                COMPOSED_F12F00.ceil(pico) <= uni,
-                pico <= COMPOSED_F12F00.inner(uni),
-            );
+            prop_assert!(laws::conn_galois_l(&COMPOSED_F12F00, Pico(p), Uni(c)));
         }
 
         #[test]
-        fn compose_galois_lower(
+        fn compose_galois_r(
             p in fixed_fine(1_000_000_000_000i64),
             c in fixed_coarse(1_000_000_000_000i64),
         ) {
-            let pico = Pico(p);
-            let uni  = Uni(c);
-            prop_assert_eq!(
-                COMPOSED_F12F00.inner(uni) <= pico,
-                uni <= COMPOSED_F12F00.floor(pico),
-            );
+            prop_assert!(laws::conn_galois_r(&COMPOSED_F12F00, Pico(p), Uni(c)));
         }
 
         #[test]
         fn compose_idempotent(p in fixed_safe_fine(1_000_000_000_000i64)) {
-            let pico = Pico(p);
-            let once  = COMPOSED_F12F00.inner(COMPOSED_F12F00.ceil(pico));
-            let twice = COMPOSED_F12F00.inner(COMPOSED_F12F00.ceil(once));
-            prop_assert_eq!(once, twice);
+            prop_assert!(laws::conn_idempotent(&COMPOSED_F12F00, Pico(p)));
         }
     }
 }

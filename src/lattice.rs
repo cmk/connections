@@ -395,10 +395,37 @@ impl Ple for u16 { fn ple(&self, other: &Self) -> bool { self <= other } }
 impl Ple for u32 { fn ple(&self, other: &Self) -> bool { self <= other } }
 impl Ple for u64 { fn ple(&self, other: &Self) -> bool { self <= other } }
 
+// `ExtendedFloat<T>`: its `PartialOrd` is the N5 ordering with the
+// NaN-self-equality patch (see `impl_float_ext!` in
+// `crate::conn::float`), so a delegating `Ple` impl is correct.
+impl<T> Ple for crate::conn::float::ExtendedFloat<T>
+where
+    Self: PartialOrd,
+{
+    fn ple(&self, other: &Self) -> bool {
+        matches!(
+            self.partial_cmp(other),
+            Some(core::cmp::Ordering::Less | core::cmp::Ordering::Equal),
+        )
+    }
+}
+
+// `Extended<T>`: derived `PartialOrd` lifts `T: PartialOrd` while
+// fixing `NegInf < Finite < PosInf`. Delegate.
+impl<T: PartialOrd> Ple for crate::extended::Extended<T> {
+    fn ple(&self, other: &Self) -> bool {
+        matches!(
+            self.partial_cmp(other),
+            Some(core::cmp::Ordering::Less | core::cmp::Ordering::Equal),
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::property::arb::{arb_f32, arb_f64};
+    use crate::property::laws;
     use proptest::prelude::*;
 
     // ── Spot checks ────────────────────────────────────────────────
@@ -446,65 +473,54 @@ mod tests {
         assert!(f64::NEG_INFINITY.ple(&f64::INFINITY));
     }
 
-    // ── Preorder property tests (f64) ──────────────────────────────
+    // ── Preorder property tests (f32 / f64 N5 lattice) ─────────────
 
     proptest! {
         #[test]
-        fn prop_reflexive_f64(x in arb_f64()) {
-            prop_assert!(x.ple(&x), "reflexivity failed for {x}");
+        fn reflexive_f64(x in arb_f64()) {
+            prop_assert!(laws::lattice_reflexive(&x));
         }
 
         #[test]
-        fn prop_reflexive_f32(x in arb_f32()) {
-            prop_assert!(x.ple(&x), "reflexivity failed for {x}");
+        fn reflexive_f32(x in arb_f32()) {
+            prop_assert!(laws::lattice_reflexive(&x));
         }
 
         #[test]
-        fn prop_transitive_f64(x in arb_f64(), y in arb_f64(), z in arb_f64()) {
-            if x.ple(&y) && y.ple(&z) {
-                prop_assert!(x.ple(&z),
-                    "transitivity failed: {x} ≤ {y} ≤ {z} but not {x} ≤ {z}");
-            }
+        fn transitive_f64(x in arb_f64(), y in arb_f64(), z in arb_f64()) {
+            prop_assert!(laws::lattice_transitive(&x, &y, &z));
         }
 
         #[test]
-        fn prop_transitive_f32(x in arb_f32(), y in arb_f32(), z in arb_f32()) {
-            if x.ple(&y) && y.ple(&z) {
-                prop_assert!(x.ple(&z),
-                    "transitivity failed: {x} ≤ {y} ≤ {z} but not {x} ≤ {z}");
-            }
+        fn transitive_f32(x in arb_f32(), y in arb_f32(), z in arb_f32()) {
+            prop_assert!(laws::lattice_transitive(&x, &y, &z));
         }
 
         #[test]
-        fn prop_antisymmetric_f64(x in arb_f64(), y in arb_f64()) {
-            if x.ple(&y) && y.ple(&x) {
-                prop_assert_eq!(x.ple(&f64::INFINITY), y.ple(&f64::INFINITY));
-                prop_assert_eq!(x.ple(&f64::NEG_INFINITY), y.ple(&f64::NEG_INFINITY));
-                prop_assert_eq!(f64::INFINITY.ple(&x), f64::INFINITY.ple(&y));
-                prop_assert_eq!(f64::NEG_INFINITY.ple(&x), f64::NEG_INFINITY.ple(&y));
-            }
+        fn antisymmetric_f64(x in arb_f64(), y in arb_f64()) {
+            prop_assert!(laws::lattice_antisymmetric(
+                &x, &y, &f64::INFINITY, &f64::NEG_INFINITY,
+            ));
         }
 
         #[test]
-        fn prop_bot_f64(x in arb_f64()) {
-            prop_assert!(f64::NEG_INFINITY.ple(&x),
-                "-∞ should be ≤ {x}");
+        fn bot_f64(x in arb_f64()) {
+            prop_assert!(laws::lattice_bot(&f64::NEG_INFINITY, &x));
         }
 
         #[test]
-        fn prop_top_f64(x in arb_f64()) {
-            prop_assert!(x.ple(&f64::INFINITY),
-                "{x} should be ≤ +∞");
+        fn top_f64(x in arb_f64()) {
+            prop_assert!(laws::lattice_top(&f64::INFINITY, &x));
         }
 
         #[test]
-        fn prop_bot_f32(x in arb_f32()) {
-            prop_assert!(f32::NEG_INFINITY.ple(&x));
+        fn bot_f32(x in arb_f32()) {
+            prop_assert!(laws::lattice_bot(&f32::NEG_INFINITY, &x));
         }
 
         #[test]
-        fn prop_top_f32(x in arb_f32()) {
-            prop_assert!(x.ple(&f32::INFINITY));
+        fn top_f32(x in arb_f32()) {
+            prop_assert!(laws::lattice_top(&f32::INFINITY, &x));
         }
     }
 }

@@ -265,115 +265,13 @@ fn clamp32(x: i32) -> i32 {
 mod tests {
     use super::*;
     use crate::property::arb::{arb_f32, arb_f64};
+    use crate::property::laws;
     use proptest::prelude::*;
 
     // ── Helpers ────────────────────────────────────────────────────
 
     fn conn() -> Conn<f64, f32> {
         f64_f32()
-    }
-
-    // ── Connection properties ──────────────────────────────────────
-    // Rust translations of Data.Connection.Property from the Haskell library.
-
-    /// `f(a) ≤ b ⟺ a ≤ g(b)` (left adjunction)
-    fn adjoint_l(c: &Conn<f64, f32>, a: f64, b: f32) -> bool {
-        let fa = c.ceil(a);
-        let gb = c.inner(b);
-        fa.ple(&b) == a.ple(&gb)
-    }
-
-    /// `b ≤ h(a) ⟺ g(b) ≤ a` (right adjunction)
-    fn adjoint_r(c: &Conn<f64, f32>, a: f64, b: f32) -> bool {
-        let ha = c.floor(a);
-        let gb = c.inner(b);
-        b.ple(&ha) == gb.ple(&a)
-    }
-
-    /// Full adjointness: both left and right, plus the swapped versions.
-    fn adjoint(c: &Conn<f64, f32>, a: f64, b: f32) -> bool {
-        adjoint_l(c, a, b) && adjoint_r(c, a, b)
-    }
-
-    /// `a ≤ g(f(a))` (left closure / unit)
-    fn closed_l(c: &Conn<f64, f32>, a: f64) -> bool {
-        let gfa = c.inner(c.ceil(a));
-        a.ple(&gfa)
-    }
-
-    /// `g(h(a)) ≤ a` (right closure)
-    fn closed_r(c: &Conn<f64, f32>, a: f64) -> bool {
-        let gha = c.inner(c.floor(a));
-        gha.ple(&a)
-    }
-
-    /// Full closure: both left and right.
-    fn closed(c: &Conn<f64, f32>, a: f64) -> bool {
-        closed_l(c, a) && closed_r(c, a)
-    }
-
-    /// `f(g(b)) ≤ b` (left kernel / counit)
-    fn kernel_l(c: &Conn<f64, f32>, b: f32) -> bool {
-        let fgb = c.ceil(c.inner(b));
-        fgb.ple(&b)
-    }
-
-    /// `b ≤ h(g(b))` (right kernel)
-    fn kernel_r(c: &Conn<f64, f32>, b: f32) -> bool {
-        let hgb = c.floor(c.inner(b));
-        b.ple(&hgb)
-    }
-
-    /// Full kernel: both left and right.
-    fn kernel(c: &Conn<f64, f32>, b: f32) -> bool {
-        kernel_l(c, b) && kernel_r(c, b)
-    }
-
-    /// `a1 ≤ a2 ⟹ f(a1) ≤ f(a2)` and `b1 ≤ b2 ⟹ g(b1) ≤ g(b2)`
-    fn monotone_l(c: &Conn<f64, f32>, a1: f64, a2: f64, b1: f32, b2: f32) -> bool {
-        let mf = !a1.ple(&a2) || c.ceil(a1).ple(&c.ceil(a2));
-        let mg = !b1.ple(&b2) || c.inner(b1).ple(&c.inner(b2));
-        mf && mg
-    }
-
-    /// `a1 ≤ a2 ⟹ h(a1) ≤ h(a2)` and `b1 ≤ b2 ⟹ g(b1) ≤ g(b2)`
-    fn monotone_r(c: &Conn<f64, f32>, a1: f64, a2: f64, b1: f32, b2: f32) -> bool {
-        let mh = !a1.ple(&a2) || c.floor(a1).ple(&c.floor(a2));
-        let mg = !b1.ple(&b2) || c.inner(b1).ple(&c.inner(b2));
-        mh && mg
-    }
-
-    /// Full monotonicity: ceil, floor, and inner.
-    fn monotonic(c: &Conn<f64, f32>, a1: f64, a2: f64, b1: f32, b2: f32) -> bool {
-        monotone_l(c, a1, a2, b1, b2) && monotone_r(c, a1, a2, b1, b2)
-    }
-
-    /// N5 equivalence: `x ≤ y ∧ y ≤ x`.
-    fn peq<T: Ple>(x: &T, y: &T) -> bool {
-        x.ple(y) && y.ple(x)
-    }
-
-    /// `g(f(g(f(a)))) ~~ g(f(a))` and `f(g(f(g(b)))) ~~ f(g(b))`
-    fn idempotent_l(c: &Conn<f64, f32>, a: f64, b: f32) -> bool {
-        let gfa = c.inner(c.ceil(a));
-        let gfgfa = c.inner(c.ceil(gfa));
-        let fgb = c.ceil(c.inner(b));
-        let fgfgb = c.ceil(c.inner(fgb));
-        peq(&gfa, &gfgfa) && peq(&fgb, &fgfgb)
-    }
-
-    /// `g(h(g(h(a)))) ~~ g(h(a))` and `h(g(h(g(b)))) ~~ h(g(b))`
-    fn idempotent_r(c: &Conn<f64, f32>, a: f64, b: f32) -> bool {
-        let gha = c.inner(c.floor(a));
-        let ghgha = c.inner(c.floor(gha));
-        let hgb = c.floor(c.inner(b));
-        let hghgb = c.floor(c.inner(hgb));
-        peq(&gha, &ghgha) && peq(&hgb, &hghgb)
-    }
-
-    /// Full idempotence: both left and right.
-    fn idempotent(c: &Conn<f64, f32>, a: f64, b: f32) -> bool {
-        idempotent_l(c, a, b) && idempotent_r(c, a, b)
     }
 
     // ── ULP sanity ─────────────────────────────────────────────────
@@ -438,28 +336,48 @@ mod tests {
 
     proptest! {
         #[test]
-        fn prop_adjoint(a in arb_f64(), b in arb_f32()) {
-            prop_assert!(adjoint(&conn(), a, b));
+        fn galois_l(a in arb_f64(), b in arb_f32()) {
+            prop_assert!(laws::conn_galois_l(&conn(), a, b));
         }
 
         #[test]
-        fn prop_closed(a in arb_f64()) {
-            prop_assert!(closed(&conn(), a));
+        fn galois_r(a in arb_f64(), b in arb_f32()) {
+            prop_assert!(laws::conn_galois_r(&conn(), a, b));
         }
 
         #[test]
-        fn prop_kernel(b in arb_f32()) {
-            prop_assert!(kernel(&conn(), b));
+        fn closure_l(a in arb_f64()) {
+            prop_assert!(laws::conn_closure_l(&conn(), a));
         }
 
         #[test]
-        fn prop_monotonic(a1 in arb_f64(), a2 in arb_f64(), b1 in arb_f32(), b2 in arb_f32()) {
-            prop_assert!(monotonic(&conn(), a1, a2, b1, b2));
+        fn closure_r(a in arb_f64()) {
+            prop_assert!(laws::conn_closure_r(&conn(), a));
         }
 
         #[test]
-        fn prop_idempotent(a in arb_f64(), b in arb_f32()) {
-            prop_assert!(idempotent(&conn(), a, b));
+        fn kernel_l(b in arb_f32()) {
+            prop_assert!(laws::conn_kernel_l(&conn(), b));
+        }
+
+        #[test]
+        fn kernel_r(b in arb_f32()) {
+            prop_assert!(laws::conn_kernel_r(&conn(), b));
+        }
+
+        #[test]
+        fn monotone_l(a1 in arb_f64(), a2 in arb_f64()) {
+            prop_assert!(laws::conn_monotone_l(&conn(), a1, a2));
+        }
+
+        #[test]
+        fn monotone_r(b1 in arb_f32(), b2 in arb_f32()) {
+            prop_assert!(laws::conn_monotone_r(&conn(), b1, b2));
+        }
+
+        #[test]
+        fn idempotent(a in arb_f64()) {
+            prop_assert!(laws::conn_idempotent(&conn(), a));
         }
     }
 
