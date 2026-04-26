@@ -444,6 +444,11 @@ pub fn conn_roundtrip_floor<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> boo
 /// rung-extractor. Specific to integer-tier connections (the rung
 /// types have an `i64` payload); downstream supplies the extractor
 /// closure (e.g. `|b| b.0`).
+///
+/// Uses `checked_sub` rather than `>=` + raw subtraction so the
+/// `floor ≤ ceil` ordering is checked explicitly: if a buggy
+/// implementation returns `floor > ceil`, the predicate returns
+/// `false` rather than masking the violation via i64 wraparound.
 pub fn conn_ulp_bound<A, B, F>(c: &Conn<A, B>, a: A, rung: F) -> bool
 where
     A: Copy,
@@ -452,7 +457,7 @@ where
 {
     let c_val = rung(c.ceil(a));
     let f_val = rung(c.floor(a));
-    c_val >= f_val && c_val - f_val <= 1
+    c_val.checked_sub(f_val).is_some_and(|d| (0..=1).contains(&d))
 }
 
 // ── Bare-preorder laws (for types impl'ing `Ple`) ────────────────

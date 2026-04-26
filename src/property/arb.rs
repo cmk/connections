@@ -233,7 +233,19 @@ pub fn rate_coarse(num: i128) -> impl Strategy<Value = i64> {
 /// overflowing for `den ≤ 1e7` and `x ∈ i64`; the i64 cast of the
 /// result fits because dividing by `num ≥ den` shrinks magnitude.
 /// Bias to boundaries around `±(i64::MAX − den − 1)`.
-pub fn rate_fine(den: i128, _num: i128) -> impl Strategy<Value = i64> {
+///
+/// **Precondition:** `num ≥ den`. The strategy's range depends only
+/// on `den`, but the safety argument relies on `num ≥ den` to ensure
+/// the final i64 cast doesn't overflow. Asserted at the top of the
+/// function so a caller mismatch fails loudly during property-test
+/// setup rather than as a silent overflow inside a generated case.
+pub fn rate_fine(den: i128, num: i128) -> impl Strategy<Value = i64> {
+    assert!(
+        num >= den,
+        "rate_fine precondition violated: num ({num}) < den ({den}); \
+         the strategy's range relies on num ≥ den to keep the i64 \
+         cast in range",
+    );
     let near_max = i64::MAX - den as i64 - 1;
     prop_oneof![
         1 => Just(0_i64),
@@ -283,6 +295,12 @@ pub fn pico_fine() -> impl Strategy<Value = i64> {
 /// Sample-side i64 strategy for Pico↔Sample Conn with rational
 /// ratio `num/den`. Clamped to `|bits · num / den| < i64::MAX`,
 /// i.e. `|bits| < i64::MAX · den / num`.
+///
+/// `i64::MAX · den` stays in i128 trivially for the rate ratios
+/// shipped today (`den ≤ 113_000`); the `saturating_mul` is a
+/// belt-and-suspenders for a future `den` past `i128::MAX / i64::MAX`
+/// (≈ `1.84e19`), which would silently clamp rather than overflow.
+/// No call site approaches that bound.
 pub fn pico_coarse(num: i128, den: i128) -> impl Strategy<Value = i64> {
     let limit = ((i64::MAX as i128).saturating_mul(den) / num.max(1)) as i64;
     let limit = limit.max(1);

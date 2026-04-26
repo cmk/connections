@@ -251,3 +251,50 @@ Same finding as the inline anchor on `src/property/laws.rs:354` — fixed in com
 #### ↳ cmk (2026-04-26 11:04 UTC) [open]
 
 Deferred — tracked in plan-2026-04-26-04 §"Additional deviations" and as Recommendation #4 in the local Tier-1 review. The closure-side idempotence we kept (`inner ∘ ceil`) plus the now-explicit `conn_kernel_l`/`conn_kernel_r` tests cover the same invariants for any correct Galois connection. We'll add `conn_counit_idempotent` if a future bug surfaces in a lossy connection that the kernel laws miss.
+
+<!-- glab-id: 3287383154 -->
+<!-- glab-discussion: 5453431782dc3a6a5f50ae720809cb171ea7632c -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/property/arb.rs:245` (2026-04-26 11:05 UTC) [open]
+
+**[must-fix]** The `rate_fine` signature accepts `den: i128` and `_num: i128`, but the `near_max` computation casts `den as i64` directly. For `den` values close to `i64::MAX` (unlikely but possible since the parameter is `i128`) this silently truncates; more concretely, the `_num` parameter is unused — the strategy's range is independent of `num`, which means the guard comment ("dividing by `num ≥ den` shrinks magnitude") is never actually enforced in the generated values. Callers in `props_for_conn!` pass `($den, $num)` and the strategy silently ignores `$num`, so the documented contract (`ceil/floor fit i64 because dividing by num ≥ den shrinks magnitude`) is asserted in prose but not enforced by the bounds — if a future caller has `num < den` the strategy will generate values that overflow. Consider renaming `_num` to `num` and asserting `num >= den` at the top, or documenting that the caller is responsible for this invariant.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287383163 -->
+<!-- glab-discussion: ffa74eeab5d6d4f4978ccfb27663c3823c88fa3b -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/property/laws.rs:411` (2026-04-26 11:05 UTC) [open]
+
+**[follow-up]** The `conn_ulp_bound` predicate asserts `c_val >= f_val` before computing `c_val - f_val`, but if `floor(a) > ceil(a)` — which would itself be a violation of `conn_floor_le_ceil` — the subtraction underflows silently and returns a large positive number that satisfies `<= 1` only by accident. Callers currently always invoke `conn_floor_le_ceil` first (verified in both `props_for_pair!` and `props_for_pico_conn!`), but the predicate itself makes no claim about ordering and the internal guard only prevents the i64 underflow from panicking, not from masking a real violation. Consider documenting that `conn_floor_le_ceil` must hold as a precondition, or rewriting the check as `c_val.checked_sub(f_val).map_or(false, |d| d <= 1)` to make the ordering assumption explicit.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287383175 -->
+<!-- glab-discussion: d5a400640fb3a2469669142d3933d5ca5f71eab7 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 — (2026-04-26 11:05 UTC) [open]
+
+**[follow-up]** `src/conn/sample.rs:503` — The `props_for_pico_conn!` macro uses `pico_coarse($num, $den)` for `monotone_r` and `galois_l`/`galois_r`, but the original `sample_bounded` in the deleted code computed the limit as `i64::MAX · DEN / NUM` (i.e. the Coarse/Sample-side bound). The new `pico_coarse` in `arb.rs` uses `(i64::MAX as i128).saturating_mul(den) / num.max(1)`, which is algebraically the same — however the saturation on `saturating_mul` silently clamps when `i64::MAX * den` overflows i128, which cannot happen for representable `den ≤ 113_000` and `num ≥ 1` but is not documented. A comment noting the i128 headroom assumption (matching the original code's comment "stays in i128 trivially for DEN ≤ 113_000") would preserve the safety argument for future macro callers.
+
+*(inline anchor rejected by GitLab: 400)*
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287385617 -->
+<!-- glab-discussion: 5453431782dc3a6a5f50ae720809cb171ea7632c -->
+#### ↳ cmk (2026-04-26 11:10 UTC) [open]
+
+Fixed in commit 163d06b — renamed `_num` → `num` and asserted `num >= den` at the top. The strategy's range still depends only on `den`, but a future caller mismatch now fails loudly during property-test setup instead of as a silent overflow inside a generated case.
+
+<!-- glab-id: 3287385637 -->
+<!-- glab-discussion: ffa74eeab5d6d4f4978ccfb27663c3823c88fa3b -->
+#### ↳ cmk (2026-04-26 11:10 UTC) [open]
+
+Fixed in commit 163d06b — replaced `c_val >= f_val && c_val - f_val <= 1` with `c_val.checked_sub(f_val).is_some_and(|d| (0..=1).contains(&d))`. Same semantics for the well-formed case; on a buggy `floor > ceil` the predicate now returns `false` rather than masking the violation via i64 wraparound.
+
+<!-- glab-id: 3287385663 -->
+<!-- glab-discussion: d5a400640fb3a2469669142d3933d5ca5f71eab7 -->
+#### ↳ cmk (2026-04-26 11:10 UTC) [open]
+
+Fixed in commit 163d06b — added a doc paragraph noting that `i64::MAX · den` stays in i128 trivially for the rate ratios shipped today (`den ≤ 113_000`); the `saturating_mul` is belt-and-suspenders for a future pathologically large `den`. No call site approaches the bound.
