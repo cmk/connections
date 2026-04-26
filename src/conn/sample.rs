@@ -370,106 +370,101 @@ mod tests {
         ($mod:ident, $conn:ident, $Fine:ident, $Coarse:ident, $num:expr, $den:expr) => {
             mod $mod {
                 use super::*;
+                use $crate::property::laws;
 
                 proptest! {
                     #[test]
-                    fn ceil_monotone(
+                    fn monotone_l(
                         x in rate_fine($den, $num),
                         y in rate_fine($den, $num),
                     ) {
-                        let (lo, hi) = if x <= y { ($Fine::from_bits(x), $Fine::from_bits(y)) }
-                                       else     { ($Fine::from_bits(y), $Fine::from_bits(x)) };
-                        prop_assert!($conn.ceil(lo) <= $conn.ceil(hi));
+                        prop_assert!(laws::conn_monotone_l(
+                            &$conn,
+                            $Fine::from_bits(x),
+                            $Fine::from_bits(y),
+                        ));
                     }
 
                     #[test]
-                    fn floor_monotone(
-                        x in rate_fine($den, $num),
-                        y in rate_fine($den, $num),
-                    ) {
-                        let (lo, hi) = if x <= y { ($Fine::from_bits(x), $Fine::from_bits(y)) }
-                                       else     { ($Fine::from_bits(y), $Fine::from_bits(x)) };
-                        prop_assert!($conn.floor(lo) <= $conn.floor(hi));
-                    }
-
-                    #[test]
-                    fn inner_monotone(
+                    fn monotone_r(
                         a in rate_coarse($num),
                         b in rate_coarse($num),
                     ) {
-                        let (lo, hi) = if a <= b { ($Coarse::from_bits(a), $Coarse::from_bits(b)) }
-                                       else     { ($Coarse::from_bits(b), $Coarse::from_bits(a)) };
-                        prop_assert!($conn.inner(lo) <= $conn.inner(hi));
+                        prop_assert!(laws::conn_monotone_r(
+                            &$conn,
+                            $Coarse::from_bits(a),
+                            $Coarse::from_bits(b),
+                        ));
                     }
 
                     #[test]
                     fn floor_le_ceil(x in rate_fine($den, $num)) {
-                        let fx = $Fine::from_bits(x);
-                        prop_assert!($conn.floor(fx) <= $conn.ceil(fx));
+                        prop_assert!(laws::conn_floor_le_ceil(&$conn, $Fine::from_bits(x)));
                     }
 
                     #[test]
-                    fn galois_upper(
+                    fn galois_l(
                         x in rate_fine($den, $num),
                         b in rate_coarse($num),
                     ) {
-                        let fx = $Fine::from_bits(x);
-                        let cb = $Coarse::from_bits(b);
-                        prop_assert_eq!(
-                            $conn.ceil(fx) <= cb,
-                            fx <= $conn.inner(cb)
-                        );
+                        prop_assert!(laws::conn_galois_l(
+                            &$conn,
+                            $Fine::from_bits(x),
+                            $Coarse::from_bits(b),
+                        ));
                     }
 
                     #[test]
-                    fn galois_lower(
+                    fn galois_r(
                         x in rate_fine($den, $num),
                         b in rate_coarse($num),
                     ) {
-                        let fx = $Fine::from_bits(x);
-                        let cb = $Coarse::from_bits(b);
-                        prop_assert_eq!(
-                            $conn.inner(cb) <= fx,
-                            cb <= $conn.floor(fx)
-                        );
+                        prop_assert!(laws::conn_galois_r(
+                            &$conn,
+                            $Fine::from_bits(x),
+                            $Coarse::from_bits(b),
+                        ));
                     }
 
+                    // For integer ratios (DEN=1) the embedding is exact,
+                    // so the strict roundtrip holds. For rational ratios
+                    // the embedding is lossy; the Galois laws above
+                    // already bound the slack.
                     #[test]
-                    fn inner_then_ceil_integer_ratio(b in rate_coarse($num)) {
-                        // For DEN = 1 the embedding is exact, so
-                        // ceil(inner(b)) == b and floor(inner(b)) == b.
-                        // For DEN > 1 the embedding is lossy; skip this
-                        // strict roundtrip (covered by Galois laws).
+                    fn roundtrip_ceil_integer_ratio(b in rate_coarse($num)) {
                         if $den == 1 {
-                            let cb = $Coarse::from_bits(b);
-                            prop_assert_eq!($conn.ceil($conn.inner(cb)), cb);
-                            prop_assert_eq!($conn.floor($conn.inner(cb)), cb);
+                            prop_assert!(laws::conn_roundtrip_ceil(
+                                &$conn,
+                                $Coarse::from_bits(b),
+                            ));
                         }
                     }
 
-                    // Closure: a ≤ inner(ceil(a))
-                    // Uses rate_safe_fine because the round-trip can
-                    // grow by up to num/den < num units; see its docs.
                     #[test]
-                    fn prop_closure_l(x in rate_safe_fine($num)) {
-                        let a = $Fine::from_bits(x);
-                        prop_assert!(a <= $conn.inner($conn.ceil(a)));
+                    fn roundtrip_floor_integer_ratio(b in rate_coarse($num)) {
+                        if $den == 1 {
+                            prop_assert!(laws::conn_roundtrip_floor(
+                                &$conn,
+                                $Coarse::from_bits(b),
+                            ));
+                        }
                     }
 
-                    // Closure dual: inner(floor(a)) ≤ a
+                    // Closure laws use rate_safe_fine because the
+                    // round-trip can grow by up to num/den < num units.
                     #[test]
-                    fn prop_closure_r(x in rate_safe_fine($num)) {
-                        let a = $Fine::from_bits(x);
-                        prop_assert!($conn.inner($conn.floor(a)) <= a);
+                    fn closure_l(x in rate_safe_fine($num)) {
+                        prop_assert!(laws::conn_closure_l(&$conn, $Fine::from_bits(x)));
                     }
 
-                    // Idempotent: inner∘ceil is idempotent on its image.
                     #[test]
-                    fn prop_idempotent(x in rate_safe_fine($num)) {
-                        let a = $Fine::from_bits(x);
-                        let once = $conn.inner($conn.ceil(a));
-                        let twice = $conn.inner($conn.ceil(once));
-                        prop_assert_eq!(once, twice);
+                    fn closure_r(x in rate_safe_fine($num)) {
+                        prop_assert!(laws::conn_closure_r(&$conn, $Fine::from_bits(x)));
+                    }
+
+                    #[test]
+                    fn idempotent(x in rate_safe_fine($num)) {
+                        prop_assert!(laws::conn_idempotent(&$conn, $Fine::from_bits(x)));
                     }
                 }
             }
@@ -502,102 +497,81 @@ mod tests {
         ($mod:ident, $conn:ident, $Rate:ident, $num:expr, $den:expr) => {
             mod $mod {
                 use super::*;
+                use $crate::property::laws;
 
                 proptest! {
                     #[test]
-                    fn ceil_monotone(
+                    fn monotone_l(
                         a in pico_fine(),
                         b in pico_fine(),
                     ) {
-                        let (lo, hi) = if a <= b { (Pico(a), Pico(b)) }
-                                       else     { (Pico(b), Pico(a)) };
-                        prop_assert!($conn.ceil(lo) <= $conn.ceil(hi));
+                        prop_assert!(laws::conn_monotone_l(&$conn, Pico(a), Pico(b)));
                     }
 
                     #[test]
-                    fn floor_monotone(
-                        a in pico_fine(),
-                        b in pico_fine(),
-                    ) {
-                        let (lo, hi) = if a <= b { (Pico(a), Pico(b)) }
-                                       else     { (Pico(b), Pico(a)) };
-                        prop_assert!($conn.floor(lo) <= $conn.floor(hi));
-                    }
-
-                    #[test]
-                    fn inner_monotone(
+                    fn monotone_r(
                         a in pico_coarse($num, $den),
                         b in pico_coarse($num, $den),
                     ) {
-                        let (lo, hi) = if a <= b { ($Rate::from_bits(a), $Rate::from_bits(b)) }
-                                       else     { ($Rate::from_bits(b), $Rate::from_bits(a)) };
-                        prop_assert!($conn.inner(lo) <= $conn.inner(hi));
+                        prop_assert!(laws::conn_monotone_r(
+                            &$conn,
+                            $Rate::from_bits(a),
+                            $Rate::from_bits(b),
+                        ));
                     }
 
                     #[test]
                     fn floor_le_ceil(p in pico_fine()) {
-                        prop_assert!($conn.floor(Pico(p)) <= $conn.ceil(Pico(p)));
+                        let pp = Pico(p);
+                        prop_assert!(laws::conn_floor_le_ceil(&$conn, pp));
+                        // Stronger: rational-ratio ULP bound
+                        // (`ceil - floor ≤ 1` Sxx Q48.16 ULP).
+                        prop_assert!(laws::conn_ulp_bound(
+                            &$conn,
+                            pp,
+                            |s: $Rate| s.0.to_bits(),
+                        ));
                     }
 
                     #[test]
-                    fn ulp_bound(p in pico_fine()) {
-                        // Rate ↔ Pico is a monotone fractional ratio;
-                        // ceil and floor can differ by at most one
-                        // Sxx Q48.16 ULP for any input.
-                        let c = $conn.ceil(Pico(p)).0.to_bits();
-                        let f = $conn.floor(Pico(p)).0.to_bits();
-                        prop_assert!(c - f <= 1, "ceil - floor = {}", c - f);
-                    }
-
-                    #[test]
-                    fn galois_upper(
+                    fn galois_l(
                         p in pico_fine(),
                         s in pico_coarse($num, $den),
                     ) {
-                        let pp = Pico(p);
-                        let ss = $Rate::from_bits(s);
-                        prop_assert_eq!(
-                            $conn.ceil(pp) <= ss,
-                            pp <= $conn.inner(ss)
-                        );
+                        prop_assert!(laws::conn_galois_l(
+                            &$conn,
+                            Pico(p),
+                            $Rate::from_bits(s),
+                        ));
                     }
 
                     #[test]
-                    fn galois_lower(
+                    fn galois_r(
                         p in pico_fine(),
                         s in pico_coarse($num, $den),
                     ) {
-                        let pp = Pico(p);
-                        let ss = $Rate::from_bits(s);
-                        prop_assert_eq!(
-                            $conn.inner(ss) <= pp,
-                            ss <= $conn.floor(pp)
-                        );
+                        prop_assert!(laws::conn_galois_r(
+                            &$conn,
+                            Pico(p),
+                            $Rate::from_bits(s),
+                        ));
                     }
 
-                    // Closure: a ≤ inner(ceil(a))
-                    // Uses pico_safe because the round-trip
-                    // can grow p by up to NUM/DEN picoseconds.
+                    // Closure laws use pico_safe because the
+                    // round-trip can grow p by up to NUM/DEN ps.
                     #[test]
-                    fn prop_closure_l(p in pico_safe($num)) {
-                        let a = Pico(p);
-                        prop_assert!(a <= $conn.inner($conn.ceil(a)));
+                    fn closure_l(p in pico_safe($num)) {
+                        prop_assert!(laws::conn_closure_l(&$conn, Pico(p)));
                     }
 
-                    // Closure dual: inner(floor(a)) ≤ a
                     #[test]
-                    fn prop_closure_r(p in pico_safe($num)) {
-                        let a = Pico(p);
-                        prop_assert!($conn.inner($conn.floor(a)) <= a);
+                    fn closure_r(p in pico_safe($num)) {
+                        prop_assert!(laws::conn_closure_r(&$conn, Pico(p)));
                     }
 
-                    // Idempotent: inner∘ceil is idempotent on its image.
                     #[test]
-                    fn prop_idempotent(p in pico_safe($num)) {
-                        let a = Pico(p);
-                        let once = $conn.inner($conn.ceil(a));
-                        let twice = $conn.inner($conn.ceil(once));
-                        prop_assert_eq!(once, twice);
+                    fn idempotent(p in pico_safe($num)) {
+                        prop_assert!(laws::conn_idempotent(&$conn, Pico(p)));
                     }
                 }
             }

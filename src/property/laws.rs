@@ -356,63 +356,82 @@ pub fn boolean_imp_from_coimp<T: Heyting + Coheyting + Eq>(x: &T, y: &T) -> bool
 // ── Galois-connection laws ───────────────────────────────────────
 //
 // Predicates take `&Conn<A, B>` plus inputs by value (Conn types in
-// this crate are all `Copy`). `Ple`-bound for uniformity across
-// integer rungs and float ExtendedFloat. Downstream wraps in
-// `prop_assert!` in their own proptest blocks.
+// this crate are all `Copy`). `PartialOrd`-bound to cover both
+// integer rungs and the `ExtendedFloat` / `Extended` wrappers
+// (which impl `PartialOrd` with the N5 NaN-equality patch but not
+// `Ple`). The `le` helper expresses `a ≤ b` as
+// `partial_cmp(a, b) ∈ {Less, Equal}` so incomparable inputs return
+// `false` rather than panicking.
+
+#[inline]
+fn le<T: PartialOrd>(a: &T, b: &T) -> bool {
+    matches!(
+        a.partial_cmp(b),
+        Some(core::cmp::Ordering::Less | core::cmp::Ordering::Equal),
+    )
+}
 
 /// Galois law (left): `ceil(a) ≤ b ⟺ a ≤ inner(b)`.
-pub fn conn_galois_l<A: Copy + Ple, B: Copy + Ple>(c: &Conn<A, B>, a: A, b: B) -> bool {
-    c.ceil(a).ple(&b) == a.ple(&c.inner(b))
+pub fn conn_galois_l<A: Copy + PartialOrd, B: Copy + PartialOrd>(
+    c: &Conn<A, B>,
+    a: A,
+    b: B,
+) -> bool {
+    le(&c.ceil(a), &b) == le(&a, &c.inner(b))
 }
 
 /// Galois law (right): `inner(b) ≤ a ⟺ b ≤ floor(a)`.
-pub fn conn_galois_r<A: Copy + Ple, B: Copy + Ple>(c: &Conn<A, B>, a: A, b: B) -> bool {
-    c.inner(b).ple(&a) == b.ple(&c.floor(a))
+pub fn conn_galois_r<A: Copy + PartialOrd, B: Copy + PartialOrd>(
+    c: &Conn<A, B>,
+    a: A,
+    b: B,
+) -> bool {
+    le(&c.inner(b), &a) == le(&b, &c.floor(a))
 }
 
 /// Closure law (left): `a ≤ inner(ceil(a))` — the unit of the
 /// `inner ⊣ ceil` adjunction.
-pub fn conn_closure_l<A: Copy + Ple, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
-    a.ple(&c.inner(c.ceil(a)))
+pub fn conn_closure_l<A: Copy + PartialOrd, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+    le(&a, &c.inner(c.ceil(a)))
 }
 
 /// Closure law (right): `inner(floor(a)) ≤ a` — the dual of [`conn_closure_l`].
-pub fn conn_closure_r<A: Copy + Ple, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
-    c.inner(c.floor(a)).ple(&a)
+pub fn conn_closure_r<A: Copy + PartialOrd, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+    le(&c.inner(c.floor(a)), &a)
 }
 
 /// Kernel law (left): `ceil(inner(b)) ≤ b` — the counit of the
 /// `inner ⊣ ceil` adjunction.
-pub fn conn_kernel_l<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bool {
-    c.ceil(c.inner(b)).ple(&b)
+pub fn conn_kernel_l<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B>, b: B) -> bool {
+    le(&c.ceil(c.inner(b)), &b)
 }
 
 /// Kernel law (right): `b ≤ floor(inner(b))` — the dual of [`conn_kernel_l`].
-pub fn conn_kernel_r<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bool {
-    b.ple(&c.floor(c.inner(b)))
+pub fn conn_kernel_r<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B>, b: B) -> bool {
+    le(&b, &c.floor(c.inner(b)))
 }
 
 /// Monotonicity (left): `a1 ≤ a2 ⟹ ceil(a1) ≤ ceil(a2) ∧ floor(a1) ≤ floor(a2)`.
-pub fn conn_monotone_l<A: Copy + Ple, B: Copy + Ple>(
+pub fn conn_monotone_l<A: Copy + PartialOrd, B: Copy + PartialOrd>(
     c: &Conn<A, B>,
     a1: A,
     a2: A,
 ) -> bool {
-    if a1.ple(&a2) {
-        c.ceil(a1).ple(&c.ceil(a2)) && c.floor(a1).ple(&c.floor(a2))
+    if le(&a1, &a2) {
+        le(&c.ceil(a1), &c.ceil(a2)) && le(&c.floor(a1), &c.floor(a2))
     } else {
         true
     }
 }
 
 /// Monotonicity (right): `b1 ≤ b2 ⟹ inner(b1) ≤ inner(b2)`.
-pub fn conn_monotone_r<A: Copy + Ple, B: Copy + Ple>(
+pub fn conn_monotone_r<A: Copy + PartialOrd, B: Copy + PartialOrd>(
     c: &Conn<A, B>,
     b1: B,
     b2: B,
 ) -> bool {
-    if b1.ple(&b2) {
-        c.inner(b1).ple(&c.inner(b2))
+    if le(&b1, &b2) {
+        le(&c.inner(b1), &c.inner(b2))
     } else {
         true
     }
@@ -420,27 +439,27 @@ pub fn conn_monotone_r<A: Copy + Ple, B: Copy + Ple>(
 
 /// Idempotence: `(inner ∘ ceil) ∘ (inner ∘ ceil) = inner ∘ ceil` —
 /// the closure operator is idempotent on its image.
-pub fn conn_idempotent<A: Copy + Eq, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+pub fn conn_idempotent<A: Copy + PartialEq, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
     let once = c.inner(c.ceil(a));
     let twice = c.inner(c.ceil(once));
     once == twice
 }
 
 /// `floor(a) ≤ ceil(a)` — the floor never exceeds the ceiling.
-pub fn conn_floor_le_ceil<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, a: A) -> bool {
-    c.floor(a).ple(&c.ceil(a))
+pub fn conn_floor_le_ceil<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B>, a: A) -> bool {
+    le(&c.floor(a), &c.ceil(a))
 }
 
 /// Round-trip via ceil: `ceil(inner(b)) = b` for exact-embedding
 /// connections (where `inner(b)` lands on a value that ceils back
 /// to `b`). Strictly stronger than [`conn_kernel_l`].
-pub fn conn_roundtrip_ceil<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool {
+pub fn conn_roundtrip_ceil<A: Copy, B: Copy + PartialEq>(c: &Conn<A, B>, b: B) -> bool {
     c.ceil(c.inner(b)) == b
 }
 
 /// Round-trip via floor: `floor(inner(b)) = b` for exact-embedding
 /// connections. Strictly stronger than [`conn_kernel_r`].
-pub fn conn_roundtrip_floor<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool {
+pub fn conn_roundtrip_floor<A: Copy, B: Copy + PartialEq>(c: &Conn<A, B>, b: B) -> bool {
     c.floor(c.inner(b)) == b
 }
 

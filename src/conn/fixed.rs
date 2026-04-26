@@ -348,93 +348,65 @@ mod tests {
         ($mod:ident, $conn:ident, $Fine:ident, $Coarse:ident, $prec:expr) => {
             mod $mod {
                 use super::*;
+                use $crate::property::laws;
 
                 proptest! {
                     #[test]
-                    fn inner_then_ceil_is_id(c in fixed_coarse($prec)) {
-                        let b = $Coarse(c);
-                        prop_assert_eq!($conn.ceil($conn.inner(b)), b);
+                    fn roundtrip_ceil(c in fixed_coarse($prec)) {
+                        prop_assert!(laws::conn_roundtrip_ceil(&$conn, $Coarse(c)));
                     }
 
                     #[test]
-                    fn inner_then_floor_is_id(c in fixed_coarse($prec)) {
-                        let b = $Coarse(c);
-                        prop_assert_eq!($conn.floor($conn.inner(b)), b);
+                    fn roundtrip_floor(c in fixed_coarse($prec)) {
+                        prop_assert!(laws::conn_roundtrip_floor(&$conn, $Coarse(c)));
                     }
 
                     #[test]
-                    fn ceil_monotone(x in fixed_fine($prec), y in fixed_fine($prec)) {
-                        let (lo, hi) = if x <= y { ($Fine(x), $Fine(y)) } else { ($Fine(y), $Fine(x)) };
-                        prop_assert!($conn.ceil(lo) <= $conn.ceil(hi));
-                    }
-
-                    #[test]
-                    fn floor_monotone(x in fixed_fine($prec), y in fixed_fine($prec)) {
-                        let (lo, hi) = if x <= y { ($Fine(x), $Fine(y)) } else { ($Fine(y), $Fine(x)) };
-                        prop_assert!($conn.floor(lo) <= $conn.floor(hi));
+                    fn monotone_l(x in fixed_fine($prec), y in fixed_fine($prec)) {
+                        prop_assert!(laws::conn_monotone_l(&$conn, $Fine(x), $Fine(y)));
                     }
 
                     #[test]
                     fn floor_le_ceil(x in fixed_fine($prec)) {
-                        let fx = $Fine(x);
-                        let c = $conn.ceil(fx);
-                        let f = $conn.floor(fx);
-                        prop_assert!(f <= c);
-                        // And differ by ≤ 1 ULP of Coarse.
-                        prop_assert!(c.0 - f.0 <= 1);
+                        let a = $Fine(x);
+                        prop_assert!(laws::conn_floor_le_ceil(&$conn, a));
+                        // Stronger: fixed-ladder ULP bound (ceil − floor ≤ 1).
+                        prop_assert!(laws::conn_ulp_bound(&$conn, a, |b| b.0));
                     }
 
                     #[test]
-                    fn galois_upper(
+                    fn galois_l(
                         x in fixed_fine($prec),
                         c in fixed_coarse($prec),
                     ) {
-                        let fx = $Fine(x);
-                        let cx = $Coarse(c);
-                        // ceil(x) ≤ c  ⟺  x ≤ inner(c)
-                        prop_assert_eq!(
-                            $conn.ceil(fx) <= cx,
-                            fx <= $conn.inner(cx)
-                        );
+                        prop_assert!(laws::conn_galois_l(&$conn, $Fine(x), $Coarse(c)));
                     }
 
                     #[test]
-                    fn galois_lower(
+                    fn galois_r(
                         x in fixed_fine($prec),
                         c in fixed_coarse($prec),
                     ) {
-                        let fx = $Fine(x);
-                        let cx = $Coarse(c);
-                        // inner(c) ≤ x  ⟺  c ≤ floor(x)
-                        prop_assert_eq!(
-                            $conn.inner(cx) <= fx,
-                            cx <= $conn.floor(fx)
-                        );
+                        prop_assert!(laws::conn_galois_r(&$conn, $Fine(x), $Coarse(c)));
                     }
 
-                    // Closure: a ≤ inner(ceil(a))
-                    // Uses safe_fine because inner(ceil(a)) multiplies
-                    // by PREC and must fit i64; see safe_fine docs.
+                    // Closure laws use fixed_safe_fine because the
+                    // round-trip through inner multiplies by PREC and
+                    // must fit i64; see fixed_safe_fine docs in
+                    // crate::property::arb.
                     #[test]
-                    fn prop_closure_l(x in fixed_safe_fine($prec)) {
-                        let a = $Fine(x);
-                        prop_assert!(a <= $conn.inner($conn.ceil(a)));
+                    fn closure_l(x in fixed_safe_fine($prec)) {
+                        prop_assert!(laws::conn_closure_l(&$conn, $Fine(x)));
                     }
 
-                    // Closure dual: inner(floor(a)) ≤ a
                     #[test]
-                    fn prop_closure_r(x in fixed_safe_fine($prec)) {
-                        let a = $Fine(x);
-                        prop_assert!($conn.inner($conn.floor(a)) <= a);
+                    fn closure_r(x in fixed_safe_fine($prec)) {
+                        prop_assert!(laws::conn_closure_r(&$conn, $Fine(x)));
                     }
 
-                    // Idempotent: inner∘ceil is idempotent on its image.
                     #[test]
-                    fn prop_idempotent(x in fixed_safe_fine($prec)) {
-                        let a = $Fine(x);
-                        let once = $conn.inner($conn.ceil(a));
-                        let twice = $conn.inner($conn.ceil(once));
-                        prop_assert_eq!(once, twice);
+                    fn idempotent(x in fixed_safe_fine($prec)) {
+                        prop_assert!(laws::conn_idempotent(&$conn, $Fine(x)));
                     }
                 }
             }
@@ -576,104 +548,68 @@ mod tests {
         assert_eq!(F64F00.floor(tiny), Extended::NegInf);
     }
 
-    // Helper: partial-order "less than or equal" — Galois laws read
-    // cleanest phrased as `partial_cmp != Some(Greater)`, which means
-    // "either less, equal, or incomparable".
-    //
-    // That's not the adjoint law, though. The adjoint law needs
-    // *strict* ≤ — incomparable inputs return `false`, not silently
-    // `true`. Use this helper everywhere and avoid `<=` (which panics
-    // on `None` with some trait combos).
-    fn le<T: PartialOrd>(a: &T, b: &T) -> bool {
-        matches!(a.partial_cmp(b), Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal))
-    }
-
     // Adjoint + closure + kernel + monotonicity, stated over
     // PartialOrd on both sides. Mirrors `doc/design.md §Testing`.
     macro_rules! float_conn_props {
         ($mod:ident, $conn:ident, $Rung:ident, $arb_src:ident, $arb_tgt:ident) => {
             mod $mod {
                 use super::*;
+                use $crate::property::laws;
 
                 proptest! {
                     // Float-Conn shrinks on this domain are expensive:
-                    // cap cases at 64 (4 conns × 7 props × 64 = 1 792)
-                    // and shrink iters at 512 (default ~1M is ruinous
-                    // and finds no bugs the first few hundred miss).
+                    // cap cases at 64 and shrink iters at 512 (default
+                    // ~1M is ruinous and finds no bugs the first few
+                    // hundred miss).
                     #![proptest_config(ProptestConfig {
                         cases: 64,
                         max_shrink_iters: 512,
                         .. ProptestConfig::default()
                     })]
 
-                    // ceil(a) ≤ b ⟺ a ≤ inner(b)
                     #[test]
-                    fn prop_adjoint_l(
-                        a in $arb_src(),
-                        b in $arb_tgt(),
-                    ) {
-                        let fa = $conn.ceil(a);
-                        let gb = $conn.inner(b);
-                        prop_assert_eq!(le(&fa, &b), le(&a, &gb));
+                    fn galois_l(a in $arb_src(), b in $arb_tgt()) {
+                        prop_assert!(laws::conn_galois_l(&$conn, a, b));
                     }
 
-                    // b ≤ floor(a) ⟺ inner(b) ≤ a
                     #[test]
-                    fn prop_adjoint_r(
-                        a in $arb_src(),
-                        b in $arb_tgt(),
-                    ) {
-                        let ha = $conn.floor(a);
-                        let gb = $conn.inner(b);
-                        prop_assert_eq!(le(&b, &ha), le(&gb, &a));
+                    fn galois_r(a in $arb_src(), b in $arb_tgt()) {
+                        prop_assert!(laws::conn_galois_r(&$conn, a, b));
                     }
 
-                    // a ≤ inner(ceil(a))
                     #[test]
-                    fn prop_closed_l(a in $arb_src()) {
-                        let gfa = $conn.inner($conn.ceil(a));
-                        prop_assert!(le(&a, &gfa));
+                    fn closure_l(a in $arb_src()) {
+                        prop_assert!(laws::conn_closure_l(&$conn, a));
                     }
 
-                    // inner(floor(a)) ≤ a
                     #[test]
-                    fn prop_closed_r(a in $arb_src()) {
-                        let gha = $conn.inner($conn.floor(a));
-                        prop_assert!(le(&gha, &a));
+                    fn closure_r(a in $arb_src()) {
+                        prop_assert!(laws::conn_closure_r(&$conn, a));
                     }
 
-                    // ceil(inner(b)) ≤ b
                     #[test]
-                    fn prop_kernel_l(b in $arb_tgt()) {
-                        let fgb = $conn.ceil($conn.inner(b));
-                        prop_assert!(le(&fgb, &b));
+                    fn kernel_l(b in $arb_tgt()) {
+                        prop_assert!(laws::conn_kernel_l(&$conn, b));
                     }
 
-                    // b ≤ floor(inner(b))
                     #[test]
-                    fn prop_kernel_r(b in $arb_tgt()) {
-                        let hgb = $conn.floor($conn.inner(b));
-                        prop_assert!(le(&b, &hgb));
+                    fn kernel_r(b in $arb_tgt()) {
+                        prop_assert!(laws::conn_kernel_r(&$conn, b));
                     }
 
-                    // a1 ≤ a2 ⟹ ceil(a1) ≤ ceil(a2); floor likewise.
                     #[test]
-                    fn prop_monotone(a1 in $arb_src(), a2 in $arb_src()) {
-                        if le(&a1, &a2) {
-                            prop_assert!(le(&$conn.ceil(a1), &$conn.ceil(a2)));
-                            prop_assert!(le(&$conn.floor(a1), &$conn.floor(a2)));
-                        }
+                    fn monotone_l(a1 in $arb_src(), a2 in $arb_src()) {
+                        prop_assert!(laws::conn_monotone_l(&$conn, a1, a2));
                     }
 
-                    // Idempotent: inner∘ceil is idempotent on its image.
-                    // ExtendedFloat<f64>'s PartialEq treats
-                    // Finite(NaN) == Finite(NaN) as true, so `==` is
-                    // the right comparison here.
+                    // Idempotence: inner∘ceil is idempotent on its
+                    // image. ExtendedFloat<f64>'s PartialEq treats
+                    // Finite(NaN) == Finite(NaN) as true, so the
+                    // Eq-bound `conn_idempotent` predicate is the
+                    // right comparison here.
                     #[test]
-                    fn prop_idempotent(a in $arb_src()) {
-                        let once = $conn.inner($conn.ceil(a));
-                        let twice = $conn.inner($conn.ceil(once));
-                        prop_assert!(once == twice);
+                    fn idempotent(a in $arb_src()) {
+                        prop_assert!(laws::conn_idempotent(&$conn, a));
                     }
                 }
 
