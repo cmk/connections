@@ -148,7 +148,7 @@ mod tests {
         for (a, b) in [(50i8, 100u16), (50i8, 49u16), (100i8, 100u16)] {
             assert_eq!(
                 I08U16.ceil(a) <= b,
-                a as i32 <= I08U16.inner(b) as i32,
+                a <= I08U16.inner(b),
                 "I08U16 galois_upper @ ({a}, {b})"
             );
         }

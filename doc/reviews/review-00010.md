@@ -241,3 +241,48 @@ Plan Review section updated in 66fe0ff to state that `floor_le_ceil` is permanen
 #### ↳ cmk (2026-04-26 10:32 UTC) [open]
 
 GitLab's MR diff is cumulative `branch...main`, not per-commit, so what you see at lines 214–225 is the post-fix state — that's exactly why the sort idiom appears there. Commit `e498624` was the round-1 fix; it was amended to `e39cb45` when `/reply-reviews` folded the reply-mirror in (per CLAUDE.md TDD step 10) and then pushed. No squash, no missing commits — `git log origin/main..sprint/integer-conns` shows both `e39cb45` and the round-2 `66fe0ff`.
+
+<!-- glab-id: 3287373976 -->
+<!-- glab-discussion: c242d33de47dee1cdf5753649d8251c04f74fa2f -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/uint.rs:183` (2026-04-26 10:42 UTC) [open]
+
+**[follow-up]** The `int_uint_galois_at_mid_positive` test (lines 183–193) compares `I08U16.ceil(a) <= b` against `a as i32 <= I08U16.inner(b) as i32` — it widens both sides to `i32` to avoid sign-compare issues, but the `galois_upper` proptest in `single_sided_props!` uses `prop_assert_eq!($CONN.ceil(a) <= b, a <= $CONN.inner(b))` which compares `bool` values directly (no cast). The hand-rolled spot check uses a different comparison strategy than the property test for the same law; if the types involved ever differ in surprising ways this inconsistency could hide a real discrepancy. Both expressions should express the identical condition.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287373982 -->
+<!-- glab-discussion: ede64199a23cc3d4ce025ce19b3b9de84cbcbed4 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/int.rs:56` (2026-04-26 10:42 UTC) [open]
+
+**[must-fix]** For the `I??I??` (signed widening) instantiations, `BELOW = (<$A>::MIN as $B) - 1` is computed at `const` time. For `I08I16` this is `(-128i16) - 1 = -129`, which fits. But consider `I32I64`: `BELOW = (i32::MIN as i64) - 1 = -2_147_483_649`, which also fits in `i64`. However the macro comment says the constraint is `bits($A) < bits($B)`, which is satisfied, so all six `I??I??` pairs are safe. The concern is that the macro is also used for `U??I??` where `BELOW = (<u_N>::MIN as $B) - 1 = (0 as $B) - 1 = -1`, which is fine, but `ABOVE = (<u_N>::MAX as $B) + 1` — for `U32I64` this is `(4_294_967_295i64) + 1 = 4_294_967_296`, which fits. All six are safe. The actual bug: the macro constraint comment (lines 45–47) says `bits($A) < bits($B)` for signed source, but `I08I16` has `bits(i8)=8 < bits(i16)=16` ✓. This is fine — but there is **no compile-time check** enforcing the constraint, so a future caller like `ext_int!(I64I64, i64, i64)` would cause `BELOW = i64::MIN - 1` to overflow at const-evaluation time with a hard-to-diagnose panic rather than a clear error. Add a `const _: () = assert!(...)` guard inside the macro body checking `<$A>::MIN as $B > <$B>::MIN` to catch this at compile time.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287373987 -->
+<!-- glab-discussion: eb9508083f283bc7557e43ca980c5b5a84e3c7c4 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/int.rs:70` (2026-04-26 10:42 UTC) [open]
+
+**[follow-up]** The module doc comment table (lines 20–24) states that `I??I??` requires `bits(i_N) < bits(i_M)` (strict inequality) and `U??I??` requires `bits(u_N) < bits(i_M)` (strict). The `I08U08` conn in `uint.rs` instantiates `int_uint!(I08U08, i8, u8)` where `bits(i8) = bits(u8) = 8` — same width — which is legal for `I??U??` because the positive half of `i8` fits in `u8`. But the `int.rs` doc comment could mislead a reader into thinking strict-less-than is always required for the cross-sign case; a clarifying parenthetical `(positive half of source fits in target)` would match the actual constraint.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3287375883 -->
+<!-- glab-discussion: c242d33de47dee1cdf5753649d8251c04f74fa2f -->
+#### ↳ cmk (2026-04-26 10:47 UTC) [open]
+
+Fixed in 841345f — dropped the `as i32` cast on both sides; the spot check now compares `i8 <= i8` directly, matching the form the `single_sided_props!` proptest uses.
+
+<!-- glab-id: 3287375910 -->
+<!-- glab-discussion: ede64199a23cc3d4ce025ce19b3b9de84cbcbed4 -->
+#### ↳ cmk (2026-04-26 10:47 UTC) [open]
+
+Pushing back: your walk-through confirms all six current instantiations are safe and finds no actual bug — the suggested `const _: () = assert!(...)` is defensive coding for a hypothetical future misuse, not a `must-fix`. The macro is private, used in one file with a fixed set of call sites; the comment-level constraint at lines 38–43 is sufficient until/unless someone adds a new pair.
+
+<!-- glab-id: 3287375951 -->
+<!-- glab-discussion: eb9508083f283bc7557e43ca980c5b5a84e3c7c4 -->
+#### ↳ cmk (2026-04-26 10:47 UTC) [open]
+
+Pushing back: `int.rs` documents only the conns it owns (`I??I??` and `U??I??`), where strict `bits < bits` is correct — the unsigned-source-into-signed-target case requires the source to fit in the target's positive half, forcing strict less-than. The `I??U??` family lives in `uint.rs` and that file's module-doc correctly documents its `bits <= bits` constraint. The two files describe different families with different rules.
