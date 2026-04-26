@@ -22,7 +22,7 @@ macro_rules! fix_fix_i08 {
 
             fn ceil(x: FixedI8<$FineFrac>) -> FixedI8<$CoarseFrac> {
                 if x.to_bits() == FINE_MIN {
-                    return FixedI8::from_bits(FINE_MIN);
+                    return FixedI8::<$CoarseFrac>::from_bits(i8::MIN);
                 }
                 let bits = x.to_bits() as i16;
                 let q = bits.div_euclid(RATIO);
@@ -45,7 +45,7 @@ macro_rules! fix_fix_i08 {
 
             fn floor(x: FixedI8<$FineFrac>) -> FixedI8<$CoarseFrac> {
                 if x.to_bits() == FINE_MAX {
-                    return FixedI8::from_bits(FINE_MAX);
+                    return FixedI8::<$CoarseFrac>::from_bits(i8::MAX);
                 }
                 let res = (x.to_bits() as i16).div_euclid(RATIO);
                 FixedI8::from_bits(res as i8)

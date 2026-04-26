@@ -20,7 +20,7 @@ macro_rules! fix_fix_i32 {
 
             fn ceil(x: FixedI32<$FineFrac>) -> FixedI32<$CoarseFrac> {
                 if x.to_bits() == FINE_MIN {
-                    return FixedI32::from_bits(FINE_MIN);
+                    return FixedI32::<$CoarseFrac>::from_bits(i32::MIN);
                 }
                 let bits = x.to_bits() as i64;
                 let q = bits.div_euclid(RATIO);
@@ -43,7 +43,7 @@ macro_rules! fix_fix_i32 {
 
             fn floor(x: FixedI32<$FineFrac>) -> FixedI32<$CoarseFrac> {
                 if x.to_bits() == FINE_MAX {
-                    return FixedI32::from_bits(FINE_MAX);
+                    return FixedI32::<$CoarseFrac>::from_bits(i32::MAX);
                 }
                 let res = (x.to_bits() as i64).div_euclid(RATIO);
                 FixedI32::from_bits(res as i32)
@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn spot_f32f00_degenerate() {
-        // SHIFT = 32. Only Coarse(0) round-trips.
+        // SHIFT = 32. Only Coarse(0) round-trips; ±1 saturates inner.
         assert_eq!(
             F32F00.inner(FixedI32::<U0>::from_bits(0)),
             FixedI32::<U32>::from_bits(0),
@@ -101,6 +101,10 @@ mod tests {
         assert_eq!(
             F32F00.inner(FixedI32::<U0>::from_bits(1)),
             FixedI32::<U32>::from_bits(i32::MAX),
+        );
+        assert_eq!(
+            F32F00.inner(FixedI32::<U0>::from_bits(-1)),
+            FixedI32::<U32>::from_bits(i32::MIN),
         );
     }
 

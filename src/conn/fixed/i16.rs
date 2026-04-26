@@ -48,7 +48,7 @@ macro_rules! fix_fix_i16 {
                 // − 1 saturates inner to Fine::MIN. The Galois law
                 // requires ceil(Fine::MIN) = Coarse::MIN.
                 if x.to_bits() == FINE_MIN {
-                    return FixedI16::from_bits(FINE_MIN);
+                    return FixedI16::<$CoarseFrac>::from_bits(i16::MIN);
                 }
                 let bits = x.to_bits() as i32;
                 let q = bits.div_euclid(RATIO);
@@ -74,7 +74,7 @@ macro_rules! fix_fix_i16 {
                 // i16::MAX/RATIO + 1 saturates inner to Fine::MAX. The
                 // Galois law requires floor(Fine::MAX) = Coarse::MAX.
                 if x.to_bits() == FINE_MAX {
-                    return FixedI16::from_bits(FINE_MAX);
+                    return FixedI16::<$CoarseFrac>::from_bits(i16::MAX);
                 }
                 let res = (x.to_bits() as i32).div_euclid(RATIO);
                 FixedI16::from_bits(res as i16)

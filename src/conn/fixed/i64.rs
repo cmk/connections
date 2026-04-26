@@ -20,7 +20,7 @@ macro_rules! fix_fix_i64 {
 
             fn ceil(x: FixedI64<$FineFrac>) -> FixedI64<$CoarseFrac> {
                 if x.to_bits() == FINE_MIN {
-                    return FixedI64::from_bits(FINE_MIN);
+                    return FixedI64::<$CoarseFrac>::from_bits(i64::MIN);
                 }
                 let bits = x.to_bits() as i128;
                 let q = bits.div_euclid(RATIO);
@@ -43,7 +43,7 @@ macro_rules! fix_fix_i64 {
 
             fn floor(x: FixedI64<$FineFrac>) -> FixedI64<$CoarseFrac> {
                 if x.to_bits() == FINE_MAX {
-                    return FixedI64::from_bits(FINE_MAX);
+                    return FixedI64::<$CoarseFrac>::from_bits(i64::MAX);
                 }
                 let res = (x.to_bits() as i128).div_euclid(RATIO);
                 FixedI64::from_bits(res as i64)
@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn spot_f64f00_degenerate() {
-        // SHIFT = 64. Only Coarse(0) round-trips.
+        // SHIFT = 64. Only Coarse(0) round-trips; ±1 saturates inner.
         assert_eq!(
             F64F00.inner(FixedI64::<U0>::from_bits(0)),
             FixedI64::<U64>::from_bits(0),
@@ -100,6 +100,10 @@ mod tests {
         assert_eq!(
             F64F00.inner(FixedI64::<U0>::from_bits(1)),
             FixedI64::<U64>::from_bits(i64::MAX),
+        );
+        assert_eq!(
+            F64F00.inner(FixedI64::<U0>::from_bits(-1)),
+            FixedI64::<U64>::from_bits(i64::MIN),
         );
     }
 
