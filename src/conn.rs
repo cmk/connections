@@ -3,7 +3,8 @@
 //! Submodules under `conn/` each implement a family of connections
 //! for a specific domain:
 //!
-//! - `int` / `word` — integer ↔ integer connections (stubs for now).
+//! - `int` / `uint` — integer ↔ integer connections (signed and
+//!   unsigned ladders + Word↔Int cross-sign conns).
 //! - `float` — float ↔ float connections; also hosts the
 //!   `ExtendedFloat` wrapper type used by N5 lattice connections.
 //! - `fixed` — decimal fixed-point ladder (Uni..Pico) with the
@@ -15,7 +16,7 @@ pub mod fixed;
 pub mod float;
 pub mod int;
 pub mod sample;
-pub mod word;
+pub mod uint;
 
 /// Compose a chain of `Conn` consts into a single fresh `Conn<Src, Dst>`.
 ///

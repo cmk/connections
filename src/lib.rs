@@ -32,6 +32,24 @@
 //! | `S96`  | [`conn::sample::S96`]              | 1 sample @ 96 kHz    |
 //! | `S176` | [`conn::sample::S176`]             | 1 sample @ 176.4 kHz |
 //! | `S192` | [`conn::sample::S192`]             | 1 sample @ 192 kHz   |
+//! | `U08`  | `u8`                               | unsigned 8-bit       |
+//! | `U16`  | `u16`                              | unsigned 16-bit      |
+//! | `U32`  | `u32`                              | unsigned 32-bit      |
+//! | `U64`  | `u64`                              | unsigned 64-bit      |
+//! | `I08`  | `i8`                               | signed 8-bit         |
+//! | `I16`  | `i16`                              | signed 16-bit        |
+//! | `I32`  | `i32`                              | signed 32-bit        |
+//! | `I64`  | `i64`                              | signed 64-bit        |
+//!
+//! Integer codes name a Rust primitive directly (no newtype wrapper).
+//! All `U??U??` and `I??U??` constants live in [`conn::uint`]; all
+//! `I??I??` and `U??I??` constants live in [`conn::int`]. The signed-
+//! widening (`I??I??`) and unsigned-into-signed (`U??I??`) families
+//! wrap the source in [`Extended`](extended::Extended) — i.e.
+//! `U08I16` is `Conn<Extended<u8>, i16>` — to give target values
+//! beyond the source range a place to land. The other two integer
+//! families (`U??U??`, `I??U??`) are single-sided and use plain
+//! primitives on both sides.
 //!
 //! Examples:
 //!
@@ -40,6 +58,8 @@
 //!   over the full IEEE domain, with saturation on the Rung side).
 //! - [`conn::sample::F12S48`] — `Pico → S48` (cross-tier to sample rate).
 //! - [`conn::sample::S88S44`] — `S88 → S44` (rate-pair).
+//! - [`conn::uint::U08U16`] — `u8 → u16` saturating widen.
+//! - [`conn::int::U08I16`] — `Extended<u8> → i16` (range-extended source).
 //!
 //! An `F32` code is not (yet) exported: an `inner` that narrows
 //! `i64 → f32` collapses large runs of Rung values onto the same
