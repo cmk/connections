@@ -27,7 +27,7 @@ pub mod uint;
 /// ```rust,no_run
 /// use connections::compose;
 /// use connections::conn::Conn;
-/// use connections::conn::fixed::{Pico, Uni, F12F09, F09F06, F06F03, F03F00};
+/// use connections::conn::fixed::decimal::{Pico, Uni, F12F09, F09F06, F06F03, F03F00};
 ///
 /// const F12F00_BIS: Conn<Pico, Uni> =
 ///     compose!(F12F09, F09F06, F06F03, F03F00);
@@ -253,7 +253,7 @@ mod tests {
     // `compose!` is exercised by `COMPOSED_F12F00` (declared `const`).
 
     use crate::compose;
-    use crate::conn::fixed::{
+    use crate::conn::fixed::decimal::{
         HasResolution, Micro, Milli, Pico, Uni, F03F00, F06F03, F06F00, F09F06, F12F00, F12F06,
         F12F09,
     };

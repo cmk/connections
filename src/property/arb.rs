@@ -167,7 +167,7 @@ pub fn fixed_safe_fine(prec: i64) -> impl Strategy<Value = i64> {
 // plus explicit boundaries give wide enough adjoint-law coverage.
 
 use crate::conn::float::ExtendedFloat;
-use crate::conn::fixed::{HasResolution, Micro, Pico};
+use crate::conn::fixed::decimal::{HasResolution, Micro, Pico};
 use crate::extended::Extended;
 
 /// `ExtendedFloat<f64>` over `Bot`, `Top`, and bounded `Finite`

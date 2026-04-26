@@ -19,7 +19,7 @@
 //! ```rust,no_run
 //! use connections::compose;
 //! use connections::conn::Conn;
-//! use connections::conn::fixed::{F03F00, F06F03, F09F06, F12F09, Pico, Uni};
+//! use connections::conn::fixed::decimal::{F03F00, F06F03, F09F06, F12F09, Pico, Uni};
 //! use connections::property::laws;
 //!
 //! const COMPOSED: Conn<Pico, Uni> = compose!(F12F09, F09F06, F06F03, F03F00);
@@ -34,7 +34,7 @@
 //!
 //! ```ignore
 //! use connections::property::{arb, laws};
-//! use connections::conn::fixed::F12F00;
+//! use connections::conn::fixed::decimal::F12F00;
 //! use proptest::prelude::*;
 //!
 //! proptest! {
@@ -43,7 +43,7 @@
 //!         p in arb::fixed_fine(1_000_000_000_000),
 //!         u in arb::fixed_coarse(1_000_000_000_000),
 //!     ) {
-//!         use connections::conn::fixed::{Pico, Uni};
+//!         use connections::conn::fixed::decimal::{Pico, Uni};
 //!         prop_assert!(laws::conn_galois_l(&F12F00, Pico(p), Uni(u)));
 //!     }
 //! }

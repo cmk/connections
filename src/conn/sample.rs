@@ -46,7 +46,7 @@
 //! ```
 //!
 //! Plus one `Conn<Pico, Sxx>` per rate connecting the sample tier to
-//! the decimal SI-time tier from [`crate::conn::fixed`].
+//! the decimal SI-time tier from [`crate::conn::fixed::decimal`].
 //!
 //! # Galois semantics for lossy `inner`
 //!
@@ -63,7 +63,7 @@
 //! ratios (`DEN = 1`) it collapses to the familiar `floor_div(x, NUM)`.
 
 use crate::conn::Conn;
-use crate::conn::fixed::Pico;
+use crate::conn::fixed::decimal::Pico;
 use fixed::FixedI64;
 use fixed::types::extra::U16;
 

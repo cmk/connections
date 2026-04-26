@@ -13,18 +13,18 @@
 //!
 //! Tier codes name a *type*, not a module. All `F??F??` Conn
 //! constants (pairs of decimal-rung tiers, or float × decimal-rung)
-//! live in [`conn::fixed`]; all `S???S???` rate-pair constants and
-//! `F??S???` cross-tier constants live in [`conn::sample`].
+//! live in [`conn::fixed::decimal`]; all `S???S???` rate-pair constants
+//! and `F??S???` cross-tier constants live in [`conn::sample`].
 //!
-//! | code   | type                               | resolution           |
-//! |--------|------------------------------------|----------------------|
-//! | `F00`  | [`conn::fixed::Uni`]               | 1 s                  |
-//! | `F01`  | [`conn::fixed::Deci`]              | 100 ms               |
-//! | `F02`  | [`conn::fixed::Centi`]             | 10 ms                |
-//! | `F03`  | [`conn::fixed::Milli`]             | 1 ms                 |
-//! | `F06`  | [`conn::fixed::Micro`]             | 1 µs                 |
-//! | `F09`  | [`conn::fixed::Nano`]              | 1 ns                 |
-//! | `F12`  | [`conn::fixed::Pico`]              | 1 ps                 |
+//! | code   | type                                          | resolution           |
+//! |--------|-----------------------------------------------|----------------------|
+//! | `F00`  | [`conn::fixed::decimal::Uni`]                 | 1 s                  |
+//! | `F01`  | [`conn::fixed::decimal::Deci`]                | 100 ms               |
+//! | `F02`  | [`conn::fixed::decimal::Centi`]               | 10 ms                |
+//! | `F03`  | [`conn::fixed::decimal::Milli`]               | 1 ms                 |
+//! | `F06`  | [`conn::fixed::decimal::Micro`]               | 1 µs                 |
+//! | `F09`  | [`conn::fixed::decimal::Nano`]                | 1 ns                 |
+//! | `F12`  | [`conn::fixed::decimal::Pico`]                | 1 ps                 |
 //! | `F64`  | [`ExtendedFloat<f64>`](conn::float::ExtendedFloat) | IEEE double          |
 //! | `S44`  | [`conn::sample::S44`]              | 1 sample @ 44.1 kHz  |
 //! | `S48`  | [`conn::sample::S48`]              | 1 sample @ 48 kHz    |
@@ -53,9 +53,9 @@
 //!
 //! Examples:
 //!
-//! - [`conn::fixed::F12F06`] — `Pico → Micro` (exact decimal-ladder embed).
-//! - [`conn::fixed::F64F06`] — `ExtendedFloat<f64> → Extended<Micro>` (lawful
-//!   over the full IEEE domain, with saturation on the Rung side).
+//! - [`conn::fixed::decimal::F12F06`] — `Pico → Micro` (exact decimal-ladder embed).
+//! - [`conn::fixed::decimal::F64F06`] — `ExtendedFloat<f64> → Extended<Micro>`
+//!   (lawful over the full IEEE domain, with saturation on the Rung side).
 //! - [`conn::sample::F12S48`] — `Pico → S48` (cross-tier to sample rate).
 //! - [`conn::sample::S88S44`] — `S88 → S44` (rate-pair).
 //! - [`conn::uint::U08U16`] — `u8 → u16` saturating widen.
@@ -80,7 +80,7 @@
 //! ```rust,no_run
 //! use connections::compose;
 //! use connections::conn::Conn;
-//! use connections::conn::fixed::{F12F09, F09F06, F06F03, F03F00, Pico, Uni};
+//! use connections::conn::fixed::decimal::{F12F09, F09F06, F06F03, F03F00, Pico, Uni};
 //!
 //! const F12F00_BIS: Conn<Pico, Uni> =
 //!     compose!(F12F09, F09F06, F06F03, F03F00);
