@@ -13,6 +13,41 @@
 //!
 //! In-crate tests use both modules through `cfg(any(test,
 //! feature = "testing"))`.
+//!
+//! ## Downstream usage
+//!
+//! ```rust,no_run
+//! use connections::compose;
+//! use connections::conn::Conn;
+//! use connections::conn::fixed::{F03F00, F06F03, F09F06, F12F09, Pico, Uni};
+//! use connections::property::laws;
+//!
+//! const COMPOSED: Conn<Pico, Uni> = compose!(F12F09, F09F06, F06F03, F03F00);
+//!
+//! // Spot check: a composed Conn satisfies the Galois adjoint law.
+//! assert!(laws::conn_galois_l(&COMPOSED, Pico(1_500_000_000_000), Uni(2)));
+//! assert!(laws::conn_floor_le_ceil(&COMPOSED, Pico(42)));
+//! ```
+//!
+//! With the `testing` feature enabled, downstream proptest blocks
+//! can drive the predicates over arbitrary inputs:
+//!
+//! ```ignore
+//! use connections::property::{arb, laws};
+//! use connections::conn::fixed::F12F00;
+//! use proptest::prelude::*;
+//!
+//! proptest! {
+//!     #[test]
+//!     fn my_pico_uni_satisfies_galois(
+//!         p in arb::fixed_fine(1_000_000_000_000),
+//!         u in arb::fixed_coarse(1_000_000_000_000),
+//!     ) {
+//!         use connections::conn::fixed::{Pico, Uni};
+//!         prop_assert!(laws::conn_galois_l(&F12F00, Pico(p), Uni(u)));
+//!     }
+//! }
+//! ```
 
 pub mod laws;
 
