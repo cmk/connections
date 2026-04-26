@@ -96,8 +96,10 @@ pub mod conn;
 pub mod extended;
 pub mod lattice;
 
-// Test-only: shared proptest strategies for the `conn::*` and
-// `lattice` `#[cfg(test)]` blocks. Gated on `cfg(test)` so the
-// `proptest` dev-dep doesn't leak into the public build.
-#[cfg(test)]
-pub(crate) mod property;
+// Property predicates (`property::laws`) and proptest strategies
+// (`property::arb`) for downstream crates that want to drive their
+// own tests against this crate's algebras. `laws` is always public
+// — its predicates are pure `bool`-returning fns over this crate's
+// types. `arb` is gated on the `testing` feature, which flips
+// `proptest` from a dev-dep to an optional regular dep.
+pub mod property;

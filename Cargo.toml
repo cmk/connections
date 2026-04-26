@@ -8,6 +8,14 @@ description = "Galois connections and lattice-based numerical conversions"
 
 [dependencies]
 fixed = "1"
+proptest = { version = "1", optional = true }
 
 [dev-dependencies]
 proptest = "1"
+
+[features]
+# Expose `connections::property::arb` (proptest strategies) to
+# downstream crates. The `connections::property::laws` predicates
+# are always public — they only depend on this crate's own types
+# (Conn, Ple, Heyting, …) and don't need proptest at all.
+testing = ["dep:proptest"]

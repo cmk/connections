@@ -398,7 +398,7 @@ impl Ple for u64 { fn ple(&self, other: &Self) -> bool { self <= other } }
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::{arb_f32, arb_f64};
+    use crate::property::arb::{arb_f32, arb_f64};
     use proptest::prelude::*;
 
     // ── Spot checks ────────────────────────────────────────────────

@@ -376,7 +376,7 @@ pub(crate) fn safe_fine(prec: i64) -> impl proptest::strategy::Strategy<Value = 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb_f64_bounded;
+    use crate::property::arb::arb_f64_bounded;
     use proptest::prelude::*;
 
     // Sanity spot checks (hand-computed).

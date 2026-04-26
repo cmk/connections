@@ -264,7 +264,7 @@ fn clamp32(x: i32) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::{arb_f32, arb_f64};
+    use crate::property::arb::{arb_f32, arb_f64};
     use proptest::prelude::*;
 
     // ── Helpers ────────────────────────────────────────────────────

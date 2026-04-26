@@ -135,7 +135,7 @@ impl<T> Conn<T, T> {
 mod tests {
     use super::*;
     use crate::lattice::Ple;
-    use crate::property::arb_f64;
+    use crate::property::arb::arb_f64;
     use proptest::prelude::*;
 
     #[test]
