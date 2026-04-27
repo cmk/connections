@@ -22,6 +22,7 @@ pub mod i32;
 pub mod i64;
 pub mod u08;
 pub mod u16;
+pub mod u32;
 
 // The `fixed`-crate signed AND unsigned types (`FixedI{8,16,32,64,128}<F>`,
 // `FixedU{8,16,32,64,128}<F>`) already derive `PartialEq` / `Eq` /
