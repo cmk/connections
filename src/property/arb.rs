@@ -369,6 +369,11 @@ pub fn arb_time() -> impl Strategy<Value = Time> {
 /// MAX, ZERO}` plus the signed-rounding edges around ±1s; the uniform
 /// slot stays inside `±10⁹ s` (≈ ±31.7 years) to avoid pathological
 /// shrinkage near `i64::MIN/MAX` while still giving wide coverage.
+/// `n` ranges over the full signed nanosecond domain so that
+/// `Duration::new`'s sign normalization produces both positive and
+/// negative `subsec_nanoseconds()` outputs in roughly equal proportion
+/// — without this, `DURNSECS`'s `floor` `n < 0` branch is exercised
+/// only by the explicit boundary slots.
 pub fn arb_duration() -> impl Strategy<Value = Duration> {
     prop_oneof![
         1 => Just(Duration::ZERO),
@@ -377,7 +382,7 @@ pub fn arb_duration() -> impl Strategy<Value = Duration> {
         1 => Just(Duration::seconds(-1) - Duration::nanoseconds(1)),
         1 => Just(Duration::seconds(0) + Duration::nanoseconds(1)),
         1 => Just(Duration::seconds(1) - Duration::nanoseconds(1)),
-        8 => (-1_000_000_000_i64..=1_000_000_000_i64, 0..1_000_000_000_i32)
+        8 => (-1_000_000_000_i64..=1_000_000_000_i64, -999_999_999_i32..=999_999_999_i32)
             .prop_map(|(s, n)| Duration::new(s, n)),
     ]
 }
