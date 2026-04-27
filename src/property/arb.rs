@@ -225,7 +225,7 @@ pub fn fixed_safe_fine(prec: i64) -> impl Strategy<Value = i64> {
 // dominates runtime without finding structural bugs; bounded ranges
 // plus explicit boundaries give wide enough adjoint-law coverage.
 
-use crate::conn::fixed::decimal::{FD06, FD12, HasResolution};
+use crate::conn::fixed::decimal::{FD06, FD09, FD12, HasResolution};
 use crate::conn::float::ExtendedFloat;
 use crate::extended::Extended;
 
@@ -271,6 +271,23 @@ pub fn extended_fd06() -> impl Strategy<Value = Extended<FD06>> {
         1 => Just(Extended::Finite(FD06(i64::MAX))),
         1 => Just(Extended::Finite(FD06(i64::MIN))),
         8 => (-limit..=limit).prop_map(|x| Extended::Finite(FD06(x))),
+    ]
+}
+
+/// `Extended<FD09>` over `NegInf`, `PosInf`, and finite FD09 (1ns)
+/// values across the full `i64` backing range. FD09's `inner` does
+/// not multiply through PREC (it's Duration's natural resolution),
+/// so the full i64 range is safe.
+pub fn extended_fd09() -> impl Strategy<Value = Extended<FD09>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(FD09(0))),
+        1 => Just(Extended::Finite(FD09(i64::MAX))),
+        1 => Just(Extended::Finite(FD09(i64::MIN))),
+        1 => Just(Extended::Finite(FD09(1_000_000_000))),  // 1 second
+        1 => Just(Extended::Finite(FD09(-1_000_000_000))), // -1 second
+        8 => any::<i64>().prop_map(|x| Extended::Finite(FD09(x))),
     ]
 }
 

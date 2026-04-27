@@ -81,4 +81,4 @@ pub mod duration;
 pub use clock::{TIMENANO, TIMESECS};
 pub use date::DATEJDAY;
 pub use datetime::PDTMDATE;
-pub use duration::DURNSECS;
+pub use duration::{DURNFD09, DURNSECS};
