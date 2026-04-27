@@ -237,6 +237,125 @@ pub fn extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
     ]
 }
 
+/// Arbitrary `f32` bounded to `|x| ≤ 10` plus the full boundary set.
+///
+/// Mirrors [`arb_f64_bounded`] for the f32 width but with a tighter
+/// uniform range. `F032DURN`'s ceil/floor walk a 1-nanosecond Duration
+/// rung and stop at the f32-precision plateau boundary; at magnitudes
+/// above ~10 s the f32 plateau exceeds ~10⁴ ns and proptest budgets
+/// blow out. The boundary slot still pins MAX/MIN/INF/MIN_POSITIVE so
+/// saturation paths are exercised even though the uniform body is
+/// narrow.
+pub fn arb_f32_bounded() -> impl Strategy<Value = f32> {
+    prop_oneof![
+        6 => -10.0_f32..10.0_f32,
+        1 => prop_oneof![
+            Just(f32::NAN),
+            Just(f32::INFINITY),
+            Just(f32::NEG_INFINITY),
+            Just(0.0_f32),
+            Just(-0.0_f32),
+            Just(f32::MIN_POSITIVE),
+            Just(f32::MAX),
+            Just(f32::MIN),
+        ],
+    ]
+}
+
+/// `ExtendedFloat<f32>` over `Bot`, `Top`, and bounded `Finite`
+/// values (8:1:1 weighting toward finite). Uses [`arb_f32_bounded`].
+pub fn extended_float_f32() -> impl Strategy<Value = ExtendedFloat<f32>> {
+    prop_oneof![
+        1 => Just(ExtendedFloat::Bot),
+        1 => Just(ExtendedFloat::Top),
+        8 => arb_f32_bounded().prop_map(ExtendedFloat::Extend),
+    ]
+}
+
+/// `Extended<Duration>` over `NegInf`, `PosInf`, and `Finite` values
+/// from [`arb_duration`] (1:1:8 weighting). Used by `Extended<Duration>`
+/// generators that don't drive a magnitude-sensitive walk.
+pub fn arb_extended_duration() -> impl Strategy<Value = Extended<Duration>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        8 => arb_duration().prop_map(Extended::Finite),
+    ]
+}
+
+/// `Duration` strategy bounded to `|secs| ≤ 1e9` — for `F064DURN`
+/// proptests.
+///
+/// Above ~10⁹ s the f64 plateau alone is ~120 ns wide (manageable),
+/// but interaction with arbitrary rung-side `Extended<Duration>`
+/// extremes (e.g. `Duration::MAX`) blows out the per-case walk budget
+/// — `Duration::MAX.as_seconds_f64()` lies at magnitude ~9.2e18 where
+/// the f64 plateau is ~2049 s ≈ 2e12 ns of walk per call.
+///
+/// Boundary slot kept rich (Duration::ZERO, ±1ns, ±1s, the bounded
+/// extremes); the uniform slot is a Duration::new(s, n) with
+/// `s ∈ -10⁹..=10⁹`, `n ∈ -999_999_999..=999_999_999`.
+pub fn arb_duration_bounded_f64() -> impl Strategy<Value = Duration> {
+    prop_oneof![
+        1 => Just(Duration::ZERO),
+        1 => Just(Duration::seconds(1_000_000_000)),
+        1 => Just(Duration::seconds(-1_000_000_000)),
+        1 => Just(Duration::seconds(-1) - Duration::nanoseconds(1)),
+        1 => Just(Duration::seconds(0) + Duration::nanoseconds(1)),
+        1 => Just(Duration::seconds(1) - Duration::nanoseconds(1)),
+        1 => Just(Duration::nanoseconds(1)),
+        1 => Just(Duration::nanoseconds(-1)),
+        12 => (-1_000_000_000_i64..=1_000_000_000_i64, -999_999_999_i32..=999_999_999_i32)
+            .prop_map(|(s, n)| Duration::new(s, n)),
+    ]
+}
+
+/// `Duration` strategy bounded to `|secs| ≤ 10` — for `F032DURN`
+/// proptests.
+///
+/// f32's coarser precision means walks beyond magnitude ~10 s become
+/// infeasible: at magnitude 10 s f32 ULP ≈ 10⁻⁶ s ≈ 1000 ns of walk
+/// per call; at magnitude 10⁶ s it is ~10⁵ ns; at 10⁹ s it is ~10¹¹ ns
+/// and the rung-side `inner(b)` then `ceil/floor` round-trip in the
+/// kernel laws hangs proptest. Bound the rung-side magnitude to where
+/// f32 maintains microsecond precision so walks stay under ~10⁴ steps.
+pub fn arb_duration_bounded_f32() -> impl Strategy<Value = Duration> {
+    prop_oneof![
+        1 => Just(Duration::ZERO),
+        1 => Just(Duration::seconds(10)),
+        1 => Just(Duration::seconds(-10)),
+        1 => Just(Duration::seconds(-1) - Duration::nanoseconds(1)),
+        1 => Just(Duration::seconds(0) + Duration::nanoseconds(1)),
+        1 => Just(Duration::seconds(1) - Duration::nanoseconds(1)),
+        1 => Just(Duration::nanoseconds(1)),
+        1 => Just(Duration::nanoseconds(-1)),
+        12 => (-10_i64..=10_i64, -999_999_999_i32..=999_999_999_i32)
+            .prop_map(|(s, n)| Duration::new(s, n)),
+    ]
+}
+
+/// `Extended<Duration>` over `NegInf`, `PosInf`, and bounded `Finite`
+/// values from [`arb_duration_bounded_f64`] (1:1:8 weighting). Used by
+/// the `F064DURN` galois battery.
+pub fn arb_extended_duration_bounded_f64() -> impl Strategy<Value = Extended<Duration>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        8 => arb_duration_bounded_f64().prop_map(Extended::Finite),
+    ]
+}
+
+/// `Extended<Duration>` over `NegInf`, `PosInf`, and bounded `Finite`
+/// values from [`arb_duration_bounded_f32`] (1:1:8 weighting). Used by
+/// the `F032DURN` galois battery.
+pub fn arb_extended_duration_bounded_f32() -> impl Strategy<Value = Extended<Duration>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        8 => arb_duration_bounded_f32().prop_map(Extended::Finite),
+    ]
+}
+
 /// `ExtendedFloat<half::f16>` over `Bot`, `Top`, and `Finite` from
 /// [`arb_f16`] (1:1:8 weighting toward finite, matching the existing
 /// extended-float strategies).

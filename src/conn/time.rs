@@ -45,6 +45,8 @@
 //! | [`TIMESECS`] | `Conn<Extended<Time>, i64>` | whole seconds since midnight; sub-second `ceil` and `floor` differ. |
 //! | [`DURNSECS`] | `Conn<Duration, Extended<i64>>` | signed whole seconds; rung extended for `±i64::MAX ± 1` overflow. |
 //! | [`DURNFD09`] | `Conn<Duration, Extended<FD09>>` | nanosecond-resolution fixed-point; saturates outside `±i64` nanos. |
+//! | [`F064DURN`] | `Conn<F064, Extended<Duration>>` | f64 seconds ↔ Duration; saturating ceil/floor walk on the 1ns Duration rung. |
+//! | [`F032DURN`] | `Conn<F032, Extended<Duration>>` | f32 seconds ↔ Duration; same walk shape with f32 precision. |
 //! | [`PDTMDATE`] | `Conn<PrimitiveDateTime, Extended<Date>>` | drops sub-day time; `ceil` rolls to the next day if past midnight. |
 //! | [`OFDTNANO`] | `Conn<Extended<OffsetDateTime>, i128>` | unix nanoseconds since epoch (lossless across full OffsetDateTime range). |
 //! | [`OFDTSECS`] | `Conn<Extended<OffsetDateTime>, i64>` | unix whole seconds since epoch; sub-second rounding. |
@@ -89,5 +91,5 @@ pub mod offset;
 pub use clock::{TIMENANO, TIMESECS};
 pub use date::DATEJDAY;
 pub use datetime::PDTMDATE;
-pub use duration::{DURNFD09, DURNSECS};
+pub use duration::{DURNFD09, DURNSECS, F032DURN, F064DURN};
 pub use offset::{OFDTNANO, OFDTSECS};
