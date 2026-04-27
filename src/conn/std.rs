@@ -13,9 +13,9 @@
 //! - Per-primitive submodules (`i8` / `i16` / `i32` / `i64` / `i128` /
 //!   `u8` / `u16` / `u32` / `u64` / `u128`) instead of one flat file.
 //!   Each Conn lives in the module of its **right side** (the
-//!   destination primitive) — so `I008I016` is in [`i16`] (the wider
-//!   destination), `I016I008` is in [`i8`] (the narrower destination),
-//!   `U008I008` is in [`i8`] (the signed destination).
+//!   destination primitive) — so `I008I016` is in [`mod@i16`] (the
+//!   wider destination), `I016I008` is in [`mod@i8`] (the narrower
+//!   destination), `U008I008` is in [`mod@i8`] (the signed destination).
 //! - `i128` / `u128` extensions throughout. Haskell's `Data.Word` /
 //!   `Data.Int` top out at 64 bits.
 //! - Narrowing and cross-sign-narrowing directions are first-class
@@ -230,7 +230,7 @@ pub(crate) use uint_uint_narrow;
 
 /// `Conn<u_N, i_M>` non-widening cross-sign (`bits(u_N) ≥ bits(i_M)`).
 ///
-/// **Right-Galois single-sided** (uses [`Conn::new_right`]). The
+/// **Right-Galois single-sided** (uses [`Conn::new_right`](crate::conn::Conn::new_right)). The
 /// saturation plateau lives on the target side: `inner` clips
 /// `i_M`'s negative half to `0_u_N`. `floor` saturates `u_N` values
 /// above `i_M::MAX` down to `i_M::MAX`.

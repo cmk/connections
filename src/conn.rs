@@ -125,7 +125,7 @@ impl<A, B> Conn<A, B> {
 
     /// Construct a one-sided connection `inner ⊣ floor` (no distinct ceil).
     ///
-    /// Sets `ceil = floor`, the right-Galois mirror of [`new_left`] —
+    /// Sets `ceil = floor`, the right-Galois mirror of [`Self::new_left`] —
     /// matching the Haskell `CastR` representation. Use this when the
     /// saturation plateau lives on the *target* side, where `inner`
     /// collapses extra target values onto a single source (e.g. an
