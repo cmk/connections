@@ -198,6 +198,14 @@ mod tests {
             I128I000.floor(FixedI128::<U128>::from_bits(i128::MAX)),
             FixedI128::<U0>::from_bits(i128::MAX),
         );
+        // Per the truth table, `floor(FINE_MIN)` falls into the
+        // degenerate `bits < 0` branch (the FINE_MAX guard does not
+        // fire) and returns -1. Pin this explicitly so the regression
+        // is exhaustive across all 9 truth-table rows.
+        assert_eq!(
+            I128I000.floor(FixedI128::<U128>::from_bits(i128::MIN)),
+            FixedI128::<U0>::from_bits(-1),
+        );
     }
 
     #[test]

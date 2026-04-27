@@ -207,3 +207,50 @@ remaining:
 
 4. Minor alignment drift in `src/conn/sample.rs` module doc table
    after the wrapper rename (3-char → 4-char). Cosmetic only.
+
+<!-- glab-id: 3288007577 -->
+<!-- glab-discussion: 9b8f23e3663e0f42c7f8509be3071d00ae2df1e5 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/fixed/i128.rs:57` (2026-04-27 02:58 UTC) [open]
+
+**[must-fix]** The `ceil` degenerate branch (`RATIO == None`, i.e. `I128I000`) returns `from_bits(0)` for `bits == 0`, but `bits == 0` is also caught by `bits > 0` being false — that's fine. However, the early-return guard at line 45 checks `x.to_bits() == FINE_MIN` and returns `from_bits(i128::MIN)`, which would mean `ceil(i128::MIN / 2^128) = i128::MIN`. Since `FixedI128<U128>` has `FINE_MIN = i128::MIN` (the most-negative value), its mathematical value is `-0.5`, and `ceil(-0.5)` should be `0`, not `i128::MIN`. The local review table lists `ceil(FINE_MIN) = from_bits(i128::MIN)` as correct, but that contradicts the Galois law: `ceil(x) ≤ b ⟺ x ≤ inner(b)`. Check: `inner(from_bits(i128::MIN)) = FINE_MIN` (saturated), so `FINE_MIN ≤ FINE_MIN` is true, meaning `ceil(FINE_MIN) ≤ i128::MIN` must hold — but `ceil(-0.5)` should be `0`, not `i128::MIN`, violating ceiling semantics for a non-degenerate reading. The same boundary-fixup pattern from smaller modules is being applied without verifying it is correct for `I128I000` where `FINE_MIN` is not on the coarse grid.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3288007589 -->
+<!-- glab-discussion: ac1b7f493ee7f22d321b0ca430dae56e8a417413 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/fixed/i128.rs:101` (2026-04-27 02:58 UTC) [open]
+
+**[follow-up]** The `floor` function for the degenerate `I128I000` case returns `from_bits(-1)` for `bits < 0`, but `degenerate_max_shift` only asserts `floor(from_bits(-1)) == from_bits(-1)` and `floor(from_bits(i128::MAX)) == from_bits(i128::MAX)`. It never tests `floor(from_bits(i128::MIN))`: per the truth table in the local review, `floor(FINE_MIN)` should fall into the `bits < 0` branch and return `from_bits(-1)`, but there is no spot assertion confirming this. Adding one assertion (`I128I000.floor(FixedI128::<U128>::from_bits(i128::MIN)) == FixedI128::<U0>::from_bits(-1)`) would make the regression test exhaustive for the `I128I000` truth table, as the local review itself recommends.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3288007600 -->
+<!-- glab-discussion: ee8e19ba6b1adef4bdaf860e112033a52307c382 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `doc/plans/plan-2026-04-26-07.md:130` (2026-04-27 02:58 UTC) [open]
+
+**[follow-up]** The Review section references an absolute home-directory path `[/Users/cmk/.claude/plans/hey-ptal-around-and-replicated-sprout.md]` inline in the committed plan document. `scripts/check-pii.sh` is described as blocking commits that contain absolute user-home paths; this line apparently passed because it is in a doc file rather than staged diff at commit time, but it leaks a local filesystem path into the repo history and violates the spirit of the PII check.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3288012099 -->
+<!-- glab-discussion: 9b8f23e3663e0f42c7f8509be3071d00ae2df1e5 -->
+#### ↳ cmk (2026-04-27 03:03 UTC) [open]
+
+Declining. The boundary fixup `ceil(FINE_MIN) = COARSE_MIN` is the lawful lower adjoint of a saturating `inner`, not real-number ceiling. The same pattern is in i08/i16/i32/i64 and is explicitly documented in `src/conn/fixed/i16.rs` lines 20–28: when `inner` saturates, the triple-only rounding sandwich `floor(a) ≤ ceil(a)` does not hold at the saturation boundary, but the five Galois axioms still do.
+
+Galois trace at `x = FINE_MIN` for I128I000: `inner(b)` saturates to `FINE_MIN` for any `b ≤ -1` and equals 0 only at `b = 0`, so `inner(b) ≥ FINE_MIN` for *every* coarse `b`. The Galois law `ceil(x) ≤ b ⟺ x ≤ inner(b)` therefore requires `ceil(FINE_MIN) ≤ b` for every `b ∈ i128`, which forces `ceil(FINE_MIN) = i128::MIN`. The proptest battery (`galois_l`, `galois_r`, …) ran 64 cases per law on I128I000 including the FINE_MIN boundary and passed.
+
+<!-- glab-id: 3288012195 -->
+<!-- glab-discussion: ac1b7f493ee7f22d321b0ca430dae56e8a417413 -->
+#### ↳ cmk (2026-04-27 03:03 UTC) [open]
+
+Fixed in 3158f74. `degenerate_max_shift` now asserts `I128I000.floor(FixedI128::<U128>::from_bits(i128::MIN)) == FixedI128::<U0>::from_bits(-1)`, covering the `bits < 0` degenerate branch row of the truth table. Regression is now exhaustive across all 9 cells.
+
+<!-- glab-id: 3288012225 -->
+<!-- glab-discussion: ee8e19ba6b1adef4bdaf860e112033a52307c382 -->
+#### ↳ cmk (2026-04-27 03:03 UTC) [open]
+
+Fixed in 3158f74. The line in `doc/plans/plan-2026-04-26-07.md:135` now reads "the pre-execution scratch plan (Claude Code harness, ephemeral)" — the absolute path and username are gone. Spirit of `scripts/check-pii.sh` preserved.
