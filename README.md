@@ -157,6 +157,32 @@ assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
 assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
 ```
 
+A `Duration` exposed at nanosecond fixed-point (`FD09`):
+
+```rust
+use connections::conn::time::DURNFD09;
+use connections::conn::fixed::decimal::FD09;
+use connections::extended::Extended;
+use time::Duration;
+
+// 1 second = 10⁹ nanoseconds.
+assert_eq!(DURNFD09.ceil(Duration::seconds(1)), Extended::Finite(FD09(1_000_000_000)));
+
+// Out-of-range Duration saturates the rung.
+assert_eq!(DURNFD09.floor(Duration::MIN), Extended::NegInf);
+```
+
+Round-tripping a unix-timestamp through `OffsetDateTime`:
+
+```rust
+use connections::conn::time::OFDTNANO;
+use connections::extended::Extended;
+use time::OffsetDateTime;
+
+assert_eq!(OFDTNANO.inner(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
+assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
+```
+
 A direct `f64 → bfloat16` narrowing — the `half` crate provides a
 software-emulated `bf16` (and `f16`) on stable Rust, wrapped with
 `ExtendedFloat` so it satisfies `Eq + PartialOrd` and flows through the
@@ -236,7 +262,7 @@ and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 | Unsigned widening / sign change (`U###U###`, `I###U###`) | `conn::uint` | shipped |
 | Float `f64 ↔ f32` under N5 | `conn::float` | shipped |
 | Float ↔ rung over `ExtendedFloat<T>` (`F064FD??`) | `conn::fixed::decimal` | shipped |
-| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `PDTMDATE`) | `conn::time` | shipped |
+| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `DURNFD09`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `conn::time` | shipped |
 
 **Cast operations** (Haskell `Data.Connection.Cast`):
 
@@ -297,10 +323,15 @@ src/
 │   ├── float.rs        — ExtendedFloat<T> + f64↔f32
 │   ├── int.rs          — signed-widening via Extended<T>
 │   ├── sample.rs       — sample-rate ladders + FD12↔rate
-│   ├── time/           — time-crate types (Date, Time, Duration, …)
+│   ├── time/           — time-crate types (Date, Time, Duration, OffsetDateTime)
+│   │   ├── date.rs     — Date conns (DATEJDAY)
+│   │   ├── clock.rs    — Time conns (TIMENANO, TIMESECS)
+│   │   ├── duration.rs — Duration conns (DURNSECS, DURNFD09)
+│   │   ├── datetime.rs — PrimitiveDateTime conns (PDTMDATE)
+│   │   └── offset.rs   — OffsetDateTime conns (OFDTNANO, OFDTSECS)
 │   └── uint.rs         — unsigned widening, sign change
 ├── extended.rs         — Extended<T> with NegInf/Finite/PosInf
-├── lattice.rs          — Ple, Join, Meet, Heyting, Coheyting, Symmetric, Boolean
+├── lattice.rs          — Join, Meet, Heyting, Coheyting, Symmetric, Boolean
 └── property/           — proptest strategies + law predicates
 ```
 
