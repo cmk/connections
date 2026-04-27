@@ -411,3 +411,27 @@ pub fn arb_jd_in_range() -> impl Strategy<Value = i32> {
         8 => min_jd..=max_jd,
     ]
 }
+
+/// `Extended<Time>` over `NegInf`, `PosInf`, and `Finite` values
+/// from [`arb_time`] (1:1:8 weighting).
+pub fn arb_extended_time() -> impl Strategy<Value = Extended<Time>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        8 => arb_time().prop_map(Extended::Finite),
+    ]
+}
+
+/// `i64` strategy bounded to `[0, 86_400 × 10⁹)` — the
+/// round-trippable nanoseconds-since-midnight range for the
+/// `Time ↔ ns` connection.
+pub fn arb_ns_in_range() -> impl Strategy<Value = i64> {
+    const NS_MAX: i64 = 86_400 * 1_000_000_000 - 1;
+    prop_oneof![
+        1 => Just(0_i64),
+        1 => Just(NS_MAX),
+        1 => Just(1_i64),
+        1 => Just(43_200_000_000_000_i64),
+        8 => 0..=NS_MAX,
+    ]
+}

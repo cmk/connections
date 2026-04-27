@@ -140,6 +140,101 @@ pub const DATEJDAY: Conn<Extended<Date>, i32> = {
     Conn::new(ceil, inner, floor)
 };
 
+// ── TIMENANO ─────────────────────────────────────────────────────
+
+/// `Extended<Time> → i64` — clock time ↔ nanoseconds-since-midnight.
+///
+/// On the `Finite` portion this is an exact bijection: every
+/// `Time` value corresponds to exactly one `i64` in
+/// `[0, 86_400 × 10⁹)`, and every such `i64` decodes to a unique
+/// `Time`. `i64` values outside that range saturate to
+/// `Extended::NegInf` (negative ns) / `Extended::PosInf`
+/// (≥ 86_400 × 10⁹ ns).
+///
+/// `ceil(Finite(t)) == floor(Finite(t))` because `Time` carries no
+/// finer-than-nanosecond fraction. The two adjoints differ only on
+/// the saturation arms — see the per-variant rationale in the
+/// `Conn::new(ceil, inner, floor)` body.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::time::TIMENANO;
+/// use connections::extended::Extended;
+/// use time::Time;
+///
+/// assert_eq!(TIMENANO.ceil(Extended::Finite(Time::MIDNIGHT)), 0);
+/// assert_eq!(
+///     TIMENANO.ceil(Extended::Finite(
+///         Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap(),
+///     )),
+///     86_399_999_999_999,
+/// );
+/// assert_eq!(
+///     TIMENANO.inner(43_200_000_000_000),
+///     Extended::Finite(Time::from_hms(12, 0, 0).unwrap()),
+/// );
+///
+/// // Out-of-range nanoseconds saturate.
+/// assert_eq!(TIMENANO.inner(-1), Extended::NegInf);
+/// assert_eq!(TIMENANO.inner(86_400_000_000_000), Extended::PosInf);
+/// ```
+pub const TIMENANO: Conn<Extended<Time>, i64> = {
+    const NS_PER_HOUR: i64 = 3_600_000_000_000;
+    const NS_PER_MIN: i64 = 60_000_000_000;
+    const NS_PER_SEC: i64 = 1_000_000_000;
+    const NS_MAX: i64 = 86_400 * NS_PER_SEC - 1;
+
+    fn time_to_ns(t: Time) -> i64 {
+        // `as_hms_nano` returns (h, m, s, ns) — total ≤ NS_MAX, fits i64.
+        let (h, m, s, ns) = t.as_hms_nano();
+        h as i64 * NS_PER_HOUR
+            + m as i64 * NS_PER_MIN
+            + s as i64 * NS_PER_SEC
+            + ns as i64
+    }
+
+    fn ns_to_time(ns: i64) -> Time {
+        // Caller has already bounded `ns` to [0, NS_MAX].
+        let h = (ns / NS_PER_HOUR) as u8;
+        let m = ((ns / NS_PER_MIN) % 60) as u8;
+        let s = ((ns / NS_PER_SEC) % 60) as u8;
+        let n = (ns % NS_PER_SEC) as u32;
+        match Time::from_hms_nano(h, m, s, n) {
+            Ok(t) => t,
+            Err(_) => unreachable!("ns in [0, NS_MAX] decomposes to valid HMS-nano"),
+        }
+    }
+
+    fn ceil(t: Extended<Time>) -> i64 {
+        match t {
+            Extended::NegInf => i64::MIN,
+            Extended::Finite(time) => time_to_ns(time),
+            Extended::PosInf => NS_MAX + 1,
+        }
+    }
+
+    fn inner(ns: i64) -> Extended<Time> {
+        if ns < 0 {
+            Extended::NegInf
+        } else if ns > NS_MAX {
+            Extended::PosInf
+        } else {
+            Extended::Finite(ns_to_time(ns))
+        }
+    }
+
+    fn floor(t: Extended<Time>) -> i64 {
+        match t {
+            Extended::NegInf => -1,
+            Extended::Finite(time) => time_to_ns(time),
+            Extended::PosInf => i64::MAX,
+        }
+    }
+
+    Conn::new(ceil, inner, floor)
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -405,6 +500,114 @@ mod tests {
             #[test]
             fn roundtrip_floor(b in arb_jd_in_range()) {
                 prop_assert!(laws::conn_roundtrip_floor(&DATEJDAY, b));
+            }
+        }
+    }
+
+    // ── TIMENANO ────────────────────────────────────────────────
+
+    mod timenano {
+        use super::*;
+        use crate::property::arb::{arb_extended_time, arb_ns_in_range};
+
+        const NS_MAX: i64 = 86_400 * 1_000_000_000 - 1;
+
+        // ── Spot checks ─────────────────────────────────────────
+
+        #[test]
+        fn midnight_is_zero() {
+            assert_eq!(TIMENANO.ceil(Extended::Finite(Time::MIDNIGHT)), 0);
+            assert_eq!(TIMENANO.floor(Extended::Finite(Time::MIDNIGHT)), 0);
+            assert_eq!(TIMENANO.inner(0), Extended::Finite(Time::MIDNIGHT));
+        }
+
+        #[test]
+        fn end_of_day() {
+            let last = Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap();
+            assert_eq!(TIMENANO.ceil(Extended::Finite(last)), NS_MAX);
+            assert_eq!(TIMENANO.floor(Extended::Finite(last)), NS_MAX);
+            assert_eq!(TIMENANO.inner(NS_MAX), Extended::Finite(last));
+        }
+
+        #[test]
+        fn noon_round_trip() {
+            let noon = Time::from_hms(12, 0, 0).unwrap();
+            assert_eq!(TIMENANO.inner(43_200_000_000_000), Extended::Finite(noon));
+            assert_eq!(TIMENANO.ceil(Extended::Finite(noon)), 43_200_000_000_000);
+        }
+
+        #[test]
+        fn saturation_extremes() {
+            assert_eq!(TIMENANO.inner(-1), Extended::NegInf);
+            assert_eq!(TIMENANO.inner(i64::MIN), Extended::NegInf);
+            assert_eq!(TIMENANO.inner(NS_MAX + 1), Extended::PosInf);
+            assert_eq!(TIMENANO.inner(i64::MAX), Extended::PosInf);
+
+            assert_eq!(TIMENANO.ceil(Extended::NegInf), i64::MIN);
+            assert_eq!(TIMENANO.ceil(Extended::PosInf), NS_MAX + 1);
+            assert_eq!(TIMENANO.floor(Extended::NegInf), -1);
+            assert_eq!(TIMENANO.floor(Extended::PosInf), i64::MAX);
+        }
+
+        // ── Galois law battery ─────────────────────────────────
+
+        proptest! {
+            #[test]
+            fn galois_l(t in arb_extended_time(), b in any::<i64>()) {
+                prop_assert!(laws::conn_galois_l(&TIMENANO, t, b));
+            }
+
+            #[test]
+            fn galois_r(t in arb_extended_time(), b in any::<i64>()) {
+                prop_assert!(laws::conn_galois_r(&TIMENANO, t, b));
+            }
+
+            #[test]
+            fn closure_l(t in arb_extended_time()) {
+                prop_assert!(laws::conn_closure_l(&TIMENANO, t));
+            }
+
+            #[test]
+            fn closure_r(t in arb_extended_time()) {
+                prop_assert!(laws::conn_closure_r(&TIMENANO, t));
+            }
+
+            #[test]
+            fn kernel_l(b in any::<i64>()) {
+                prop_assert!(laws::conn_kernel_l(&TIMENANO, b));
+            }
+
+            #[test]
+            fn kernel_r(b in any::<i64>()) {
+                prop_assert!(laws::conn_kernel_r(&TIMENANO, b));
+            }
+
+            #[test]
+            fn monotone_l(a in arb_extended_time(), b in arb_extended_time()) {
+                prop_assert!(laws::conn_monotone_l(&TIMENANO, a, b));
+            }
+
+            #[test]
+            fn monotone_r(a in any::<i64>(), b in any::<i64>()) {
+                prop_assert!(laws::conn_monotone_r(&TIMENANO, a, b));
+            }
+
+            // `floor_le_ceil` not driven — same Extended-source
+            // saturation reason as DATEJDAY (see comment there).
+
+            #[test]
+            fn idempotent(t in arb_extended_time()) {
+                prop_assert!(laws::conn_idempotent(&TIMENANO, t));
+            }
+
+            #[test]
+            fn roundtrip_ceil(b in arb_ns_in_range()) {
+                prop_assert!(laws::conn_roundtrip_ceil(&TIMENANO, b));
+            }
+
+            #[test]
+            fn roundtrip_floor(b in arb_ns_in_range()) {
+                prop_assert!(laws::conn_roundtrip_floor(&TIMENANO, b));
             }
         }
     }
