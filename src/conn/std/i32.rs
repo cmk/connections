@@ -1,7 +1,7 @@
 //! Conns landing on `i32`. Per the right-side-wins module rule,
 //! this file hosts every Conn whose destination type is `i32`.
 
-use super::{ext_int, int_int_narrow};
+use super::{ext_int, int_int_narrow, uint_int_sat};
 use crate::conn::Conn;
 use crate::extended::Extended;
 
@@ -14,6 +14,11 @@ ext_int!(U016I032, u16, i32);
 // ── §1 I→I narrowing ───────────────────────────────────────────────
 int_int_narrow!(I064I032, i64, i32);
 int_int_narrow!(I128I032, i128, i32);
+
+// ── §3 U→I non-widening ────────────────────────────────────────────
+uint_int_sat!(U032I032, u32, i32);
+uint_int_sat!(U064I032, u64, i32);
+uint_int_sat!(U128I032, u128, i32);
 
 #[cfg(test)]
 mod tests {
@@ -49,5 +54,14 @@ mod tests {
     fn i_to_i32_inner_fine_max_fixup() {
         assert_eq!(I064I032.inner(i32::MAX), i64::MAX);
         assert_eq!(I128I032.inner(i32::MAX), i128::MAX);
+    }
+
+    // ── Spot checks: U→I non-widening into i32 ────────────────────
+
+    #[test]
+    fn u_to_i32_neg_and_high() {
+        assert_eq!(U032I032.inner(-1), 0_u32);
+        assert_eq!(U064I032.floor(u64::MAX), i32::MAX);
+        assert_eq!(U128I032.inner(i32::MIN), 0_u128);
     }
 }

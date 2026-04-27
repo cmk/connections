@@ -1,7 +1,7 @@
 //! Conns landing on `i16`. Per the right-side-wins module rule,
 //! this file hosts every Conn whose destination type is `i16`.
 
-use super::{ext_int, int_int_narrow};
+use super::{ext_int, int_int_narrow, uint_int_sat};
 use crate::conn::Conn;
 use crate::extended::Extended;
 
@@ -13,6 +13,12 @@ ext_int!(U008I016, u8, i16);
 int_int_narrow!(I032I016, i32, i16);
 int_int_narrow!(I064I016, i64, i16);
 int_int_narrow!(I128I016, i128, i16);
+
+// ── §3 U→I non-widening ────────────────────────────────────────────
+uint_int_sat!(U016I016, u16, i16);
+uint_int_sat!(U032I016, u32, i16);
+uint_int_sat!(U064I016, u64, i16);
+uint_int_sat!(U128I016, u128, i16);
 
 #[cfg(test)]
 mod tests {
@@ -100,5 +106,15 @@ mod tests {
         // Below the fixup, lossless widen.
         assert_eq!(I032I016.inner(0), 0_i32);
         assert_eq!(I032I016.inner(i16::MIN), i16::MIN as i32);
+    }
+
+    // ── Spot checks: U→I non-widening into i16 ────────────────────
+
+    #[test]
+    fn u_to_i16_neg_and_high() {
+        assert_eq!(U016I016.inner(-1), 0_u16);
+        assert_eq!(U016I016.inner(i16::MIN), 0_u16);
+        assert_eq!(U016I016.floor(u16::MAX), i16::MAX);
+        assert_eq!(U128I016.floor(u128::MAX), i16::MAX);
     }
 }

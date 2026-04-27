@@ -3,7 +3,7 @@
 //! nests the custom [`decimal`] SI-prefix ladder (`FD00`..`FD12`)
 //! built on `i64` as its fixed-point backing.
 
-use super::{ext_int, int_int_narrow};
+use super::{ext_int, int_int_narrow, uint_int_sat};
 use crate::conn::Conn;
 use crate::extended::Extended;
 
@@ -19,6 +19,10 @@ ext_int!(U032I064, u32, i64);
 
 // ── §1 I→I narrowing ───────────────────────────────────────────────
 int_int_narrow!(I128I064, i128, i64);
+
+// ── §3 U→I non-widening ────────────────────────────────────────────
+uint_int_sat!(U064I064, u64, i64);
+uint_int_sat!(U128I064, u128, i64);
 
 #[cfg(test)]
 mod tests {
@@ -44,5 +48,15 @@ mod tests {
         assert_eq!(I128I064.ceil(i128::MIN), i64::MIN);
         assert_eq!(I128I064.inner(i64::MAX), i128::MAX);
         assert_eq!(I128I064.inner(i64::MIN), i64::MIN as i128);
+    }
+
+    // ── Spot checks: U→I non-widening into i64 ────────────────────
+
+    #[test]
+    fn u_to_i64_neg_and_high() {
+        assert_eq!(U064I064.inner(-1), 0_u64);
+        assert_eq!(U064I064.floor(u64::MAX), i64::MAX);
+        assert_eq!(U128I064.inner(i64::MIN), 0_u128);
+        assert_eq!(U128I064.floor(u128::MAX), i64::MAX);
     }
 }

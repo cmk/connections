@@ -108,3 +108,38 @@ macro_rules! single_sided_props {
 single_sided_props!(i032i016, I032I016, any::<i32>(), any::<i16>());
 single_sided_props!(i064i016, I064I016, any::<i64>(), any::<i16>());
 single_sided_props!(i128i016, I128I016, any::<i128>(), any::<i16>());
+
+// §3 U→I non-widening — single-sided right-Galois.
+macro_rules! single_sided_right_props {
+    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+        mod $mod_name {
+            use super::*;
+
+            proptest! {
+                #[test]
+                fn galois_lower(a in $arb_src, b in $arb_tgt) {
+                    prop_assert_eq!($CONN.inner(b) <= a, b <= $CONN.floor(a));
+                }
+                #[test]
+                fn floor_monotone(a1 in $arb_src, a2 in $arb_src) {
+                    let (lo, hi) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
+                    prop_assert!($CONN.floor(lo) <= $CONN.floor(hi));
+                }
+                #[test]
+                fn inner_monotone(b1 in $arb_tgt, b2 in $arb_tgt) {
+                    let (lo, hi) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
+                    prop_assert!($CONN.inner(lo) <= $CONN.inner(hi));
+                }
+                #[test]
+                fn kernel_lower(b in $arb_tgt) {
+                    prop_assert!(b <= $CONN.floor($CONN.inner(b)));
+                }
+            }
+        }
+    };
+}
+
+single_sided_right_props!(u016i016, U016I016, any::<u16>(), any::<i16>());
+single_sided_right_props!(u032i016, U032I016, any::<u32>(), any::<i16>());
+single_sided_right_props!(u064i016, U064I016, any::<u64>(), any::<i16>());
+single_sided_right_props!(u128i016, U128I016, any::<u128>(), any::<i16>());

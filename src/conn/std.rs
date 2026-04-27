@@ -223,8 +223,38 @@ macro_rules! uint_uint_narrow {
 }
 pub(crate) use uint_uint_narrow;
 
-// (`int_uint_narrow!`, `uint_int_sat!` land in subsequent commits
-// T5-T6 alongside their first invocations.)
+/// `Conn<u_N, i_M>` non-widening cross-sign (`bits(u_N) ≥ bits(i_M)`).
+///
+/// **Right-Galois single-sided** (uses [`Conn::new_right`]). The
+/// saturation plateau lives on the target side: `inner` clips
+/// `i_M`'s negative half to `0_u_N`. `floor` saturates `u_N` values
+/// above `i_M::MAX` down to `i_M::MAX`.
+///
+/// No FINE_MAX fixup needed: `inner`'s image is exactly
+/// `[0, i_M::MAX as u_N]`, and `floor`'s collapse at the high
+/// plateau aligns the target-side fiber with the source identity at
+/// `i_M::MAX`.
+macro_rules! uint_int_sat {
+    ($NAME:ident, $A:ty, $B:ty) => {
+        #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating cast (right-Galois).")]
+        pub const $NAME: Conn<$A, $B> = {
+            fn floor(x: $A) -> $B {
+                if x > <$B>::MAX as $A {
+                    <$B>::MAX
+                } else {
+                    x as $B
+                }
+            }
+            fn inner(x: $B) -> $A {
+                if x < 0 { 0 } else { x as $A }
+            }
+            Conn::new_right(inner, floor)
+        };
+    };
+}
+pub(crate) use uint_int_sat;
+
+// (`int_uint_narrow!` lands in T6 alongside its first invocation.)
 
 // ── Per-primitive submodules ───────────────────────────────────────
 
