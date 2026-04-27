@@ -318,6 +318,88 @@ fn clamp32(x: i32) -> i32 {
     x.clamp(-2139095041, 2139095040)
 }
 
+// ── 16-bit ULP machinery (shared between half::f16 and half::bf16) ──
+//
+// Both half-precision types are u16-backed sign-magnitude with the
+// sign at the MSB, so the bit-pattern → total-order int mapping
+// (`signed16` / `unsigned16`) is identical. Only the ±∞ clamp values
+// differ — `clamp16_f16` vs `clamp16_bf16` — because IEEE binary16
+// and bfloat16 have different exponent fields.
+
+/// Word16 (sign-magnitude bit pattern) → sign-magnitude i32.
+///
+/// Maps the 16-bit float bit-space onto integers so that integer
+/// order matches the float total order (excluding NaN):
+///   +0 → 0, +inf-bits → small positive, -0 → -1, -inf-bits → large negative.
+#[allow(dead_code)] // exercised by shift16_* helpers + their tests
+pub(crate) fn signed16(x: u16) -> i32 {
+    if x < 0x8000 {
+        x as i32
+    } else {
+        // Mirror signed32's Haskell-style mapping at 16-bit width.
+        // u16::MAX - (x - 0x8000) maps the negative half symmetrically;
+        // simpler equivalent: 0x7FFF - x as i32.
+        0x7FFF_i32 - (x as i32)
+    }
+}
+
+/// Sign-magnitude i32 → Word16 (bit pattern).
+#[allow(dead_code)] // exercised by shift16_* helpers + their tests
+pub(crate) fn unsigned16(i: i32) -> u16 {
+    if i >= 0 {
+        i as u16
+    } else {
+        (0x7FFF_i32 - i) as u16
+    }
+}
+
+/// Clamp between the i32 representations of f16's ±∞.
+#[allow(dead_code)]
+pub(crate) fn clamp16_f16(x: i32) -> i32 {
+    // half::f16::INFINITY.to_bits() = 0x7C00 → signed16 = 31744
+    // half::f16::NEG_INFINITY bits  = 0xFC00 → signed16 = -31745
+    x.clamp(-31745, 31744)
+}
+
+/// Clamp between the i32 representations of bf16's ±∞.
+#[allow(dead_code)]
+pub(crate) fn clamp16_bf16(x: i32) -> i32 {
+    // half::bf16::INFINITY.to_bits() = 0x7F80 → signed16 = 32640
+    // half::bf16::NEG_INFINITY bits  = 0xFF80 → signed16 = -32641
+    x.clamp(-32641, 32640)
+}
+
+/// Shift a [`half::f16`] by `n` ULPs in the sign-magnitude total order.
+///
+/// NaN maps to ±∞ for non-zero shifts (matches `shift32`); ±∞ are
+/// clamped (shifting past stays at ±∞).
+#[allow(dead_code)] // first consumer lands with F032F016 / F064F016
+pub(crate) fn shift16_f16(n: i32, x: half::f16) -> half::f16 {
+    if x.is_nan() {
+        return match n.signum() {
+            -1 => half::f16::NEG_INFINITY,
+            1 => half::f16::INFINITY,
+            _ => half::f16::NAN,
+        };
+    }
+    let i = signed16(x.to_bits());
+    half::f16::from_bits(unsigned16(clamp16_f16(i.saturating_add(n))))
+}
+
+/// Shift a [`half::bf16`] by `n` ULPs in the sign-magnitude total order.
+#[allow(dead_code)] // first consumer lands with F032B016 / F064B016
+pub(crate) fn shift16_bf16(n: i32, x: half::bf16) -> half::bf16 {
+    if x.is_nan() {
+        return match n.signum() {
+            -1 => half::bf16::NEG_INFINITY,
+            1 => half::bf16::INFINITY,
+            _ => half::bf16::NAN,
+        };
+    }
+    let i = signed16(x.to_bits());
+    half::bf16::from_bits(unsigned16(clamp16_bf16(i.saturating_add(n))))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -369,6 +451,94 @@ mod tests {
     fn shift32_inf_clamped() {
         assert_eq!(shift32(1, f32::INFINITY), f32::INFINITY);
         assert_eq!(shift32(-1, f32::NEG_INFINITY), f32::NEG_INFINITY);
+    }
+
+    // ── 16-bit ULP machinery sanity ────────────────────────────────
+
+    #[test]
+    fn signed16_round_trip() {
+        // Sweep every u16 → i32 → u16 must be the identity.
+        for x in 0u16..=u16::MAX {
+            assert_eq!(unsigned16(signed16(x)), x, "round-trip failed at {x:#x}");
+        }
+    }
+
+    #[test]
+    fn signed16_total_order_matches_float_order_f16() {
+        // For non-NaN f16 values, signed16(a.to_bits()) <= signed16(b.to_bits())
+        // iff a.total_cmp(&b) is Less or Equal.
+        let samples = [
+            half::f16::NEG_INFINITY,
+            half::f16::MIN,
+            half::f16::from_f32(-1.0),
+            half::f16::from_f32(-0.5),
+            half::f16::NEG_ZERO,
+            half::f16::ZERO,
+            half::f16::MIN_POSITIVE,
+            half::f16::from_f32(0.5),
+            half::f16::ONE,
+            half::f16::MAX,
+            half::f16::INFINITY,
+        ];
+        for w in samples.windows(2) {
+            let (a, b) = (w[0], w[1]);
+            let (ia, ib) = (signed16(a.to_bits()), signed16(b.to_bits()));
+            assert!(ia < ib, "signed16 order broken: {a:?} ({ia}) </ {b:?} ({ib})");
+        }
+    }
+
+    #[test]
+    fn shift16_f16_from_zero() {
+        let z = shift16_f16(1, half::f16::ZERO);
+        assert!(z > half::f16::ZERO);
+        assert_eq!(z, half::f16::from_bits(1));
+    }
+
+    #[test]
+    fn shift16_f16_nan_to_inf() {
+        assert_eq!(shift16_f16(1, half::f16::NAN), half::f16::INFINITY);
+        assert_eq!(shift16_f16(-1, half::f16::NAN), half::f16::NEG_INFINITY);
+        assert!(shift16_f16(0, half::f16::NAN).is_nan());
+    }
+
+    #[test]
+    fn shift16_f16_inf_clamped() {
+        assert_eq!(shift16_f16(1, half::f16::INFINITY), half::f16::INFINITY);
+        assert_eq!(
+            shift16_f16(-1, half::f16::NEG_INFINITY),
+            half::f16::NEG_INFINITY
+        );
+    }
+
+    #[test]
+    fn shift16_bf16_from_zero() {
+        let z = shift16_bf16(1, half::bf16::ZERO);
+        assert!(z > half::bf16::ZERO);
+        assert_eq!(z, half::bf16::from_bits(1));
+    }
+
+    #[test]
+    fn shift16_bf16_nan_to_inf() {
+        assert_eq!(shift16_bf16(1, half::bf16::NAN), half::bf16::INFINITY);
+        assert_eq!(shift16_bf16(-1, half::bf16::NAN), half::bf16::NEG_INFINITY);
+        assert!(shift16_bf16(0, half::bf16::NAN).is_nan());
+    }
+
+    #[test]
+    fn shift16_bf16_inf_clamped() {
+        assert_eq!(shift16_bf16(1, half::bf16::INFINITY), half::bf16::INFINITY);
+        assert_eq!(
+            shift16_bf16(-1, half::bf16::NEG_INFINITY),
+            half::bf16::NEG_INFINITY
+        );
+    }
+
+    #[test]
+    fn clamp16_constants_match_inf_bits() {
+        assert_eq!(signed16(half::f16::INFINITY.to_bits()), 31744);
+        assert_eq!(signed16(half::f16::NEG_INFINITY.to_bits()), -31745);
+        assert_eq!(signed16(half::bf16::INFINITY.to_bits()), 32640);
+        assert_eq!(signed16(half::bf16::NEG_INFINITY.to_bits()), -32641);
     }
 
     // ── Spot checks ────────────────────────────────────────────────
