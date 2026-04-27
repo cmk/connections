@@ -19,11 +19,18 @@
 //! because the source/target types are domain-typed (`Date`, `Time`,
 //! `Duration`, `PrimitiveDateTime`) rather than tier-coded.
 //!
-//! # Constants (added incrementally — see [`crate::doc/plans`])
+//! # Constants
 //!
-//! Pending — see the sprint plan. Each constant ships with a runnable
-//! `# Examples` doctest and a `proptest!` block driving the laws in
-//! [`crate::property::laws`].
+//! | name | type | role |
+//! |------|------|------|
+//! | [`DATEJDAY`] | `Conn<Extended<Date>, i32>` | proleptic-Gregorian Julian day (exact bijection on Date range; saturating outside). |
+//! | [`TIMENANO`] | `Conn<Extended<Time>, i64>` | nanoseconds since midnight (exact bijection on `[0, 86_400 × 10⁹)`). |
+//! | [`TIMESECS`] | `Conn<Extended<Time>, i64>` | whole seconds since midnight; sub-second `ceil` and `floor` differ. |
+//! | [`DURNSECS`] | `Conn<Duration, Extended<i64>>` | signed whole seconds; rung extended for `±i64::MAX ± 1` overflow. |
+//! | [`PDTMDATE`] | `Conn<PrimitiveDateTime, Extended<Date>>` | drops sub-day time; `ceil` rolls to the next day if past midnight. |
+//!
+//! Each constant ships with a runnable `# Examples` doctest and a
+//! `proptest!` block driving the laws in [`crate::property::laws`].
 //!
 //! # Verification
 //!
