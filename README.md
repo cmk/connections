@@ -56,7 +56,7 @@ For the math and the rationale behind a single unified `Conn` type
 
 A decimal-ladder cast:
 
-```rust,no_run
+```rust
 use connections::conn::fixed::decimal::{F12F09, Pico, Nano};
 
 let p = Pico(1_500);                    // 1500 picoseconds
@@ -66,7 +66,7 @@ assert_eq!(F12F09.floor(p), Nano(1));   // round down → 1 ns
 
 Composing four pair-conns into one `Pico → Uni` (seconds) cast:
 
-```rust,no_run
+```rust
 use connections::compose;
 use connections::conn::Conn;
 use connections::conn::fixed::decimal::{F12F09, F09F06, F06F03, F03F00, Pico, Uni};
@@ -77,7 +77,7 @@ assert_eq!(F12F00.floor(Pico(1_500_000_000_000)), Uni(1));  // 1.5 s → 1 s
 
 A sample-rate cast (88.2 kHz → 44.1 kHz, 2:1 ratio):
 
-```rust,no_run
+```rust
 use connections::conn::sample::{S44, S88, S88S44};
 
 assert_eq!(S88S44.ceil(S88::from_sample(14)), S44::from_sample(7));
@@ -85,20 +85,30 @@ assert_eq!(S88S44.inner(S44::from_sample(7)), S88::from_sample(14));
 ```
 
 Integer widening through `Extended<T>` (so values *outside* the source
-range have somewhere to land):
+range have somewhere to land — `floor` saturates to the target bounds,
+`ceil` lands on a synthetic point one past the source range):
 
-```rust,no_run
+```rust
 use connections::conn::int::U08I16;
 use connections::extended::Extended;
 
+// Finite passes through.
 assert_eq!(U08I16.ceil(Extended::Finite(200_u8)), 200_i16);
-assert_eq!(U08I16.ceil(Extended::PosInf),         i16::MAX);
-assert_eq!(U08I16.ceil(Extended::NegInf),         i16::MIN);
+
+// `floor` saturates the infinities to target bounds.
+assert_eq!(U08I16.floor(Extended::PosInf), i16::MAX);
+assert_eq!(U08I16.ceil(Extended::NegInf),  i16::MIN);
+
+// `ceil(PosInf)` and `floor(NegInf)` land on the "one past source"
+// markers — distinct from the target bounds, so `inner` can recover
+// PosInf/NegInf round-trip.
+assert_eq!(U08I16.ceil(Extended::PosInf),  256_i16);   // u8::MAX + 1
+assert_eq!(U08I16.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 ```
 
 The Sprint A `Cast` API — accessors and lifters operating on any `Conn`:
 
-```rust,no_run
+```rust
 use connections::{ceiling, upper1, maximize};
 use connections::conn::Conn;
 use connections::conn::fixed::decimal::{F12F09, Pico};

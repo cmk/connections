@@ -522,6 +522,30 @@ pub fn cast_floor2_id_diag<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bool
     l.ple(&r) && r.ple(&l)
 }
 
+/// `maximize` is the curried form of `ceiling` over a `Conn<(A, B), C>`:
+/// `maximize(c, a, b) == ceiling(c, (a, b))`.
+pub fn cast_maximize_eq_ceiling<A: Copy, B: Copy, C: Copy + Ple>(
+    c: &Conn<(A, B), C>,
+    a: A,
+    b: B,
+) -> bool {
+    let l = crate::conn::cast::maximize(c, a, b);
+    let r = crate::conn::cast::ceiling(c, (a, b));
+    l.ple(&r) && r.ple(&l)
+}
+
+/// `minimize` is the curried form of `floor` over a `Conn<(A, B), C>`:
+/// `minimize(c, a, b) == floor(c, (a, b))`.
+pub fn cast_minimize_eq_floor<A: Copy, B: Copy, C: Copy + Ple>(
+    c: &Conn<(A, B), C>,
+    a: A,
+    b: B,
+) -> bool {
+    let l = crate::conn::cast::minimize(c, a, b);
+    let r = crate::conn::cast::floor(c, (a, b));
+    l.ple(&r) && r.ple(&l)
+}
+
 // ── Bare-preorder laws (for types impl'ing `Ple`) ────────────────
 
 /// Reflexivity: `x ≤ x` — every element is comparable to itself.

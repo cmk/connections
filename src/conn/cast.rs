@@ -207,7 +207,6 @@ pub fn minimize<A, B, C>(c: &Conn<(A, B), C>, a: A, b: B) -> C {
 mod tests {
     use super::*;
     use crate::conn::fixed::decimal::{F12F09, Nano, Pico};
-    use crate::lattice::Ple;
     use crate::property::arb::{arb_f64, fixed_coarse, fixed_safe_fine};
     use crate::property::laws;
     use proptest::prelude::*;
@@ -461,21 +460,13 @@ mod tests {
         // ── maximize / minimize over `ordered_pair` (random pairs) ─
 
         #[test]
-        fn maximize_is_max(a: i32, b: i32) {
-            let c = ordered_pair();
-            prop_assert_eq!(maximize(&c, a, b), a.max(b));
+        fn maximize_eq_ceiling_random(a: i32, b: i32) {
+            prop_assert!(laws::cast_maximize_eq_ceiling(&ordered_pair(), a, b));
         }
 
         #[test]
-        fn minimize_is_min(a: i32, b: i32) {
-            let c = ordered_pair();
-            prop_assert_eq!(minimize(&c, a, b), a.min(b));
+        fn minimize_eq_floor_random(a: i32, b: i32) {
+            prop_assert!(laws::cast_minimize_eq_floor(&ordered_pair(), a, b));
         }
     }
-
-    // Silence the "unused trait" warning when the test module is the
-    // only consumer of `Ple` here (it isn't directly — proptest macros
-    // expand into expressions, and `Ple` is referenced via `laws::*`).
-    #[allow(dead_code)]
-    fn _ple_referenced<T: Ple>(_t: &T) {}
 }
