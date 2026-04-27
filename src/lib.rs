@@ -27,7 +27,7 @@
 //! | `FD06`   | [`conn::fixed::decimal::FD06`]                      | 10⁻⁶ s  (1 µs)         |
 //! | `FD09`   | [`conn::fixed::decimal::FD09`]                      | 10⁻⁹ s  (1 ns)         |
 //! | `FD12`   | [`conn::fixed::decimal::FD12`]                      | 10⁻¹² s (1 ps)         |
-//! | `F032`   | (deferred — see below)                              | IEEE binary32          |
+//! | `F032`   | [`ExtendedFloat<f32>`](conn::float::ExtendedFloat)  | IEEE binary32          |
 //! | `F064`   | [`ExtendedFloat<f64>`](conn::float::ExtendedFloat)  | IEEE binary64          |
 //! | `F128`   | (deferred — `f128` unstable)                        | IEEE binary128         |
 //! | `S044`   | [`conn::sample::S044`]                              | 1 sample @ 44.1 kHz    |
@@ -76,16 +76,19 @@
 //! - [`conn::fixed::decimal::FD12FD06`] — `FD12 → FD06` (exact decimal-ladder embed).
 //! - [`conn::fixed::decimal::F064FD06`] — `ExtendedFloat<f64> → Extended<FD06>`
 //!   (lawful over the full IEEE domain, with saturation on the Rung side).
+//! - [`conn::float::F064F032`] — `ExtendedFloat<f64> → ExtendedFloat<f32>`
+//!   (lossy float narrowing under N5).
 //! - [`conn::sample::FD12S048`] — `FD12 → S048` (cross-tier to sample rate).
 //! - [`conn::sample::S088S044`] — `S088 → S044` (rate-pair).
 //! - [`conn::uint::U008U016`] — `u8 → u16` saturating widen.
 //! - [`conn::int::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
 //! - [`conn::int::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
 //!
-//! An `F032` code is not (yet) exported: an `inner` that narrows
-//! `i64 → f32` collapses large runs of Rung values onto the same
-//! f32, forcing an O(plateau) correction per ceil/floor call. f32
-//! callers widen losslessly at the boundary:
+//! An `F032`-into-decimal cross-tier (e.g. `F032FD06`) is not yet
+//! exported: an `inner` that narrows `i64 → f32` collapses large
+//! runs of Rung values onto the same f32, forcing an O(plateau)
+//! correction per ceil/floor call. f32 callers widen losslessly at
+//! the boundary:
 //! `F064FD06.ceil(ExtendedFloat::Finite(arg_f32 as f64))`. `F128` is
 //! blocked on `f128` stabilisation in stable Rust.
 //!

@@ -86,18 +86,41 @@ macro_rules! impl_float_ext {
 impl_float_ext!(f32);
 impl_float_ext!(f64);
 
-/// Connection between `f64` and `f32` under the N5 lattice ordering.
+/// Connection between `ExtendedFloat<f64>` and `ExtendedFloat<f32>`
+/// under the N5 lattice ordering.
 ///
-/// - `inner`: lossless `f32 → f64` embedding
-/// - `ceil`: smallest `f32` whose `f64` embedding is ≥ the input (round up)
-/// - `floor`: largest `f32` whose `f64` embedding is ≤ the input (round down)
-pub fn f64_f32() -> Conn<f64, f32> {
-    Conn::new(ceil_f64_f32, inner_f64_f32, floor_f64_f32)
-}
-
-fn inner_f64_f32(y: f32) -> f64 {
-    y as f64
-}
+/// - `inner`: lossless `f32 → f64` embedding (`Bot/Top/Finite` pass through;
+///   `Finite(v)` casts `v as f64`).
+/// - `ceil`: smallest `f32` whose `f64` embedding is ≥ the input (round up).
+/// - `floor`: largest `f32` whose `f64` embedding is ≤ the input (round down).
+///
+/// `ExtendedFloat::Bot` / `Top` are preserved on both sides;
+/// `Finite(NaN)` flows through unchanged because the `Finite(NaN) →
+/// Finite(NaN as f32)` cast is bit-preserving for NaN.
+pub const F064F032: Conn<ExtendedFloat<f64>, ExtendedFloat<f32>> = {
+    fn ceil(x: ExtendedFloat<f64>) -> ExtendedFloat<f32> {
+        match x {
+            ExtendedFloat::Bot => ExtendedFloat::Bot,
+            ExtendedFloat::Top => ExtendedFloat::Top,
+            ExtendedFloat::Finite(v) => ExtendedFloat::Finite(ceil_f64_f32(v)),
+        }
+    }
+    fn inner(y: ExtendedFloat<f32>) -> ExtendedFloat<f64> {
+        match y {
+            ExtendedFloat::Bot => ExtendedFloat::Bot,
+            ExtendedFloat::Top => ExtendedFloat::Top,
+            ExtendedFloat::Finite(v) => ExtendedFloat::Finite(v as f64),
+        }
+    }
+    fn floor(x: ExtendedFloat<f64>) -> ExtendedFloat<f32> {
+        match x {
+            ExtendedFloat::Bot => ExtendedFloat::Bot,
+            ExtendedFloat::Top => ExtendedFloat::Top,
+            ExtendedFloat::Finite(v) => ExtendedFloat::Finite(floor_f64_f32(v)),
+        }
+    }
+    Conn::new(ceil, inner, floor)
+};
 
 fn ceil_f64_f32(x: f64) -> f32 {
     if x.is_nan() {
@@ -277,8 +300,26 @@ mod tests {
 
     // ── Helpers ────────────────────────────────────────────────────
 
-    fn conn() -> Conn<f64, f32> {
-        f64_f32()
+    /// Local strategy: `ExtendedFloat<f64>` over `Bot`, `Top`, and full-
+    /// range `Finite(_)` (8:1:1 weighting toward finite). Unlike
+    /// [`crate::property::arb::extended_float_f64`] which uses the
+    /// bounded f64 generator (for connections whose target is a
+    /// bounded integer rung), `F064F032`'s target is full-range f32 —
+    /// we want unbounded coverage.
+    fn ef64() -> impl Strategy<Value = ExtendedFloat<f64>> {
+        prop_oneof![
+            1 => Just(ExtendedFloat::Bot),
+            1 => Just(ExtendedFloat::Top),
+            8 => arb_f64().prop_map(ExtendedFloat::Finite),
+        ]
+    }
+
+    fn ef32() -> impl Strategy<Value = ExtendedFloat<f32>> {
+        prop_oneof![
+            1 => Just(ExtendedFloat::Bot),
+            1 => Just(ExtendedFloat::Top),
+            8 => arb_f32().prop_map(ExtendedFloat::Finite),
+        ]
     }
 
     // ── ULP sanity ─────────────────────────────────────────────────
@@ -307,84 +348,107 @@ mod tests {
 
     #[test]
     fn ceil_exact_value() {
-        let c = conn();
-        assert_eq!(c.ceil(0.5_f64), 0.5_f32);
+        assert_eq!(
+            F064F032.ceil(ExtendedFloat::Finite(0.5_f64)),
+            ExtendedFloat::Finite(0.5_f32),
+        );
     }
 
     #[test]
     fn floor_exact_value() {
-        let c = conn();
-        assert_eq!(c.floor(0.5_f64), 0.5_f32);
+        assert_eq!(
+            F064F032.floor(ExtendedFloat::Finite(0.5_f64)),
+            ExtendedFloat::Finite(0.5_f32),
+        );
     }
 
     #[test]
     fn ceil_nan() {
-        assert!(conn().ceil(f64::NAN).is_nan());
+        match F064F032.ceil(ExtendedFloat::Finite(f64::NAN)) {
+            ExtendedFloat::Finite(v) => assert!(v.is_nan()),
+            _ => panic!("expected Finite(NaN)"),
+        }
     }
 
     #[test]
     fn floor_nan() {
-        assert!(conn().floor(f64::NAN).is_nan());
+        match F064F032.floor(ExtendedFloat::Finite(f64::NAN)) {
+            ExtendedFloat::Finite(v) => assert!(v.is_nan()),
+            _ => panic!("expected Finite(NaN)"),
+        }
     }
 
     #[test]
     fn inner_nan() {
-        assert!(conn().inner(f32::NAN).is_nan());
+        match F064F032.inner(ExtendedFloat::Finite(f32::NAN)) {
+            ExtendedFloat::Finite(v) => assert!(v.is_nan()),
+            _ => panic!("expected Finite(NaN)"),
+        }
     }
 
     #[test]
     fn ceil_ge_floor() {
-        let c = conn();
-        let x = std::f64::consts::PI;
-        assert!(c.floor(x).ple(&c.ceil(x)));
+        let x = ExtendedFloat::Finite(std::f64::consts::PI);
+        assert!(F064F032.floor(x) <= F064F032.ceil(x));
+    }
+
+    #[test]
+    fn bot_top_pass_through() {
+        // `Bot` and `Top` flow through unchanged on every adjoint.
+        assert_eq!(F064F032.ceil(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F064F032.floor(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F064F032.ceil(ExtendedFloat::Top), ExtendedFloat::Top);
+        assert_eq!(F064F032.floor(ExtendedFloat::Top), ExtendedFloat::Top);
+        assert_eq!(F064F032.inner(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F064F032.inner(ExtendedFloat::Top), ExtendedFloat::Top);
     }
 
     // ── Property tests ─────────────────────────────────────────────
 
     proptest! {
         #[test]
-        fn galois_l(a in arb_f64(), b in arb_f32()) {
-            prop_assert!(laws::conn_galois_l(&conn(), a, b));
+        fn galois_l(a in ef64(), b in ef32()) {
+            prop_assert!(laws::conn_galois_l(&F064F032, a, b));
         }
 
         #[test]
-        fn galois_r(a in arb_f64(), b in arb_f32()) {
-            prop_assert!(laws::conn_galois_r(&conn(), a, b));
+        fn galois_r(a in ef64(), b in ef32()) {
+            prop_assert!(laws::conn_galois_r(&F064F032, a, b));
         }
 
         #[test]
-        fn closure_l(a in arb_f64()) {
-            prop_assert!(laws::conn_closure_l(&conn(), a));
+        fn closure_l(a in ef64()) {
+            prop_assert!(laws::conn_closure_l(&F064F032, a));
         }
 
         #[test]
-        fn closure_r(a in arb_f64()) {
-            prop_assert!(laws::conn_closure_r(&conn(), a));
+        fn closure_r(a in ef64()) {
+            prop_assert!(laws::conn_closure_r(&F064F032, a));
         }
 
         #[test]
-        fn kernel_l(b in arb_f32()) {
-            prop_assert!(laws::conn_kernel_l(&conn(), b));
+        fn kernel_l(b in ef32()) {
+            prop_assert!(laws::conn_kernel_l(&F064F032, b));
         }
 
         #[test]
-        fn kernel_r(b in arb_f32()) {
-            prop_assert!(laws::conn_kernel_r(&conn(), b));
+        fn kernel_r(b in ef32()) {
+            prop_assert!(laws::conn_kernel_r(&F064F032, b));
         }
 
         #[test]
-        fn monotone_l(a1 in arb_f64(), a2 in arb_f64()) {
-            prop_assert!(laws::conn_monotone_l(&conn(), a1, a2));
+        fn monotone_l(a1 in ef64(), a2 in ef64()) {
+            prop_assert!(laws::conn_monotone_l(&F064F032, a1, a2));
         }
 
         #[test]
-        fn monotone_r(b1 in arb_f32(), b2 in arb_f32()) {
-            prop_assert!(laws::conn_monotone_r(&conn(), b1, b2));
+        fn monotone_r(b1 in ef32(), b2 in ef32()) {
+            prop_assert!(laws::conn_monotone_r(&F064F032, b1, b2));
         }
 
         #[test]
-        fn idempotent(a in arb_f64()) {
-            prop_assert!(laws::conn_idempotent(&conn(), a));
+        fn idempotent(a in ef64()) {
+            prop_assert!(laws::conn_idempotent(&F064F032, a));
         }
     }
 
