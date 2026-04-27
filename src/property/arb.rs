@@ -126,6 +126,16 @@ pub fn arb_f16() -> impl Strategy<Value = half::f16> {
 /// — the boundary slot still includes `bf16::MAX` / `bf16::MIN` so
 /// extreme magnitudes are covered. Tight uniform range keeps shrink
 /// time bounded.
+///
+/// **Note on the gap:** values in `(1e6, bf16::MAX)` (≈ `(10⁶, 3.4×10³⁸)`)
+/// are not reachable from the uniform slot. The boundary slot covers
+/// the extreme endpoints (`MAX`, `MIN`), so saturation paths are
+/// exercised — but a Conn that mishandled values in the *middle* of
+/// the high-magnitude range would not be caught by this strategy
+/// alone. Acceptable because the f32→bf16 / f64→bf16 narrowing logic
+/// is bit-pattern-uniform across magnitudes; structural bugs surface
+/// at the boundary or in the uniform slot. If a future Conn
+/// introduces magnitude-dependent behavior, widen this range.
 pub fn arb_bf16() -> impl Strategy<Value = half::bf16> {
     prop_oneof![
         1 => Just(half::bf16::NAN),
