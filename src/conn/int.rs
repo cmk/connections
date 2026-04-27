@@ -87,22 +87,22 @@ macro_rules! ext_int {
 }
 
 // I??I?? — signed widening (Extended source).
-ext_int!(I08I16, i8, i16);
-ext_int!(I08I32, i8, i32);
-ext_int!(I08I64, i8, i64);
-ext_int!(I16I32, i16, i32);
-ext_int!(I16I64, i16, i64);
-ext_int!(I32I64, i32, i64);
+ext_int!(I008I016, i8, i16);
+ext_int!(I008I032, i8, i32);
+ext_int!(I008I064, i8, i64);
+ext_int!(I016I032, i16, i32);
+ext_int!(I016I064, i16, i64);
+ext_int!(I032I064, i32, i64);
 
 // U??I?? — unsigned source (Extended) into signed target. The strict
 // `bits(u_N) < bits(i_M)` constraint guarantees the source range fits
 // in the target's positive half.
-ext_int!(U08I16, u8, i16);
-ext_int!(U08I32, u8, i32);
-ext_int!(U08I64, u8, i64);
-ext_int!(U16I32, u16, i32);
-ext_int!(U16I64, u16, i64);
-ext_int!(U32I64, u32, i64);
+ext_int!(U008I016, u8, i16);
+ext_int!(U008I032, u8, i32);
+ext_int!(U008I064, u8, i64);
+ext_int!(U016I032, u16, i32);
+ext_int!(U016I064, u16, i64);
+ext_int!(U032I064, u32, i64);
 
 #[cfg(test)]
 mod tests {
@@ -113,71 +113,71 @@ mod tests {
     #[test]
     fn int_widening_ceil_at_boundaries() {
         // NegInf saturates to target MIN.
-        assert_eq!(I08I16.ceil(Extended::NegInf), i16::MIN);
+        assert_eq!(I008I016.ceil(Extended::NegInf), i16::MIN);
         // PosInf goes to "one above source max".
-        assert_eq!(I08I16.ceil(Extended::PosInf), 128);
+        assert_eq!(I008I016.ceil(Extended::PosInf), 128);
         // Finite passes through with sign.
-        assert_eq!(I08I16.ceil(Extended::Finite(0)), 0);
-        assert_eq!(I08I16.ceil(Extended::Finite(i8::MIN)), -128);
-        assert_eq!(I08I16.ceil(Extended::Finite(i8::MAX)), 127);
+        assert_eq!(I008I016.ceil(Extended::Finite(0)), 0);
+        assert_eq!(I008I016.ceil(Extended::Finite(i8::MIN)), -128);
+        assert_eq!(I008I016.ceil(Extended::Finite(i8::MAX)), 127);
         // Wider source.
-        assert_eq!(I32I64.ceil(Extended::PosInf), (i32::MAX as i64) + 1);
+        assert_eq!(I032I064.ceil(Extended::PosInf), (i32::MAX as i64) + 1);
     }
 
     #[test]
     fn int_widening_floor_at_boundaries() {
         // NegInf goes to "one below source min".
-        assert_eq!(I08I16.floor(Extended::NegInf), -129);
+        assert_eq!(I008I016.floor(Extended::NegInf), -129);
         // PosInf saturates to target MAX.
-        assert_eq!(I08I16.floor(Extended::PosInf), i16::MAX);
-        assert_eq!(I32I64.floor(Extended::NegInf), (i32::MIN as i64) - 1);
-        assert_eq!(I32I64.floor(Extended::PosInf), i64::MAX);
+        assert_eq!(I008I016.floor(Extended::PosInf), i16::MAX);
+        assert_eq!(I032I064.floor(Extended::NegInf), (i32::MIN as i64) - 1);
+        assert_eq!(I032I064.floor(Extended::PosInf), i64::MAX);
     }
 
     #[test]
     fn int_widening_inner_partitions_target_range() {
         // x ≤ below → NegInf
-        assert_eq!(I08I16.inner(-129), Extended::NegInf);
-        assert_eq!(I08I16.inner(i16::MIN), Extended::NegInf);
+        assert_eq!(I008I016.inner(-129), Extended::NegInf);
+        assert_eq!(I008I016.inner(i16::MIN), Extended::NegInf);
         // x ≥ above → PosInf
-        assert_eq!(I08I16.inner(128), Extended::PosInf);
-        assert_eq!(I08I16.inner(i16::MAX), Extended::PosInf);
+        assert_eq!(I008I016.inner(128), Extended::PosInf);
+        assert_eq!(I008I016.inner(i16::MAX), Extended::PosInf);
         // -128 ≤ x ≤ 127 → Finite
-        assert_eq!(I08I16.inner(-128), Extended::Finite(i8::MIN));
-        assert_eq!(I08I16.inner(0), Extended::Finite(0));
-        assert_eq!(I08I16.inner(127), Extended::Finite(i8::MAX));
+        assert_eq!(I008I016.inner(-128), Extended::Finite(i8::MIN));
+        assert_eq!(I008I016.inner(0), Extended::Finite(0));
+        assert_eq!(I008I016.inner(127), Extended::Finite(i8::MAX));
     }
 
     // ── Spot checks: U??I?? (unsigned Extended source) ────────────
 
     #[test]
     fn uint_int_ceil_at_boundaries() {
-        assert_eq!(U08I16.ceil(Extended::NegInf), i16::MIN);
-        assert_eq!(U08I16.ceil(Extended::PosInf), 256);
-        assert_eq!(U08I16.ceil(Extended::Finite(0)), 0);
-        assert_eq!(U08I16.ceil(Extended::Finite(255)), 255);
-        assert_eq!(U16I32.ceil(Extended::PosInf), 65_536);
-        assert_eq!(U32I64.ceil(Extended::PosInf), 4_294_967_296);
+        assert_eq!(U008I016.ceil(Extended::NegInf), i16::MIN);
+        assert_eq!(U008I016.ceil(Extended::PosInf), 256);
+        assert_eq!(U008I016.ceil(Extended::Finite(0)), 0);
+        assert_eq!(U008I016.ceil(Extended::Finite(255)), 255);
+        assert_eq!(U016I032.ceil(Extended::PosInf), 65_536);
+        assert_eq!(U032I064.ceil(Extended::PosInf), 4_294_967_296);
     }
 
     #[test]
     fn uint_int_floor_at_boundaries() {
-        assert_eq!(U08I16.floor(Extended::NegInf), -1);
-        assert_eq!(U08I16.floor(Extended::PosInf), i16::MAX);
-        assert_eq!(U08I16.floor(Extended::Finite(255)), 255);
-        assert_eq!(U16I32.floor(Extended::NegInf), -1);
-        assert_eq!(U32I64.floor(Extended::NegInf), -1);
+        assert_eq!(U008I016.floor(Extended::NegInf), -1);
+        assert_eq!(U008I016.floor(Extended::PosInf), i16::MAX);
+        assert_eq!(U008I016.floor(Extended::Finite(255)), 255);
+        assert_eq!(U016I032.floor(Extended::NegInf), -1);
+        assert_eq!(U032I064.floor(Extended::NegInf), -1);
     }
 
     #[test]
     fn uint_int_inner_partitions_target_range() {
-        assert_eq!(U08I16.inner(-1), Extended::NegInf);
-        assert_eq!(U08I16.inner(i16::MIN), Extended::NegInf);
-        assert_eq!(U08I16.inner(256), Extended::PosInf);
-        assert_eq!(U08I16.inner(i16::MAX), Extended::PosInf);
-        assert_eq!(U08I16.inner(0), Extended::Finite(0));
-        assert_eq!(U08I16.inner(50), Extended::Finite(50));
-        assert_eq!(U08I16.inner(255), Extended::Finite(255));
+        assert_eq!(U008I016.inner(-1), Extended::NegInf);
+        assert_eq!(U008I016.inner(i16::MIN), Extended::NegInf);
+        assert_eq!(U008I016.inner(256), Extended::PosInf);
+        assert_eq!(U008I016.inner(i16::MAX), Extended::PosInf);
+        assert_eq!(U008I016.inner(0), Extended::Finite(0));
+        assert_eq!(U008I016.inner(50), Extended::Finite(50));
+        assert_eq!(U008I016.inner(255), Extended::Finite(255));
     }
 
     // ── Property tests ─────────────────────────────────────────────
@@ -273,18 +273,18 @@ mod tests {
     arb_ext!(arb_ext_u32, u32);
 
     // I??I?? — signed widening
-    ext_int_props!(i08i16, I08I16, arb_ext_i8(), any::<i16>());
-    ext_int_props!(i08i32, I08I32, arb_ext_i8(), any::<i32>());
-    ext_int_props!(i08i64, I08I64, arb_ext_i8(), any::<i64>());
-    ext_int_props!(i16i32, I16I32, arb_ext_i16(), any::<i32>());
-    ext_int_props!(i16i64, I16I64, arb_ext_i16(), any::<i64>());
-    ext_int_props!(i32i64, I32I64, arb_ext_i32(), any::<i64>());
+    ext_int_props!(i008i016, I008I016, arb_ext_i8(), any::<i16>());
+    ext_int_props!(i008i032, I008I032, arb_ext_i8(), any::<i32>());
+    ext_int_props!(i008i064, I008I064, arb_ext_i8(), any::<i64>());
+    ext_int_props!(i016i032, I016I032, arb_ext_i16(), any::<i32>());
+    ext_int_props!(i016i064, I016I064, arb_ext_i16(), any::<i64>());
+    ext_int_props!(i032i064, I032I064, arb_ext_i32(), any::<i64>());
 
     // U??I?? — unsigned source widening
-    ext_int_props!(u08i16, U08I16, arb_ext_u8(), any::<i16>());
-    ext_int_props!(u08i32, U08I32, arb_ext_u8(), any::<i32>());
-    ext_int_props!(u08i64, U08I64, arb_ext_u8(), any::<i64>());
-    ext_int_props!(u16i32, U16I32, arb_ext_u16(), any::<i32>());
-    ext_int_props!(u16i64, U16I64, arb_ext_u16(), any::<i64>());
-    ext_int_props!(u32i64, U32I64, arb_ext_u32(), any::<i64>());
+    ext_int_props!(u008i016, U008I016, arb_ext_u8(), any::<i16>());
+    ext_int_props!(u008i032, U008I032, arb_ext_u8(), any::<i32>());
+    ext_int_props!(u008i064, U008I064, arb_ext_u8(), any::<i64>());
+    ext_int_props!(u016i032, U016I032, arb_ext_u16(), any::<i32>());
+    ext_int_props!(u016i064, U016I064, arb_ext_u16(), any::<i64>());
+    ext_int_props!(u032i064, U032I064, arb_ext_u32(), any::<i64>());
 }
