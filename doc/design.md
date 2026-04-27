@@ -402,3 +402,42 @@ Hedgehog suite. Every connection must satisfy:
 
 Float generators must include NaN, ±∞, ±0, denormals, and max/min
 finite values with elevated frequency.
+
+## Cast: L/R as a naming axis, not a type axis
+
+The Haskell library exposes operations on a connection through two
+mirror APIs: `ceiling`/`upper`/`upper1`/`upper2`/`maximize` (L-side,
+takes `Cast 'L a b`) and `floor`/`lower`/`lower1`/`lower2`/`minimize`
+(R-side, takes `Cast 'R a b`). The phantom `Side` index `'L` / `'R`
+prevents accessing the wrong arm at compile time even though both
+sides of a connection share one runtime representation.
+
+This port collapses both sides onto the unified
+[`Conn<A, B>`](crate::conn::Conn). Because `Conn` carries the full
+adjoint triple (`ceil ⊣ inner ⊣ floor`) in three `fn` pointers, the
+L-side and R-side accessors and lifters can both be defined as free
+functions over the same value, distinguished only by *name* and
+*documented contract*. They live alongside each other in
+[`crate::conn::cast`].
+
+The asymmetry between the two sides in the Haskell library is also
+worth noting: an audit of `Data.Connection.{Class,Int,Word,Float,
+Fixed,Time,Ratio}` finds 122 `Cast 'L`-only concrete connections and
+**zero** `Cast 'R`-only connections — every named connection that
+isn't polymorphic over `k` is an L-pair. There is no use case in the
+upstream library for an R-only constructor, so this port deliberately
+does not expose one. Constructors are: [`Conn::new`](crate::conn::
+Conn::new) (full triple) and [`Conn::new_left`](crate::conn::Conn::
+new_left) (length-2; sets `floor = ceil`).
+
+Two consequences of this design:
+
+- **No `swapL` / `swapR`.** In the Haskell library these convert
+  between `Cast 'L a b` and `Cast 'R b a`. In this representation
+  there is nothing to convert: the same `Conn` already exposes both
+  names.
+- **Two-sided helpers (`round`, `truncate`, `midpoint`, `interval`,
+  `median`) need no rank-2 polymorphism.** The Haskell signature
+  `forall k. Cast k a b` was a workaround for not having both `f` and
+  `h` in a single value; here every `Conn` already has both, so the
+  helpers (Sprint B) take `&Conn<A, B>` directly.
