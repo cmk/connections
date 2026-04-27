@@ -34,12 +34,12 @@ macro_rules! uint_uint {
     };
 }
 
-uint_uint!(U08U16, u8, u16);
-uint_uint!(U08U32, u8, u32);
-uint_uint!(U08U64, u8, u64);
-uint_uint!(U16U32, u16, u32);
-uint_uint!(U16U64, u16, u64);
-uint_uint!(U32U64, u32, u64);
+uint_uint!(U008U016, u8, u16);
+uint_uint!(U008U032, u8, u32);
+uint_uint!(U008U064, u8, u64);
+uint_uint!(U016U032, u16, u32);
+uint_uint!(U016U064, u16, u64);
+uint_uint!(U032U064, u32, u64);
 
 // ── I??U??: signed → unsigned saturating cast (saturate at 0) ───────
 
@@ -66,16 +66,16 @@ macro_rules! int_uint {
     };
 }
 
-int_uint!(I08U08, i8, u8);
-int_uint!(I08U16, i8, u16);
-int_uint!(I16U16, i16, u16);
-int_uint!(I08U32, i8, u32);
-int_uint!(I16U32, i16, u32);
-int_uint!(I32U32, i32, u32);
-int_uint!(I08U64, i8, u64);
-int_uint!(I16U64, i16, u64);
-int_uint!(I32U64, i32, u64);
-int_uint!(I64U64, i64, u64);
+int_uint!(I008U008, i8, u8);
+int_uint!(I008U016, i8, u16);
+int_uint!(I016U016, i16, u16);
+int_uint!(I008U032, i8, u32);
+int_uint!(I016U032, i16, u32);
+int_uint!(I032U032, i32, u32);
+int_uint!(I008U064, i8, u64);
+int_uint!(I016U064, i16, u64);
+int_uint!(I032U064, i32, u64);
+int_uint!(I064U064, i64, u64);
 
 #[cfg(test)]
 mod tests {
@@ -85,58 +85,58 @@ mod tests {
 
     #[test]
     fn uint_widening_ceil_at_boundaries() {
-        assert_eq!(U08U16.ceil(0u8), 0u16);
-        assert_eq!(U08U16.ceil(u8::MAX), u8::MAX as u16);
-        assert_eq!(U08U32.ceil(u8::MAX), u8::MAX as u32);
-        assert_eq!(U08U64.ceil(u8::MAX), u8::MAX as u64);
-        assert_eq!(U16U32.ceil(u16::MAX), u16::MAX as u32);
-        assert_eq!(U16U64.ceil(u16::MAX), u16::MAX as u64);
-        assert_eq!(U32U64.ceil(u32::MAX), u32::MAX as u64);
+        assert_eq!(U008U016.ceil(0u8), 0u16);
+        assert_eq!(U008U016.ceil(u8::MAX), u8::MAX as u16);
+        assert_eq!(U008U032.ceil(u8::MAX), u8::MAX as u32);
+        assert_eq!(U008U064.ceil(u8::MAX), u8::MAX as u64);
+        assert_eq!(U016U032.ceil(u16::MAX), u16::MAX as u32);
+        assert_eq!(U016U064.ceil(u16::MAX), u16::MAX as u64);
+        assert_eq!(U032U064.ceil(u32::MAX), u32::MAX as u64);
     }
 
     #[test]
     fn uint_widening_inner_saturates_at_source_max() {
-        assert_eq!(U08U16.inner(u16::MAX), u8::MAX);
-        assert_eq!(U08U32.inner(u32::MAX), u8::MAX);
-        assert_eq!(U08U64.inner(u64::MAX), u8::MAX);
-        assert_eq!(U16U32.inner(u32::MAX), u16::MAX);
-        assert_eq!(U16U64.inner(u64::MAX), u16::MAX);
-        assert_eq!(U32U64.inner(u64::MAX), u32::MAX);
+        assert_eq!(U008U016.inner(u16::MAX), u8::MAX);
+        assert_eq!(U008U032.inner(u32::MAX), u8::MAX);
+        assert_eq!(U008U064.inner(u64::MAX), u8::MAX);
+        assert_eq!(U016U032.inner(u32::MAX), u16::MAX);
+        assert_eq!(U016U064.inner(u64::MAX), u16::MAX);
+        assert_eq!(U032U064.inner(u64::MAX), u32::MAX);
         // Below cap is identity-cast back.
-        assert_eq!(U08U16.inner(50), 50);
-        assert_eq!(U16U64.inner(60_000), 60_000);
+        assert_eq!(U008U016.inner(50), 50);
+        assert_eq!(U016U064.inner(60_000), 60_000);
     }
 
     #[test]
     fn int_uint_ceil_clips_negatives_to_zero() {
-        assert_eq!(I08U08.ceil(-5), 0);
-        assert_eq!(I08U16.ceil(-128), 0);
-        assert_eq!(I16U32.ceil(-32_768), 0);
-        assert_eq!(I32U64.ceil(-1), 0);
-        assert_eq!(I64U64.ceil(i64::MIN), 0);
+        assert_eq!(I008U008.ceil(-5), 0);
+        assert_eq!(I008U016.ceil(-128), 0);
+        assert_eq!(I016U032.ceil(-32_768), 0);
+        assert_eq!(I032U064.ceil(-1), 0);
+        assert_eq!(I064U064.ceil(i64::MIN), 0);
     }
 
     #[test]
     fn int_uint_ceil_passes_non_negative() {
-        assert_eq!(I08U08.ceil(0), 0);
-        assert_eq!(I08U08.ceil(127), 127);
-        assert_eq!(I08U16.ceil(127), 127);
-        assert_eq!(I16U32.ceil(32_767), 32_767);
-        assert_eq!(I32U64.ceil(i32::MAX), i32::MAX as u64);
-        assert_eq!(I64U64.ceil(i64::MAX), i64::MAX as u64);
+        assert_eq!(I008U008.ceil(0), 0);
+        assert_eq!(I008U008.ceil(127), 127);
+        assert_eq!(I008U016.ceil(127), 127);
+        assert_eq!(I016U032.ceil(32_767), 32_767);
+        assert_eq!(I032U064.ceil(i32::MAX), i32::MAX as u64);
+        assert_eq!(I064U064.ceil(i64::MAX), i64::MAX as u64);
     }
 
     #[test]
     fn int_uint_inner_saturates_at_source_max() {
-        assert_eq!(I08U08.inner(u8::MAX), i8::MAX);
-        assert_eq!(I08U16.inner(u16::MAX), i8::MAX);
-        assert_eq!(I16U16.inner(u16::MAX), i16::MAX);
-        assert_eq!(I08U32.inner(u32::MAX), i8::MAX);
-        assert_eq!(I32U32.inner(u32::MAX), i32::MAX);
-        assert_eq!(I08U64.inner(u64::MAX), i8::MAX);
-        assert_eq!(I64U64.inner(u64::MAX), i64::MAX);
+        assert_eq!(I008U008.inner(u8::MAX), i8::MAX);
+        assert_eq!(I008U016.inner(u16::MAX), i8::MAX);
+        assert_eq!(I016U016.inner(u16::MAX), i16::MAX);
+        assert_eq!(I008U032.inner(u32::MAX), i8::MAX);
+        assert_eq!(I032U032.inner(u32::MAX), i32::MAX);
+        assert_eq!(I008U064.inner(u64::MAX), i8::MAX);
+        assert_eq!(I064U064.inner(u64::MAX), i64::MAX);
         // Below cap is identity-cast back.
-        assert_eq!(I16U32.inner(20_000), 20_000);
+        assert_eq!(I016U032.inner(20_000), 20_000);
     }
 
     #[test]
@@ -147,9 +147,9 @@ mod tests {
         // values; this fixes a representative middle point.
         for (a, b) in [(50i8, 100u16), (50i8, 49u16), (100i8, 100u16)] {
             assert_eq!(
-                I08U16.ceil(a) <= b,
-                a <= I08U16.inner(b),
-                "I08U16 galois_upper @ ({a}, {b})"
+                I008U016.ceil(a) <= b,
+                a <= I008U016.inner(b),
+                "I008U016 galois_upper @ ({a}, {b})"
             );
         }
     }
@@ -196,21 +196,21 @@ mod tests {
         };
     }
 
-    single_sided_props!(u08u16, U08U16, any::<u8>(), any::<u16>());
-    single_sided_props!(u08u32, U08U32, any::<u8>(), any::<u32>());
-    single_sided_props!(u08u64, U08U64, any::<u8>(), any::<u64>());
-    single_sided_props!(u16u32, U16U32, any::<u16>(), any::<u32>());
-    single_sided_props!(u16u64, U16U64, any::<u16>(), any::<u64>());
-    single_sided_props!(u32u64, U32U64, any::<u32>(), any::<u64>());
+    single_sided_props!(u008u016, U008U016, any::<u8>(), any::<u16>());
+    single_sided_props!(u008u032, U008U032, any::<u8>(), any::<u32>());
+    single_sided_props!(u008u064, U008U064, any::<u8>(), any::<u64>());
+    single_sided_props!(u016u032, U016U032, any::<u16>(), any::<u32>());
+    single_sided_props!(u016u064, U016U064, any::<u16>(), any::<u64>());
+    single_sided_props!(u032u064, U032U064, any::<u32>(), any::<u64>());
 
-    single_sided_props!(i08u08, I08U08, any::<i8>(), any::<u8>());
-    single_sided_props!(i08u16, I08U16, any::<i8>(), any::<u16>());
-    single_sided_props!(i16u16, I16U16, any::<i16>(), any::<u16>());
-    single_sided_props!(i08u32, I08U32, any::<i8>(), any::<u32>());
-    single_sided_props!(i16u32, I16U32, any::<i16>(), any::<u32>());
-    single_sided_props!(i32u32, I32U32, any::<i32>(), any::<u32>());
-    single_sided_props!(i08u64, I08U64, any::<i8>(), any::<u64>());
-    single_sided_props!(i16u64, I16U64, any::<i16>(), any::<u64>());
-    single_sided_props!(i32u64, I32U64, any::<i32>(), any::<u64>());
-    single_sided_props!(i64u64, I64U64, any::<i64>(), any::<u64>());
+    single_sided_props!(i008u008, I008U008, any::<i8>(), any::<u8>());
+    single_sided_props!(i008u016, I008U016, any::<i8>(), any::<u16>());
+    single_sided_props!(i016u016, I016U016, any::<i16>(), any::<u16>());
+    single_sided_props!(i008u032, I008U032, any::<i8>(), any::<u32>());
+    single_sided_props!(i016u032, I016U032, any::<i16>(), any::<u32>());
+    single_sided_props!(i032u032, I032U032, any::<i32>(), any::<u32>());
+    single_sided_props!(i008u064, I008U064, any::<i8>(), any::<u64>());
+    single_sided_props!(i016u064, I016U064, any::<i16>(), any::<u64>());
+    single_sided_props!(i032u064, I032U064, any::<i32>(), any::<u64>());
+    single_sided_props!(i064u064, I064U064, any::<i64>(), any::<u64>());
 }
