@@ -131,6 +131,21 @@ let ord: Conn<(i32, i32), i32> = Conn::new(pair_max, diag, pair_min);
 assert_eq!(maximize(&ord, 3, 5), 5);
 ```
 
+A sub-second `Duration` bracketed via the `time`-crate ladder (the same
+code block is mirrored verbatim into the `conn::time` module-level
+rustdoc, so `cargo test --doc` keeps the two in sync):
+
+```rust
+use connections::conn::time::DURNSECS;
+use connections::extended::Extended;
+use time::Duration;
+
+let half = Duration::seconds(5) + Duration::nanoseconds(1);
+assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));
+assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
+assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
+```
+
 ## What's lawful
 
 Every connection ships with proptest coverage of the following laws — the
@@ -173,6 +188,7 @@ ordered. The `Ple` trait at `src/lattice.rs` carries this semantics.
 | Unsigned widening / sign change (`U###U###`, `I###U###`) | `conn::uint` | shipped |
 | Float `f64 ↔ f32` under N5 | `conn::float` | shipped |
 | Float ↔ rung over `ExtendedFloat<T>` (`F064FD??`) | `conn::fixed::decimal` | shipped |
+| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `PDTMDATE`) | `conn::time` | shipped |
 
 **Cast operations** (Haskell `Data.Connection.Cast`):
 
@@ -233,6 +249,7 @@ src/
 │   ├── float.rs        — ExtendedFloat<T> + f64↔f32
 │   ├── int.rs          — signed-widening via Extended<T>
 │   ├── sample.rs       — sample-rate ladders + FD12↔rate
+│   ├── time.rs         — time-crate types (Date, Time, Duration, …)
 │   └── uint.rs         — unsigned widening, sign change
 ├── extended.rs         — Extended<T> with NegInf/Finite/PosInf
 ├── lattice.rs          — Ple, Join, Meet, Heyting, Coheyting, Symmetric, Boolean
@@ -251,9 +268,10 @@ generators are biased toward NaN, ±∞, ±0, denormals, and ULP-boundary
 values. Fixed-point generators are biased toward `0`, `±PREC`, and
 `±i64::MAX/PREC` so saturation boundaries are exercised on every run.
 
-The only required runtime dependency is the
-[`fixed`](https://crates.io/crates/fixed) crate (for the binary
-fixed-point ladder); proptest is a dev-dependency and is exposed
+Runtime dependencies are the [`fixed`](https://crates.io/crates/fixed)
+crate (binary fixed-point ladder) and the
+[`time`](https://crates.io/crates/time) crate (calendar / clock /
+duration types in `conn::time`). Proptest is a dev-dependency, exposed
 publicly behind the `testing` feature for downstream test suites.
 
 ## Links

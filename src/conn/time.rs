@@ -29,13 +29,25 @@
 //!
 //! Every `Conn` constant is exercised in `#[cfg(test)] mod tests` by
 //! the full Galois law battery from [`crate::property::laws`]. The
-//! [`Ple`](crate::lattice::Ple) impls below delegate to the time
-//! crate's existing total `Ord` — no NaN handling is needed.
+//! [`Ple`] impls below delegate to the time crate's existing total
+//! `Ord` — no NaN handling is needed.
+//!
+//! # Example
+//!
+//! Bracketing a sub-second `Duration` via [`DURNSECS`]. This block
+//! is the canonical introductory example and is mirrored verbatim
+//! into the README so that `cargo test --doc` enforces both stay
+//! compiling.
 //!
 //! ```rust
-//! use time::{Date, Month};
-//! let d = Date::from_calendar_date(2000, Month::January, 1).unwrap();
-//! assert_eq!(d.year(), 2000);
+//! use connections::conn::time::DURNSECS;
+//! use connections::extended::Extended;
+//! use time::Duration;
+//!
+//! let half = Duration::seconds(5) + Duration::nanoseconds(1);
+//! assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));
+//! assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
+//! assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
 //! ```
 
 use crate::conn::Conn;
