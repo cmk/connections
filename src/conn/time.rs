@@ -35,9 +35,10 @@
 //! # Verification
 //!
 //! Every `Conn` constant is exercised in `#[cfg(test)] mod tests` by
-//! the full Galois law battery from [`crate::property::laws`]. The
-//! [`Ple`] impls below delegate to the time crate's existing total
-//! `Ord` — no NaN handling is needed.
+//! the full Galois law battery from [`crate::property::laws`]. Each
+//! time-crate type below already derives `Eq + PartialOrd` upstream
+//! — total order, no NaN handling needed — so the laws apply
+//! directly without per-type impls in this crate.
 //!
 //! # Example
 //!
@@ -59,30 +60,11 @@
 
 use crate::conn::Conn;
 use crate::extended::Extended;
-use crate::lattice::Ple;
 use time::{Date, Duration, PrimitiveDateTime, Time};
 
-// ── Ple impls ────────────────────────────────────────────────────
-//
-// Each time crate type below has a total `Ord` (no NaN, no
-// not-a-number sentinel), so its `Ple` is just the standard `<=`.
-// No N5 patching needed.
-
-impl Ple for Date {
-    fn ple(&self, other: &Self) -> bool { self <= other }
-}
-
-impl Ple for Time {
-    fn ple(&self, other: &Self) -> bool { self <= other }
-}
-
-impl Ple for Duration {
-    fn ple(&self, other: &Self) -> bool { self <= other }
-}
-
-impl Ple for PrimitiveDateTime {
-    fn ple(&self, other: &Self) -> bool { self <= other }
-}
+// `Date`, `Time`, `Duration`, and `PrimitiveDateTime` all derive
+// `Eq + PartialOrd` (total order) upstream, so the law machinery
+// accepts them without per-crate trait impls.
 
 // ── DATEJDAY ─────────────────────────────────────────────────────
 
@@ -529,7 +511,7 @@ mod tests {
 
             #[test]
             fn antisymmetric(x in arb_date(), y in arb_date()) {
-                prop_assert!(laws::lattice_antisymmetric(&x, &y, &Date::MAX, &Date::MIN));
+                prop_assert!(laws::lattice_antisymmetric(&x, &y));
             }
 
             #[test]
@@ -560,8 +542,7 @@ mod tests {
 
             #[test]
             fn antisymmetric(x in arb_time(), y in arb_time()) {
-                let top = Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap();
-                prop_assert!(laws::lattice_antisymmetric(&x, &y, &top, &Time::MIDNIGHT));
+                prop_assert!(laws::lattice_antisymmetric(&x, &y));
             }
 
             #[test]
@@ -594,9 +575,7 @@ mod tests {
 
             #[test]
             fn antisymmetric(x in arb_duration(), y in arb_duration()) {
-                prop_assert!(laws::lattice_antisymmetric(
-                    &x, &y, &Duration::MAX, &Duration::MIN,
-                ));
+                prop_assert!(laws::lattice_antisymmetric(&x, &y));
             }
 
             #[test]
@@ -631,9 +610,7 @@ mod tests {
 
             #[test]
             fn antisymmetric(x in arb_primitive_dt(), y in arb_primitive_dt()) {
-                prop_assert!(laws::lattice_antisymmetric(
-                    &x, &y, &PrimitiveDateTime::MAX, &PrimitiveDateTime::MIN,
-                ));
+                prop_assert!(laws::lattice_antisymmetric(&x, &y));
             }
 
             #[test]
