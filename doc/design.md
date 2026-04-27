@@ -369,7 +369,19 @@ src/
     ├── word.rs         — word ↔ word connections (stub)
     ├── float.rs        — ExtendedFloat type + PartialOrd impl + float ↔ float connections
     ├── fixed.rs        — decimal fixed-point ladder (FD00..FD12) with tier-pair connections
-    └── sample.rs       — rate-typed sample-indexed time; rate ↔ rate and rate ↔ FD12 connections
+    ├── sample.rs       — rate-typed sample-indexed time; rate ↔ rate and rate ↔ FD12 connections
+    └── fixed/
+        ├── decimal.rs  — FD00..FD12 SI-prefix decimal ladder (i64-backed, hand-rolled)
+        ├── i08.rs      — FixedI8 binary-fixed Conns
+        ├── i16.rs      — FixedI16 binary-fixed Conns
+        ├── i32.rs      — FixedI32 binary-fixed Conns
+        ├── i64.rs      — FixedI64 binary-fixed Conns
+        ├── i128.rs     — FixedI128 binary-fixed Conns (checked_mul + saturate)
+        ├── u08.rs      — FixedU8 binary-fixed Conns (incl. Q1.7 MIDI velocity)
+        ├── u16.rs      — FixedU16 binary-fixed Conns (incl. Q2.14 14-bit MIDI, Q1.15 audio)
+        ├── u32.rs      — FixedU32 binary-fixed Conns (incl. Q1.31 normalised)
+        ├── u64.rs      — FixedU64 binary-fixed Conns (incl. Q1.63)
+        └── u128.rs     — FixedU128 binary-fixed Conns (incl. Q1.127, checked_mul + saturate)
 ```
 
 Why no `float_ext.rs` at the crate root: the `ExtendedFloat` wrapper
