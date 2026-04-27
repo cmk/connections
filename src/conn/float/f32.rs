@@ -4,9 +4,12 @@
 //! Future direct-precision Conns from f32 (e.g. `F032B016`) land
 //! alongside it.
 
-use super::{B016, ExtendedFloat, F016, F032, shift16_bf16, shift16_f16};
+use super::{B016, ExtendedFloat, F016, F032, def_walk_helpers, shift16_bf16, shift16_f16};
 use crate::conn::Conn;
 use half::{bf16, f16};
+
+def_walk_helpers!(f32_f16_walks, f32, f16, shift16_f16, f16::to_f32);
+def_walk_helpers!(f32_b16_walks, f32, bf16, shift16_bf16, bf16::to_f32);
 
 /// Connection between [`super::F032`] (`ExtendedFloat<f32>`) and
 /// [`super::F016`] (`ExtendedFloat<half::f16>`) under the N5 lattice.
@@ -77,9 +80,9 @@ fn ceil_f32_f16(x: f32) -> f16 {
         return est;
     }
     let (z, _steps) = if x <= est_up {
-        descend_to_ceil_f16(est, x)
+        f32_f16_walks::descend_to_ceil(est, x)
     } else {
-        ascend_to_ceil_f16(est, x)
+        f32_f16_walks::ascend_to_ceil(est, x)
     };
     z
 }
@@ -94,81 +97,11 @@ fn floor_f32_f16(x: f32) -> f16 {
         return est;
     }
     let (z, _steps) = if est_up <= x {
-        ascend_to_floor_f16(est, x)
+        f32_f16_walks::ascend_to_floor(est, x)
     } else {
-        descend_to_floor_f16(est, x)
+        f32_f16_walks::descend_to_floor(est, x)
     };
     z
-}
-
-/// Walk up (toward +∞) until `inner(z) >= x`, returning `(z, steps)`.
-fn ascend_to_ceil_f16(start: f16, x: f32) -> (f16, u32) {
-    let mut z = start;
-    let mut steps = 0;
-    loop {
-        let next = shift16_f16(1, z);
-        if next <= z {
-            return (z, steps);
-        }
-        steps += 1;
-        z = next;
-        if x <= z.to_f32() {
-            return (z, steps);
-        }
-    }
-}
-
-/// Walk down (toward -∞) while `inner(z) >= x` still holds.
-fn descend_to_ceil_f16(start: f16, x: f32) -> (f16, u32) {
-    let mut z = start;
-    let mut steps = 0;
-    loop {
-        let next = shift16_f16(-1, z);
-        if z <= next {
-            return (z, steps);
-        }
-        let next_up = next.to_f32();
-        if x > next_up {
-            return (z, steps);
-        }
-        steps += 1;
-        z = next;
-    }
-}
-
-/// Walk down (toward -∞) until `inner(z) <= x`, returning `(z, steps)`.
-fn descend_to_floor_f16(start: f16, x: f32) -> (f16, u32) {
-    let mut z = start;
-    let mut steps = 0;
-    loop {
-        let next = shift16_f16(-1, z);
-        if z <= next {
-            return (z, steps);
-        }
-        steps += 1;
-        z = next;
-        if z.to_f32() <= x {
-            return (z, steps);
-        }
-    }
-}
-
-/// Walk up (toward +∞) while `inner(z) <= x` still holds.
-fn ascend_to_floor_f16(start: f16, x: f32) -> (f16, u32) {
-    let mut z = start;
-    let mut steps = 0;
-    loop {
-        let next = shift16_f16(1, z);
-        if next <= z {
-            return (z, steps);
-        }
-        let next_up = next.to_f32();
-        if next_up > x {
-            return (z, steps);
-        }
-        steps += 1;
-        z = next;
-    }
 }
 
 // ── F032B016 ───────────────────────────────────────────────────────
@@ -225,9 +158,9 @@ fn ceil_f32_bf16(x: f32) -> bf16 {
         return est;
     }
     let (z, _steps) = if x <= est_up {
-        descend_to_ceil_bf16(est, x)
+        f32_b16_walks::descend_to_ceil(est, x)
     } else {
-        ascend_to_ceil_bf16(est, x)
+        f32_b16_walks::ascend_to_ceil(est, x)
     };
     z
 }
@@ -242,77 +175,11 @@ fn floor_f32_bf16(x: f32) -> bf16 {
         return est;
     }
     let (z, _steps) = if est_up <= x {
-        ascend_to_floor_bf16(est, x)
+        f32_b16_walks::ascend_to_floor(est, x)
     } else {
-        descend_to_floor_bf16(est, x)
+        f32_b16_walks::descend_to_floor(est, x)
     };
     z
-}
-
-fn ascend_to_ceil_bf16(start: bf16, x: f32) -> (bf16, u32) {
-    let mut z = start;
-    let mut steps = 0;
-    loop {
-        let next = shift16_bf16(1, z);
-        if next <= z {
-            return (z, steps);
-        }
-        steps += 1;
-        z = next;
-        if x <= z.to_f32() {
-            return (z, steps);
-        }
-    }
-}
-
-fn descend_to_ceil_bf16(start: bf16, x: f32) -> (bf16, u32) {
-    let mut z = start;
-    let mut steps = 0;
-    loop {
-        let next = shift16_bf16(-1, z);
-        if z <= next {
-            return (z, steps);
-        }
-        let next_up = next.to_f32();
-        if x > next_up {
-            return (z, steps);
-        }
-        steps += 1;
-        z = next;
-    }
-}
-
-fn descend_to_floor_bf16(start: bf16, x: f32) -> (bf16, u32) {
-    let mut z = start;
-    let mut steps = 0;
-    loop {
-        let next = shift16_bf16(-1, z);
-        if z <= next {
-            return (z, steps);
-        }
-        steps += 1;
-        z = next;
-        if z.to_f32() <= x {
-            return (z, steps);
-        }
-    }
-}
-
-fn ascend_to_floor_bf16(start: bf16, x: f32) -> (bf16, u32) {
-    let mut z = start;
-    let mut steps = 0;
-    loop {
-        let next = shift16_bf16(1, z);
-        if next <= z {
-            return (z, steps);
-        }
-        let next_up = next.to_f32();
-        if next_up > x {
-            return (z, steps);
-        }
-        steps += 1;
-        z = next;
-    }
 }
 
 #[cfg(test)]
@@ -483,18 +350,18 @@ mod tests {
                 return Ok(());
             }
             let (_, steps) = if x <= est_up {
-                descend_to_ceil_f16(est, x)
+                f32_f16_walks::descend_to_ceil(est, x)
             } else {
-                ascend_to_ceil_f16(est, x)
+                f32_f16_walks::ascend_to_ceil(est, x)
             };
-            prop_assert!(steps <= 2, "ascend/descend_to_ceil_f16 took {steps} steps on x={x}");
+            prop_assert!(steps <= 2, "f32_f16_walks::ascend/descend_to_ceil took {steps} steps on x={x}");
 
             let (_, steps) = if est_up <= x {
-                ascend_to_floor_f16(est, x)
+                f32_f16_walks::ascend_to_floor(est, x)
             } else {
-                descend_to_floor_f16(est, x)
+                f32_f16_walks::descend_to_floor(est, x)
             };
-            prop_assert!(steps <= 2, "ascend/descend_to_floor_f16 took {steps} steps on x={x}");
+            prop_assert!(steps <= 2, "f32_f16_walks::ascend/descend_to_floor took {steps} steps on x={x}");
         }
 
         // ── F032B016 battery ─────────────────────────────────────
@@ -560,18 +427,18 @@ mod tests {
                 return Ok(());
             }
             let (_, steps) = if x <= est_up {
-                descend_to_ceil_bf16(est, x)
+                f32_b16_walks::descend_to_ceil(est, x)
             } else {
-                ascend_to_ceil_bf16(est, x)
+                f32_b16_walks::ascend_to_ceil(est, x)
             };
-            prop_assert!(steps <= 2, "ascend/descend_to_ceil_bf16 took {steps} steps on x={x}");
+            prop_assert!(steps <= 2, "f32_b16_walks::ascend/descend_to_ceil took {steps} steps on x={x}");
 
             let (_, steps) = if est_up <= x {
-                ascend_to_floor_bf16(est, x)
+                f32_b16_walks::ascend_to_floor(est, x)
             } else {
-                descend_to_floor_bf16(est, x)
+                f32_b16_walks::descend_to_floor(est, x)
             };
-            prop_assert!(steps <= 2, "ascend/descend_to_floor_bf16 took {steps} steps on x={x}");
+            prop_assert!(steps <= 2, "f32_b16_walks::ascend/descend_to_floor took {steps} steps on x={x}");
         }
     }
 

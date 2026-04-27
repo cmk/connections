@@ -231,6 +231,124 @@ pub(crate) fn clamp16_bf16(x: i32) -> i32 {
     x.clamp(-32641, 32640)
 }
 
+/// Widen `f32` to `f64`. Used by [`def_walk_helpers!`] to give the
+/// `F064F032` Conn a uniform `widen` shape with the half-precision
+/// Conns (which use `f16::to_f64` / `bf16::to_f32` etc. as fn pointers).
+pub(crate) fn widen_f32_f64(x: f32) -> f64 {
+    x as f64
+}
+
+/// Generate the four ULP-walk helpers (`ascend_to_ceil`,
+/// `descend_to_ceil`, `ascend_to_floor`, `descend_to_floor`) for one
+/// `Src → Dst` precision-narrowing Conn, packaged in a private
+/// submodule named `$mod_name`.
+///
+/// Each helper returns `(Dst, u32)` — the corrected target value and
+/// the number of ULP-shift iterations consumed. Production callers
+/// throw the count away (`let (z, _) = …`); the `ulp_steps_bounded`
+/// proptest reads it to assert the loop converges in ≤ 2 iterations.
+///
+/// Parameters:
+/// - `$mod_name` — the private submodule wrapping this Conn's
+///   helpers, e.g. `f064_f016_walks`.
+/// - `$src` — the wider float type (`f32`, `f64`).
+/// - `$dst` — the narrower float type (`f32`, `half::f16`, `half::bf16`).
+/// - `$shift` — a `fn(i32, $dst) -> $dst` that shifts `n` ULPs in
+///   sign-magnitude total order. Already in scope via the parent
+///   module's `use super::{shift32, shift16_f16, shift16_bf16, …};`.
+/// - `$widen` — a `fn($dst) -> $src` that widens losslessly. For
+///   `f32 → f64` use [`widen_f32_f64`] (a free fn wrapper around
+///   `as f64` because `as` casts can't be passed as fn pointers);
+///   for half types use `half::f16::to_f64` / `half::f16::to_f32` /
+///   `half::bf16::to_f64` / `half::bf16::to_f32` (value-receiver
+///   methods that coerce to the right fn pointer shape).
+///
+/// The generated module's helpers are `pub(super)` — visible to the
+/// owning Conn's `ceil`/`floor` functions and to `#[cfg(test)]` code
+/// in the same parent file, but not exposed beyond.
+macro_rules! def_walk_helpers {
+    ($mod_name:ident, $src:ty, $dst:ty, $shift:path, $widen:path) => {
+        mod $mod_name {
+            #[allow(unused_imports)]
+            use super::*;
+
+            /// Walk up (toward +∞) until `widen(z) >= x`, returning `(z, steps)`.
+            pub(super) fn ascend_to_ceil(start: $dst, x: $src) -> ($dst, u32) {
+                let mut z = start;
+                let mut steps = 0;
+                loop {
+                    let next = $shift(1, z);
+                    if next <= z {
+                        return (z, steps);
+                    }
+                    steps += 1;
+                    z = next;
+                    if x <= $widen(z) {
+                        return (z, steps);
+                    }
+                }
+            }
+
+            /// Walk down (toward -∞) while `widen(z) >= x` still holds.
+            pub(super) fn descend_to_ceil(start: $dst, x: $src) -> ($dst, u32) {
+                let mut z = start;
+                let mut steps = 0;
+                loop {
+                    let next = $shift(-1, z);
+                    if z <= next {
+                        return (z, steps);
+                    }
+                    let next_up = $widen(next);
+                    // Inputs are non-NaN by construction, so `>` is
+                    // equivalent to `!(x <= next_up)` here.
+                    if x > next_up {
+                        return (z, steps);
+                    }
+                    steps += 1;
+                    z = next;
+                }
+            }
+
+            /// Walk up (toward +∞) while `widen(z) <= x` still holds.
+            pub(super) fn ascend_to_floor(start: $dst, x: $src) -> ($dst, u32) {
+                let mut z = start;
+                let mut steps = 0;
+                loop {
+                    let next = $shift(1, z);
+                    if next <= z {
+                        return (z, steps);
+                    }
+                    let next_up = $widen(next);
+                    if next_up > x {
+                        return (z, steps);
+                    }
+                    steps += 1;
+                    z = next;
+                }
+            }
+
+            /// Walk down (toward -∞) until `widen(z) <= x`.
+            pub(super) fn descend_to_floor(start: $dst, x: $src) -> ($dst, u32) {
+                let mut z = start;
+                let mut steps = 0;
+                loop {
+                    let next = $shift(-1, z);
+                    if z <= next {
+                        return (z, steps);
+                    }
+                    steps += 1;
+                    z = next;
+                    if $widen(z) <= x {
+                        return (z, steps);
+                    }
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use def_walk_helpers;
+
 /// Shift a [`half::f16`] by `n` ULPs in the sign-magnitude total order.
 ///
 /// NaN maps to ±∞ for non-zero shifts (matches `shift32`); ±∞ are
