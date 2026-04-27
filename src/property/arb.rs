@@ -19,11 +19,9 @@
 //!   `doc/plans/plan-2026-04-23-05.md` for the discussion.
 //!
 //! Tier-specific strategies live here too: `fixed_*` for the
-//! decimal fixed-point ladder, `rate_*` for sample-rate rationals,
-//! `pico_*` for cross-tier FD12↔Sample conns, and `extended_*` for
-//! `Extended`-wrapped variants of those. Naming is `<tier>_<role>`
-//! to disambiguate the same algebraic role across the four
-//! families.
+//! decimal fixed-point ladder, and `extended_*` for `Extended`-
+//! wrapped variants. Naming is `<tier>_<role>` to disambiguate the
+//! same algebraic role across families.
 
 use proptest::prelude::*;
 
@@ -358,128 +356,6 @@ pub fn extended_fd12() -> impl Strategy<Value = Extended<FD12>> {
         1 => Just(Extended::Finite(FD12(i64::MAX))),
         1 => Just(Extended::Finite(FD12(i64::MIN))),
         8 => (-limit..=limit).prop_map(|x| Extended::Finite(FD12(x))),
-    ]
-}
-
-// ── Sample-rate (Sxxx) strategies ────────────────────────────────
-//
-// For Conn<S_a, S_b> with rational ratio `num/den`, the `inner`
-// computation does `c · num / den` and casts to i64; the safe
-// Coarse range is `|c| ≤ i64::MAX / num`.
-
-/// Coarse-side i64 strategy for rate↔rate Conn with rational ratio
-/// `num/den`. Clamped to `|x| ≤ i64::MAX / num`.
-pub fn rate_coarse(num: i128) -> impl Strategy<Value = i64> {
-    let limit = (i64::MAX as i128 / num.max(1)) as i64;
-    let limit = limit.max(1);
-    prop_oneof![
-        1 => Just(0_i64),
-        1 => Just(1_i64),
-        1 => Just(-1_i64),
-        1 => Just(limit),
-        1 => Just(-limit),
-        5 => -limit..=limit,
-    ]
-}
-
-/// Fine-side i64 strategy for rate↔rate Conn with rational ratio
-/// `num/den`. ceil/floor compute `x · den ± (den-1)` as i128, never
-/// overflowing for `den ≤ 1e7` and `x ∈ i64`; the i64 cast of the
-/// result fits because dividing by `num ≥ den` shrinks magnitude.
-/// Bias to boundaries around `±(i64::MAX − den − 1)`.
-///
-/// **Precondition:** `num ≥ den`. The strategy's range depends only
-/// on `den`, but the safety argument relies on `num ≥ den` to ensure
-/// the final i64 cast doesn't overflow. Asserted at the top of the
-/// function so a caller mismatch fails loudly during property-test
-/// setup rather than as a silent overflow inside a generated case.
-pub fn rate_fine(den: i128, num: i128) -> impl Strategy<Value = i64> {
-    assert!(
-        num >= den,
-        "rate_fine precondition violated: num ({num}) < den ({den}); \
-         the strategy's range relies on num ≥ den to keep the i64 \
-         cast in range",
-    );
-    let near_max = i64::MAX - den as i64 - 1;
-    prop_oneof![
-        1 => Just(0_i64),
-        1 => Just(1_i64),
-        1 => Just(-1_i64),
-        1 => Just(near_max),
-        1 => Just(-near_max),
-        5 => -near_max..=near_max,
-    ]
-}
-
-/// Fine-side strategy for rate↔rate Conn with `inner(ceil(_))`
-/// round-trip safety: `|x| ≤ i64::MAX − num`. Use for closure and
-/// idempotent properties.
-pub fn rate_safe_fine(num: i128) -> impl Strategy<Value = i64> {
-    let guard: i64 = i64::try_from(num).expect("num fits i64");
-    let limit = i64::MAX - guard;
-    prop_oneof![
-        1 => Just(0_i64),
-        1 => Just(1_i64),
-        1 => Just(-1_i64),
-        1 => Just(limit),
-        1 => Just(-limit),
-        5 => -limit..=limit,
-    ]
-}
-
-// ── FD12↔Sample-rate strategies ──────────────────────────────────
-//
-// For `Conn<FD12, S_xxx>` (cross-tier between decimal SI time and
-// sample-indexed time at a specific rate), FD12-side is full i64,
-// Sample-side is bounded by the rate ratio.
-
-/// FD12-side i64 strategy for FD12↔Sample Conn. Full range with
-/// boundary bias.
-pub fn pico_fine() -> impl Strategy<Value = i64> {
-    prop_oneof![
-        1 => Just(0_i64),
-        1 => Just(1_i64),
-        1 => Just(-1_i64),
-        1 => Just(i64::MAX),
-        1 => Just(i64::MIN + 1),
-        5 => any::<i64>(),
-    ]
-}
-
-/// Sample-side i64 strategy for FD12↔Sample Conn with rational
-/// ratio `num/den`. Clamped to `|bits · num / den| < i64::MAX`,
-/// i.e. `|bits| < i64::MAX · den / num`.
-///
-/// `i64::MAX · den` stays in i128 trivially for the rate ratios
-/// shipped today (`den ≤ 113_000`); the `saturating_mul` is a
-/// belt-and-suspenders for a future `den` past `i128::MAX / i64::MAX`
-/// (≈ `1.84e19`), which would silently clamp rather than overflow.
-/// No call site approaches that bound.
-pub fn pico_coarse(num: i128, den: i128) -> impl Strategy<Value = i64> {
-    let limit = ((i64::MAX as i128).saturating_mul(den) / num.max(1)) as i64;
-    let limit = limit.max(1);
-    prop_oneof![
-        1 => Just(0_i64),
-        1 => Just(1_i64),
-        1 => Just(-1_i64),
-        1 => Just(limit),
-        1 => Just(-limit),
-        5 => -limit..=limit,
-    ]
-}
-
-/// FD12-side strategy for FD12↔Sample with round-trip safety:
-/// `|p| ≤ i64::MAX − num`.
-pub fn pico_safe(num: i128) -> impl Strategy<Value = i64> {
-    let guard: i64 = i64::try_from(num).expect("num fits i64");
-    let limit = i64::MAX - guard;
-    prop_oneof![
-        1 => Just(0_i64),
-        1 => Just(1_i64),
-        1 => Just(-1_i64),
-        1 => Just(limit),
-        1 => Just(-limit),
-        5 => -limit..=limit,
     ]
 }
 

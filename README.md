@@ -37,13 +37,14 @@ you that the standard tools don't:
    shipped connection. If you compose two connections with `compose!`,
    the result is property-tested too.
 
-3. **Ladders for time and rate work without hand-rolled multipliers.**
+3. **Ladders for time work without hand-rolled multipliers.**
    Decimal-second granularities (`FD12` 1 ps ↔ `FD09` 1 ns ↔ `FD06`
-   1 µs ↔ `FD03` 1 ms ↔ `FD00` 1 s) and audio sample rates (`S044`
-   44.1 kHz ↔ `S048` 48 kHz ↔ `S088` 88.2 kHz ↔ `S096` 96 kHz ↔ `S176`
-   176.4 kHz ↔ `S192` 192 kHz) ship as named constants. Composing
-   across them is one `compose!` invocation, not a chain of
-   multiply-divides where one off-by-one breaks the whole pipeline.
+   1 µs ↔ `FD03` 1 ms ↔ `FD00` 1 s) ship as named constants.
+   Composing across them is one `compose!` invocation, not a chain
+   of multiply-divides where one off-by-one breaks the whole
+   pipeline. Audio-domain types (sample-rate ladders, rate↔FD12
+   cross-tier conns) live in the downstream
+   [`agogo`](https://gitlab.com/cmk/agogo) crate.
 
 ## The core type
 
@@ -86,15 +87,6 @@ use connections::conn::std::i64::decimal::{FD03FD00, FD06FD03, FD09FD06, FD12FD0
 
 const FD12FD00: Conn<FD12, FD00> = compose!(FD12FD09, FD09FD06, FD06FD03, FD03FD00);
 assert_eq!(FD12FD00.floor(FD12(1_500_000_000_000)), FD00(1));  // 1.5 s → 1 s
-```
-
-A sample-rate cast (88.2 kHz → 44.1 kHz, 2:1 ratio):
-
-```rust
-use connections::conn::sample::{S044, S088, S088S044};
-
-assert_eq!(S088S044.ceil(S088::from_sample(14)), S044::from_sample(7));
-assert_eq!(S088S044.inner(S044::from_sample(7)), S088::from_sample(14));
 ```
 
 Integer widening through `Extended<T>` (so values *outside* the source
@@ -255,14 +247,13 @@ and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 | Family | Module | Status |
 |--------|--------|--------|
 | Decimal fixed-point ladder (`FD??FD??`, FD00–FD12) | `conn::std::i64::decimal` | shipped |
-| Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `conn::fixed::{i08,i16,i32,i64,i128}` | shipped |
-| Sample-rate pairs (`S???S???`, 6 audio rates) | `conn::sample` | shipped |
-| Picoseconds ↔ rate cross-tier (`FD12S???`) | `conn::sample` | shipped |
+| Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `conn::fixed::{i8,i16,i32,i64,i128}` | shipped |
 | Signed widening over `Extended<T>` (`I###I###`, `U###I###`) | `conn::int` | shipped |
 | Unsigned widening / sign change (`U###U###`, `I###U###`) | `conn::uint` | shipped |
 | Float `f64 ↔ f32` under N5 | `conn::float` | shipped |
 | Float ↔ rung over `ExtendedFloat<T>` (`F064FD??`) | `conn::std::i64::decimal` | shipped |
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `DURNFD09`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `conn::time` | shipped |
+| Audio-domain (sample-rate ladders, rate↔FD12) | downstream [`agogo`](https://gitlab.com/cmk/agogo) crate | moved |
 
 **Cast operations** (Haskell `Data.Connection.Cast`):
 

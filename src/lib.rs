@@ -32,12 +32,6 @@
 //! | `F032`   | [`F032`](conn::float::F032)                         | IEEE binary32          |
 //! | `F064`   | [`F064`](conn::float::F064)                         | IEEE binary64          |
 //! | `F128`   | (deferred — `f128` unstable)                        | IEEE binary128         |
-//! | `S044`   | [`conn::sample::S044`]                              | 1 sample @ 44.1 kHz    |
-//! | `S048`   | [`conn::sample::S048`]                              | 1 sample @ 48 kHz      |
-//! | `S088`   | [`conn::sample::S088`]                              | 1 sample @ 88.2 kHz    |
-//! | `S096`   | [`conn::sample::S096`]                              | 1 sample @ 96 kHz      |
-//! | `S176`   | [`conn::sample::S176`]                              | 1 sample @ 176.4 kHz   |
-//! | `S192`   | [`conn::sample::S192`]                              | 1 sample @ 192 kHz     |
 //! | `I008`   | `i8`                                                | signed 8-bit           |
 //! | `I016`   | `i16`                                               | signed 16-bit          |
 //! | `I032`   | `i32`                                               | signed 32-bit          |
@@ -83,8 +77,6 @@
 //! - [`conn::float::f64::F064B016`] — `F064 → B016` (direct f64 → bfloat16).
 //! - [`conn::float::f32::F032F016`] — `F032 → F016` (f32 → IEEE binary16).
 //! - [`conn::float::f32::F032B016`] — `F032 → B016` (f32 → bfloat16).
-//! - [`conn::sample::FD12S048`] — `FD12 → S048` (cross-tier to sample rate).
-//! - [`conn::sample::S088S044`] — `S088 → S044` (rate-pair).
 //! - [`conn::uint::U008U016`] — `u8 → u16` saturating widen.
 //! - [`conn::int::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
 //! - [`conn::int::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).

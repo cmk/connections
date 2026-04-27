@@ -14,8 +14,6 @@
 //!   submodules `i8`..`i128`, `u8`..`u128`).
 //! - `std::i64::decimal` — custom decimal-SI ladder (FD00..FD12)
 //!   built on `i64`, with adjacent and non-adjacent pair connections.
-//! - `sample` — rate-typed sample-indexed time; rate ↔ rate and
-//!   rate ↔ FD12 connections.
 //! - `time` — connections among the [`time`](https://docs.rs/time)
 //!   crate's calendar / clock / duration types (8-character names —
 //!   see [`crate::conn::time`]).
@@ -24,7 +22,6 @@ pub mod cast;
 pub mod fixed;
 pub mod float;
 pub mod int;
-pub mod sample;
 pub mod std;
 pub mod time;
 pub mod uint;
