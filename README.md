@@ -179,6 +179,24 @@ assert_eq!(OFDTNANO.inner(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
 assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
 ```
 
+Bracketing an IEEE-float number of seconds with `Duration`:
+
+```rust
+use connections::conn::float::ExtendedFloat;
+use connections::conn::time::F064DURN;
+use connections::extended::Extended;
+use time::Duration;
+
+let half_sec = ExtendedFloat::Extend(0.5_f64);
+assert_eq!(F064DURN.ceil(half_sec),  Extended::Finite(Duration::milliseconds(500)));
+assert_eq!(F064DURN.floor(half_sec), Extended::Finite(Duration::milliseconds(500)));
+
+// f64 NaN: ceil → +∞, floor → -∞ (forced by `Top > Extend(NaN) > Bot`).
+let nan = ExtendedFloat::Extend(f64::NAN);
+assert_eq!(F064DURN.ceil(nan),  Extended::PosInf);
+assert_eq!(F064DURN.floor(nan), Extended::NegInf);
+```
+
 A direct `f64 → bfloat16` narrowing — the `half` crate provides a
 software-emulated `bf16` (and `f16`) on stable Rust, wrapped with
 `ExtendedFloat` so it satisfies `Eq + PartialOrd` and flows through the
@@ -255,7 +273,7 @@ and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 | Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `conn::std::{i8,i16,i32,i64,i128,u8,u16,u32,u64,u128}` | shipped |
 | Float `f64 ↔ f32` under N5 | `conn::float` | shipped |
 | Float ↔ rung over `ExtendedFloat<T>` (`F064FD??`) | `conn::std::i64::decimal` | shipped |
-| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `DURNFD09`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `conn::time` | shipped |
+| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `DURNFD09`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `conn::time` | shipped |
 | Audio-domain (sample-rate ladders, rate↔FD12) | downstream [`agogo`](https://gitlab.com/cmk/agogo) crate | moved |
 
 **Cast operations** (Haskell `Data.Connection.Cast`):
@@ -320,7 +338,7 @@ src/
 │   ├── time/           — time-crate types (Date, Time, Duration, OffsetDateTime)
 │   │   ├── date.rs     — Date conns (DATEJDAY)
 │   │   ├── clock.rs    — Time conns (TIMENANO, TIMESECS)
-│   │   ├── duration.rs — Duration conns (DURNSECS, DURNFD09)
+│   │   ├── duration.rs — Duration conns (DURNSECS, DURNFD09, F064DURN, F032DURN)
 │   │   ├── datetime.rs — PrimitiveDateTime conns (PDTMDATE)
 │   │   └── offset.rs   — OffsetDateTime conns (OFDTNANO, OFDTSECS)
 │   └── uint.rs         — unsigned widening, sign change
