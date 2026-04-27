@@ -20,13 +20,13 @@
 //!
 //! | code     | type                                                | meaning                |
 //! |----------|-----------------------------------------------------|------------------------|
-//! | `FD00`   | [`conn::fixed::decimal::FD00`]                      | 10⁰ s   (1 s)          |
-//! | `FD01`   | [`conn::fixed::decimal::FD01`]                      | 10⁻¹ s  (100 ms)       |
-//! | `FD02`   | [`conn::fixed::decimal::FD02`]                      | 10⁻² s  (10 ms)        |
-//! | `FD03`   | [`conn::fixed::decimal::FD03`]                      | 10⁻³ s  (1 ms)         |
-//! | `FD06`   | [`conn::fixed::decimal::FD06`]                      | 10⁻⁶ s  (1 µs)         |
-//! | `FD09`   | [`conn::fixed::decimal::FD09`]                      | 10⁻⁹ s  (1 ns)         |
-//! | `FD12`   | [`conn::fixed::decimal::FD12`]                      | 10⁻¹² s (1 ps)         |
+//! | `FD00`   | [`conn::std::i64::decimal::FD00`]                      | 10⁰ s   (1 s)          |
+//! | `FD01`   | [`conn::std::i64::decimal::FD01`]                      | 10⁻¹ s  (100 ms)       |
+//! | `FD02`   | [`conn::std::i64::decimal::FD02`]                      | 10⁻² s  (10 ms)        |
+//! | `FD03`   | [`conn::std::i64::decimal::FD03`]                      | 10⁻³ s  (1 ms)         |
+//! | `FD06`   | [`conn::std::i64::decimal::FD06`]                      | 10⁻⁶ s  (1 µs)         |
+//! | `FD09`   | [`conn::std::i64::decimal::FD09`]                      | 10⁻⁹ s  (1 ns)         |
+//! | `FD12`   | [`conn::std::i64::decimal::FD12`]                      | 10⁻¹² s (1 ps)         |
 //! | `F016`   | [`F016`](conn::float::F016)                         | IEEE binary16 (sw via `half`) |
 //! | `B016`   | [`B016`](conn::float::B016)                         | Google bfloat16 (sw via `half`) |
 //! | `F032`   | [`F032`](conn::float::F032)                         | IEEE binary32          |
@@ -75,8 +75,8 @@
 //!
 //! Examples:
 //!
-//! - [`conn::fixed::decimal::FD12FD06`] — `FD12 → FD06` (exact decimal-ladder embed).
-//! - [`conn::fixed::decimal::F064FD06`] — `ExtendedFloat<f64> → Extended<FD06>`
+//! - [`conn::std::i64::decimal::FD12FD06`] — `FD12 → FD06` (exact decimal-ladder embed).
+//! - [`conn::std::i64::decimal::F064FD06`] — `ExtendedFloat<f64> → Extended<FD06>`
 //!   (lawful over the full IEEE domain, with saturation on the Rung side).
 //! - [`conn::float::f64::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
 //! - [`conn::float::f64::F064F016`] — `F064 → F016` (direct f64 → IEEE binary16).
@@ -115,7 +115,7 @@
 //! ```rust,no_run
 //! use connections::compose;
 //! use connections::conn::Conn;
-//! use connections::conn::fixed::decimal::{FD00, FD03FD00, FD06FD03, FD09FD06, FD12, FD12FD09};
+//! use connections::conn::std::i64::decimal::{FD00, FD03FD00, FD06FD03, FD09FD06, FD12, FD12FD09};
 //!
 //! const FD12FD00_BIS: Conn<FD12, FD00> =
 //!     compose!(FD12FD09, FD09FD06, FD06FD03, FD03FD00);

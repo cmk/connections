@@ -9,8 +9,11 @@
 //!   unsigned ladders + Word↔Int cross-sign conns).
 //! - `float` — float ↔ float connections; also hosts the
 //!   `ExtendedFloat` wrapper type used by N5 lattice connections.
-//! - `fixed` — decimal fixed-point ladder (FD00..FD12) with the
-//!   adjacent and non-adjacent pair connections.
+//! - `fixed` — `fixed`-crate-backed binary fixed-point ladders over
+//!   `FixedI<width><Frac>` / `FixedU<width><Frac>` (per-width
+//!   submodules `i8`..`i128`, `u8`..`u128`).
+//! - `std::i64::decimal` — custom decimal-SI ladder (FD00..FD12)
+//!   built on `i64`, with adjacent and non-adjacent pair connections.
 //! - `sample` — rate-typed sample-indexed time; rate ↔ rate and
 //!   rate ↔ FD12 connections.
 //! - `time` — connections among the [`time`](https://docs.rs/time)
@@ -22,6 +25,7 @@ pub mod fixed;
 pub mod float;
 pub mod int;
 pub mod sample;
+pub mod std;
 pub mod time;
 pub mod uint;
 
@@ -34,7 +38,7 @@ pub mod uint;
 /// ```rust,no_run
 /// use connections::compose;
 /// use connections::conn::Conn;
-/// use connections::conn::fixed::decimal::{FD00, FD03FD00, FD06FD03, FD09FD06, FD12, FD12FD09};
+/// use connections::conn::std::i64::decimal::{FD00, FD03FD00, FD06FD03, FD09FD06, FD12, FD12FD09};
 ///
 /// const FD12FD00_BIS: Conn<FD12, FD00> =
 ///     compose!(FD12FD09, FD09FD06, FD06FD03, FD03FD00);
@@ -292,7 +296,7 @@ mod tests {
     // `compose!` is exercised by `COMPOSED_FD12FD00` (declared `const`).
 
     use crate::compose;
-    use crate::conn::fixed::decimal::{
+    use crate::conn::std::i64::decimal::{
         FD00, FD03, FD03FD00, FD06, FD06FD00, FD06FD03, FD09FD06, FD12, FD12FD00, FD12FD06,
         FD12FD09, HasResolution,
     };

@@ -11,7 +11,7 @@
 //!   `PosInf` on the rung side.
 
 use crate::conn::Conn;
-use crate::conn::fixed::decimal::FD09;
+use crate::conn::std::i64::decimal::FD09;
 use crate::extended::Extended;
 use time::Duration;
 
@@ -282,7 +282,7 @@ mod tests {
 ///
 /// ```rust
 /// use connections::conn::time::DURNFD09;
-/// use connections::conn::fixed::decimal::FD09;
+/// use connections::conn::std::i64::decimal::FD09;
 /// use connections::extended::Extended;
 /// use time::Duration;
 ///

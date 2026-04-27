@@ -24,7 +24,7 @@
 //! - [`mod@f32`] — Conns originating at [`F032`] (currently `F032F016`).
 //!
 //! Cross-tier float→decimal Conns (`F064FD00`..`F064FD12`, …) live with
-//! the FD ladder in [`super::fixed::decimal`].
+//! the FD ladder in [`super::std::i64::decimal`].
 
 pub mod f32;
 pub mod f64;

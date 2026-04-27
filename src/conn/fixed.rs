@@ -1,8 +1,5 @@
 //! Connections over fractional number representations.
 //!
-//! - [`decimal`] — `i64`-backed SI-prefix ladder (`FD00`..`FD12`,
-//!   base-10 scaling). Hand-rolled, independent of the upstream
-//!   `fixed` crate.
 //! - [`mod@i8`] / [`mod@i16`] / [`mod@i32`] / [`mod@i64`] / [`mod@i128`] —
 //!   `fixed`-crate `FixedI<width><Frac>` ladders (base-2 scaling). The
 //!   submodule name encodes the inner primitive width; `Frac` levels
@@ -15,7 +12,6 @@
 //!   signed counterpart with the canonical Q1.N format for the width
 //!   (`U7` in `u8` for MIDI velocity, `U14`/`U15` in `u16`, etc.).
 
-pub mod decimal;
 pub mod i128;
 pub mod i16;
 pub mod i32;

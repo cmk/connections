@@ -220,8 +220,8 @@ pub fn minimize<A, B, C>(c: &Conn<(A, B), C>, a: A, b: B) -> C {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::conn::fixed::decimal::{FD09, FD12, FD12FD09};
     use crate::conn::float::ExtendedFloat;
+    use crate::conn::std::i64::decimal::{FD09, FD12, FD12FD09};
     use crate::property::arb::{arb_f64, fixed_coarse, fixed_safe_fine};
     use crate::property::laws;
     use proptest::prelude::*;

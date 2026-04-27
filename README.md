@@ -70,7 +70,7 @@ For the math and the rationale behind a single unified `Conn` type
 A decimal-ladder cast:
 
 ```rust
-use connections::conn::fixed::decimal::{FD09, FD12, FD12FD09};
+use connections::conn::std::i64::decimal::{FD09, FD12, FD12FD09};
 
 let p = FD12(1_500);                    // 1500 picoseconds
 assert_eq!(FD12FD09.ceil(p),  FD09(2));   // round up   → 2 ns
@@ -82,7 +82,7 @@ Composing four pair-conns into one `FD12 → FD00` (picoseconds → seconds) cas
 ```rust
 use connections::compose;
 use connections::conn::Conn;
-use connections::conn::fixed::decimal::{FD03FD00, FD06FD03, FD09FD06, FD12FD09, FD00, FD12};
+use connections::conn::std::i64::decimal::{FD03FD00, FD06FD03, FD09FD06, FD12FD09, FD00, FD12};
 
 const FD12FD00: Conn<FD12, FD00> = compose!(FD12FD09, FD09FD06, FD06FD03, FD03FD00);
 assert_eq!(FD12FD00.floor(FD12(1_500_000_000_000)), FD00(1));  // 1.5 s → 1 s
@@ -124,7 +124,7 @@ assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 ```rust
 use connections::{ceiling, upper1, maximize};
 use connections::conn::Conn;
-use connections::conn::fixed::decimal::{FD12, FD12FD09};
+use connections::conn::std::i64::decimal::{FD12, FD12FD09};
 
 // `ceiling` is the named alias of `c.ceil` under the L-side reading.
 assert_eq!(ceiling(&FD12FD09, FD12(1_500)), FD12FD09.ceil(FD12(1_500)));
@@ -161,7 +161,7 @@ A `Duration` exposed at nanosecond fixed-point (`FD09`):
 
 ```rust
 use connections::conn::time::DURNFD09;
-use connections::conn::fixed::decimal::FD09;
+use connections::conn::std::i64::decimal::FD09;
 use connections::extended::Extended;
 use time::Duration;
 
@@ -254,14 +254,14 @@ and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 
 | Family | Module | Status |
 |--------|--------|--------|
-| Decimal fixed-point ladder (`FD??FD??`, FD00–FD12) | `conn::fixed::decimal` | shipped |
+| Decimal fixed-point ladder (`FD??FD??`, FD00–FD12) | `conn::std::i64::decimal` | shipped |
 | Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `conn::fixed::{i08,i16,i32,i64,i128}` | shipped |
 | Sample-rate pairs (`S???S???`, 6 audio rates) | `conn::sample` | shipped |
 | Picoseconds ↔ rate cross-tier (`FD12S???`) | `conn::sample` | shipped |
 | Signed widening over `Extended<T>` (`I###I###`, `U###I###`) | `conn::int` | shipped |
 | Unsigned widening / sign change (`U###U###`, `I###U###`) | `conn::uint` | shipped |
 | Float `f64 ↔ f32` under N5 | `conn::float` | shipped |
-| Float ↔ rung over `ExtendedFloat<T>` (`F064FD??`) | `conn::fixed::decimal` | shipped |
+| Float ↔ rung over `ExtendedFloat<T>` (`F064FD??`) | `conn::std::i64::decimal` | shipped |
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `DURNFD09`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `conn::time` | shipped |
 
 **Cast operations** (Haskell `Data.Connection.Cast`):
