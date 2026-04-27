@@ -27,12 +27,12 @@
 //! | `FD09`   | [`conn::fixed::decimal::FD09`]                      | 1 ns                 |
 //! | `FD12`   | [`conn::fixed::decimal::FD12`]                      | 1 ps                 |
 //! | `F064`   | [`ExtendedFloat<f64>`](conn::float::ExtendedFloat)  | IEEE double          |
-//! | `S44`  | [`conn::sample::S44`]              | 1 sample @ 44.1 kHz  |
-//! | `S48`  | [`conn::sample::S48`]              | 1 sample @ 48 kHz    |
-//! | `S88`  | [`conn::sample::S88`]              | 1 sample @ 88.2 kHz  |
-//! | `S96`  | [`conn::sample::S96`]              | 1 sample @ 96 kHz    |
-//! | `S176` | [`conn::sample::S176`]             | 1 sample @ 176.4 kHz |
-//! | `S192` | [`conn::sample::S192`]             | 1 sample @ 192 kHz   |
+//! | `S044`   | [`conn::sample::S044`]                              | 1 sample @ 44.1 kHz  |
+//! | `S048`   | [`conn::sample::S048`]                              | 1 sample @ 48 kHz    |
+//! | `S088`   | [`conn::sample::S088`]                              | 1 sample @ 88.2 kHz  |
+//! | `S096`   | [`conn::sample::S096`]                              | 1 sample @ 96 kHz    |
+//! | `S176`   | [`conn::sample::S176`]                              | 1 sample @ 176.4 kHz |
+//! | `S192`   | [`conn::sample::S192`]                              | 1 sample @ 192 kHz   |
 //! | `U08`  | `u8`                               | unsigned 8-bit       |
 //! | `U16`  | `u16`                              | unsigned 16-bit      |
 //! | `U32`  | `u32`                              | unsigned 32-bit      |
@@ -57,8 +57,8 @@
 //! - [`conn::fixed::decimal::FD12FD06`] — `FD12 → FD06` (exact decimal-ladder embed).
 //! - [`conn::fixed::decimal::F064FD06`] — `ExtendedFloat<f64> → Extended<FD06>`
 //!   (lawful over the full IEEE domain, with saturation on the Rung side).
-//! - `conn::sample::F12S48` — `FD12 → S48` (cross-tier to sample rate; renamed in T2).
-//! - `conn::sample::S88S44` — `S88 → S44` (rate-pair; renamed in T2).
+//! - [`conn::sample::FD12S048`] — `FD12 → S048` (cross-tier to sample rate).
+//! - [`conn::sample::S088S044`] — `S088 → S044` (rate-pair).
 //! - [`conn::uint::U08U16`] — `u8 → u16` saturating widen.
 //! - [`conn::int::I08I16`] — `Extended<i8> → i16` (signed widening, range-extended source).
 //! - [`conn::int::U08I16`] — `Extended<u8> → i16` (unsigned source into signed target).
