@@ -73,6 +73,13 @@ macro_rules! impl_float_ext {
                 }
             }
         }
+
+        // The `PartialEq` above is reflexive (`Finite(NaN) == Finite(NaN)`
+        // is true), so `Eq`'s contract is satisfied. Adding the marker
+        // lets `ExtendedFloat<$T>` flow through any `T: Eq + PartialOrd`
+        // bound — which is the lawful framework the Galois-connection
+        // laws use.
+        impl Eq for ExtendedFloat<$T> {}
     };
 }
 
