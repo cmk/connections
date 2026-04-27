@@ -119,7 +119,7 @@ assert_eq!(U008I016.ceil(Extended::PosInf),  256_i16);   // u8::MAX + 1
 assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 ```
 
-The Sprint A `Cast` API — accessors and lifters operating on any `Conn`:
+`Cast` API — accessors and lifters operating on any `Conn`:
 
 ```rust
 use connections::{ceiling, upper1, maximize};
@@ -181,9 +181,9 @@ on saturating connections it fails at the saturation plateau by design.
 See [`doc/design.md`](doc/design.md) §"Triple-only properties and the
 role of injectivity".
 
-For float-bearing types, the `≤` is N5-aware: NaN is reflexive, NaN sits
-between ±∞ in the synthetic lattice, and finite values are strictly
-ordered. The `Ple` trait at `src/lattice.rs` carries this semantics.
+For float-bearing types, the `≤` is a [N5 lattice](https://en.wikipedia.org/wiki/Distributive_lattice#Characteristic_properties). 
+In particular, NaN is reflexive, NaN sits between ±∞ in the synthetic lattice, 
+and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 
 ## What's shipped vs deferred
 
