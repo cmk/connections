@@ -4,8 +4,9 @@
 //! Future direct-precision Conns from f64 (e.g. `F064F016`, `F064B016`)
 //! land alongside it.
 
-use super::{ExtendedFloat, shift32};
+use super::{ExtendedFloat, F016, F064, shift16_f16, shift32};
 use crate::conn::Conn;
+use half::f16;
 
 /// Connection between [`super::F064`] (i.e. `ExtendedFloat<f64>`) and
 /// [`super::F032`] (`ExtendedFloat<f32>`) under the N5 lattice ordering.
@@ -171,12 +172,165 @@ fn ascend_to_floor(start: f32, x: f64) -> (f32, u32) {
     }
 }
 
+// ── F064F016 ───────────────────────────────────────────────────────
+
+/// Connection between [`super::F064`] and [`super::F016`] under the
+/// N5 lattice — direct `f64 ↔ half::f16` narrowing.
+///
+/// Direct (rather than `compose!(F064F032, F032F016)`) because the
+/// two-stage version rounds twice — RNE-RNE composition can land on
+/// a value 1 ULP off from the true f64 → f16 ceiling/floor on
+/// double-rounding cases. The direct path uses `f16::from_f64`
+/// (single RNE step) and then walks ≤ 2 f16 ULPs to correct.
+///
+/// ```
+/// use connections::conn::float::f64::F064F016;
+/// use connections::conn::float::ExtendedFloat::Extend;
+///
+/// let pi = Extend(std::f64::consts::PI);
+/// let pi_up = F064F016.ceil(pi);
+/// // Widening f16 back to f64 lands above the original.
+/// assert!(F064F016.inner(pi_up) >= pi);
+/// ```
+pub const F064F016: Conn<F064, F016> = {
+    fn ceil(x: F064) -> F016 {
+        match x {
+            ExtendedFloat::Bot => ExtendedFloat::Bot,
+            ExtendedFloat::Top => ExtendedFloat::Top,
+            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f64_f16(v)),
+        }
+    }
+    fn inner(y: F016) -> F064 {
+        match y {
+            ExtendedFloat::Bot => ExtendedFloat::Bot,
+            ExtendedFloat::Top => ExtendedFloat::Top,
+            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v.to_f64()),
+        }
+    }
+    fn floor(x: F064) -> F016 {
+        match x {
+            ExtendedFloat::Bot => ExtendedFloat::Bot,
+            ExtendedFloat::Top => ExtendedFloat::Top,
+            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f64_f16(v)),
+        }
+    }
+    Conn::new(ceil, inner, floor)
+};
+
+fn ceil_f64_f16(x: f64) -> f16 {
+    if x.is_nan() {
+        return f16::NAN;
+    }
+    let est = f16::from_f64(x);
+    let est_up = est.to_f64();
+    if est_up == x {
+        return est;
+    }
+    let (z, _steps) = if x <= est_up {
+        descend_to_ceil_f64_f16(est, x)
+    } else {
+        ascend_to_ceil_f64_f16(est, x)
+    };
+    z
+}
+
+fn floor_f64_f16(x: f64) -> f16 {
+    if x.is_nan() {
+        return f16::NAN;
+    }
+    let est = f16::from_f64(x);
+    let est_up = est.to_f64();
+    if est_up == x {
+        return est;
+    }
+    let (z, _steps) = if est_up <= x {
+        ascend_to_floor_f64_f16(est, x)
+    } else {
+        descend_to_floor_f64_f16(est, x)
+    };
+    z
+}
+
+fn ascend_to_ceil_f64_f16(start: f16, x: f64) -> (f16, u32) {
+    let mut z = start;
+    let mut steps = 0;
+    loop {
+        let next = shift16_f16(1, z);
+        if next <= z {
+            return (z, steps);
+        }
+        steps += 1;
+        z = next;
+        if x <= z.to_f64() {
+            return (z, steps);
+        }
+    }
+}
+
+fn descend_to_ceil_f64_f16(start: f16, x: f64) -> (f16, u32) {
+    let mut z = start;
+    let mut steps = 0;
+    loop {
+        let next = shift16_f16(-1, z);
+        if z <= next {
+            return (z, steps);
+        }
+        let next_up = next.to_f64();
+        if x > next_up {
+            return (z, steps);
+        }
+        steps += 1;
+        z = next;
+    }
+}
+
+fn descend_to_floor_f64_f16(start: f16, x: f64) -> (f16, u32) {
+    let mut z = start;
+    let mut steps = 0;
+    loop {
+        let next = shift16_f16(-1, z);
+        if z <= next {
+            return (z, steps);
+        }
+        steps += 1;
+        z = next;
+        if z.to_f64() <= x {
+            return (z, steps);
+        }
+    }
+}
+
+fn ascend_to_floor_f64_f16(start: f16, x: f64) -> (f16, u32) {
+    let mut z = start;
+    let mut steps = 0;
+    loop {
+        let next = shift16_f16(1, z);
+        if next <= z {
+            return (z, steps);
+        }
+        let next_up = next.to_f64();
+        if next_up > x {
+            return (z, steps);
+        }
+        steps += 1;
+        z = next;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::{arb_f32, arb_f64};
+    use crate::property::arb::{arb_f16, arb_f32, arb_f64};
     use crate::property::laws;
     use proptest::prelude::*;
+
+    fn ef16() -> impl Strategy<Value = F016> {
+        prop_oneof![
+            1 => Just(ExtendedFloat::Bot),
+            1 => Just(ExtendedFloat::Top),
+            8 => arb_f16().prop_map(ExtendedFloat::Extend),
+        ]
+    }
 
     /// Local strategy: `ExtendedFloat<f64>` over `Bot`, `Top`, and full-
     /// range `Extend(_)` (8:1:1 weighting toward the extension slot).
@@ -356,5 +510,126 @@ mod tests {
         // different concept — and there is no clean i64 mapping for
         // `ExtendedFloat<f32>` (Bot / Top would have to alias to
         // sentinel ints, which isn't a meaningful "rung distance").
+
+        // ── F064F016 battery ─────────────────────────────────────
+
+        #[test]
+        fn f16_galois_l(a in ef64(), b in ef16()) {
+            prop_assert!(laws::conn_galois_l(&F064F016, a, b));
+        }
+
+        #[test]
+        fn f16_galois_r(a in ef64(), b in ef16()) {
+            prop_assert!(laws::conn_galois_r(&F064F016, a, b));
+        }
+
+        #[test]
+        fn f16_closure_l(a in ef64()) {
+            prop_assert!(laws::conn_closure_l(&F064F016, a));
+        }
+
+        #[test]
+        fn f16_closure_r(a in ef64()) {
+            prop_assert!(laws::conn_closure_r(&F064F016, a));
+        }
+
+        #[test]
+        fn f16_kernel_l(b in ef16()) {
+            prop_assert!(laws::conn_kernel_l(&F064F016, b));
+        }
+
+        #[test]
+        fn f16_kernel_r(b in ef16()) {
+            prop_assert!(laws::conn_kernel_r(&F064F016, b));
+        }
+
+        #[test]
+        fn f16_monotone_l(a1 in ef64(), a2 in ef64()) {
+            prop_assert!(laws::conn_monotone_l(&F064F016, a1, a2));
+        }
+
+        #[test]
+        fn f16_monotone_r(b1 in ef16(), b2 in ef16()) {
+            prop_assert!(laws::conn_monotone_r(&F064F016, b1, b2));
+        }
+
+        #[test]
+        fn f16_idempotent(a in ef64()) {
+            prop_assert!(laws::conn_idempotent(&F064F016, a));
+        }
+
+        #[test]
+        fn f16_floor_le_ceil(a in ef64()) {
+            prop_assert!(laws::conn_floor_le_ceil(&F064F016, a));
+        }
+
+        #[test]
+        fn f16_ulp_steps_bounded(x in arb_f64()) {
+            if x.is_nan() {
+                return Ok(());
+            }
+            let est = f16::from_f64(x);
+            let est_up = est.to_f64();
+            if est_up == x {
+                return Ok(());
+            }
+            let (_, steps) = if x <= est_up {
+                descend_to_ceil_f64_f16(est, x)
+            } else {
+                ascend_to_ceil_f64_f16(est, x)
+            };
+            prop_assert!(steps <= 2, "ascend/descend_to_ceil_f64_f16 took {steps} steps on x={x}");
+
+            let (_, steps) = if est_up <= x {
+                ascend_to_floor_f64_f16(est, x)
+            } else {
+                descend_to_floor_f64_f16(est, x)
+            };
+            prop_assert!(steps <= 2, "ascend/descend_to_floor_f64_f16 took {steps} steps on x={x}");
+        }
+    }
+
+    // ── F064F016 spot checks ───────────────────────────────────────
+
+    #[test]
+    fn f16_neg_zero_sign_preserved() {
+        let neg = F064F016.ceil(ExtendedFloat::Extend(-0.0_f64));
+        match neg {
+            ExtendedFloat::Extend(v) => assert!(v.is_sign_negative()),
+            _ => panic!("expected Extend(-0)"),
+        }
+    }
+
+    #[test]
+    fn f16_ceil_nan() {
+        match F064F016.ceil(ExtendedFloat::Extend(f64::NAN)) {
+            ExtendedFloat::Extend(v) => assert!(v.is_nan()),
+            _ => panic!("expected Extend(NaN)"),
+        }
+    }
+
+    #[test]
+    fn f16_pos_inf_preserved() {
+        assert_eq!(
+            F064F016.ceil(ExtendedFloat::Extend(f64::INFINITY)),
+            ExtendedFloat::Extend(f16::INFINITY),
+        );
+    }
+
+    #[test]
+    fn f16_f64_max_saturates_to_inf() {
+        // f64::MAX (≈ 1.8e308) is far above f16::MAX (65504). RNE → ∞.
+        assert_eq!(
+            F064F016.ceil(ExtendedFloat::Extend(f64::MAX)),
+            ExtendedFloat::Extend(f16::INFINITY),
+        );
+    }
+
+    #[test]
+    fn f16_bot_top_pass_through() {
+        assert_eq!(F064F016.ceil(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F064F016.floor(ExtendedFloat::Top), ExtendedFloat::Top);
+        assert_eq!(F064F016.inner(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F064F016.inner(ExtendedFloat::Top), ExtendedFloat::Top);
     }
 }
