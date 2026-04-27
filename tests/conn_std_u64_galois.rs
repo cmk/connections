@@ -43,3 +43,6 @@ single_sided_props!(i064u064, I064U064, any::<i64>(), any::<u64>());
 
 // §2 U→U narrowing into u64
 single_sided_props!(u128u064, U128U064, any::<u128>(), any::<u64>());
+
+// §4 I→U narrowing into u64
+single_sided_props!(i128u064, I128U064, any::<i128>(), any::<u64>());

@@ -1,7 +1,7 @@
 //! Conns landing on `u64`. Per the right-side-wins module rule,
 //! this file hosts every Conn whose destination type is `u64`.
 
-use super::{int_uint, uint_uint, uint_uint_narrow};
+use super::{int_uint, int_uint_narrow, uint_uint, uint_uint_narrow};
 use crate::conn::Conn;
 
 // ── Existing widening ──────────────────────────────────────────────
@@ -15,6 +15,9 @@ int_uint!(I064U064, i64, u64);
 
 // ── §2 U→U narrowing ───────────────────────────────────────────────
 uint_uint_narrow!(U128U064, u128, u64);
+
+// ── §4 I→U narrowing ───────────────────────────────────────────────
+int_uint_narrow!(I128U064, i128, u64);
 
 #[cfg(test)]
 mod tests {
@@ -39,5 +42,14 @@ mod tests {
         assert_eq!(U128U064.ceil(u128::MAX), u64::MAX);
         assert_eq!(U128U064.inner(u64::MAX), u128::MAX);
         assert_eq!(U128U064.inner(0), 0_u128);
+    }
+
+    // ── Spot checks: I→U narrowing into u64 ───────────────────────
+
+    #[test]
+    fn i128u064_neg_high_fixup() {
+        assert_eq!(I128U064.ceil(i128::MIN), 0);
+        assert_eq!(I128U064.ceil(i128::MAX), u64::MAX);
+        assert_eq!(I128U064.inner(u64::MAX), i128::MAX);
     }
 }

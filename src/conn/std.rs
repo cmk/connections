@@ -254,7 +254,34 @@ macro_rules! uint_int_sat {
 }
 pub(crate) use uint_int_sat;
 
-// (`int_uint_narrow!` lands in T6 alongside its first invocation.)
+/// `Conn<i_N, u_M>` narrowing (`bits(i_N) > bits(u_M)`).
+///
+/// `ceil` clips negatives to `0` and saturates positives at
+/// `u_M::MAX`; `inner` is the lossless `as`-widen with a FINE_MAX
+/// fixup (`inner(u_M::MAX) = i_N::MAX`). The negative half of the
+/// source has no plateau issue (it collapses on `ceil`, the
+/// source-side fiber compatible with left-Galois).
+macro_rules! int_uint_narrow {
+    ($NAME:ident, $A:ty, $B:ty) => {
+        #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
+        pub const $NAME: Conn<$A, $B> = {
+            fn ceil(x: $A) -> $B {
+                if x < 0 {
+                    0
+                } else if x > <$B>::MAX as $A {
+                    <$B>::MAX
+                } else {
+                    x as $B
+                }
+            }
+            fn inner(x: $B) -> $A {
+                if x == <$B>::MAX { <$A>::MAX } else { x as $A }
+            }
+            Conn::new_left(ceil, inner)
+        };
+    };
+}
+pub(crate) use int_uint_narrow;
 
 // ── Per-primitive submodules ───────────────────────────────────────
 

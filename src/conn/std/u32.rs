@@ -1,7 +1,7 @@
 //! Conns landing on `u32`. Per the right-side-wins module rule,
 //! this file hosts every Conn whose destination type is `u32`.
 
-use super::{int_uint, uint_uint, uint_uint_narrow};
+use super::{int_uint, int_uint_narrow, uint_uint, uint_uint_narrow};
 use crate::conn::Conn;
 
 // ── Existing widening ──────────────────────────────────────────────
@@ -14,6 +14,10 @@ int_uint!(I032U032, i32, u32);
 // ── §2 U→U narrowing ───────────────────────────────────────────────
 uint_uint_narrow!(U064U032, u64, u32);
 uint_uint_narrow!(U128U032, u128, u32);
+
+// ── §4 I→U narrowing ───────────────────────────────────────────────
+int_uint_narrow!(I064U032, i64, u32);
+int_uint_narrow!(I128U032, i128, u32);
 
 #[cfg(test)]
 mod tests {
@@ -45,5 +49,16 @@ mod tests {
         assert_eq!(U128U032.ceil(u128::MAX), u32::MAX);
         assert_eq!(U064U032.inner(u32::MAX), u64::MAX);
         assert_eq!(U128U032.inner(u32::MAX), u128::MAX);
+    }
+
+    // ── Spot checks: I→U narrowing into u32 ───────────────────────
+
+    #[test]
+    fn i_to_u32_neg_high_fixup() {
+        assert_eq!(I064U032.ceil(-1), 0);
+        assert_eq!(I064U032.ceil(i64::MAX), u32::MAX);
+        assert_eq!(I128U032.ceil(i128::MIN), 0);
+        assert_eq!(I064U032.inner(u32::MAX), i64::MAX);
+        assert_eq!(I128U032.inner(u32::MAX), i128::MAX);
     }
 }

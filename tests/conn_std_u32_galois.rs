@@ -42,3 +42,7 @@ single_sided_props!(i032u032, I032U032, any::<i32>(), any::<u32>());
 // §2 U→U narrowing into u32
 single_sided_props!(u064u032, U064U032, any::<u64>(), any::<u32>());
 single_sided_props!(u128u032, U128U032, any::<u128>(), any::<u32>());
+
+// §4 I→U narrowing into u32
+single_sided_props!(i064u032, I064U032, any::<i64>(), any::<u32>());
+single_sided_props!(i128u032, I128U032, any::<i128>(), any::<u32>());
