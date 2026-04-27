@@ -242,14 +242,14 @@ The deliberate divergences:
 ```text
 src/
 ├── lib.rs              — crate root + Cast API re-exports
+├── conn.rs             — Conn struct, compose! macro, identity
 ├── conn/
-│   ├── mod.rs          — Conn struct, compose! macro, identity
 │   ├── cast.rs         — L/R accessors + lifters (Sprint A)
 │   ├── fixed/          — decimal & binary fixed-point ladders
 │   ├── float.rs        — ExtendedFloat<T> + f64↔f32
 │   ├── int.rs          — signed-widening via Extended<T>
 │   ├── sample.rs       — sample-rate ladders + FD12↔rate
-│   ├── time.rs         — time-crate types (Date, Time, Duration, …)
+│   ├── time/           — time-crate types (Date, Time, Duration, …)
 │   └── uint.rs         — unsigned widening, sign change
 ├── extended.rs         — Extended<T> with NegInf/Finite/PosInf
 ├── lattice.rs          — Ple, Join, Meet, Heyting, Coheyting, Symmetric, Boolean
