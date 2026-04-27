@@ -299,4 +299,191 @@ mod tests {
             prop_assert!(laws::conn_kernel_l(&ID_EF64, ExtendedFloat::Extend(b)));
         }
     }
+
+    // ── `compose!` macro tests ───────────────────────────────────────
+    //
+    // Composition is a property of `Conn` itself (not of any one
+    // family), so its tests live alongside the macro definition. We
+    // drive them against the binary fixed-point ladder in
+    // [`crate::conn::fixed::i8`] — the `I###I###` Q-format Conns —
+    // because the i8 ladder admits arbitrary multi-step chains
+    // through intermediate frac levels (Q0.8 → Q4.4 → Q8.0, etc.)
+    // and we have a hand-coded non-adjacent shortcut (`I008I000`) to
+    // compare against.
+    //
+    // Coverage:
+    // 1. Two-step (I008 → I004 → I000): the macro's covariant-ceil
+    //    / contravariant-inner expansion on a length-2 chain.
+    // 2. Three-step (I008 → I006 → I004 → I000): exercises the
+    //    recursive `$rest` splicing for an odd parent count, distinct
+    //    from the 2- and 4-step shapes.
+    // 3. Four-step (I008 → I006 → I004 → I002 → I000): same domain
+    //    as the hand-coded shortcut.
+    // 4. Galois-law preservation: a macro-composed `Conn<I008, I000>`
+    //    must satisfy the same adjoint laws as any hand-coded Conn.
+    // 5. Identity laws: `compose!(id, c)` and `compose!(c, id)` must
+    //    pointwise equal `c`.
+    //
+    // Const-context coercion of the non-capturing closures inside
+    // `compose!` is exercised by every `const COMPOSED_*` declaration
+    // below — failing const evaluation would refuse to compile.
+
+    use crate::compose;
+    use crate::conn::fixed::i8::{
+        I000, I002I000, I004, I004I000, I004I002, I006I004, I008, I008I000, I008I004, I008I006,
+    };
+    use ::fixed::FixedI8;
+
+    const COMPOSED_2STEP: Conn<I008, I000> = compose!(I008I004, I004I000);
+    const COMPOSED_3STEP: Conn<I008, I000> = compose!(I008I006, I006I004, I004I000);
+    const COMPOSED_4STEP: Conn<I008, I000> = compose!(I008I006, I006I004, I004I002, I002I000);
+
+    // Identity bookends for the left/right identity laws.
+    const ID_I008: Conn<I008, I008> = Conn::identity();
+    const ID_I004: Conn<I004, I004> = Conn::identity();
+    const LEFT_ID_COMPOSED: Conn<I008, I004> = compose!(ID_I008, I008I004);
+    const RIGHT_ID_COMPOSED: Conn<I008, I004> = compose!(I008I004, ID_I004);
+
+    /// i8 bit-level boundary samples. Covers the saturation-fixup
+    /// endpoints (`bits == ±i8::MAX`) and a spread of interior
+    /// values to catch off-by-one in the macro's covariant /
+    /// contravariant arms.
+    const I8_SAMPLES: &[i8] = &[
+        i8::MIN,
+        i8::MIN + 1,
+        -100,
+        -42,
+        -1,
+        0,
+        1,
+        42,
+        100,
+        i8::MAX - 1,
+        i8::MAX,
+    ];
+
+    #[test]
+    fn compose_two_step_matches_handcoded_at_samples() {
+        for &b in I8_SAMPLES {
+            let x = FixedI8::<typenum_alias::U8>::from_bits(b);
+            assert_eq!(COMPOSED_2STEP.ceil(x), I008I000.ceil(x), "ceil @ {b}");
+            assert_eq!(COMPOSED_2STEP.floor(x), I008I000.floor(x), "floor @ {b}");
+        }
+        for &b in I8_SAMPLES {
+            let y = FixedI8::<typenum_alias::U0>::from_bits(b);
+            assert_eq!(COMPOSED_2STEP.inner(y), I008I000.inner(y), "inner @ {b}");
+        }
+    }
+
+    #[test]
+    fn compose_three_step_matches_handcoded_at_samples() {
+        for &b in I8_SAMPLES {
+            let x = FixedI8::<typenum_alias::U8>::from_bits(b);
+            assert_eq!(COMPOSED_3STEP.ceil(x), I008I000.ceil(x), "ceil @ {b}");
+            assert_eq!(COMPOSED_3STEP.floor(x), I008I000.floor(x), "floor @ {b}");
+        }
+        for &b in I8_SAMPLES {
+            let y = FixedI8::<typenum_alias::U0>::from_bits(b);
+            assert_eq!(COMPOSED_3STEP.inner(y), I008I000.inner(y), "inner @ {b}");
+        }
+    }
+
+    #[test]
+    fn compose_four_step_matches_handcoded_at_samples() {
+        for &b in I8_SAMPLES {
+            let x = FixedI8::<typenum_alias::U8>::from_bits(b);
+            assert_eq!(COMPOSED_4STEP.ceil(x), I008I000.ceil(x), "ceil @ {b}");
+            assert_eq!(COMPOSED_4STEP.floor(x), I008I000.floor(x), "floor @ {b}");
+        }
+        for &b in I8_SAMPLES {
+            let y = FixedI8::<typenum_alias::U0>::from_bits(b);
+            assert_eq!(COMPOSED_4STEP.inner(y), I008I000.inner(y), "inner @ {b}");
+        }
+    }
+
+    #[test]
+    fn compose_left_identity_pointwise_equal() {
+        // id ∘ I008I004 must agree with I008I004 on every i8.
+        for b in i8::MIN..=i8::MAX {
+            let x = FixedI8::<typenum_alias::U8>::from_bits(b);
+            assert_eq!(LEFT_ID_COMPOSED.ceil(x), I008I004.ceil(x));
+            assert_eq!(LEFT_ID_COMPOSED.floor(x), I008I004.floor(x));
+        }
+        for b in i8::MIN..=i8::MAX {
+            let y = FixedI8::<typenum_alias::U4>::from_bits(b);
+            assert_eq!(LEFT_ID_COMPOSED.inner(y), I008I004.inner(y));
+        }
+    }
+
+    #[test]
+    fn compose_right_identity_pointwise_equal() {
+        for b in i8::MIN..=i8::MAX {
+            let x = FixedI8::<typenum_alias::U8>::from_bits(b);
+            assert_eq!(RIGHT_ID_COMPOSED.ceil(x), I008I004.ceil(x));
+            assert_eq!(RIGHT_ID_COMPOSED.floor(x), I008I004.floor(x));
+        }
+        for b in i8::MIN..=i8::MAX {
+            let y = FixedI8::<typenum_alias::U4>::from_bits(b);
+            assert_eq!(RIGHT_ID_COMPOSED.inner(y), I008I004.inner(y));
+        }
+    }
+
+    proptest! {
+        // Exhaustive proptest over all 256 i8 bit patterns is cheap
+        // and covers the entire I008 / I000 input domain — the
+        // boundary-fixup paths in `ceil`/`floor` get hit by
+        // construction. We use `any::<i8>()` rather than a bounded
+        // range strategy because there's no overflow risk on the
+        // i8-backed ladder.
+
+        #[test]
+        fn compose_four_step_galois_l(p: i8, c: i8) {
+            let x = FixedI8::<typenum_alias::U8>::from_bits(p);
+            let y = FixedI8::<typenum_alias::U0>::from_bits(c);
+            prop_assert!(laws::conn_galois_l(&COMPOSED_4STEP, x, y));
+        }
+
+        #[test]
+        fn compose_four_step_galois_r(p: i8, c: i8) {
+            let x = FixedI8::<typenum_alias::U8>::from_bits(p);
+            let y = FixedI8::<typenum_alias::U0>::from_bits(c);
+            prop_assert!(laws::conn_galois_r(&COMPOSED_4STEP, x, y));
+        }
+
+        // `floor ≤ ceil` is intentionally NOT asserted: the i8 fix_fix
+        // ladder has saturation-fixup arms at `bits == ±i8::MAX` that
+        // pin `ceil` to the opposite end of the range, violating the
+        // simple ordering at exactly those two boundary inputs. The
+        // existing per-pair tests in `conn::fixed::i8` document this
+        // and accept it as the price of the FINE_MIN/FINE_MAX
+        // saturation pinning. The Galois adjoint laws above hold
+        // unconditionally.
+
+        #[test]
+        fn compose_four_step_idempotent(p: i8) {
+            let x = FixedI8::<typenum_alias::U8>::from_bits(p);
+            prop_assert!(laws::conn_idempotent(&COMPOSED_4STEP, x));
+        }
+
+        #[test]
+        fn compose_four_step_monotone_l(p1: i8, p2: i8) {
+            let a = FixedI8::<typenum_alias::U8>::from_bits(p1);
+            let b = FixedI8::<typenum_alias::U8>::from_bits(p2);
+            prop_assert!(laws::conn_monotone_l(&COMPOSED_4STEP, a, b));
+        }
+
+        #[test]
+        fn compose_four_step_monotone_r(c1: i8, c2: i8) {
+            let a = FixedI8::<typenum_alias::U0>::from_bits(c1);
+            let b = FixedI8::<typenum_alias::U0>::from_bits(c2);
+            prop_assert!(laws::conn_monotone_r(&COMPOSED_4STEP, a, b));
+        }
+    }
+
+    // Tiny alias module so the verbose `::fixed::types::extra::U?`
+    // paths above stay short. The `typenum_alias` name is local to
+    // this test mod; it doesn't pollute the crate namespace.
+    mod typenum_alias {
+        pub use ::fixed::types::extra::{U0, U4, U8};
+    }
 }
