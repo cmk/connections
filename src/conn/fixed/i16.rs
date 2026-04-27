@@ -31,6 +31,14 @@ use crate::conn::Conn;
 use ::fixed::FixedI16;
 use ::fixed::types::extra::{U0, U2, U4, U8, U12, U16, Unsigned};
 
+/// `I<frac> = FixedI16<U<frac>>` — i16-backed binary fixed-point.
+pub type I000 = FixedI16<U0>;
+pub type I002 = FixedI16<U2>;
+pub type I004 = FixedI16<U4>;
+pub type I008 = FixedI16<U8>;
+pub type I012 = FixedI16<U12>;
+pub type I016 = FixedI16<U16>;
+
 macro_rules! fix_fix_i16 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {
         pub const $const_name: Conn<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>> = {
@@ -87,21 +95,21 @@ macro_rules! fix_fix_i16 {
 
 // All ordered (Fine, Coarse) pairs from {U0, U2, U4, U8, U12, U16}
 // with Fine > Coarse. 15 conns total.
-fix_fix_i16!(F02F00, U2,  U0);
-fix_fix_i16!(F04F00, U4,  U0);
-fix_fix_i16!(F08F00, U8,  U0);
-fix_fix_i16!(F12F00, U12, U0);
-fix_fix_i16!(F16F00, U16, U0);
-fix_fix_i16!(F04F02, U4,  U2);
-fix_fix_i16!(F08F02, U8,  U2);
-fix_fix_i16!(F12F02, U12, U2);
-fix_fix_i16!(F16F02, U16, U2);
-fix_fix_i16!(F08F04, U8,  U4);
-fix_fix_i16!(F12F04, U12, U4);
-fix_fix_i16!(F16F04, U16, U4);
-fix_fix_i16!(F12F08, U12, U8);
-fix_fix_i16!(F16F08, U16, U8);
-fix_fix_i16!(F16F12, U16, U12);
+fix_fix_i16!(I002I000, U2,  U0);
+fix_fix_i16!(I004I000, U4,  U0);
+fix_fix_i16!(I008I000, U8,  U0);
+fix_fix_i16!(I012I000, U12, U0);
+fix_fix_i16!(I016I000, U16, U0);
+fix_fix_i16!(I004I002, U4,  U2);
+fix_fix_i16!(I008I002, U8,  U2);
+fix_fix_i16!(I012I002, U12, U2);
+fix_fix_i16!(I016I002, U16, U2);
+fix_fix_i16!(I008I004, U8,  U4);
+fix_fix_i16!(I012I004, U12, U4);
+fix_fix_i16!(I016I004, U16, U4);
+fix_fix_i16!(I012I008, U12, U8);
+fix_fix_i16!(I016I008, U16, U8);
+fix_fix_i16!(I016I012, U16, U12);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -117,64 +125,64 @@ mod tests {
     // saturation-boundary inputs.
 
     #[test]
-    fn spot_f08f04_on_grid() {
+    fn spot_i008i004_on_grid() {
         // 1.5 in Q8.8 (bits 0x0180 = 384) — exactly representable in Q12.4.
         let q88 = FixedI16::<U8>::from_bits(384);
-        assert_eq!(F08F04.floor(q88), FixedI16::<U4>::from_bits(24));
-        assert_eq!(F08F04.ceil(q88), FixedI16::<U4>::from_bits(24));
-        assert_eq!(F08F04.inner(FixedI16::<U4>::from_bits(24)), q88);
+        assert_eq!(I008I004.floor(q88), FixedI16::<U4>::from_bits(24));
+        assert_eq!(I008I004.ceil(q88), FixedI16::<U4>::from_bits(24));
+        assert_eq!(I008I004.inner(FixedI16::<U4>::from_bits(24)), q88);
     }
 
     #[test]
-    fn spot_f08f04_off_grid_positive() {
+    fn spot_i008i004_off_grid_positive() {
         // 1.3984375 (bits 358) — between Q12.4 grid points 22 and 23.
         let off = FixedI16::<U8>::from_bits(358);
-        assert_eq!(F08F04.floor(off), FixedI16::<U4>::from_bits(22));
-        assert_eq!(F08F04.ceil(off), FixedI16::<U4>::from_bits(23));
+        assert_eq!(I008I004.floor(off), FixedI16::<U4>::from_bits(22));
+        assert_eq!(I008I004.ceil(off), FixedI16::<U4>::from_bits(23));
     }
 
     #[test]
-    fn spot_f08f04_off_grid_negative() {
+    fn spot_i008i004_off_grid_negative() {
         // -1.3984375 (bits -358). div_euclid rounds toward −∞;
         // rem_euclid is non-negative, so ceil = floor + 1.
         let neg = FixedI16::<U8>::from_bits(-358);
-        assert_eq!(F08F04.floor(neg), FixedI16::<U4>::from_bits(-23));
-        assert_eq!(F08F04.ceil(neg), FixedI16::<U4>::from_bits(-22));
+        assert_eq!(I008I004.floor(neg), FixedI16::<U4>::from_bits(-23));
+        assert_eq!(I008I004.ceil(neg), FixedI16::<U4>::from_bits(-22));
     }
 
     #[test]
-    fn spot_f08f04_saturation_boundary() {
+    fn spot_i008i004_saturation_boundary() {
         // Fine::MAX (bits 32767) ceils up to Coarse(2048) = value 128.0
         // — fits in Coarse i16 range. inner(2048) saturates to Fine::MAX.
         let fmax = FixedI16::<U8>::from_bits(i16::MAX);
-        assert_eq!(F08F04.ceil(fmax), FixedI16::<U4>::from_bits(2048));
-        assert_eq!(F08F04.inner(FixedI16::<U4>::from_bits(2048)), fmax);
+        assert_eq!(I008I004.ceil(fmax), FixedI16::<U4>::from_bits(2048));
+        assert_eq!(I008I004.inner(FixedI16::<U4>::from_bits(2048)), fmax);
 
         // Fine::MAX is in the saturation plateau: floor returns Coarse::MAX,
         // not the bit-math value 2047.
-        assert_eq!(F08F04.floor(fmax), FixedI16::<U4>::from_bits(i16::MAX));
+        assert_eq!(I008I004.floor(fmax), FixedI16::<U4>::from_bits(i16::MAX));
 
         // Symmetric on the negative side: Fine::MIN is itself a plateau
         // member; ceil returns Coarse::MIN, not bit-math -2048.
         let fmin = FixedI16::<U8>::from_bits(i16::MIN);
-        assert_eq!(F08F04.ceil(fmin), FixedI16::<U4>::from_bits(i16::MIN));
-        assert_eq!(F08F04.floor(fmin), FixedI16::<U4>::from_bits(-2048));
+        assert_eq!(I008I004.ceil(fmin), FixedI16::<U4>::from_bits(i16::MIN));
+        assert_eq!(I008I004.floor(fmin), FixedI16::<U4>::from_bits(-2048));
     }
 
     #[test]
-    fn spot_f16f00_degenerate() {
+    fn spot_i016i000_degenerate() {
         // SHIFT = 16, RATIO = 65 536. Every Coarse value with |bits| ≥ 1
         // saturates inner. Only Coarse(0) round-trips.
         assert_eq!(
-            F16F00.inner(FixedI16::<U0>::from_bits(0)),
+            I016I000.inner(FixedI16::<U0>::from_bits(0)),
             FixedI16::<U16>::from_bits(0),
         );
         assert_eq!(
-            F16F00.inner(FixedI16::<U0>::from_bits(1)),
+            I016I000.inner(FixedI16::<U0>::from_bits(1)),
             FixedI16::<U16>::from_bits(i16::MAX),
         );
         assert_eq!(
-            F16F00.inner(FixedI16::<U0>::from_bits(-1)),
+            I016I000.inner(FixedI16::<U0>::from_bits(-1)),
             FixedI16::<U16>::from_bits(i16::MIN),
         );
     }
@@ -256,19 +264,19 @@ mod tests {
     }
 
     // 15 conns × 9 properties = 135 generated proptests.
-    props_for_pair!(f02f00, F02F00, U2,  U0);
-    props_for_pair!(f04f00, F04F00, U4,  U0);
-    props_for_pair!(f08f00, F08F00, U8,  U0);
-    props_for_pair!(f12f00, F12F00, U12, U0);
-    props_for_pair!(f16f00, F16F00, U16, U0);
-    props_for_pair!(f04f02, F04F02, U4,  U2);
-    props_for_pair!(f08f02, F08F02, U8,  U2);
-    props_for_pair!(f12f02, F12F02, U12, U2);
-    props_for_pair!(f16f02, F16F02, U16, U2);
-    props_for_pair!(f08f04, F08F04, U8,  U4);
-    props_for_pair!(f12f04, F12F04, U12, U4);
-    props_for_pair!(f16f04, F16F04, U16, U4);
-    props_for_pair!(f12f08, F12F08, U12, U8);
-    props_for_pair!(f16f08, F16F08, U16, U8);
-    props_for_pair!(f16f12, F16F12, U16, U12);
+    props_for_pair!(i002i000, I002I000, U2,  U0);
+    props_for_pair!(i004i000, I004I000, U4,  U0);
+    props_for_pair!(i008i000, I008I000, U8,  U0);
+    props_for_pair!(i012i000, I012I000, U12, U0);
+    props_for_pair!(i016i000, I016I000, U16, U0);
+    props_for_pair!(i004i002, I004I002, U4,  U2);
+    props_for_pair!(i008i002, I008I002, U8,  U2);
+    props_for_pair!(i012i002, I012I002, U12, U2);
+    props_for_pair!(i016i002, I016I002, U16, U2);
+    props_for_pair!(i008i004, I008I004, U8,  U4);
+    props_for_pair!(i012i004, I012I004, U12, U4);
+    props_for_pair!(i016i004, I016I004, U16, U4);
+    props_for_pair!(i012i008, I012I008, U12, U8);
+    props_for_pair!(i016i008, I016I008, U16, U8);
+    props_for_pair!(i016i012, I016I012, U16, U12);
 }

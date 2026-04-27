@@ -10,6 +10,17 @@ use crate::conn::Conn;
 use ::fixed::FixedI8;
 use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U8, Unsigned};
 
+/// `I<frac> = FixedI8<U<frac>>` — i8-backed binary fixed-point with
+/// `<frac>` fractional bits. Frac digits are zero-padded to 3 chars
+/// to fit the X123Y456 conn-name shape.
+pub type I000 = FixedI8<U0>;
+pub type I001 = FixedI8<U1>;
+pub type I002 = FixedI8<U2>;
+pub type I003 = FixedI8<U3>;
+pub type I004 = FixedI8<U4>;
+pub type I006 = FixedI8<U6>;
+pub type I008 = FixedI8<U8>;
+
 macro_rules! fix_fix_i08 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {
         pub const $const_name: Conn<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> = {
@@ -57,27 +68,27 @@ macro_rules! fix_fix_i08 {
 }
 
 // 21 ordered pairs from {U0, U1, U2, U3, U4, U6, U8}.
-fix_fix_i08!(F01F00, U1, U0);
-fix_fix_i08!(F02F00, U2, U0);
-fix_fix_i08!(F03F00, U3, U0);
-fix_fix_i08!(F04F00, U4, U0);
-fix_fix_i08!(F06F00, U6, U0);
-fix_fix_i08!(F08F00, U8, U0);
-fix_fix_i08!(F02F01, U2, U1);
-fix_fix_i08!(F03F01, U3, U1);
-fix_fix_i08!(F04F01, U4, U1);
-fix_fix_i08!(F06F01, U6, U1);
-fix_fix_i08!(F08F01, U8, U1);
-fix_fix_i08!(F03F02, U3, U2);
-fix_fix_i08!(F04F02, U4, U2);
-fix_fix_i08!(F06F02, U6, U2);
-fix_fix_i08!(F08F02, U8, U2);
-fix_fix_i08!(F04F03, U4, U3);
-fix_fix_i08!(F06F03, U6, U3);
-fix_fix_i08!(F08F03, U8, U3);
-fix_fix_i08!(F06F04, U6, U4);
-fix_fix_i08!(F08F04, U8, U4);
-fix_fix_i08!(F08F06, U8, U6);
+fix_fix_i08!(I001I000, U1, U0);
+fix_fix_i08!(I002I000, U2, U0);
+fix_fix_i08!(I003I000, U3, U0);
+fix_fix_i08!(I004I000, U4, U0);
+fix_fix_i08!(I006I000, U6, U0);
+fix_fix_i08!(I008I000, U8, U0);
+fix_fix_i08!(I002I001, U2, U1);
+fix_fix_i08!(I003I001, U3, U1);
+fix_fix_i08!(I004I001, U4, U1);
+fix_fix_i08!(I006I001, U6, U1);
+fix_fix_i08!(I008I001, U8, U1);
+fix_fix_i08!(I003I002, U3, U2);
+fix_fix_i08!(I004I002, U4, U2);
+fix_fix_i08!(I006I002, U6, U2);
+fix_fix_i08!(I008I002, U8, U2);
+fix_fix_i08!(I004I003, U4, U3);
+fix_fix_i08!(I006I003, U6, U3);
+fix_fix_i08!(I008I003, U8, U3);
+fix_fix_i08!(I006I004, U6, U4);
+fix_fix_i08!(I008I004, U8, U4);
+fix_fix_i08!(I008I006, U8, U6);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -90,46 +101,46 @@ mod tests {
     use proptest::prelude::*;
 
     #[test]
-    fn spot_f04f00_on_grid() {
+    fn spot_i004i000_on_grid() {
         // 1.5 in Q4.4 (bits 24) — exactly representable in Q8.0 by 1 or 2.
         let q44 = FixedI8::<U4>::from_bits(24);
-        assert_eq!(F04F00.floor(q44), FixedI8::<U0>::from_bits(1));
-        assert_eq!(F04F00.ceil(q44), FixedI8::<U0>::from_bits(2));
-        assert_eq!(F04F00.inner(FixedI8::<U0>::from_bits(1)), FixedI8::<U4>::from_bits(16));
+        assert_eq!(I004I000.floor(q44), FixedI8::<U0>::from_bits(1));
+        assert_eq!(I004I000.ceil(q44), FixedI8::<U0>::from_bits(2));
+        assert_eq!(I004I000.inner(FixedI8::<U0>::from_bits(1)), FixedI8::<U4>::from_bits(16));
     }
 
     #[test]
-    fn spot_f04f00_negative() {
+    fn spot_i004i000_negative() {
         let q44 = FixedI8::<U4>::from_bits(-24);
-        assert_eq!(F04F00.floor(q44), FixedI8::<U0>::from_bits(-2));
-        assert_eq!(F04F00.ceil(q44), FixedI8::<U0>::from_bits(-1));
+        assert_eq!(I004I000.floor(q44), FixedI8::<U0>::from_bits(-2));
+        assert_eq!(I004I000.ceil(q44), FixedI8::<U0>::from_bits(-1));
     }
 
     #[test]
-    fn spot_f08f00_degenerate() {
+    fn spot_i008i000_degenerate() {
         // SHIFT = 8, RATIO = 256. Only Coarse(0) round-trips; |bits| ≥ 1
         // saturates inner.
         assert_eq!(
-            F08F00.inner(FixedI8::<U0>::from_bits(0)),
+            I008I000.inner(FixedI8::<U0>::from_bits(0)),
             FixedI8::<U8>::from_bits(0),
         );
         assert_eq!(
-            F08F00.inner(FixedI8::<U0>::from_bits(1)),
+            I008I000.inner(FixedI8::<U0>::from_bits(1)),
             FixedI8::<U8>::from_bits(i8::MAX),
         );
         assert_eq!(
-            F08F00.inner(FixedI8::<U0>::from_bits(-1)),
+            I008I000.inner(FixedI8::<U0>::from_bits(-1)),
             FixedI8::<U8>::from_bits(i8::MIN),
         );
     }
 
     #[test]
     fn spot_boundary_fixups() {
-        // Fine::MIN/MAX boundary fixups exercised on F04F00 (RATIO = 16).
+        // Fine::MIN/MAX boundary fixups exercised on I004I000 (RATIO = 16).
         let fmin = FixedI8::<U4>::from_bits(i8::MIN);
         let fmax = FixedI8::<U4>::from_bits(i8::MAX);
-        assert_eq!(F04F00.ceil(fmin), FixedI8::<U0>::from_bits(i8::MIN));
-        assert_eq!(F04F00.floor(fmax), FixedI8::<U0>::from_bits(i8::MAX));
+        assert_eq!(I004I000.ceil(fmin), FixedI8::<U0>::from_bits(i8::MIN));
+        assert_eq!(I004I000.floor(fmax), FixedI8::<U0>::from_bits(i8::MAX));
     }
 
     // See `super::i16::tests::props_for_pair!` for the design rationale.
@@ -194,25 +205,25 @@ mod tests {
     }
 
     // 21 conns × 9 properties = 189 generated proptests.
-    props_for_pair!(f01f00, F01F00, U1, U0);
-    props_for_pair!(f02f00, F02F00, U2, U0);
-    props_for_pair!(f03f00, F03F00, U3, U0);
-    props_for_pair!(f04f00, F04F00, U4, U0);
-    props_for_pair!(f06f00, F06F00, U6, U0);
-    props_for_pair!(f08f00, F08F00, U8, U0);
-    props_for_pair!(f02f01, F02F01, U2, U1);
-    props_for_pair!(f03f01, F03F01, U3, U1);
-    props_for_pair!(f04f01, F04F01, U4, U1);
-    props_for_pair!(f06f01, F06F01, U6, U1);
-    props_for_pair!(f08f01, F08F01, U8, U1);
-    props_for_pair!(f03f02, F03F02, U3, U2);
-    props_for_pair!(f04f02, F04F02, U4, U2);
-    props_for_pair!(f06f02, F06F02, U6, U2);
-    props_for_pair!(f08f02, F08F02, U8, U2);
-    props_for_pair!(f04f03, F04F03, U4, U3);
-    props_for_pair!(f06f03, F06F03, U6, U3);
-    props_for_pair!(f08f03, F08F03, U8, U3);
-    props_for_pair!(f06f04, F06F04, U6, U4);
-    props_for_pair!(f08f04, F08F04, U8, U4);
-    props_for_pair!(f08f06, F08F06, U8, U6);
+    props_for_pair!(i001i000, I001I000, U1, U0);
+    props_for_pair!(i002i000, I002I000, U2, U0);
+    props_for_pair!(i003i000, I003I000, U3, U0);
+    props_for_pair!(i004i000, I004I000, U4, U0);
+    props_for_pair!(i006i000, I006I000, U6, U0);
+    props_for_pair!(i008i000, I008I000, U8, U0);
+    props_for_pair!(i002i001, I002I001, U2, U1);
+    props_for_pair!(i003i001, I003I001, U3, U1);
+    props_for_pair!(i004i001, I004I001, U4, U1);
+    props_for_pair!(i006i001, I006I001, U6, U1);
+    props_for_pair!(i008i001, I008I001, U8, U1);
+    props_for_pair!(i003i002, I003I002, U3, U2);
+    props_for_pair!(i004i002, I004I002, U4, U2);
+    props_for_pair!(i006i002, I006I002, U6, U2);
+    props_for_pair!(i008i002, I008I002, U8, U2);
+    props_for_pair!(i004i003, I004I003, U4, U3);
+    props_for_pair!(i006i003, I006I003, U6, U3);
+    props_for_pair!(i008i003, I008I003, U8, U3);
+    props_for_pair!(i006i004, I006I004, U6, U4);
+    props_for_pair!(i008i004, I008I004, U8, U4);
+    props_for_pair!(i008i006, I008I006, U8, U6);
 }
