@@ -1,0 +1,35 @@
+//! Conns landing on `u32`. Per the right-side-wins module rule,
+//! this file hosts every Conn whose destination type is `u32`.
+
+use super::{int_uint, uint_uint};
+use crate::conn::Conn;
+
+// ── Existing widening ──────────────────────────────────────────────
+uint_uint!(U008U032, u8, u32);
+uint_uint!(U016U032, u16, u32);
+int_uint!(I008U032, i8, u32);
+int_uint!(I016U032, i16, u32);
+int_uint!(I032U032, i32, u32);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn u016u032_inner_saturates_at_source_max() {
+        assert_eq!(U016U032.inner(u32::MAX), u16::MAX);
+        assert_eq!(U016U032.inner(60_000), 60_000);
+    }
+
+    #[test]
+    fn i016u032_clips_negatives() {
+        assert_eq!(I016U032.ceil(-32_768), 0);
+        assert_eq!(I016U032.ceil(32_767), 32_767);
+    }
+
+    #[test]
+    fn i032u032_inner_saturates() {
+        assert_eq!(I032U032.inner(u32::MAX), i32::MAX);
+        assert_eq!(I032U032.inner(20_000), 20_000);
+    }
+}

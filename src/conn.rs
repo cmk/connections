@@ -5,15 +5,16 @@
 //!
 //! - `cast` — operations on a [`Conn`] (L/R-side accessors, lifters,
 //!   and — once Sprint B lands — the two-sided rounding helpers).
-//! - `int` / `uint` — integer ↔ integer connections (signed and
-//!   unsigned ladders + Word↔Int cross-sign conns).
 //! - `float` — float ↔ float connections; also hosts the
 //!   `ExtendedFloat` wrapper type used by N5 lattice connections.
 //! - `fixed` — `fixed`-crate-backed binary fixed-point ladders over
 //!   `FixedI<width><Frac>` / `FixedU<width><Frac>` (per-width
 //!   submodules `i8`..`i128`, `u8`..`u128`).
-//! - `std::i64::decimal` — custom decimal-SI ladder (FD00..FD12)
-//!   built on `i64`, with adjacent and non-adjacent pair connections.
+//! - `std` — connections rooted in `std` integer primitives. Each
+//!   per-type submodule (`i8`/`i16`/`i32`/`i64`/`i128`/`u8`/`u16`/
+//!   `u32`/`u64`/`u128`) hosts the Conn consts whose destination is
+//!   that primitive; `std::i64` additionally nests `decimal`, the
+//!   FD00..FD12 SI-prefix ladder.
 //! - `time` — connections among the [`time`](https://docs.rs/time)
 //!   crate's calendar / clock / duration types (8-character names —
 //!   see [`crate::conn::time`]).
@@ -21,10 +22,8 @@
 pub mod cast;
 pub mod fixed;
 pub mod float;
-pub mod int;
 pub mod std;
 pub mod time;
-pub mod uint;
 
 /// Compose a chain of `Conn` consts into a single fresh `Conn<Src, Dst>`.
 ///

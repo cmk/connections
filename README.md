@@ -98,7 +98,7 @@ range have somewhere to land — `floor` saturates to the target bounds,
 `ceil` lands on a synthetic point one past the source range):
 
 ```rust
-use connections::conn::int::U008I016;
+use connections::conn::std::i16::U008I016;
 use connections::extended::Extended;
 
 // Finite passes through.
@@ -252,8 +252,7 @@ and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 |--------|--------|--------|
 | Decimal fixed-point ladder (`FD??FD??`, FD00–FD12) | `conn::std::i64::decimal` | shipped |
 | Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `conn::fixed::{i8,i16,i32,i64,i128}` | shipped |
-| Signed widening over `Extended<T>` (`I###I###`, `U###I###`) | `conn::int` | shipped |
-| Unsigned widening / sign change (`U###U###`, `I###U###`) | `conn::uint` | shipped |
+| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `conn::std::{i8,i16,i32,i64,i128,u8,u16,u32,u64,u128}` | shipped |
 | Float `f64 ↔ f32` under N5 | `conn::float` | shipped |
 | Float ↔ rung over `ExtendedFloat<T>` (`F064FD??`) | `conn::std::i64::decimal` | shipped |
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `DURNFD09`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `conn::time` | shipped |

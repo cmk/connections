@@ -59,13 +59,21 @@
 //! let _ = fi64::I008I000;    // i64-backed Q56.8 → Q64.0
 //! ```
 //!
-//! Integer-conn families (`conn::int`, `conn::uint`) name primitives
-//! directly: `I008I016` is `Conn<Extended<i8>, i16>`. The signed-
-//! widening (`I###I###`) and unsigned-into-signed (`U###I###`) families
-//! in `conn::int` wrap the source in [`Extended`](extended::Extended)
-//! to give target values beyond the source range a place to land. The
-//! `conn::uint` families (`U###U###`, `I###U###`) are single-sided and
-//! use plain primitives on both sides.
+//! Integer-conn families live under `conn::std::{i8,…,u128}` — one
+//! submodule per primitive, named after the **right side**
+//! (destination) of the cast. So `I008I016` (signed widening
+//! `Extended<i8> → i16`) lives in `conn::std::i16`; `I016I008`
+//! (signed narrowing `i16 → i8`) lives in `conn::std::i8`;
+//! `U008I008` (cross-sign non-widening `u8 → i8`) also lives in
+//! `conn::std::i8`. The signed-widening (`I###I###`) and
+//! unsigned-into-signed-widening (`U###I###`) families wrap the
+//! source in [`Extended`](extended::Extended) (full adjoint
+//! triple). The other six families ship as single-sided over plain
+//! primitives — left-Galois ([`Conn::new_left`](conn::Conn::new_left))
+//! for the U→U / I→U widening + the I→I / U→U / I→U narrowing
+//! cases, right-Galois ([`Conn::new_right`](conn::Conn::new_right))
+//! for U→I non-widening (where the saturation plateau lives on the
+//! target side).
 //!
 //! Examples:
 //!
@@ -77,9 +85,9 @@
 //! - [`conn::float::f64::F064B016`] — `F064 → B016` (direct f64 → bfloat16).
 //! - [`conn::float::f32::F032F016`] — `F032 → F016` (f32 → IEEE binary16).
 //! - [`conn::float::f32::F032B016`] — `F032 → B016` (f32 → bfloat16).
-//! - [`conn::uint::U008U016`] — `u8 → u16` saturating widen.
-//! - [`conn::int::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
-//! - [`conn::int::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
+//! - [`conn::std::u16::U008U016`] — `u8 → u16` saturating widen.
+//! - [`conn::std::i16::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
+//! - [`conn::std::i16::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
 //! - [`conn::fixed::u8::U008U007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
 //!   the 7-bit MIDI velocity format).
 //! - [`conn::fixed::u16::U016U015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
