@@ -417,10 +417,12 @@ pub fn pico_safe(num: i128) -> impl Strategy<Value = i64> {
 // other strategies bias toward boundary values (MIN/MAX/ZERO/MIDNIGHT)
 // because the Galois rounding edge cases live there.
 
-use time::{Date, Duration, PrimitiveDateTime, Time};
+use time::{Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset, Weekday};
 
 /// Arbitrary `time::Date` over the full default Date range
-/// (year ±9999) with explicit bias toward `Date::{MIN, MAX, EPOCH}`.
+/// (year ±9999) with explicit bias toward `Date::{MIN, MAX, EPOCH}`,
+/// the Unix epoch start (`1970-01-01`), the Y2038 cutover
+/// (`2038-01-19`), and the year-10K boundary (`9999-12-31`).
 pub fn arb_date() -> impl Strategy<Value = Date> {
     let min_jd = Date::MIN.to_julian_day();
     let max_jd = Date::MAX.to_julian_day();
@@ -428,12 +430,16 @@ pub fn arb_date() -> impl Strategy<Value = Date> {
         1 => Just(Date::MIN),
         1 => Just(Date::MAX),
         1 => Just(Date::from_julian_day(0).expect("jd 0 is in range")),
-        8 => (min_jd..=max_jd).prop_map(|jd| Date::from_julian_day(jd).expect("jd in [MIN..=MAX]")),
+        1 => Just(Date::from_calendar_date(1970, Month::January, 1).expect("epoch")),
+        1 => Just(Date::from_calendar_date(2038, Month::January, 19).expect("Y2038")),
+        1 => Just(Date::from_calendar_date(9999, Month::December, 31).expect("Y10K-1")),
+        10 => (min_jd..=max_jd).prop_map(|jd| Date::from_julian_day(jd).expect("jd in [MIN..=MAX]")),
     ]
 }
 
 /// Arbitrary `time::Time` over the full nanosecond range
-/// `[0, 86_400 × 10⁹)` with bias toward `MIDNIGHT` and end-of-day.
+/// `[0, 86_400 × 10⁹)` with bias toward `MIDNIGHT`, end-of-day,
+/// and noon (the canonical doc-example anchor).
 pub fn arb_time() -> impl Strategy<Value = Time> {
     const NS_PER_DAY: i64 = 86_400 * 1_000_000_000;
     prop_oneof![
@@ -441,28 +447,39 @@ pub fn arb_time() -> impl Strategy<Value = Time> {
         1 => Just(Time::MIDNIGHT + Duration::nanoseconds(NS_PER_DAY - 1)),
         1 => Just(Time::MIDNIGHT + Duration::seconds(1)),
         1 => Just(Time::MIDNIGHT + Duration::nanoseconds(1)),
+        1 => Just(Time::from_hms(12, 0, 0).expect("noon")),
         8 => (0..NS_PER_DAY).prop_map(|ns| Time::MIDNIGHT + Duration::nanoseconds(ns)),
     ]
 }
 
-/// Arbitrary `time::Duration`. Boundary slots cover `Duration::{MIN,
-/// MAX, ZERO}` plus the signed-rounding edges around ±1s; the uniform
-/// slot stays inside `±10⁹ s` (≈ ±31.7 years) to avoid pathological
-/// shrinkage near `i64::MIN/MAX` while still giving wide coverage.
-/// `n` ranges over the full signed nanosecond domain so that
-/// `Duration::new`'s sign normalization produces both positive and
-/// negative `subsec_nanoseconds()` outputs in roughly equal proportion
-/// — without this, `DURNSECS`'s `floor` `n < 0` branch is exercised
-/// only by the explicit boundary slots.
+/// Arbitrary `time::Duration` over the **full i64-second range**.
+/// Earlier versions of this strategy clipped the uniform slot to
+/// `±10⁹ s` (≈ ±31.7 years) — only 0.01% of the reachable
+/// nanosecond domain — leaving the saturation arms at
+/// `Duration::MIN/MAX` exercised only by explicit boundary `Just`s.
+/// The widened range exposes float-Duration bridges and DURNFD09's
+/// out-of-range path to proportional proptest coverage.
 pub fn arb_duration() -> impl Strategy<Value = Duration> {
     prop_oneof![
+        // Named extremes
         1 => Just(Duration::ZERO),
         1 => Just(Duration::MIN),
         1 => Just(Duration::MAX),
+        // Signed-rounding edges around ±1s
         1 => Just(Duration::seconds(-1) - Duration::nanoseconds(1)),
         1 => Just(Duration::seconds(0) + Duration::nanoseconds(1)),
         1 => Just(Duration::seconds(1) - Duration::nanoseconds(1)),
-        8 => (-1_000_000_000_i64..=1_000_000_000_i64, -999_999_999_i32..=999_999_999_i32)
+        // i64-second extremes (no subsec — exact second multiples)
+        1 => Just(Duration::seconds(i64::MAX)),
+        1 => Just(Duration::seconds(i64::MIN)),
+        // ±1ns and ±(MAX-1ns) to catch off-by-one saturation bugs
+        1 => Just(Duration::nanoseconds(1)),
+        1 => Just(Duration::nanoseconds(-1)),
+        1 => Just(Duration::MAX - Duration::nanoseconds(1)),
+        1 => Just(Duration::MIN + Duration::nanoseconds(1)),
+        // Full-range uniform sample. `Duration::new` normalises any
+        // sign mismatch between (s, n).
+        12 => (any::<i64>(), -999_999_999_i32..=999_999_999_i32)
             .prop_map(|(s, n)| Duration::new(s, n)),
     ]
 }
@@ -544,4 +561,199 @@ pub fn arb_extended_i64() -> impl Strategy<Value = Extended<i64>> {
         1 => Just(Extended::Finite(i64::MAX)),
         8 => any::<i64>().prop_map(Extended::Finite),
     ]
+}
+
+// ── time-crate v2: OffsetDateTime / UtcOffset / Weekday / Month ──
+
+/// Arbitrary `time::UtcOffset` over the full `±25:59:59` range.
+/// Boundary slots include UTC, the bracket extremes, common
+/// real-world offsets (whole hours `+01:00`, half-hour `+05:30`
+/// India, quarter-hour `+05:45` Nepal, `+12:45` Chatham), and the
+/// negative side (`-08:00`, `-04:00`).
+pub fn arb_utc_offset() -> impl Strategy<Value = UtcOffset> {
+    prop_oneof![
+        1 => Just(UtcOffset::UTC),
+        1 => Just(UtcOffset::from_whole_seconds( 93599).expect("+25:59:59")),
+        1 => Just(UtcOffset::from_whole_seconds(-93599).expect("-25:59:59")),
+        1 => Just(UtcOffset::from_hms( 1,  0, 0).expect("+01:00")),
+        1 => Just(UtcOffset::from_hms( 5, 30, 0).expect("+05:30 India")),
+        1 => Just(UtcOffset::from_hms( 5, 45, 0).expect("+05:45 Nepal")),
+        1 => Just(UtcOffset::from_hms( 9,  0, 0).expect("+09:00 Japan")),
+        1 => Just(UtcOffset::from_hms(12, 45, 0).expect("+12:45 Chatham")),
+        1 => Just(UtcOffset::from_hms(-8,  0, 0).expect("-08:00 Pacific")),
+        1 => Just(UtcOffset::from_hms(-4,  0, 0).expect("-04:00 Eastern")),
+        10 => (-93599_i32..=93599_i32)
+            .prop_map(|s| UtcOffset::from_whole_seconds(s).expect("in range")),
+    ]
+}
+
+/// `Extended<UtcOffset>` over `NegInf`, `PosInf`, and `Finite`
+/// values from [`arb_utc_offset`] (1:1:8 weighting).
+pub fn arb_extended_utc_offset() -> impl Strategy<Value = Extended<UtcOffset>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        8 => arb_utc_offset().prop_map(Extended::Finite),
+    ]
+}
+
+/// Arbitrary `time::OffsetDateTime`. Cartesian product of
+/// `(arb_date, arb_time, arb_utc_offset)` plus the canonical
+/// landmarks: `UNIX_EPOCH`, the type-level extremes, ±1 ns from
+/// epoch, and the Y2038 cutover.
+pub fn arb_offset_dt() -> impl Strategy<Value = OffsetDateTime> {
+    let y2038 = OffsetDateTime::from_unix_timestamp(2_147_483_648)
+        .expect("Y2038 in OffsetDateTime range");
+    let landmarks = prop_oneof![
+        1 => Just(OffsetDateTime::UNIX_EPOCH),
+        1 => Just(OffsetDateTime::from_unix_timestamp_nanos(1).expect("epoch + 1ns")),
+        1 => Just(OffsetDateTime::from_unix_timestamp_nanos(-1).expect("epoch - 1ns")),
+        1 => Just(y2038),
+    ];
+    let extremes = prop_oneof![
+        1 => Just(OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC)),
+        1 => Just(OffsetDateTime::new_in_offset(
+            Date::MAX,
+            Time::from_hms_nano(23, 59, 59, 999_999_999).expect("end-of-day"),
+            UtcOffset::UTC,
+        )),
+    ];
+    let body = (arb_date(), arb_time(), arb_utc_offset())
+        .prop_map(|(d, t, o)| OffsetDateTime::new_in_offset(d, t, o));
+    prop_oneof![
+        2 => landmarks,
+        1 => extremes,
+        9 => body,
+    ]
+}
+
+/// `Extended<OffsetDateTime>` over `NegInf`, `PosInf`, and `Finite`
+/// values from [`arb_offset_dt`] (1:1:8 weighting).
+pub fn arb_extended_offset_dt() -> impl Strategy<Value = Extended<OffsetDateTime>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        8 => arb_offset_dt().prop_map(Extended::Finite),
+    ]
+}
+
+/// Arbitrary `time::Weekday` — uniform over the seven variants.
+pub fn arb_weekday() -> impl Strategy<Value = Weekday> {
+    prop_oneof![
+        Just(Weekday::Monday),
+        Just(Weekday::Tuesday),
+        Just(Weekday::Wednesday),
+        Just(Weekday::Thursday),
+        Just(Weekday::Friday),
+        Just(Weekday::Saturday),
+        Just(Weekday::Sunday),
+    ]
+}
+
+/// `Extended<Weekday>` over `NegInf`, `PosInf`, and `Finite` values
+/// from [`arb_weekday`] (1:1:8 weighting).
+pub fn arb_extended_weekday() -> impl Strategy<Value = Extended<Weekday>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        8 => arb_weekday().prop_map(Extended::Finite),
+    ]
+}
+
+/// Arbitrary `time::Month` — uniform over the twelve variants.
+pub fn arb_month() -> impl Strategy<Value = Month> {
+    prop_oneof![
+        Just(Month::January),
+        Just(Month::February),
+        Just(Month::March),
+        Just(Month::April),
+        Just(Month::May),
+        Just(Month::June),
+        Just(Month::July),
+        Just(Month::August),
+        Just(Month::September),
+        Just(Month::October),
+        Just(Month::November),
+        Just(Month::December),
+    ]
+}
+
+/// `Extended<Month>` over `NegInf`, `PosInf`, and `Finite` values
+/// from [`arb_month`] (1:1:8 weighting).
+pub fn arb_extended_month() -> impl Strategy<Value = Extended<Month>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        8 => arb_month().prop_map(Extended::Finite),
+    ]
+}
+
+/// `i128` strategy bounded to `[OffsetDateTime::MIN.unix_timestamp_nanos(),
+/// OffsetDateTime::MAX.unix_timestamp_nanos()]` — the round-trippable
+/// unix-nanosecond range for the `OffsetDateTime ↔ i128` connection.
+pub fn arb_unix_nanos_in_range() -> impl Strategy<Value = i128> {
+    let min_ns = OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC)
+        .unix_timestamp_nanos();
+    let max_ns = OffsetDateTime::new_in_offset(
+        Date::MAX,
+        Time::from_hms_nano(23, 59, 59, 999_999_999).expect("end-of-day"),
+        UtcOffset::UTC,
+    )
+    .unix_timestamp_nanos();
+    prop_oneof![
+        1 => Just(min_ns),
+        1 => Just(max_ns),
+        1 => Just(0_i128),
+        1 => Just( 1_000_000_000_i128),
+        1 => Just(-1_000_000_000_i128),
+        1 => Just( 2_147_483_648_000_000_000_i128), // Y2038 in nanos
+        10 => min_ns..=max_ns,
+    ]
+}
+
+/// `i64` strategy bounded to OffsetDateTime's whole-second range.
+pub fn arb_unix_secs_in_range() -> impl Strategy<Value = i64> {
+    let min_s = OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC)
+        .unix_timestamp();
+    let max_s = OffsetDateTime::new_in_offset(
+        Date::MAX,
+        Time::from_hms_nano(23, 59, 59, 999_999_999).expect("end-of-day"),
+        UtcOffset::UTC,
+    )
+    .unix_timestamp();
+    prop_oneof![
+        1 => Just(min_s),
+        1 => Just(max_s),
+        1 => Just(0_i64),
+        1 => Just(1_i64),
+        1 => Just(-1_i64),
+        1 => Just(2_147_483_648_i64), // Y2038
+        10 => min_s..=max_s,
+    ]
+}
+
+/// `i32` strategy bounded to UtcOffset's `whole_seconds` range
+/// (`±93599`).
+pub fn arb_offset_secs_in_range() -> impl Strategy<Value = i32> {
+    prop_oneof![
+        1 => Just(-93599_i32),
+        1 => Just( 93599_i32),
+        1 => Just(0_i32),
+        1 => Just( 19800_i32), // +05:30 India
+        1 => Just( 20700_i32), // +05:45 Nepal
+        1 => Just(-28800_i32), // -08:00 Pacific
+        10 => -93599_i32..=93599_i32,
+    ]
+}
+
+/// `u8` strategy bounded to `1..=7` — round-trippable ISO weekday
+/// numbering for `WDAYU008`.
+pub fn arb_iso_weekday_byte() -> impl Strategy<Value = u8> {
+    1_u8..=7
+}
+
+/// `u8` strategy bounded to `1..=12` — round-trippable month
+/// numbering for `MNTHU008`.
+pub fn arb_month_byte() -> impl Strategy<Value = u8> {
+    1_u8..=12
 }
