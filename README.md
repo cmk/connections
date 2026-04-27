@@ -7,6 +7,10 @@ between numeric types, expose ceiling/floor/inner alongside each other on
 the same value, and compose ladders of conversions whose round-trip
 behavior is property-tested rather than left to chance.
 
+**MSRV: Rust 1.85.** Bumps to the MSRV will be treated as minor-version
+changes — pin `connections = "0.1"` and an MSRV upgrade will surface as
+a 0.2 release rather than a silent break on a patch update.
+
 ### What is a connection? <a name="intro"></a>
 
 A [Galois connection](https://en.wikipedia.org/wiki/Galois_connection) between 
