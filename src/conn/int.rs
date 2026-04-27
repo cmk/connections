@@ -90,9 +90,13 @@ macro_rules! ext_int {
 ext_int!(I008I016, i8, i16);
 ext_int!(I008I032, i8, i32);
 ext_int!(I008I064, i8, i64);
+ext_int!(I008I128, i8, i128);
 ext_int!(I016I032, i16, i32);
 ext_int!(I016I064, i16, i64);
+ext_int!(I016I128, i16, i128);
 ext_int!(I032I064, i32, i64);
+ext_int!(I032I128, i32, i128);
+ext_int!(I064I128, i64, i128);
 
 // U??I?? — unsigned source (Extended) into signed target. The strict
 // `bits(u_N) < bits(i_M)` constraint guarantees the source range fits
@@ -100,9 +104,13 @@ ext_int!(I032I064, i32, i64);
 ext_int!(U008I016, u8, i16);
 ext_int!(U008I032, u8, i32);
 ext_int!(U008I064, u8, i64);
+ext_int!(U008I128, u8, i128);
 ext_int!(U016I032, u16, i32);
 ext_int!(U016I064, u16, i64);
+ext_int!(U016I128, u16, i128);
 ext_int!(U032I064, u32, i64);
+ext_int!(U032I128, u32, i128);
+ext_int!(U064I128, u64, i128);
 
 #[cfg(test)]
 mod tests {
@@ -268,23 +276,33 @@ mod tests {
     arb_ext!(arb_ext_i8, i8);
     arb_ext!(arb_ext_i16, i16);
     arb_ext!(arb_ext_i32, i32);
+    arb_ext!(arb_ext_i64, i64);
     arb_ext!(arb_ext_u8, u8);
     arb_ext!(arb_ext_u16, u16);
     arb_ext!(arb_ext_u32, u32);
+    arb_ext!(arb_ext_u64, u64);
 
     // I??I?? — signed widening
     ext_int_props!(i008i016, I008I016, arb_ext_i8(), any::<i16>());
     ext_int_props!(i008i032, I008I032, arb_ext_i8(), any::<i32>());
     ext_int_props!(i008i064, I008I064, arb_ext_i8(), any::<i64>());
+    ext_int_props!(i008i128, I008I128, arb_ext_i8(), any::<i128>());
     ext_int_props!(i016i032, I016I032, arb_ext_i16(), any::<i32>());
     ext_int_props!(i016i064, I016I064, arb_ext_i16(), any::<i64>());
+    ext_int_props!(i016i128, I016I128, arb_ext_i16(), any::<i128>());
     ext_int_props!(i032i064, I032I064, arb_ext_i32(), any::<i64>());
+    ext_int_props!(i032i128, I032I128, arb_ext_i32(), any::<i128>());
+    ext_int_props!(i064i128, I064I128, arb_ext_i64(), any::<i128>());
 
     // U??I?? — unsigned source widening
     ext_int_props!(u008i016, U008I016, arb_ext_u8(), any::<i16>());
     ext_int_props!(u008i032, U008I032, arb_ext_u8(), any::<i32>());
     ext_int_props!(u008i064, U008I064, arb_ext_u8(), any::<i64>());
+    ext_int_props!(u008i128, U008I128, arb_ext_u8(), any::<i128>());
     ext_int_props!(u016i032, U016I032, arb_ext_u16(), any::<i32>());
     ext_int_props!(u016i064, U016I064, arb_ext_u16(), any::<i64>());
+    ext_int_props!(u016i128, U016I128, arb_ext_u16(), any::<i128>());
     ext_int_props!(u032i064, U032I064, arb_ext_u32(), any::<i64>());
+    ext_int_props!(u032i128, U032I128, arb_ext_u32(), any::<i128>());
+    ext_int_props!(u064i128, U064I128, arb_ext_u64(), any::<i128>());
 }

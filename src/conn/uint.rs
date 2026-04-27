@@ -37,9 +37,13 @@ macro_rules! uint_uint {
 uint_uint!(U008U016, u8, u16);
 uint_uint!(U008U032, u8, u32);
 uint_uint!(U008U064, u8, u64);
+uint_uint!(U008U128, u8, u128);
 uint_uint!(U016U032, u16, u32);
 uint_uint!(U016U064, u16, u64);
+uint_uint!(U016U128, u16, u128);
 uint_uint!(U032U064, u32, u64);
+uint_uint!(U032U128, u32, u128);
+uint_uint!(U064U128, u64, u128);
 
 // ── I??U??: signed → unsigned saturating cast (saturate at 0) ───────
 
@@ -76,6 +80,11 @@ int_uint!(I008U064, i8, u64);
 int_uint!(I016U064, i16, u64);
 int_uint!(I032U064, i32, u64);
 int_uint!(I064U064, i64, u64);
+int_uint!(I008U128, i8, u128);
+int_uint!(I016U128, i16, u128);
+int_uint!(I032U128, i32, u128);
+int_uint!(I064U128, i64, u128);
+int_uint!(I128U128, i128, u128);
 
 #[cfg(test)]
 mod tests {
@@ -199,9 +208,13 @@ mod tests {
     single_sided_props!(u008u016, U008U016, any::<u8>(), any::<u16>());
     single_sided_props!(u008u032, U008U032, any::<u8>(), any::<u32>());
     single_sided_props!(u008u064, U008U064, any::<u8>(), any::<u64>());
+    single_sided_props!(u008u128, U008U128, any::<u8>(), any::<u128>());
     single_sided_props!(u016u032, U016U032, any::<u16>(), any::<u32>());
     single_sided_props!(u016u064, U016U064, any::<u16>(), any::<u64>());
+    single_sided_props!(u016u128, U016U128, any::<u16>(), any::<u128>());
     single_sided_props!(u032u064, U032U064, any::<u32>(), any::<u64>());
+    single_sided_props!(u032u128, U032U128, any::<u32>(), any::<u128>());
+    single_sided_props!(u064u128, U064U128, any::<u64>(), any::<u128>());
 
     single_sided_props!(i008u008, I008U008, any::<i8>(), any::<u8>());
     single_sided_props!(i008u016, I008U016, any::<i8>(), any::<u16>());
@@ -213,4 +226,9 @@ mod tests {
     single_sided_props!(i016u064, I016U064, any::<i16>(), any::<u64>());
     single_sided_props!(i032u064, I032U064, any::<i32>(), any::<u64>());
     single_sided_props!(i064u064, I064U064, any::<i64>(), any::<u64>());
+    single_sided_props!(i008u128, I008U128, any::<i8>(), any::<u128>());
+    single_sided_props!(i016u128, I016U128, any::<i16>(), any::<u128>());
+    single_sided_props!(i032u128, I032U128, any::<i32>(), any::<u128>());
+    single_sided_props!(i064u128, I064U128, any::<i64>(), any::<u128>());
+    single_sided_props!(i128u128, I128U128, any::<i128>(), any::<u128>());
 }
