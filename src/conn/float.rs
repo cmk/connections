@@ -21,10 +21,12 @@
 //! Per-source-tier Conns live in submodules:
 //!
 //! - [`f64`] — Conns originating at [`F064`] (currently `F064F032`).
+//! - [`f32`] — Conns originating at [`F032`] (currently `F032F016`).
 //!
 //! Cross-tier float→decimal Conns (`F064FD00`..`F064FD12`, …) live with
 //! the FD ladder in [`super::fixed::decimal`].
 
+pub mod f32;
 pub mod f64;
 
 use std::cmp::Ordering;
@@ -104,6 +106,12 @@ impl_float_ext!(half::bf16);
 /// when native `f16` stabilizes the inner type swaps without changing
 /// `F016`'s public surface or any `F<src>F016` Conn name.
 pub type F016 = ExtendedFloat<half::f16>;
+
+/// IEEE binary32 wrapped under the N5 lattice.
+pub type F032 = ExtendedFloat<f32>;
+
+/// IEEE binary64 wrapped under the N5 lattice.
+pub type F064 = ExtendedFloat<f64>;
 
 /// Google bfloat16 (Brain Floating Point) wrapped under the N5 lattice.
 ///
