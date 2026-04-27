@@ -387,3 +387,27 @@ pub fn arb_duration() -> impl Strategy<Value = Duration> {
 pub fn arb_primitive_dt() -> impl Strategy<Value = PrimitiveDateTime> {
     (arb_date(), arb_time()).prop_map(|(d, t)| PrimitiveDateTime::new(d, t))
 }
+
+/// `Extended<Date>` over `NegInf`, `PosInf`, and `Finite` values from
+/// [`arb_date`] (1:1:8 weighting).
+pub fn arb_extended_date() -> impl Strategy<Value = Extended<Date>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        8 => arb_date().prop_map(Extended::Finite),
+    ]
+}
+
+/// `i32` strategy bounded to `[Date::MIN.to_julian_day(),
+/// Date::MAX.to_julian_day()]` — the round-trippable range for the
+/// `Date ↔ julian day` connection.
+pub fn arb_jd_in_range() -> impl Strategy<Value = i32> {
+    let min_jd = Date::MIN.to_julian_day();
+    let max_jd = Date::MAX.to_julian_day();
+    prop_oneof![
+        1 => Just(min_jd),
+        1 => Just(max_jd),
+        1 => Just(0_i32),
+        8 => min_jd..=max_jd,
+    ]
+}
