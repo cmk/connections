@@ -147,6 +147,9 @@ pub fn arb_bf16() -> impl Strategy<Value = half::bf16> {
         1 => Just(half::bf16::MIN_POSITIVE_SUBNORMAL),
         1 => Just(half::bf16::MAX),
         1 => Just(half::bf16::MIN),
+        // Bounded to ±1e6 (not bf16's full ±3.4e38 range) for shrink
+        // performance. MAX/MIN endpoints are covered by the boundary
+        // slot above; see fn-level rustdoc for the full rationale.
         2 => (-1.0e6_f32..=1.0e6_f32).prop_map(half::bf16::from_f32),
     ]
 }
