@@ -9,6 +9,10 @@
 //!   encoded in the Conn-constant names (`I<frac>I<frac>`, three-digit
 //!   zero-padded). The `i128` module uses `checked_mul`+saturate
 //!   instead of widening (no native `i256` in stable Rust).
+//! - [`u08`] / [`u16`] / [`u32`] / [`u64`] / [`u128`] — same shape
+//!   over `FixedU<width><Frac>`. Frac level set extends each signed
+//!   counterpart with the canonical Q1.N format for the width
+//!   (`U7` in u08 for MIDI velocity, `U14`/`U15` in u16, etc.).
 
 pub mod decimal;
 pub mod i08;
@@ -16,8 +20,10 @@ pub mod i128;
 pub mod i16;
 pub mod i32;
 pub mod i64;
+pub mod u08;
 
-// The `fixed`-crate signed types (`FixedI{8,16,32,64,128}<F>`) already
-// derive `PartialEq` / `Eq` / `PartialOrd` / `Ord` upstream — totally
-// ordered by their underlying integer bits — so they flow through any
-// `T: Eq + PartialOrd` law predicate without per-crate impls.
+// The `fixed`-crate signed AND unsigned types (`FixedI{8,16,32,64,128}<F>`,
+// `FixedU{8,16,32,64,128}<F>`) already derive `PartialEq` / `Eq` /
+// `PartialOrd` / `Ord` upstream — totally ordered by their underlying
+// integer bits — so they flow through any `T: Eq + PartialOrd` law
+// predicate without per-crate impls.
