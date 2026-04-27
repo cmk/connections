@@ -7,50 +7,63 @@
 //!
 //! ## Naming convention
 //!
-//! Public `Conn` constants follow Haskell's `fXYfZW` 6-character
-//! shape: two tier codes separated by `f` / `s`, smaller-bit tier on
-//! the left.
+//! Every public `Conn` constant has an 8-character `XnnnYmmm` shape:
+//! 4 chars per side (smaller-resolution / coarser tier on the right).
+//! One family takes a 2-letter prefix (decimal-fixed `FD<dd>`); every
+//! other family takes a 1-letter prefix and 3 zero-padded digits.
 //!
-//! Tier codes name a *type*, not a module. All `FD<dd>FD<dd>` Conn
-//! constants (pairs of decimal-rung tiers) and all `F064FD<dd>` cross-
-//! tier float-into-decimal constants live in [`conn::fixed::decimal`];
-//! all `S???S???` rate-pair constants and `FD12S???` cross-tier
-//! constants live in [`conn::sample`].
+//! | code     | type                                                | meaning                |
+//! |----------|-----------------------------------------------------|------------------------|
+//! | `FD00`   | [`conn::fixed::decimal::FD00`]                      | 10⁰ s   (1 s)          |
+//! | `FD01`   | [`conn::fixed::decimal::FD01`]                      | 10⁻¹ s  (100 ms)       |
+//! | `FD02`   | [`conn::fixed::decimal::FD02`]                      | 10⁻² s  (10 ms)        |
+//! | `FD03`   | [`conn::fixed::decimal::FD03`]                      | 10⁻³ s  (1 ms)         |
+//! | `FD06`   | [`conn::fixed::decimal::FD06`]                      | 10⁻⁶ s  (1 µs)         |
+//! | `FD09`   | [`conn::fixed::decimal::FD09`]                      | 10⁻⁹ s  (1 ns)         |
+//! | `FD12`   | [`conn::fixed::decimal::FD12`]                      | 10⁻¹² s (1 ps)         |
+//! | `F032`   | (deferred — see below)                              | IEEE binary32          |
+//! | `F064`   | [`ExtendedFloat<f64>`](conn::float::ExtendedFloat)  | IEEE binary64          |
+//! | `F128`   | (deferred — `f128` unstable)                        | IEEE binary128         |
+//! | `S044`   | [`conn::sample::S044`]                              | 1 sample @ 44.1 kHz    |
+//! | `S048`   | [`conn::sample::S048`]                              | 1 sample @ 48 kHz      |
+//! | `S088`   | [`conn::sample::S088`]                              | 1 sample @ 88.2 kHz    |
+//! | `S096`   | [`conn::sample::S096`]                              | 1 sample @ 96 kHz      |
+//! | `S176`   | [`conn::sample::S176`]                              | 1 sample @ 176.4 kHz   |
+//! | `S192`   | [`conn::sample::S192`]                              | 1 sample @ 192 kHz     |
+//! | `I008`   | `i8`                                                | signed 8-bit           |
+//! | `I016`   | `i16`                                               | signed 16-bit          |
+//! | `I032`   | `i32`                                               | signed 32-bit          |
+//! | `I064`   | `i64`                                               | signed 64-bit          |
+//! | `I128`   | `i128`                                              | signed 128-bit         |
+//! | `U008`   | `u8`                                                | unsigned 8-bit         |
+//! | `U016`   | `u16`                                               | unsigned 16-bit        |
+//! | `U032`   | `u32`                                               | unsigned 32-bit        |
+//! | `U064`   | `u64`                                               | unsigned 64-bit        |
+//! | `U128`   | `u128`                                              | unsigned 128-bit       |
 //!
-//! | code     | type                                                | resolution           |
-//! |----------|-----------------------------------------------------|----------------------|
-//! | `FD00`   | [`conn::fixed::decimal::FD00`]                      | 1 s                  |
-//! | `FD01`   | [`conn::fixed::decimal::FD01`]                      | 100 ms               |
-//! | `FD02`   | [`conn::fixed::decimal::FD02`]                      | 10 ms                |
-//! | `FD03`   | [`conn::fixed::decimal::FD03`]                      | 1 ms                 |
-//! | `FD06`   | [`conn::fixed::decimal::FD06`]                      | 1 µs                 |
-//! | `FD09`   | [`conn::fixed::decimal::FD09`]                      | 1 ns                 |
-//! | `FD12`   | [`conn::fixed::decimal::FD12`]                      | 1 ps                 |
-//! | `F064`   | [`ExtendedFloat<f64>`](conn::float::ExtendedFloat)  | IEEE double          |
-//! | `S044`   | [`conn::sample::S044`]                              | 1 sample @ 44.1 kHz  |
-//! | `S048`   | [`conn::sample::S048`]                              | 1 sample @ 48 kHz    |
-//! | `S088`   | [`conn::sample::S088`]                              | 1 sample @ 88.2 kHz  |
-//! | `S096`   | [`conn::sample::S096`]                              | 1 sample @ 96 kHz    |
-//! | `S176`   | [`conn::sample::S176`]                              | 1 sample @ 176.4 kHz |
-//! | `S192`   | [`conn::sample::S192`]                              | 1 sample @ 192 kHz   |
-//! | `U08`  | `u8`                               | unsigned 8-bit       |
-//! | `U16`  | `u16`                              | unsigned 16-bit      |
-//! | `U32`  | `u32`                              | unsigned 32-bit      |
-//! | `U64`  | `u64`                              | unsigned 64-bit      |
-//! | `I08`  | `i8`                               | signed 8-bit         |
-//! | `I16`  | `i16`                              | signed 16-bit        |
-//! | `I32`  | `i32`                              | signed 32-bit        |
-//! | `I64`  | `i64`                              | signed 64-bit        |
+//! For binary fixed-point, the family letter encodes the **sign** of
+//! the underlying primitive — `I###` for `FixedI<width><U<frac>>` (signed)
+//! and `U###` for `FixedU<width><U<frac>>` (unsigned, deferred). The
+//! 3-digit field is the frac level. Backing width lives in the module
+//! path: `conn::fixed::i08::I008I004` is the i8-backed 8-frac → 4-frac
+//! Conn, while `conn::fixed::i64::I008I004` is the i64-backed analogue.
+//! Both share the constant name `I008I004`; resolution is by qualified
+//! import:
 //!
-//! Integer codes name a Rust primitive directly (no newtype wrapper).
-//! All `U??U??` and `I??U??` constants live in [`conn::uint`]; all
-//! `I??I??` and `U??I??` constants live in [`conn::int`]. The signed-
-//! widening (`I??I??`) and unsigned-into-signed (`U??I??`) families
-//! wrap the source in [`Extended`](extended::Extended) — i.e.
-//! `U08I16` is `Conn<Extended<u8>, i16>` — to give target values
-//! beyond the source range a place to land. The other two integer
-//! families (`U??U??`, `I??U??`) are single-sided and use plain
-//! primitives on both sides.
+//! ```ignore
+//! use connections::conn::fixed::i08 as fi8;
+//! use connections::conn::fixed::i64 as fi64;
+//! let _ = fi8::I008I004;     // FixedI8<U8> → FixedI8<U4>
+//! let _ = fi64::I008I004;    // FixedI64<U8> → FixedI64<U4>
+//! ```
+//!
+//! Integer-conn families (`conn::int`, `conn::uint`) name primitives
+//! directly: `I008I016` is `Conn<Extended<i8>, i16>`. The signed-
+//! widening (`I###I###`) and unsigned-into-signed (`U###I###`) families
+//! in `conn::int` wrap the source in [`Extended`](extended::Extended)
+//! to give target values beyond the source range a place to land. The
+//! `conn::uint` families (`U###U###`, `I###U###`) are single-sided and
+//! use plain primitives on both sides.
 //!
 //! Examples:
 //!
@@ -59,15 +72,16 @@
 //!   (lawful over the full IEEE domain, with saturation on the Rung side).
 //! - [`conn::sample::FD12S048`] — `FD12 → S048` (cross-tier to sample rate).
 //! - [`conn::sample::S088S044`] — `S088 → S044` (rate-pair).
-//! - [`conn::uint::U08U16`] — `u8 → u16` saturating widen.
-//! - [`conn::int::I08I16`] — `Extended<i8> → i16` (signed widening, range-extended source).
-//! - [`conn::int::U08I16`] — `Extended<u8> → i16` (unsigned source into signed target).
+//! - [`conn::uint::U008U016`] — `u8 → u16` saturating widen.
+//! - [`conn::int::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
+//! - [`conn::int::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
 //!
 //! An `F032` code is not (yet) exported: an `inner` that narrows
 //! `i64 → f32` collapses large runs of Rung values onto the same
 //! f32, forcing an O(plateau) correction per ceil/floor call. f32
 //! callers widen losslessly at the boundary:
-//! `F064FD06.ceil(ExtendedFloat::Finite(arg_f32 as f64))`.
+//! `F064FD06.ceil(ExtendedFloat::Finite(arg_f32 as f64))`. `F128` is
+//! blocked on `f128` stabilisation in stable Rust.
 //!
 //! ## Composition
 //!

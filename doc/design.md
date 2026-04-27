@@ -68,7 +68,7 @@ So `floor ≤ ceil` is two things at once:
 
 For lossless-embedding connections (any `inner` that is an exact
 bit-shift into a target with sufficient precision — e.g. the within-
-ladder `Pico → Pico` identity, or any cross-width `FixedI<W1><F1>` →
+ladder `FD12 → FD12` identity, or any cross-width `FixedI<W1><F1>` →
 `FixedI<W2><F2>` where the Coarse value range is a strict subset of
 Fine's), `inner` is injective and the rounding sandwich holds for
 free. For *saturating* `inner` (e.g. distinct fixed-point types where
@@ -142,8 +142,8 @@ into the parent consts. The result is `Copy` and `const`-constructible
 — same shape as a hand-written `Conn`.
 
 ```rust
-const F12F00_BIS: Conn<Pico, Uni> =
-    compose!(F12F09, F09F06, F06F03, F03F00);
+const FD12FD00_BIS: Conn<FD12, FD00> =
+    compose!(FD12FD09, FD09FD06, FD06FD03, FD03FD00);
 ```
 
 Ceiling and floor compose covariantly (left-to-right); the inner
@@ -337,8 +337,8 @@ src/
     ├── int.rs          — integer ↔ integer connections (stub)
     ├── word.rs         — word ↔ word connections (stub)
     ├── float.rs        — ExtendedFloat type + PartialOrd impl + float ↔ float connections
-    ├── fixed.rs        — decimal fixed-point ladder (Uni..Pico) with tier-pair connections
-    └── sample.rs       — rate-typed sample-indexed time; rate ↔ rate and rate ↔ pico connections
+    ├── fixed.rs        — decimal fixed-point ladder (FD00..FD12) with tier-pair connections
+    └── sample.rs       — rate-typed sample-indexed time; rate ↔ rate and rate ↔ FD12 connections
 ```
 
 Why no `float_ext.rs` at the crate root: the `ExtendedFloat` wrapper

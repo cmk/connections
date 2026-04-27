@@ -1,11 +1,13 @@
 //! Connections over fractional number representations.
 //!
-//! - [`decimal`] — `i64`-backed SI-prefix ladder (Uni..Pico, base-10
-//!   scaling). Hand-rolled, independent of the upstream `fixed` crate.
+//! - [`decimal`] — `i64`-backed SI-prefix ladder (`FD00`..`FD12`,
+//!   base-10 scaling). Hand-rolled, independent of the upstream
+//!   `fixed` crate.
 //! - [`i08`] / [`i16`] / [`i32`] / [`i64`] — `fixed`-crate
-//!   `FixedI*<Frac>` ladders (base-2 scaling). The submodule name
-//!   encodes the inner primitive width; `Frac` levels are encoded in
-//!   the Conn-constant names (`F<dd>F<dd>`, two-digit zero-padded).
+//!   `FixedI<width><Frac>` ladders (base-2 scaling). The submodule
+//!   name encodes the inner primitive width; `Frac` levels are
+//!   encoded in the Conn-constant names (`I<frac>I<frac>`, three-digit
+//!   zero-padded).
 
 pub mod decimal;
 pub mod i08;
