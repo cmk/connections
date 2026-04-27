@@ -3,17 +3,19 @@
 //! - [`decimal`] — `i64`-backed SI-prefix ladder (`FD00`..`FD12`,
 //!   base-10 scaling). Hand-rolled, independent of the upstream
 //!   `fixed` crate.
-//! - [`i08`] / [`i16`] / [`i32`] / [`i64`] — `fixed`-crate
+//! - [`i08`] / [`i16`] / [`i32`] / [`i64`] / [`i128`] — `fixed`-crate
 //!   `FixedI<width><Frac>` ladders (base-2 scaling). The submodule
 //!   name encodes the inner primitive width; `Frac` levels are
 //!   encoded in the Conn-constant names (`I<frac>I<frac>`, three-digit
-//!   zero-padded).
+//!   zero-padded). The `i128` module uses `checked_mul`+saturate
+//!   instead of widening (no native `i256` in stable Rust).
 
 pub mod decimal;
 pub mod i08;
 pub mod i16;
 pub mod i32;
 pub mod i64;
+pub mod i128;
 
 // `Ple` impls for the `fixed`-crate signed types backing the binary
 // sub-modules. The `<=` semantics are the same as `PartialOrd` (values
@@ -42,6 +44,12 @@ impl<F: ::fixed::types::extra::LeEqU32> Ple for ::fixed::FixedI32<F> {
 }
 
 impl<F: ::fixed::types::extra::LeEqU64> Ple for ::fixed::FixedI64<F> {
+    fn ple(&self, other: &Self) -> bool {
+        self <= other
+    }
+}
+
+impl<F: ::fixed::types::extra::LeEqU128> Ple for ::fixed::FixedI128<F> {
     fn ple(&self, other: &Self) -> bool {
         self <= other
     }
