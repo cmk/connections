@@ -52,4 +52,5 @@
 pub mod laws;
 
 #[cfg(any(test, feature = "testing"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "testing")))]
 pub mod arb;

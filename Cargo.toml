@@ -5,6 +5,12 @@ version = "0.1.0"
 rust-version = "1.85"
 license = "MIT"
 description = "Galois connections and lattice-based numerical conversions"
+repository = "https://gitlab.com/cmk/connections"
+homepage = "https://gitlab.com/cmk/connections"
+documentation = "https://docs.rs/connections"
+readme = "README.md"
+keywords = ["galois", "connection", "lattice", "fixed-point", "conversion"]
+categories = ["mathematics", "encoding"]
 
 [dependencies]
 fixed = "1"
@@ -21,3 +27,12 @@ proptest = "1"
 # are always public — they only depend on this crate's own types
 # (Conn, Ple, Heyting, …) and don't need proptest at all.
 testing = ["dep:proptest"]
+
+# docs.rs builds the published crate with default features only by
+# default; opt into `all-features` so `property::arb` (gated on
+# `testing`) renders. The `--cfg docsrs` flag activates the
+# `#[cfg_attr(docsrs, doc(cfg(feature = "testing")))]` mirrors that
+# surface the gating in the rendered docs.
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
