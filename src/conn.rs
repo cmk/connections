@@ -119,16 +119,22 @@ impl<A, B> Conn<A, B> {
     }
 
     /// Apply the lower adjoint (ceiling / round-up).
+    #[inline]
+    #[must_use]
     pub fn ceil(&self, a: A) -> B {
         (self.ceil)(a)
     }
 
     /// Apply the middle adjoint (embedding).
+    #[inline]
+    #[must_use]
     pub fn inner(&self, b: B) -> A {
         (self.inner)(b)
     }
 
     /// Apply the upper adjoint (floor / round-down).
+    #[inline]
+    #[must_use]
     pub fn floor(&self, a: A) -> B {
         (self.floor)(a)
     }

@@ -62,6 +62,7 @@ use super::Conn;
 /// assert_eq!(upper(&c, 7), 7);
 /// ```
 #[inline]
+#[must_use]
 pub fn upper<A, B>(c: &Conn<A, B>, b: B) -> A {
     c.inner(b)
 }
@@ -71,6 +72,7 @@ pub fn upper<A, B>(c: &Conn<A, B>, b: B) -> A {
 ///
 /// The unit law `a ≤ upper1(c, id, a)` is property-tested.
 #[inline]
+#[must_use]
 pub fn upper1<A, B, F>(c: &Conn<A, B>, f: F, a: A) -> A
 where
     F: FnOnce(B) -> B,
@@ -81,6 +83,7 @@ where
 /// Lift a binary function over `B` into a binary function over `A`
 /// through the L-pair: `(a1, a2) ↦ inner(f(ceil(a1), ceil(a2)))`.
 #[inline]
+#[must_use]
 pub fn upper2<A, B, F>(c: &Conn<A, B>, f: F, a1: A, a2: A) -> A
 where
     F: FnOnce(B, B) -> B,
@@ -99,6 +102,7 @@ where
 /// assert_eq!(ceiling(&c, 7), 7);
 /// ```
 #[inline]
+#[must_use]
 pub fn ceiling<A, B>(c: &Conn<A, B>, a: A) -> B {
     c.ceil(a)
 }
@@ -106,6 +110,7 @@ pub fn ceiling<A, B>(c: &Conn<A, B>, a: A) -> B {
 /// Lift a unary endofunction over `A` into one over `B` through the
 /// L-pair: `b ↦ ceil(f(inner(b)))`.
 #[inline]
+#[must_use]
 pub fn ceiling1<A, B, F>(c: &Conn<A, B>, f: F, b: B) -> B
 where
     F: FnOnce(A) -> A,
@@ -116,6 +121,7 @@ where
 /// Lift a binary function over `A` into a binary function over `B`
 /// through the L-pair: `(b1, b2) ↦ ceil(f(inner(b1), inner(b2)))`.
 #[inline]
+#[must_use]
 pub fn ceiling2<A, B, F>(c: &Conn<A, B>, f: F, b1: B, b2: B) -> B
 where
     F: FnOnce(A, A) -> A,
@@ -128,6 +134,7 @@ where
 ///
 /// `maximize(c, a, b) = ceiling(c, (a, b))`.
 #[inline]
+#[must_use]
 pub fn maximize<A, B, C>(c: &Conn<(A, B), C>, a: A, b: B) -> C {
     c.ceil((a, b))
 }
@@ -140,6 +147,7 @@ pub fn maximize<A, B, C>(c: &Conn<(A, B), C>, a: A, b: B) -> C {
 /// `g`. Equivalent to calling [`Conn::inner`] directly; named for the
 /// R-side reading of the connection.
 #[inline]
+#[must_use]
 pub fn lower<A, B>(c: &Conn<A, B>, b: B) -> A {
     c.inner(b)
 }
@@ -149,6 +157,7 @@ pub fn lower<A, B>(c: &Conn<A, B>, b: B) -> A {
 ///
 /// The counit law `lower1(c, id, a) ≤ a` is property-tested.
 #[inline]
+#[must_use]
 pub fn lower1<A, B, F>(c: &Conn<A, B>, f: F, a: A) -> A
 where
     F: FnOnce(B) -> B,
@@ -159,6 +168,7 @@ where
 /// Lift a binary function over `B` into a binary function over `A`
 /// through the R-pair: `(a1, a2) ↦ inner(f(floor(a1), floor(a2)))`.
 #[inline]
+#[must_use]
 pub fn lower2<A, B, F>(c: &Conn<A, B>, f: F, a1: A, a2: A) -> A
 where
     F: FnOnce(B, B) -> B,
@@ -170,6 +180,7 @@ where
 ///
 /// Synonymous with [`Conn::floor`] under the R-side reading.
 #[inline]
+#[must_use]
 pub fn floor<A, B>(c: &Conn<A, B>, a: A) -> B {
     c.floor(a)
 }
@@ -177,6 +188,7 @@ pub fn floor<A, B>(c: &Conn<A, B>, a: A) -> B {
 /// Lift a unary endofunction over `A` into one over `B` through the
 /// R-pair: `b ↦ floor(f(inner(b)))`.
 #[inline]
+#[must_use]
 pub fn floor1<A, B, F>(c: &Conn<A, B>, f: F, b: B) -> B
 where
     F: FnOnce(A) -> A,
@@ -187,6 +199,7 @@ where
 /// Lift a binary function over `A` into a binary function over `B`
 /// through the R-pair: `(b1, b2) ↦ floor(f(inner(b1), inner(b2)))`.
 #[inline]
+#[must_use]
 pub fn floor2<A, B, F>(c: &Conn<A, B>, f: F, b1: B, b2: B) -> B
 where
     F: FnOnce(A, A) -> A,
@@ -199,6 +212,7 @@ where
 ///
 /// `minimize(c, a, b) = floor(c, (a, b))`.
 #[inline]
+#[must_use]
 pub fn minimize<A, B, C>(c: &Conn<(A, B), C>, a: A, b: B) -> C {
     c.floor((a, b))
 }
