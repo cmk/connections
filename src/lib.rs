@@ -29,8 +29,8 @@
 //! | `FD12`   | [`conn::fixed::decimal::FD12`]                      | 10⁻¹² s (1 ps)         |
 //! | `F016`   | [`F016`](conn::float::F016)                         | IEEE binary16 (sw via `half`) |
 //! | `B016`   | [`B016`](conn::float::B016)                         | Google bfloat16 (sw via `half`) |
-//! | `F032`   | [`ExtendedFloat<f32>`](conn::float::ExtendedFloat)  | IEEE binary32          |
-//! | `F064`   | [`ExtendedFloat<f64>`](conn::float::ExtendedFloat)  | IEEE binary64          |
+//! | `F032`   | [`F032`](conn::float::F032)                         | IEEE binary32          |
+//! | `F064`   | [`F064`](conn::float::F064)                         | IEEE binary64          |
 //! | `F128`   | (deferred — `f128` unstable)                        | IEEE binary128         |
 //! | `S044`   | [`conn::sample::S044`]                              | 1 sample @ 44.1 kHz    |
 //! | `S048`   | [`conn::sample::S048`]                              | 1 sample @ 48 kHz      |
@@ -78,8 +78,11 @@
 //! - [`conn::fixed::decimal::FD12FD06`] — `FD12 → FD06` (exact decimal-ladder embed).
 //! - [`conn::fixed::decimal::F064FD06`] — `ExtendedFloat<f64> → Extended<FD06>`
 //!   (lawful over the full IEEE domain, with saturation on the Rung side).
-//! - [`conn::float::F064F032`] — `ExtendedFloat<f64> → ExtendedFloat<f32>`
-//!   (lossy float narrowing under N5).
+//! - [`conn::float::f64::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
+//! - [`conn::float::f64::F064F016`] — `F064 → F016` (direct f64 → IEEE binary16).
+//! - [`conn::float::f64::F064B016`] — `F064 → B016` (direct f64 → bfloat16).
+//! - [`conn::float::f32::F032F016`] — `F032 → F016` (f32 → IEEE binary16).
+//! - [`conn::float::f32::F032B016`] — `F032 → B016` (f32 → bfloat16).
 //! - [`conn::sample::FD12S048`] — `FD12 → S048` (cross-tier to sample rate).
 //! - [`conn::sample::S088S044`] — `S088 → S044` (rate-pair).
 //! - [`conn::uint::U008U016`] — `u8 → u16` saturating widen.

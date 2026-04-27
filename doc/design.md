@@ -303,11 +303,24 @@ crate-local trait surface for ordering.
 Connections between float types are typed over `ExtendedFloat`:
 
 - `F064F032: Conn<ExtendedFloat<f64>, ExtendedFloat<f32>>` — not `Conn<f64, f32>`
+- `F064F016`, `F064B016` — direct narrows from f64 to half-precision
+- `F032F016`, `F032B016` — narrows from f32
 
-The `inner` function embeds `ExtendedFloat<f32>` into `ExtendedFloat<f64>` preserving
-`Bot`/`Top`/`NaN`/finite structure. The `ceil` and `floor` functions convert
-in the other direction with appropriate rounding. Both endpoints satisfy
-`Eq + PartialOrd` and flow through the law machinery directly.
+`F016 = ExtendedFloat<half::f16>` and `B016 = ExtendedFloat<half::bf16>`
+are software-emulated via the [`half`](https://docs.rs/half) crate, a
+pragmatic workaround for Rust 1.85's unstable native `f16` and unstable
+`f128`. half-rs gives both IEEE binary16 and Google bfloat16 with const
+constructors, RNE conversions, and bit-faithful NaN handling. When the
+toolchain pin advances past native-f16 stabilization, the `F016` /
+`B016` aliases swap their inner type without changing public Conn names
+(`F064F016`, `F032B016`, etc. all stay).
+
+The `inner` function embeds the narrower `ExtendedFloat` into the wider
+preserving `Bot`/`Top`/`NaN`/finite structure. The `ceil` and `floor`
+functions convert in the other direction with appropriate rounding,
+walking ≤ 2 ULPs on the narrower side after RNE narrowing places the
+estimate within 1 ULP. Both endpoints satisfy `Eq + PartialOrd` and
+flow through the law machinery directly.
 
 Connections between integer types do not need `ExtendedFloat` — integer `Ord` is
 total and well-behaved. The `Extended<T>` enum (with `NegInf`, `Finite(T)`,

@@ -157,6 +157,43 @@ assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
 assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
 ```
 
+A direct `f64 → bfloat16` narrowing — the `half` crate provides a
+software-emulated `bf16` (and `f16`) on stable Rust, wrapped with
+`ExtendedFloat` so it satisfies `Eq + PartialOrd` and flows through the
+law machinery. This block is mirrored verbatim into `F064B016`'s
+rustdoc; `cargo test --doc` keeps the two in sync:
+
+```rust
+use connections::conn::float::f64::F064B016;
+use connections::conn::float::ExtendedFloat::Extend;
+
+// π narrows to bf16. The two-sided round-trip brackets π.
+let pi = Extend(std::f64::consts::PI);
+let pi_up   = F064B016.ceil(pi);
+let pi_down = F064B016.floor(pi);
+assert!(F064B016.inner(pi_down) <= pi);
+assert!(pi <= F064B016.inner(pi_up));
+
+// f64::MAX saturates to bf16::INFINITY.
+let huge = Extend(f64::MAX);
+assert_eq!(F064B016.ceil(huge), Extend(half::bf16::INFINITY));
+```
+
+The full set of `f64 ↔ f32 ↔ {f16, bf16}` narrowings ships as five
+named constants:
+
+| Constant | Source | Target | Module |
+|----------|--------|--------|--------|
+| `F064F032` | `ExtendedFloat<f64>` | `ExtendedFloat<f32>` | [`conn::float::f64`] |
+| `F064F016` | `ExtendedFloat<f64>` | `ExtendedFloat<half::f16>` | [`conn::float::f64`] |
+| `F064B016` | `ExtendedFloat<f64>` | `ExtendedFloat<half::bf16>` | [`conn::float::f64`] |
+| `F032F016` | `ExtendedFloat<f32>` | `ExtendedFloat<half::f16>` | [`conn::float::f32`] |
+| `F032B016` | `ExtendedFloat<f32>` | `ExtendedFloat<half::bf16>` | [`conn::float::f32`] |
+
+Each goes f64/f32 → narrower with RNE rounding, walks ≤ 2 ULPs on the
+target side to find the exact ceiling/floor, and saturates extreme
+magnitudes to ±∞.
+
 ## What's lawful
 
 Every connection ships with proptest coverage of the following laws — the
