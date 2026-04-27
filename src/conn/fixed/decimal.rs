@@ -1,18 +1,18 @@
-//! Decimal fixed-point ladder: `Uni / Deci / Centi / Milli / Micro / Nano / Pico`.
+//! Decimal fixed-point ladder: `FD00 / FD01 / FD02 / FD03 / FD06 / FD09 / FD12`.
 //!
 //! Each type is an `i64` numerator with an implicit 10⁻ᵏ denominator:
 //!
-//! - `Uni(i)   = i × 10⁰`
-//! - `Deci(i)  = i × 10⁻¹`
-//! - `Centi(i) = i × 10⁻²`
-//! - `Milli(i) = i × 10⁻³`
-//! - `Micro(i) = i × 10⁻⁶`
-//! - `Nano(i)  = i × 10⁻⁹`
-//! - `Pico(i)  = i × 10⁻¹²`
+//! - `FD00(i) = i × 10⁰`   (Uni,   1 s)
+//! - `FD01(i) = i × 10⁻¹`  (Deci,  100 ms)
+//! - `FD02(i) = i × 10⁻²`  (Centi, 10 ms)
+//! - `FD03(i) = i × 10⁻³`  (Milli, 1 ms)
+//! - `FD06(i) = i × 10⁻⁶`  (Micro, 1 µs)
+//! - `FD09(i) = i × 10⁻⁹`  (Nano,  1 ns)
+//! - `FD12(i) = i × 10⁻¹²` (Pico,  1 ps)
 //!
 //! For every ordered pair `(Fine, Coarse)` where `Fine`'s resolution is
 //! strictly smaller, there is a [`Conn`]`<Fine, Coarse>` named
-//! `FxxFyy` after Haskell's `fXYfZW`:
+//! `FD<dd>FD<dd>`:
 //!
 //! - `ceil:  Fine → Coarse`  smallest `c` with `inner(c) ≥ f`
 //! - `inner: Coarse → Fine`  exact embedding (`c × PREC_ratio`)
@@ -64,20 +64,20 @@ pub trait HasResolution {
     const PREC: i64;
 }
 
-def_fixed!(Uni,   1);
-def_fixed!(Deci,  10);
-def_fixed!(Centi, 100);
-def_fixed!(Milli, 1_000);
-def_fixed!(Micro, 1_000_000);
-def_fixed!(Nano,  1_000_000_000);
-def_fixed!(Pico,  1_000_000_000_000);
+def_fixed!(FD00, 1);
+def_fixed!(FD01, 10);
+def_fixed!(FD02, 100);
+def_fixed!(FD03, 1_000);
+def_fixed!(FD06, 1_000_000);
+def_fixed!(FD09, 1_000_000_000);
+def_fixed!(FD12, 1_000_000_000_000);
 
 // ────────────────────────────────────────────────────────────────────
 // Fine → Coarse connection constructors.
 //
 // For each pair, the ratio `prec = Fine::PREC / Coarse::PREC` is the
-// multiplier `inner` applies to go Coarse → Fine (e.g. 1 Uni = 1000
-// Milli, so `F03F00`'s prec is 1000).
+// multiplier `inner` applies to go Coarse → Fine (e.g. 1 FD00 = 1000
+// FD03, so `FD03FD00`'s prec is 1000).
 //
 // The block-scoped `fn` items inside each `const` expression are
 // monomorphic and get coerced to `fn(_) -> _` pointers at const-eval,
@@ -108,29 +108,29 @@ macro_rules! fix_fix {
 }
 
 // Adjacent (one step on the ladder).
-fix_fix!(F01F00, Deci,  Uni,   10);
-fix_fix!(F02F01, Centi, Deci,  10);
-fix_fix!(F03F02, Milli, Centi, 10);
-fix_fix!(F06F03, Micro, Milli, 1_000);
-fix_fix!(F09F06, Nano,  Micro, 1_000);
-fix_fix!(F12F09, Pico,  Nano,  1_000);
+fix_fix!(FD01FD00, FD01, FD00, 10);
+fix_fix!(FD02FD01, FD02, FD01, 10);
+fix_fix!(FD03FD02, FD03, FD02, 10);
+fix_fix!(FD06FD03, FD06, FD03, 1_000);
+fix_fix!(FD09FD06, FD09, FD06, 1_000);
+fix_fix!(FD12FD09, FD12, FD09, 1_000);
 
 // Non-adjacent (direct shortcut; matches Haskell verbatim).
-fix_fix!(F02F00, Centi, Uni,   100);
-fix_fix!(F03F00, Milli, Uni,   1_000);
-fix_fix!(F03F01, Milli, Deci,  100);
-fix_fix!(F06F00, Micro, Uni,   1_000_000);
-fix_fix!(F06F01, Micro, Deci,  100_000);
-fix_fix!(F06F02, Micro, Centi, 10_000);
-fix_fix!(F09F00, Nano,  Uni,   1_000_000_000);
-fix_fix!(F09F01, Nano,  Deci,  100_000_000);
-fix_fix!(F09F02, Nano,  Centi, 10_000_000);
-fix_fix!(F09F03, Nano,  Milli, 1_000_000);
-fix_fix!(F12F00, Pico,  Uni,   1_000_000_000_000);
-fix_fix!(F12F01, Pico,  Deci,  100_000_000_000);
-fix_fix!(F12F02, Pico,  Centi, 10_000_000_000);
-fix_fix!(F12F03, Pico,  Milli, 1_000_000_000);
-fix_fix!(F12F06, Pico,  Micro, 1_000_000);
+fix_fix!(FD02FD00, FD02, FD00, 100);
+fix_fix!(FD03FD00, FD03, FD00, 1_000);
+fix_fix!(FD03FD01, FD03, FD01, 100);
+fix_fix!(FD06FD00, FD06, FD00, 1_000_000);
+fix_fix!(FD06FD01, FD06, FD01, 100_000);
+fix_fix!(FD06FD02, FD06, FD02, 10_000);
+fix_fix!(FD09FD00, FD09, FD00, 1_000_000_000);
+fix_fix!(FD09FD01, FD09, FD01, 100_000_000);
+fix_fix!(FD09FD02, FD09, FD02, 10_000_000);
+fix_fix!(FD09FD03, FD09, FD03, 1_000_000);
+fix_fix!(FD12FD00, FD12, FD00, 1_000_000_000_000);
+fix_fix!(FD12FD01, FD12, FD01, 100_000_000_000);
+fix_fix!(FD12FD02, FD12, FD02, 10_000_000_000);
+fix_fix!(FD12FD03, FD12, FD03, 1_000_000_000);
+fix_fix!(FD12FD06, FD12, FD06, 1_000_000);
 
 // ExtendedFloat<f??> → Extended<Rung>. Lawful under `PartialOrd` on both
 // sides.
@@ -173,7 +173,7 @@ macro_rules! float_conn {
             // `inner(Rung)` reinterpreted as f64 for the correction-loop
             // comparisons. The `as $float as f64` round-trip is a no-op
             // for f64 (the only shipped instantiation); it's kept so a
-            // future F32Fxx instantiation compiles — but F32Fxx is
+            // future F032FD?? instantiation compiles — but F032FD?? is
             // deferred precisely because that round-trip creates plateau
             // collapse classes that turn the correction loops into
             // O(plateau) walks. See §Deferred in plan-2026-04-24-01.
@@ -280,28 +280,29 @@ macro_rules! float_conn {
     };
 }
 
-// F64Fxx only. An f32 version would have the same shape but inner
-// would narrow i64 → f32, which can collapse up to ~120k consecutive
-// Rung values onto the same f32 (for Pico scale). The adjoint law
-// still holds, but ceil/floor would have to walk the full collapse
-// class to find the smallest lawful c — O(plateau size) per call.
+// F064FD?? only. An f32 version (`F032FD??`) would have the same shape
+// but inner would narrow i64 → f32, which can collapse up to ~120k
+// consecutive Rung values onto the same f32 (for FD12 scale). The
+// adjoint law still holds, but ceil/floor would have to walk the full
+// collapse class to find the smallest lawful c — O(plateau size) per
+// call.
 //
 // f32 callers widen losslessly at the boundary —
-// `F64F06.ceil(ExtendedFloat::Finite(arg_f32 as f64))` — and get the
+// `F064FD06.ceil(ExtendedFloat::Finite(arg_f32 as f64))` — and get the
 // same adjoint answer as native f64 input.
-float_conn!(F64F00, f64, Uni,   1);
-float_conn!(F64F01, f64, Deci,  10);
-float_conn!(F64F02, f64, Centi, 100);
-float_conn!(F64F03, f64, Milli, 1_000);
-float_conn!(F64F06, f64, Micro, 1_000_000);
-float_conn!(F64F09, f64, Nano,  1_000_000_000);
-float_conn!(F64F12, f64, Pico,  1_000_000_000_000);
+float_conn!(F064FD00, f64, FD00, 1);
+float_conn!(F064FD01, f64, FD01, 10);
+float_conn!(F064FD02, f64, FD02, 100);
+float_conn!(F064FD03, f64, FD03, 1_000);
+float_conn!(F064FD06, f64, FD06, 1_000_000);
+float_conn!(F064FD09, f64, FD09, 1_000_000_000);
+float_conn!(F064FD12, f64, FD12, 1_000_000_000_000);
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::property::arb::{
-        extended_float_f64, extended_micro, extended_pico, fixed_coarse, fixed_fine,
+        extended_fd06, extended_fd12, extended_float_f64, fixed_coarse, fixed_fine,
         fixed_safe_fine,
     };
     use proptest::prelude::*;
@@ -309,36 +310,36 @@ mod tests {
     // Sanity spot checks (hand-computed).
 
     #[test]
-    fn spot_milli_uni_positive() {
-        assert_eq!(F03F00.ceil(Milli(5)), Uni(1));
-        assert_eq!(F03F00.floor(Milli(5)), Uni(0));
-        assert_eq!(F03F00.ceil(Milli(1_000)), Uni(1));
-        assert_eq!(F03F00.floor(Milli(1_000)), Uni(1));
-        assert_eq!(F03F00.ceil(Milli(999)), Uni(1));
-        assert_eq!(F03F00.floor(Milli(999)), Uni(0));
+    fn spot_fd03_fd00_positive() {
+        assert_eq!(FD03FD00.ceil(FD03(5)), FD00(1));
+        assert_eq!(FD03FD00.floor(FD03(5)), FD00(0));
+        assert_eq!(FD03FD00.ceil(FD03(1_000)), FD00(1));
+        assert_eq!(FD03FD00.floor(FD03(1_000)), FD00(1));
+        assert_eq!(FD03FD00.ceil(FD03(999)), FD00(1));
+        assert_eq!(FD03FD00.floor(FD03(999)), FD00(0));
     }
 
     #[test]
-    fn spot_milli_uni_negative() {
+    fn spot_fd03_fd00_negative() {
         // div_euclid rounds toward −∞; rem_euclid is non-negative.
         // -5 / 1000: div_euclid = -1, rem_euclid = 995.
-        assert_eq!(F03F00.ceil(Milli(-5)), Uni(0));
-        assert_eq!(F03F00.floor(Milli(-5)), Uni(-1));
+        assert_eq!(FD03FD00.ceil(FD03(-5)), FD00(0));
+        assert_eq!(FD03FD00.floor(FD03(-5)), FD00(-1));
     }
 
     #[test]
-    fn spot_pico_uni_exact_boundary() {
-        assert_eq!(F12F00.ceil(Pico(1_000_000_000_000)), Uni(1));
-        assert_eq!(F12F00.floor(Pico(1_000_000_000_000)), Uni(1));
-        assert_eq!(F12F00.inner(Uni(1)), Pico(1_000_000_000_000));
+    fn spot_fd12_fd00_exact_boundary() {
+        assert_eq!(FD12FD00.ceil(FD12(1_000_000_000_000)), FD00(1));
+        assert_eq!(FD12FD00.floor(FD12(1_000_000_000_000)), FD00(1));
+        assert_eq!(FD12FD00.inner(FD00(1)), FD12(1_000_000_000_000));
     }
 
     #[test]
     fn spot_inner_roundtrip_across_ladder() {
         // inner is exact — multiplying up and down gets us back.
-        assert_eq!(F03F00.ceil(F03F00.inner(Uni(42))), Uni(42));
-        assert_eq!(F03F00.floor(F03F00.inner(Uni(-42))), Uni(-42));
-        assert_eq!(F12F06.ceil(F12F06.inner(Micro(987))), Micro(987));
+        assert_eq!(FD03FD00.ceil(FD03FD00.inner(FD00(42))), FD00(42));
+        assert_eq!(FD03FD00.floor(FD03FD00.inner(FD00(-42))), FD00(-42));
+        assert_eq!(FD12FD06.ceil(FD12FD06.inner(FD06(987))), FD06(987));
     }
 
     // Each test is written for one Conn and one (Fine, Coarse) pair,
@@ -414,29 +415,29 @@ mod tests {
     }
 
     // Adjacent pairs.
-    props_for_pair!(p_f01f00, F01F00, Deci,  Uni,   10);
-    props_for_pair!(p_f02f01, F02F01, Centi, Deci,  10);
-    props_for_pair!(p_f03f02, F03F02, Milli, Centi, 10);
-    props_for_pair!(p_f06f03, F06F03, Micro, Milli, 1_000);
-    props_for_pair!(p_f09f06, F09F06, Nano,  Micro, 1_000);
-    props_for_pair!(p_f12f09, F12F09, Pico,  Nano,  1_000);
+    props_for_pair!(p_fd01_fd00, FD01FD00, FD01, FD00, 10);
+    props_for_pair!(p_fd02_fd01, FD02FD01, FD02, FD01, 10);
+    props_for_pair!(p_fd03_fd02, FD03FD02, FD03, FD02, 10);
+    props_for_pair!(p_fd06_fd03, FD06FD03, FD06, FD03, 1_000);
+    props_for_pair!(p_fd09_fd06, FD09FD06, FD09, FD06, 1_000);
+    props_for_pair!(p_fd12_fd09, FD12FD09, FD12, FD09, 1_000);
 
     // Non-adjacent pairs.
-    props_for_pair!(p_f02f00, F02F00, Centi, Uni,   100);
-    props_for_pair!(p_f03f00, F03F00, Milli, Uni,   1_000);
-    props_for_pair!(p_f03f01, F03F01, Milli, Deci,  100);
-    props_for_pair!(p_f06f00, F06F00, Micro, Uni,   1_000_000);
-    props_for_pair!(p_f06f01, F06F01, Micro, Deci,  100_000);
-    props_for_pair!(p_f06f02, F06F02, Micro, Centi, 10_000);
-    props_for_pair!(p_f09f00, F09F00, Nano,  Uni,   1_000_000_000);
-    props_for_pair!(p_f09f01, F09F01, Nano,  Deci,  100_000_000);
-    props_for_pair!(p_f09f02, F09F02, Nano,  Centi, 10_000_000);
-    props_for_pair!(p_f09f03, F09F03, Nano,  Milli, 1_000_000);
-    props_for_pair!(p_f12f00, F12F00, Pico,  Uni,   1_000_000_000_000);
-    props_for_pair!(p_f12f01, F12F01, Pico,  Deci,  100_000_000_000);
-    props_for_pair!(p_f12f02, F12F02, Pico,  Centi, 10_000_000_000);
-    props_for_pair!(p_f12f03, F12F03, Pico,  Milli, 1_000_000_000);
-    props_for_pair!(p_f12f06, F12F06, Pico,  Micro, 1_000_000);
+    props_for_pair!(p_fd02_fd00, FD02FD00, FD02, FD00, 100);
+    props_for_pair!(p_fd03_fd00, FD03FD00, FD03, FD00, 1_000);
+    props_for_pair!(p_fd03_fd01, FD03FD01, FD03, FD01, 100);
+    props_for_pair!(p_fd06_fd00, FD06FD00, FD06, FD00, 1_000_000);
+    props_for_pair!(p_fd06_fd01, FD06FD01, FD06, FD01, 100_000);
+    props_for_pair!(p_fd06_fd02, FD06FD02, FD06, FD02, 10_000);
+    props_for_pair!(p_fd09_fd00, FD09FD00, FD09, FD00, 1_000_000_000);
+    props_for_pair!(p_fd09_fd01, FD09FD01, FD09, FD01, 100_000_000);
+    props_for_pair!(p_fd09_fd02, FD09FD02, FD09, FD02, 10_000_000);
+    props_for_pair!(p_fd09_fd03, FD09FD03, FD09, FD03, 1_000_000);
+    props_for_pair!(p_fd12_fd00, FD12FD00, FD12, FD00, 1_000_000_000_000);
+    props_for_pair!(p_fd12_fd01, FD12FD01, FD12, FD01, 100_000_000_000);
+    props_for_pair!(p_fd12_fd02, FD12FD02, FD12, FD02, 10_000_000_000);
+    props_for_pair!(p_fd12_fd03, FD12FD03, FD12, FD03, 1_000_000_000);
+    props_for_pair!(p_fd12_fd06, FD12FD06, FD12, FD06, 1_000_000);
 
     // `compose!`-macro tests live in `crate::conn`'s test module,
     // alongside the macro itself. Composition is a property of the
@@ -446,19 +447,19 @@ mod tests {
 
     // Negative-value regression: every Galois property holds for i < 0.
     // (Covered inside each pair's proptest since bounded_fine / bounded_coarse
-    //  emit negatives; this stand-alone confirms the exact boundary Uni(-5).)
+    //  emit negatives; this stand-alone confirms the exact boundary FD00(-5).)
     #[test]
-    fn regression_negative_milli_uni() {
-        assert_eq!(F03F00.ceil(Milli(-1_000)), Uni(-1));
-        assert_eq!(F03F00.floor(Milli(-1_000)), Uni(-1));
-        assert_eq!(F03F00.ceil(Milli(-1_001)), Uni(-1));
-        assert_eq!(F03F00.floor(Milli(-1_001)), Uni(-2));
+    fn regression_negative_fd03_fd00() {
+        assert_eq!(FD03FD00.ceil(FD03(-1_000)), FD00(-1));
+        assert_eq!(FD03FD00.floor(FD03(-1_000)), FD00(-1));
+        assert_eq!(FD03FD00.ceil(FD03(-1_001)), FD00(-1));
+        assert_eq!(FD03FD00.floor(FD03(-1_001)), FD00(-2));
     }
 
     // ── ExtendedFloat<f??> → Extended<Rung> connections ─────────────────
     //
-    // Strategies (`extended_float_f64`, `extended_micro`,
-    // `extended_pico`) live in `crate::property::arb`; see the doc
+    // Strategies (`extended_float_f64`, `extended_fd06`,
+    // `extended_fd12`) live in `crate::property::arb`; see the doc
     // there for the `arb_f64_bounded` rationale on why a bounded
     // range beats `any::<f64>()` for these saturation-prone inputs.
 
@@ -466,86 +467,86 @@ mod tests {
     #[test]
     fn float_conn_spot() {
         let half = ExtendedFloat::Finite(0.5_f64);
-        assert_eq!(F64F03.ceil(half), Extended::Finite(Milli(500)));
-        assert_eq!(F64F03.floor(half), Extended::Finite(Milli(500)));
-        assert_eq!(F64F06.ceil(half), Extended::Finite(Micro(500_000)));
-        assert_eq!(F64F12.ceil(ExtendedFloat::Finite(0.25_f64)),
-                   Extended::Finite(Pico(250_000_000_000)));
+        assert_eq!(F064FD03.ceil(half), Extended::Finite(FD03(500)));
+        assert_eq!(F064FD03.floor(half), Extended::Finite(FD03(500)));
+        assert_eq!(F064FD06.ceil(half), Extended::Finite(FD06(500_000)));
+        assert_eq!(F064FD12.ceil(ExtendedFloat::Finite(0.25_f64)),
+                   Extended::Finite(FD12(250_000_000_000)));
 
         let one_and_half = ExtendedFloat::Finite(1.5_f64);
-        assert_eq!(F64F06.ceil(one_and_half), Extended::Finite(Micro(1_500_000)));
-        assert_eq!(F64F06.floor(one_and_half), Extended::Finite(Micro(1_500_000)));
-        assert_eq!(F64F06.inner(Extended::Finite(Micro(1_500_000))),
+        assert_eq!(F064FD06.ceil(one_and_half), Extended::Finite(FD06(1_500_000)));
+        assert_eq!(F064FD06.floor(one_and_half), Extended::Finite(FD06(1_500_000)));
+        assert_eq!(F064FD06.inner(Extended::Finite(FD06(1_500_000))),
                    ExtendedFloat::Finite(1.5_f64));
 
         // Saturation map (matches the table in the macro doc comment).
-        assert_eq!(F64F06.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F64F06.floor(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F64F06.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F64F06.floor(ExtendedFloat::Top), Extended::PosInf);
+        assert_eq!(F064FD06.ceil(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(F064FD06.floor(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(F064FD06.ceil(ExtendedFloat::Top), Extended::PosInf);
+        assert_eq!(F064FD06.floor(ExtendedFloat::Top), Extended::PosInf);
 
         let nan: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
-        assert_eq!(F64F06.ceil(nan), Extended::PosInf);
-        assert_eq!(F64F06.floor(nan), Extended::NegInf);
+        assert_eq!(F064FD06.ceil(nan), Extended::PosInf);
+        assert_eq!(F064FD06.floor(nan), Extended::NegInf);
 
         let pos_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::INFINITY);
-        assert_eq!(F64F06.ceil(pos_inf), Extended::PosInf);
-        assert_eq!(F64F06.floor(pos_inf), Extended::Finite(Micro(i64::MAX)));
+        assert_eq!(F064FD06.ceil(pos_inf), Extended::PosInf);
+        assert_eq!(F064FD06.floor(pos_inf), Extended::Finite(FD06(i64::MAX)));
 
         let neg_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NEG_INFINITY);
-        assert_eq!(F64F06.ceil(neg_inf), Extended::Finite(Micro(i64::MIN)));
-        assert_eq!(F64F06.floor(neg_inf), Extended::NegInf);
+        assert_eq!(F064FD06.ceil(neg_inf), Extended::Finite(FD06(i64::MIN)));
+        assert_eq!(F064FD06.floor(neg_inf), Extended::NegInf);
 
         // Inner maps target ±Inf to ExtendedFloat's Top/Bot (synthetic
         // bounds outside the float range), NOT to Finite(±f64::INFINITY).
-        assert_eq!(F64F06.inner(Extended::PosInf), ExtendedFloat::Top);
-        assert_eq!(F64F06.inner(Extended::NegInf), ExtendedFloat::Bot);
+        assert_eq!(F064FD06.inner(Extended::PosInf), ExtendedFloat::Top);
+        assert_eq!(F064FD06.inner(Extended::NegInf), ExtendedFloat::Bot);
     }
 
-    // F64F00 (PREC=1) is the identity-like regime — `inner(c) = c as f64`
+    // F064FD00 (PREC=1) is the identity-like regime — `inner(c) = c as f64`
     // with no division, so the correction loop is vacuous and saturation
     // is the only behaviour that can go wrong. Covered separately because
-    // the proptest battery above exercises F64F06 and F64F12 only.
+    // the proptest battery above exercises F064FD06 and F064FD12 only.
     #[test]
-    fn f64f00_saturation() {
-        assert_eq!(F64F00.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F64F00.floor(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F64F00.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F64F00.floor(ExtendedFloat::Top), Extended::PosInf);
+    fn f064fd00_saturation() {
+        assert_eq!(F064FD00.ceil(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(F064FD00.floor(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(F064FD00.ceil(ExtendedFloat::Top), Extended::PosInf);
+        assert_eq!(F064FD00.floor(ExtendedFloat::Top), Extended::PosInf);
 
         let nan: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
-        assert_eq!(F64F00.ceil(nan), Extended::PosInf);
-        assert_eq!(F64F00.floor(nan), Extended::NegInf);
+        assert_eq!(F064FD00.ceil(nan), Extended::PosInf);
+        assert_eq!(F064FD00.floor(nan), Extended::NegInf);
 
         let pos_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::INFINITY);
-        assert_eq!(F64F00.ceil(pos_inf), Extended::PosInf);
-        assert_eq!(F64F00.floor(pos_inf), Extended::Finite(Uni(i64::MAX)));
+        assert_eq!(F064FD00.ceil(pos_inf), Extended::PosInf);
+        assert_eq!(F064FD00.floor(pos_inf), Extended::Finite(FD00(i64::MAX)));
 
         let neg_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NEG_INFINITY);
-        assert_eq!(F64F00.ceil(neg_inf), Extended::Finite(Uni(i64::MIN)));
-        assert_eq!(F64F00.floor(neg_inf), Extended::NegInf);
+        assert_eq!(F064FD00.ceil(neg_inf), Extended::Finite(FD00(i64::MIN)));
+        assert_eq!(F064FD00.floor(neg_inf), Extended::NegInf);
 
         // Identity on exact integers.
-        assert_eq!(F64F00.ceil(ExtendedFloat::Finite(42.0)), Extended::Finite(Uni(42)));
-        assert_eq!(F64F00.floor(ExtendedFloat::Finite(42.0)), Extended::Finite(Uni(42)));
-        assert_eq!(F64F00.ceil(ExtendedFloat::Finite(-42.0)), Extended::Finite(Uni(-42)));
-        assert_eq!(F64F00.floor(ExtendedFloat::Finite(-42.0)), Extended::Finite(Uni(-42)));
+        assert_eq!(F064FD00.ceil(ExtendedFloat::Finite(42.0)), Extended::Finite(FD00(42)));
+        assert_eq!(F064FD00.floor(ExtendedFloat::Finite(42.0)), Extended::Finite(FD00(42)));
+        assert_eq!(F064FD00.ceil(ExtendedFloat::Finite(-42.0)), Extended::Finite(FD00(-42)));
+        assert_eq!(F064FD00.floor(ExtendedFloat::Finite(-42.0)), Extended::Finite(FD00(-42)));
 
         // Non-integer: ceil up, floor down.
-        assert_eq!(F64F00.ceil(ExtendedFloat::Finite(0.25)), Extended::Finite(Uni(1)));
-        assert_eq!(F64F00.floor(ExtendedFloat::Finite(0.25)), Extended::Finite(Uni(0)));
-        assert_eq!(F64F00.ceil(ExtendedFloat::Finite(-0.25)), Extended::Finite(Uni(0)));
-        assert_eq!(F64F00.floor(ExtendedFloat::Finite(-0.25)), Extended::Finite(Uni(-1)));
+        assert_eq!(F064FD00.ceil(ExtendedFloat::Finite(0.25)), Extended::Finite(FD00(1)));
+        assert_eq!(F064FD00.floor(ExtendedFloat::Finite(0.25)), Extended::Finite(FD00(0)));
+        assert_eq!(F064FD00.ceil(ExtendedFloat::Finite(-0.25)), Extended::Finite(FD00(0)));
+        assert_eq!(F064FD00.floor(ExtendedFloat::Finite(-0.25)), Extended::Finite(FD00(-1)));
 
         // Very large finite: saturating, into Finite at the ceil/floor
         // boundary rather than flowing to ±Inf on the target.
         let huge = ExtendedFloat::Finite(2.0_f64.powi(70));  // > i64::MAX
-        assert_eq!(F64F00.ceil(huge), Extended::PosInf);
-        assert_eq!(F64F00.floor(huge), Extended::Finite(Uni(i64::MAX)));
+        assert_eq!(F064FD00.ceil(huge), Extended::PosInf);
+        assert_eq!(F064FD00.floor(huge), Extended::Finite(FD00(i64::MAX)));
 
         let tiny = ExtendedFloat::Finite(-2.0_f64.powi(70));  // < i64::MIN
-        assert_eq!(F64F00.ceil(tiny), Extended::Finite(Uni(i64::MIN)));
-        assert_eq!(F64F00.floor(tiny), Extended::NegInf);
+        assert_eq!(F064FD00.ceil(tiny), Extended::Finite(FD00(i64::MIN)));
+        assert_eq!(F064FD00.floor(tiny), Extended::NegInf);
     }
 
     // Adjoint + closure + kernel + monotonicity, stated over
@@ -625,10 +626,11 @@ mod tests {
         };
     }
 
-    // F64F06 and F64F12 exercise the two structurally distinct cases:
-    // PREC well below mantissa (F06) and PREC approaching mantissa (F12).
-    // Other rungs share the adjoint-law machinery with one of these, so
-    // the spot checks above are sufficient regression coverage.
-    float_conn_props!(p_f64f06, F64F06, Micro, extended_float_f64, extended_micro);
-    float_conn_props!(p_f64f12, F64F12, Pico,  extended_float_f64, extended_pico);
+    // F064FD06 and F064FD12 exercise the two structurally distinct
+    // cases: PREC well below mantissa (FD06) and PREC approaching
+    // mantissa (FD12). Other rungs share the adjoint-law machinery
+    // with one of these, so the spot checks above are sufficient
+    // regression coverage.
+    float_conn_props!(p_f064_fd06, F064FD06, FD06, extended_float_f64, extended_fd06);
+    float_conn_props!(p_f064_fd12, F064FD12, FD12, extended_float_f64, extended_fd12);
 }

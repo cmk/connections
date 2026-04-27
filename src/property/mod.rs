@@ -19,14 +19,14 @@
 //! ```rust,no_run
 //! use connections::compose;
 //! use connections::conn::Conn;
-//! use connections::conn::fixed::decimal::{F03F00, F06F03, F09F06, F12F09, Pico, Uni};
+//! use connections::conn::fixed::decimal::{FD00, FD03FD00, FD06FD03, FD09FD06, FD12, FD12FD09};
 //! use connections::property::laws;
 //!
-//! const COMPOSED: Conn<Pico, Uni> = compose!(F12F09, F09F06, F06F03, F03F00);
+//! const COMPOSED: Conn<FD12, FD00> = compose!(FD12FD09, FD09FD06, FD06FD03, FD03FD00);
 //!
 //! // Spot check: a composed Conn satisfies the Galois adjoint law.
-//! assert!(laws::conn_galois_l(&COMPOSED, Pico(1_500_000_000_000), Uni(2)));
-//! assert!(laws::conn_floor_le_ceil(&COMPOSED, Pico(42)));
+//! assert!(laws::conn_galois_l(&COMPOSED, FD12(1_500_000_000_000), FD00(2)));
+//! assert!(laws::conn_floor_le_ceil(&COMPOSED, FD12(42)));
 //! ```
 //!
 //! With the `testing` feature enabled, downstream proptest blocks
@@ -34,17 +34,17 @@
 //!
 //! ```ignore
 //! use connections::property::{arb, laws};
-//! use connections::conn::fixed::decimal::F12F00;
+//! use connections::conn::fixed::decimal::FD12FD00;
 //! use proptest::prelude::*;
 //!
 //! proptest! {
 //!     #[test]
-//!     fn my_pico_uni_satisfies_galois(
+//!     fn my_fd12_fd00_satisfies_galois(
 //!         p in arb::fixed_fine(1_000_000_000_000),
 //!         u in arb::fixed_coarse(1_000_000_000_000),
 //!     ) {
-//!         use connections::conn::fixed::decimal::{Pico, Uni};
-//!         prop_assert!(laws::conn_galois_l(&F12F00, Pico(p), Uni(u)));
+//!         use connections::conn::fixed::decimal::{FD00, FD12};
+//!         prop_assert!(laws::conn_galois_l(&FD12FD00, FD12(p), FD00(u)));
 //!     }
 //! }
 //! ```

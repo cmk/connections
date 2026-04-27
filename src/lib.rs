@@ -11,21 +11,22 @@
 //! shape: two tier codes separated by `f` / `s`, smaller-bit tier on
 //! the left.
 //!
-//! Tier codes name a *type*, not a module. All `F??F??` Conn
-//! constants (pairs of decimal-rung tiers, or float × decimal-rung)
-//! live in [`conn::fixed::decimal`]; all `S???S???` rate-pair constants
-//! and `F??S???` cross-tier constants live in [`conn::sample`].
+//! Tier codes name a *type*, not a module. All `FD<dd>FD<dd>` Conn
+//! constants (pairs of decimal-rung tiers) and all `F064FD<dd>` cross-
+//! tier float-into-decimal constants live in [`conn::fixed::decimal`];
+//! all `S???S???` rate-pair constants and `FD12S???` cross-tier
+//! constants live in [`conn::sample`].
 //!
-//! | code   | type                                          | resolution           |
-//! |--------|-----------------------------------------------|----------------------|
-//! | `F00`  | [`conn::fixed::decimal::Uni`]                 | 1 s                  |
-//! | `F01`  | [`conn::fixed::decimal::Deci`]                | 100 ms               |
-//! | `F02`  | [`conn::fixed::decimal::Centi`]               | 10 ms                |
-//! | `F03`  | [`conn::fixed::decimal::Milli`]               | 1 ms                 |
-//! | `F06`  | [`conn::fixed::decimal::Micro`]               | 1 µs                 |
-//! | `F09`  | [`conn::fixed::decimal::Nano`]                | 1 ns                 |
-//! | `F12`  | [`conn::fixed::decimal::Pico`]                | 1 ps                 |
-//! | `F64`  | [`ExtendedFloat<f64>`](conn::float::ExtendedFloat) | IEEE double          |
+//! | code     | type                                                | resolution           |
+//! |----------|-----------------------------------------------------|----------------------|
+//! | `FD00`   | [`conn::fixed::decimal::FD00`]                      | 1 s                  |
+//! | `FD01`   | [`conn::fixed::decimal::FD01`]                      | 100 ms               |
+//! | `FD02`   | [`conn::fixed::decimal::FD02`]                      | 10 ms                |
+//! | `FD03`   | [`conn::fixed::decimal::FD03`]                      | 1 ms                 |
+//! | `FD06`   | [`conn::fixed::decimal::FD06`]                      | 1 µs                 |
+//! | `FD09`   | [`conn::fixed::decimal::FD09`]                      | 1 ns                 |
+//! | `FD12`   | [`conn::fixed::decimal::FD12`]                      | 1 ps                 |
+//! | `F064`   | [`ExtendedFloat<f64>`](conn::float::ExtendedFloat)  | IEEE double          |
 //! | `S44`  | [`conn::sample::S44`]              | 1 sample @ 44.1 kHz  |
 //! | `S48`  | [`conn::sample::S48`]              | 1 sample @ 48 kHz    |
 //! | `S88`  | [`conn::sample::S88`]              | 1 sample @ 88.2 kHz  |
@@ -53,20 +54,20 @@
 //!
 //! Examples:
 //!
-//! - [`conn::fixed::decimal::F12F06`] — `Pico → Micro` (exact decimal-ladder embed).
-//! - [`conn::fixed::decimal::F64F06`] — `ExtendedFloat<f64> → Extended<Micro>`
+//! - [`conn::fixed::decimal::FD12FD06`] — `FD12 → FD06` (exact decimal-ladder embed).
+//! - [`conn::fixed::decimal::F064FD06`] — `ExtendedFloat<f64> → Extended<FD06>`
 //!   (lawful over the full IEEE domain, with saturation on the Rung side).
-//! - [`conn::sample::F12S48`] — `Pico → S48` (cross-tier to sample rate).
-//! - [`conn::sample::S88S44`] — `S88 → S44` (rate-pair).
+//! - `conn::sample::F12S48` — `FD12 → S48` (cross-tier to sample rate; renamed in T2).
+//! - `conn::sample::S88S44` — `S88 → S44` (rate-pair; renamed in T2).
 //! - [`conn::uint::U08U16`] — `u8 → u16` saturating widen.
 //! - [`conn::int::I08I16`] — `Extended<i8> → i16` (signed widening, range-extended source).
 //! - [`conn::int::U08I16`] — `Extended<u8> → i16` (unsigned source into signed target).
 //!
-//! An `F32` code is not (yet) exported: an `inner` that narrows
+//! An `F032` code is not (yet) exported: an `inner` that narrows
 //! `i64 → f32` collapses large runs of Rung values onto the same
 //! f32, forcing an O(plateau) correction per ceil/floor call. f32
 //! callers widen losslessly at the boundary:
-//! `F64F06.ceil(ExtendedFloat::Finite(arg_f32 as f64))`.
+//! `F064FD06.ceil(ExtendedFloat::Finite(arg_f32 as f64))`.
 //!
 //! ## Composition
 //!
@@ -80,10 +81,10 @@
 //! ```rust,no_run
 //! use connections::compose;
 //! use connections::conn::Conn;
-//! use connections::conn::fixed::decimal::{F12F09, F09F06, F06F03, F03F00, Pico, Uni};
+//! use connections::conn::fixed::decimal::{FD00, FD03FD00, FD06FD03, FD09FD06, FD12, FD12FD09};
 //!
-//! const F12F00_BIS: Conn<Pico, Uni> =
-//!     compose!(F12F09, F09F06, F06F03, F03F00);
+//! const FD12FD00_BIS: Conn<FD12, FD00> =
+//!     compose!(FD12FD09, FD09FD06, FD06FD03, FD03FD00);
 //! ```
 //!
 //! Source/destination types come from the binding annotation;

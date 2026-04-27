@@ -11,8 +11,8 @@
 //!   identity on floats, preorder tests).
 //! - [`arb_f64_bounded`] — 6:1 uniform-to-boundary bias restricted
 //!   to `|x| ≤ 1e9` plus the same explicit boundary set. Use for
-//!   connections that feed into a bounded integer rung (Micro,
-//!   Pico, …); unbounded `any::<f64>()` shrinks bit-by-bit through
+//!   connections that feed into a bounded integer rung (FD06,
+//!   FD12, …); unbounded `any::<f64>()` shrinks bit-by-bit through
 //!   the mantissa on saturation failures, exploring the
 //!   `i64::MAX × PREC` corner of the input space for minutes while
 //!   teaching nothing about the adjoint law. See
@@ -20,7 +20,7 @@
 //!
 //! Tier-specific strategies live here too: `fixed_*` for the
 //! decimal fixed-point ladder, `rate_*` for sample-rate rationals,
-//! `pico_*` for cross-tier Pico↔Sample conns, and `extended_*` for
+//! `pico_*` for cross-tier FD12↔Sample conns, and `extended_*` for
 //! `Extended`-wrapped variants of those. Naming is `<tier>_<role>`
 //! to disambiguate the same algebraic role across the four
 //! families.
@@ -70,7 +70,7 @@ pub fn arb_f32() -> impl Strategy<Value = f32> {
 /// Arbitrary `f64` bounded to `|x| ≤ 1e9` plus the full boundary set.
 ///
 /// Use this instead of [`arb_f64`] for connections whose target is a
-/// bounded integer rung (Micro, Nano, Pico, …). The uniform slot is
+/// bounded integer rung (FD06, FD09, FD12, …). The uniform slot is
 /// a finite range rather than `any::<f64>()`, which prevents the
 /// mantissa-bit shrink pathology on saturation failures. 6:1 ratio
 /// keeps the boundary coverage comparable to [`arb_f64`]'s 4:1
@@ -95,7 +95,7 @@ pub fn arb_f64_bounded() -> impl Strategy<Value = f64> {
 // saturates f32 into a bounded integer rung. Add it (mirroring
 // `arb_f64_bounded` above) when an F32F?? or similar conn appears.
 
-// ── Fixed-point ladder (Pico..Uni) strategies ────────────────────
+// ── Fixed-point ladder (FD12..FD00) strategies ───────────────────
 //
 // For each (Fine, Coarse) pair with ratio PREC, the `inner` call
 // computes `coarse * PREC` which must fit i64. Strategies clamp the
@@ -167,7 +167,7 @@ pub fn fixed_safe_fine(prec: i64) -> impl Strategy<Value = i64> {
 // plus explicit boundaries give wide enough adjoint-law coverage.
 
 use crate::conn::float::ExtendedFloat;
-use crate::conn::fixed::decimal::{HasResolution, Micro, Pico};
+use crate::conn::fixed::decimal::{FD06, FD12, HasResolution};
 use crate::extended::Extended;
 
 /// `ExtendedFloat<f64>` over `Bot`, `Top`, and bounded `Finite`
@@ -180,30 +180,30 @@ pub fn extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
     ]
 }
 
-/// `Extended<Micro>` over `NegInf`, `PosInf`, and finite Micro
-/// values bounded by `i64::MAX / Micro::PREC` (plus i64-edge
+/// `Extended<FD06>` over `NegInf`, `PosInf`, and finite FD06
+/// values bounded by `i64::MAX / FD06::PREC` (plus i64-edge
 /// `Just`s).
-pub fn extended_micro() -> impl Strategy<Value = Extended<Micro>> {
-    let limit = i64::MAX / Micro::PREC;
+pub fn extended_fd06() -> impl Strategy<Value = Extended<FD06>> {
+    let limit = i64::MAX / FD06::PREC;
     prop_oneof![
         1 => Just(Extended::NegInf),
         1 => Just(Extended::PosInf),
-        1 => Just(Extended::Finite(Micro(i64::MAX))),
-        1 => Just(Extended::Finite(Micro(i64::MIN))),
-        8 => (-limit..=limit).prop_map(|x| Extended::Finite(Micro(x))),
+        1 => Just(Extended::Finite(FD06(i64::MAX))),
+        1 => Just(Extended::Finite(FD06(i64::MIN))),
+        8 => (-limit..=limit).prop_map(|x| Extended::Finite(FD06(x))),
     ]
 }
 
-/// `Extended<Pico>` over `NegInf`, `PosInf`, and finite Pico values
-/// bounded by `i64::MAX / Pico::PREC` (plus i64-edge `Just`s).
-pub fn extended_pico() -> impl Strategy<Value = Extended<Pico>> {
-    let limit = i64::MAX / Pico::PREC;
+/// `Extended<FD12>` over `NegInf`, `PosInf`, and finite FD12 values
+/// bounded by `i64::MAX / FD12::PREC` (plus i64-edge `Just`s).
+pub fn extended_fd12() -> impl Strategy<Value = Extended<FD12>> {
+    let limit = i64::MAX / FD12::PREC;
     prop_oneof![
         1 => Just(Extended::NegInf),
         1 => Just(Extended::PosInf),
-        1 => Just(Extended::Finite(Pico(i64::MAX))),
-        1 => Just(Extended::Finite(Pico(i64::MIN))),
-        8 => (-limit..=limit).prop_map(|x| Extended::Finite(Pico(x))),
+        1 => Just(Extended::Finite(FD12(i64::MAX))),
+        1 => Just(Extended::Finite(FD12(i64::MIN))),
+        8 => (-limit..=limit).prop_map(|x| Extended::Finite(FD12(x))),
     ]
 }
 
@@ -273,13 +273,13 @@ pub fn rate_safe_fine(num: i128) -> impl Strategy<Value = i64> {
     ]
 }
 
-// ── Pico↔Sample-rate strategies ──────────────────────────────────
+// ── FD12↔Sample-rate strategies ──────────────────────────────────
 //
-// For `Conn<Pico, S_xxx>` (cross-tier between decimal SI time and
-// sample-indexed time at a specific rate), Pico-side is full i64,
+// For `Conn<FD12, S_xxx>` (cross-tier between decimal SI time and
+// sample-indexed time at a specific rate), FD12-side is full i64,
 // Sample-side is bounded by the rate ratio.
 
-/// Pico-side i64 strategy for Pico↔Sample Conn. Full range with
+/// FD12-side i64 strategy for FD12↔Sample Conn. Full range with
 /// boundary bias.
 pub fn pico_fine() -> impl Strategy<Value = i64> {
     prop_oneof![
@@ -292,7 +292,7 @@ pub fn pico_fine() -> impl Strategy<Value = i64> {
     ]
 }
 
-/// Sample-side i64 strategy for Pico↔Sample Conn with rational
+/// Sample-side i64 strategy for FD12↔Sample Conn with rational
 /// ratio `num/den`. Clamped to `|bits · num / den| < i64::MAX`,
 /// i.e. `|bits| < i64::MAX · den / num`.
 ///
@@ -314,7 +314,7 @@ pub fn pico_coarse(num: i128, den: i128) -> impl Strategy<Value = i64> {
     ]
 }
 
-/// Pico-side strategy for Pico↔Sample with round-trip safety:
+/// FD12-side strategy for FD12↔Sample with round-trip safety:
 /// `|p| ≤ i64::MAX − num`.
 pub fn pico_safe(num: i128) -> impl Strategy<Value = i64> {
     let guard: i64 = i64::try_from(num).expect("num fits i64");

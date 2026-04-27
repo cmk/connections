@@ -45,7 +45,7 @@
 //! bits-per-second type).
 //! ```
 //!
-//! Plus one `Conn<Pico, Sxx>` per rate connecting the sample tier to
+//! Plus one `Conn<FD12, Sxx>` per rate connecting the sample tier to
 //! the decimal SI-time tier from [`crate::conn::fixed::decimal`].
 //!
 //! # Galois semantics for lossy `inner`
@@ -63,7 +63,7 @@
 //! ratios (`DEN = 1`) it collapses to the familiar `floor_div(x, NUM)`.
 
 use crate::conn::Conn;
-use crate::conn::fixed::decimal::Pico;
+use crate::conn::fixed::decimal::FD12;
 use fixed::FixedI64;
 use fixed::types::extra::U16;
 
@@ -205,12 +205,12 @@ rate_conn!(S192S88,  S192, S88,  320, 147);
 rate_conn!(S192S176, S192, S176, 160, 147);
 
 // ─────────────────────────────────────────────────────────────────
-// Rate ↔ Pico connections
+// Rate ↔ FD12 connections
 //
 // For each rate R with sample period `1/R` seconds, one Q48.16 bit
 // of R-sample is `10^12 / (R · 2^16)` picoseconds. Ratio = NUM/DEN
-// after simplifying by gcd. Pico has fewer bits per second than the
-// audio rates, so Pico is Coarse and each Sxx is Fine.
+// after simplifying by gcd. FD12 has fewer bits per second than the
+// audio rates, so FD12 is Coarse and each Sxx is Fine.
 // ─────────────────────────────────────────────────────────────────
 
 // Simplified ratios computed once (see module docstring):
@@ -224,22 +224,22 @@ rate_conn!(S192S176, S192, S176, 160, 147);
 //   S88:  ratio = 9_765_625 / 56_448   (half of S44)
 //   S176: ratio = 9_765_625 / 112_896  (quarter of S44)
 //
-// The Pico direction is SAMPLE → Pico. Sample has fewer bits/sec than
-// Pico (which has 10^12 bits/sec). So Pico is Fine, Sxx is Coarse.
-// Conn<Fine=Pico, Coarse=Sxx> with NUM·sample_bit = DEN·pico.
+// The FD12 direction is SAMPLE → FD12. Sample has fewer bits/sec than
+// FD12 (which has 10^12 bits/sec). So FD12 is Fine, Sxx is Coarse.
+// Conn<Fine=FD12, Coarse=Sxx> with NUM·sample_bit = DEN·pico.
 
 macro_rules! pico_conn {
     ($CONN:ident, $Rate:ident, $num:expr, $den:expr) => {
-        pub const $CONN: Conn<Pico, $Rate> = {
+        pub const $CONN: Conn<FD12, $Rate> = {
             // 1 Rate-bit = NUM/DEN picoseconds. So:
-            //   inner: Rate → Pico. inner(r) = r_bits · NUM / DEN (lossy → floor_div).
-            //   ceil:  Pico → Rate. ceil(p) = ceil_div(p · DEN, NUM).
-            //   floor: Pico → Rate. floor(p) = floor_div(p·DEN + NUM−1? No —
+            //   inner: Rate → FD12. inner(r) = r_bits · NUM / DEN (lossy → floor_div).
+            //   ceil:  FD12 → Rate. ceil(p) = ceil_div(p · DEN, NUM).
+            //   floor: FD12 → Rate. floor(p) = floor_div(p·DEN + NUM−1? No —
             //      floor_div((p+1)·DEN − 1, NUM) is the Galois floor.
             //
-            // Wait — here we have Conn<Pico, Sxx> so Fine=Pico, Coarse=Sxx.
-            //   inner: Coarse=Sxx → Fine=Pico. Sxx ×NUM/DEN → Pico.
-            //   ceil,floor: Pico → Sxx.
+            // Wait — here we have Conn<FD12, Sxx> so Fine=FD12, Coarse=Sxx.
+            //   inner: Coarse=Sxx → Fine=FD12. Sxx ×NUM/DEN → FD12.
+            //   ceil,floor: FD12 → Sxx.
             //
             // So:
             //   inner(s: Sxx) = floor_div(s_bits · NUM, DEN) picoseconds
@@ -248,7 +248,7 @@ macro_rules! pico_conn {
             const NUM: i128 = $num;
             const DEN: i128 = $den;
 
-            fn ceil(p: Pico) -> $Rate {
+            fn ceil(p: FD12) -> $Rate {
                 let n: i128 = p.0 as i128 * DEN;
                 let q = n.div_euclid(NUM);
                 let r = n.rem_euclid(NUM);
@@ -256,12 +256,12 @@ macro_rules! pico_conn {
                 $Rate(Q48_16::from_bits(bits as i64))
             }
 
-            fn inner(s: $Rate) -> Pico {
+            fn inner(s: $Rate) -> FD12 {
                 let n: i128 = s.0.to_bits() as i128 * NUM;
-                Pico(n.div_euclid(DEN) as i64)
+                FD12(n.div_euclid(DEN) as i64)
             }
 
-            fn floor(p: Pico) -> $Rate {
+            fn floor(p: FD12) -> $Rate {
                 let n: i128 = p.0 as i128 * DEN + (DEN - 1);
                 $Rate(Q48_16::from_bits(n.div_euclid(NUM) as i64))
             }
@@ -349,10 +349,10 @@ mod tests {
         // = floor_div(128_000_000_000, 6_144) = 20_833_333.
         let p = F12S48.inner(S48::from_sample(1));
         assert_eq!(p.0, 20_833_333);
-        // ceil of that same Pico is back to exactly 1 S48 sample.
-        assert_eq!(F12S48.ceil(Pico(20_833_333)), S48::from_sample(1));
+        // ceil of that same FD12 is back to exactly 1 S48 sample.
+        assert_eq!(F12S48.ceil(FD12(20_833_333)), S48::from_sample(1));
         // floor of one ps higher is still 1 sample.
-        assert_eq!(F12S48.floor(Pico(20_833_333)), S48::from_sample(1));
+        assert_eq!(F12S48.floor(FD12(20_833_333)), S48::from_sample(1));
     }
 
     // ─────────────────────────────────────────────
@@ -496,9 +496,9 @@ mod tests {
     props_for_conn!(p_s192s88,  S192S88,  S192, S88,  320, 147);
     props_for_conn!(p_s192s176, S192S176, S192, S176, 160, 147);
 
-    // Pico connections. Here Fine = Pico, Coarse = Sxx. The macro is
-    // identical but Pico is not an Sxx — write a tailored mod per conn
-    // that reads `.0` on Pico and `.0.to_bits()` on Sxx.
+    // FD12 connections. Here Fine = FD12, Coarse = Sxx. The macro is
+    // identical but FD12 is not an Sxx — write a tailored mod per conn
+    // that reads `.0` on FD12 and `.0.to_bits()` on Sxx.
     macro_rules! props_for_pico_conn {
         ($mod:ident, $conn:ident, $Rate:ident, $num:expr, $den:expr) => {
             mod $mod {
@@ -511,7 +511,7 @@ mod tests {
                         a in pico_fine(),
                         b in pico_fine(),
                     ) {
-                        prop_assert!(laws::conn_monotone_l(&$conn, Pico(a), Pico(b)));
+                        prop_assert!(laws::conn_monotone_l(&$conn, FD12(a), FD12(b)));
                     }
 
                     #[test]
@@ -528,7 +528,7 @@ mod tests {
 
                     #[test]
                     fn floor_le_ceil(p in pico_fine()) {
-                        let pp = Pico(p);
+                        let pp = FD12(p);
                         prop_assert!(laws::conn_floor_le_ceil(&$conn, pp));
                         // Stronger: rational-ratio ULP bound
                         // (`ceil - floor ≤ 1` Sxx Q48.16 ULP).
@@ -546,7 +546,7 @@ mod tests {
                     ) {
                         prop_assert!(laws::conn_galois_l(
                             &$conn,
-                            Pico(p),
+                            FD12(p),
                             $Rate::from_bits(s),
                         ));
                     }
@@ -558,7 +558,7 @@ mod tests {
                     ) {
                         prop_assert!(laws::conn_galois_r(
                             &$conn,
-                            Pico(p),
+                            FD12(p),
                             $Rate::from_bits(s),
                         ));
                     }
@@ -567,17 +567,17 @@ mod tests {
                     // round-trip can grow p by up to NUM/DEN ps.
                     #[test]
                     fn closure_l(p in pico_safe($num)) {
-                        prop_assert!(laws::conn_closure_l(&$conn, Pico(p)));
+                        prop_assert!(laws::conn_closure_l(&$conn, FD12(p)));
                     }
 
                     #[test]
                     fn closure_r(p in pico_safe($num)) {
-                        prop_assert!(laws::conn_closure_r(&$conn, Pico(p)));
+                        prop_assert!(laws::conn_closure_r(&$conn, FD12(p)));
                     }
 
                     #[test]
                     fn idempotent(p in pico_safe($num)) {
-                        prop_assert!(laws::conn_idempotent(&$conn, Pico(p)));
+                        prop_assert!(laws::conn_idempotent(&$conn, FD12(p)));
                     }
                 }
             }
@@ -591,14 +591,14 @@ mod tests {
     props_for_pico_conn!(p_f12s176, F12S176, S176, 9_765_625,  112_896);
     props_for_pico_conn!(p_f12s192, F12S192, S192, 1_953_125,  24_576);
 
-    // Sanity-check the Pico↔sample rate against the transcendental
+    // Sanity-check the FD12↔sample rate against the transcendental
     // definition: inner(Sxx::from_sample(1)) should be within 0.5 ps
     // of 10^12 / Sxx::HZ.
     #[test]
     fn pico_inner_matches_ideal() {
         // Use f64 for the ideal — this test only, asserts sit here as
         // proof that the integer math agrees with the analytic formula.
-        fn check<R: SampleRate + Copy>(conn: Conn<Pico, R>, sample_one: R) {
+        fn check<R: SampleRate + Copy>(conn: Conn<FD12, R>, sample_one: R) {
             let got = conn.inner(sample_one).0 as f64;
             let ideal = 1.0e12 / (R::HZ as f64);
             assert!((got - ideal).abs() <= 1.0, "Rate {}: got {}, ideal {}", R::HZ, got, ideal);
