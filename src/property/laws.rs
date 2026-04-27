@@ -569,6 +569,156 @@ pub fn cast_minimize_eq_floor<A: Copy, B: Copy, C: Copy + Eq>(
     l == r
 }
 
+// ── Two-sided helper laws (for `conn::cast::{interval, midpoint,
+//    round, truncate, median}` and friends) ─────────────────────
+
+/// `interval` evaluated at the conn's midpoint resolves to
+/// `Some(Equal)` (or `None` if the source values are NaN-bearing).
+/// Mirrors Haskell `Cast.hs` doctest:
+/// `interval c (midpoint c x) == Just EQ`.
+pub fn cast_interval_at_midpoint_eq_or_none<A, B>(c: &Conn<A, B>, x: A) -> bool
+where
+    A: Copy
+        + PartialOrd
+        + core::ops::Add<Output = A>
+        + core::ops::Sub<Output = A>
+        + core::ops::Div<Output = A>
+        + From<u8>,
+{
+    use core::cmp::Ordering;
+    let mid = crate::conn::cast::midpoint(c, x);
+    let result = crate::conn::cast::interval(c, mid);
+    matches!(result, None | Some(Ordering::Equal))
+}
+
+/// `midpoint(c, x)` lies between `c.inner(c.floor(x))` and
+/// `c.inner(c.ceil(x))` whenever those two are themselves comparable.
+/// On saturating Conns the bracket can flip; the predicate returns
+/// `true` vacuously when `lo > hi` (consistent with the
+/// `conn_floor_le_ceil` precedent for injective-`inner` checks).
+pub fn cast_midpoint_between<A, B>(c: &Conn<A, B>, x: A) -> bool
+where
+    A: Copy
+        + PartialOrd
+        + core::ops::Add<Output = A>
+        + core::ops::Sub<Output = A>
+        + core::ops::Div<Output = A>
+        + From<u8>,
+{
+    let lo = c.inner(c.floor(x));
+    let hi = c.inner(c.ceil(x));
+    let mid = crate::conn::cast::midpoint(c, x);
+    if lo <= hi {
+        lo <= mid && mid <= hi
+    } else {
+        true
+    }
+}
+
+/// `round(c, x)` is always one of `c.ceil(x)` / `c.floor(x)` (since
+/// every dispatch arm of [`crate::conn::cast::round`] returns one or
+/// the other directly).
+pub fn cast_round_picks_endpoint<A, B>(c: &Conn<A, B>, x: A) -> bool
+where
+    A: Copy + PartialOrd + core::ops::Sub<Output = A> + From<u8>,
+    B: Copy + Eq,
+{
+    let r = crate::conn::cast::round(c, x);
+    r == c.ceil(x) || r == c.floor(x)
+}
+
+/// `truncate(c, x)` is always one of `c.ceil(x)` / `c.floor(x)`.
+pub fn cast_truncate_picks_endpoint<A, B>(c: &Conn<A, B>, x: A) -> bool
+where
+    A: Copy + PartialOrd + From<u8>,
+    B: Copy + Eq,
+{
+    let t = crate::conn::cast::truncate(c, x);
+    t == c.ceil(x) || t == c.floor(x)
+}
+
+/// Toward-zero contract: `x ≥ 0 ⟹ truncate = floor`,
+/// otherwise (including the NaN-bearing case where `x ≥ 0` is false)
+/// `truncate = ceil`.
+pub fn cast_truncate_toward_zero<A, B>(c: &Conn<A, B>, x: A) -> bool
+where
+    A: Copy + PartialOrd + From<u8>,
+    B: Copy + Eq,
+{
+    let zero = A::from(0);
+    let t = crate::conn::cast::truncate(c, x);
+    if x >= zero {
+        t == c.floor(x)
+    } else {
+        t == c.ceil(x)
+    }
+}
+
+/// `round1(c, id, x) == x` for an identity Conn (Haskell axiom
+/// `round1 identity = id`). Documented to be a delegation check on
+/// identity Conns; on non-identity triples the equality holds only
+/// when `x` already lies on a representable rung.
+///
+/// # Warning
+///
+/// Only reliable as a law predicate for **identity Conns**. The
+/// signature accepts any `Conn<A, B>`, but driving this predicate
+/// over a non-identity triple (e.g. `FD12FD09`) produces spurious
+/// failures whenever `x` does not already lie on a representable
+/// rung — those are not law violations. For non-identity Conns,
+/// use [`cast_round_picks_endpoint`] instead.
+pub fn cast_round1_id_unit<A, B>(c: &Conn<A, B>, x: B) -> bool
+where
+    A: Copy + PartialOrd + core::ops::Sub<Output = A> + From<u8>,
+    B: Copy + Eq,
+{
+    crate::conn::cast::round1(c, |a| a, x) == x
+}
+
+/// `truncate1(c, id, x) == x` for an identity Conn (Haskell axiom
+/// `truncate1 identity = id`). Same caveats as
+/// [`cast_round1_id_unit`].
+///
+/// # Warning
+///
+/// Only reliable as a law predicate for **identity Conns**. For
+/// non-identity Conns, use [`cast_truncate_picks_endpoint`] —
+/// driving this predicate elsewhere produces spurious failures
+/// that are not law violations.
+pub fn cast_truncate1_id_unit<A, B>(c: &Conn<A, B>, x: B) -> bool
+where
+    A: Copy + PartialOrd + From<u8>,
+    B: Copy + Eq,
+{
+    crate::conn::cast::truncate1(c, |a| a, x) == x
+}
+
+/// Birkhoff median axiom 1: `median(c, x, x, y) == x`.
+pub fn cast_median_idempotent<A>(c: &Conn<(A, A), A>, x: A, y: A) -> bool
+where
+    A: Copy + Eq,
+{
+    crate::conn::cast::median(c, x, x, y) == x
+}
+
+/// Birkhoff median axiom 2 (rotation):
+/// `median(c, x, y, z) == median(c, z, x, y)`.
+pub fn cast_median_rotate<A>(c: &Conn<(A, A), A>, x: A, y: A, z: A) -> bool
+where
+    A: Copy + Eq,
+{
+    crate::conn::cast::median(c, x, y, z) == crate::conn::cast::median(c, z, x, y)
+}
+
+/// Birkhoff median axiom 3 (last-two swap):
+/// `median(c, x, y, z) == median(c, x, z, y)`.
+pub fn cast_median_swap_yz<A>(c: &Conn<(A, A), A>, x: A, y: A, z: A) -> bool
+where
+    A: Copy + Eq,
+{
+    crate::conn::cast::median(c, x, y, z) == crate::conn::cast::median(c, x, z, y)
+}
+
 // ── Bare partial-order laws (for any `T: Eq + PartialOrd`) ──────
 //
 // These predicates are diagnostic: a violation indicates the type

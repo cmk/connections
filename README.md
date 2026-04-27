@@ -265,7 +265,7 @@ and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 |-----|--------|
 | L-side accessors + lifters: `upper`, `upper1`, `upper2`, `ceiling`, `ceiling1`, `ceiling2`, `maximize` | shipped (Sprint A) |
 | R-side accessors + lifters: `lower`, `lower1`, `lower2`, `floor`, `floor1`, `floor2`, `minimize` | shipped (Sprint A) |
-| Two-sided helpers: `interval`, `midpoint`, `round`/`round1`/`round2`, `truncate`/`truncate1`/`truncate2`, `median` | planned (Sprint B) |
+| Two-sided helpers: `interval`, `midpoint`, `round`/`round1`/`round2`, `truncate`/`truncate1`/`truncate2`, `median` | shipped (Sprint B) |
 | Combinators: `bounded`, `ordered` (as macros) | planned (Sprint C) |
 | `Down<T>` newtype + `filterL`/`filterR` | planned (Sprint D) |
 

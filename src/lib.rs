@@ -164,8 +164,9 @@ pub mod lattice;
 // (`use connections::{ceiling, floor};`) over globs to make the
 // origin explicit.
 pub use conn::cast::{
-    ceiling, ceiling1, ceiling2, floor, floor1, floor2, lower, lower1, lower2, maximize, minimize,
-    upper, upper1, upper2,
+    ceiling, ceiling1, ceiling2, floor, floor1, floor2, interval, lower, lower1, lower2, maximize,
+    median, midpoint, minimize, round, round1, round2, truncate, truncate1, truncate2, upper,
+    upper1, upper2,
 };
 
 // Property predicates (`property::laws`) and proptest strategies
