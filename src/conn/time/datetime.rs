@@ -128,7 +128,7 @@ mod tests {
     fn midnight_fixes_date() {
         let d = Date::from_calendar_date(2000, Month::January, 1).unwrap();
         let p = PrimitiveDateTime::new(d, Time::MIDNIGHT);
-        assert_eq!(PDTMDATE.ceil(p),  Extended::Finite(d));
+        assert_eq!(PDTMDATE.ceil(p), Extended::Finite(d));
         assert_eq!(PDTMDATE.floor(p), Extended::Finite(d));
         assert_eq!(PDTMDATE.inner(Extended::Finite(d)), p);
     }
@@ -137,15 +137,18 @@ mod tests {
     fn one_ns_after_midnight_ceils_to_next_day() {
         let d = Date::from_calendar_date(2000, Month::January, 1).unwrap();
         let p = PrimitiveDateTime::new(d, Time::from_hms_nano(0, 0, 0, 1).unwrap());
-        assert_eq!(PDTMDATE.ceil(p),  Extended::Finite(d.next_day().unwrap()));
+        assert_eq!(PDTMDATE.ceil(p), Extended::Finite(d.next_day().unwrap()));
         assert_eq!(PDTMDATE.floor(p), Extended::Finite(d));
     }
 
     #[test]
     fn extremes() {
-        assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MIN),  Extended::NegInf);
-        assert_eq!(PDTMDATE.floor(PrimitiveDateTime::MIN), Extended::Finite(Date::MIN));
-        assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MAX),  Extended::PosInf);
+        assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MIN), Extended::NegInf);
+        assert_eq!(
+            PDTMDATE.floor(PrimitiveDateTime::MIN),
+            Extended::Finite(Date::MIN)
+        );
+        assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MAX), Extended::PosInf);
         assert_eq!(PDTMDATE.floor(PrimitiveDateTime::MAX), Extended::PosInf);
 
         assert_eq!(PDTMDATE.inner(Extended::NegInf), PrimitiveDateTime::MIN);
@@ -154,10 +157,7 @@ mod tests {
 
     #[test]
     fn date_max_with_subday_ceils_to_posinf() {
-        let p = PrimitiveDateTime::new(
-            Date::MAX,
-            Time::from_hms_nano(0, 0, 0, 1).unwrap(),
-        );
+        let p = PrimitiveDateTime::new(Date::MAX, Time::from_hms_nano(0, 0, 0, 1).unwrap());
         assert_eq!(PDTMDATE.ceil(p), Extended::PosInf);
         assert_eq!(PDTMDATE.floor(p), Extended::Finite(Date::MAX));
     }

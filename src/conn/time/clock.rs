@@ -56,10 +56,7 @@ pub const TIMENANO: Conn<Extended<Time>, i64> = {
     fn time_to_ns(t: Time) -> i64 {
         // `as_hms_nano` returns (h, m, s, ns) — total ≤ NS_MAX, fits i64.
         let (h, m, s, ns) = t.as_hms_nano();
-        h as i64 * NS_PER_HOUR
-            + m as i64 * NS_PER_MIN
-            + s as i64 * NS_PER_SEC
-            + ns as i64
+        h as i64 * NS_PER_HOUR + m as i64 * NS_PER_MIN + s as i64 * NS_PER_SEC + ns as i64
     }
 
     fn ns_to_time(ns: i64) -> Time {

@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn zero_is_zero() {
-        assert_eq!(DURNSECS.ceil(Duration::ZERO),  Extended::Finite(0));
+        assert_eq!(DURNSECS.ceil(Duration::ZERO), Extended::Finite(0));
         assert_eq!(DURNSECS.floor(Duration::ZERO), Extended::Finite(0));
         assert_eq!(DURNSECS.inner(Extended::Finite(0)), Duration::ZERO);
     }
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn positive_subsec_rounds_up() {
         let d = Duration::seconds(5) + Duration::nanoseconds(1);
-        assert_eq!(DURNSECS.ceil(d),  Extended::Finite(6));
+        assert_eq!(DURNSECS.ceil(d), Extended::Finite(6));
         assert_eq!(DURNSECS.floor(d), Extended::Finite(5));
     }
 
@@ -154,15 +154,15 @@ mod tests {
     fn negative_subsec_rounds_toward_zero() {
         // -5.000_000_001 s → ceil = -5, floor = -6
         let d = Duration::seconds(-5) - Duration::nanoseconds(1);
-        assert_eq!(DURNSECS.ceil(d),  Extended::Finite(-5));
+        assert_eq!(DURNSECS.ceil(d), Extended::Finite(-5));
         assert_eq!(DURNSECS.floor(d), Extended::Finite(-6));
     }
 
     #[test]
     fn extreme_durations() {
-        assert_eq!(DURNSECS.ceil(Duration::MAX),  Extended::PosInf);
+        assert_eq!(DURNSECS.ceil(Duration::MAX), Extended::PosInf);
         assert_eq!(DURNSECS.floor(Duration::MAX), Extended::PosInf);
-        assert_eq!(DURNSECS.ceil(Duration::MIN),  Extended::NegInf);
+        assert_eq!(DURNSECS.ceil(Duration::MIN), Extended::NegInf);
         assert_eq!(DURNSECS.floor(Duration::MIN), Extended::NegInf);
     }
 
