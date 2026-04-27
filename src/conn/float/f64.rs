@@ -261,25 +261,11 @@ fn floor_f64_bf16(x: f64) -> bf16 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::{arb_bf16, arb_f16, arb_f32, arb_f64};
+    use crate::property::arb::{
+        arb_f32, arb_f64, extended_float_bf16 as eb16, extended_float_f16 as ef16,
+    };
     use crate::property::laws;
     use proptest::prelude::*;
-
-    fn ef16() -> impl Strategy<Value = F016> {
-        prop_oneof![
-            1 => Just(ExtendedFloat::Bot),
-            1 => Just(ExtendedFloat::Top),
-            8 => arb_f16().prop_map(ExtendedFloat::Extend),
-        ]
-    }
-
-    fn eb16() -> impl Strategy<Value = B016> {
-        prop_oneof![
-            1 => Just(ExtendedFloat::Bot),
-            1 => Just(ExtendedFloat::Top),
-            8 => arb_bf16().prop_map(ExtendedFloat::Extend),
-        ]
-    }
 
     /// Local strategy: `ExtendedFloat<f64>` over `Bot`, `Top`, and full-
     /// range `Extend(_)` (8:1:1 weighting toward the extension slot).

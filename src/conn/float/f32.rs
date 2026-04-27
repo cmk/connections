@@ -185,7 +185,7 @@ fn floor_f32_bf16(x: f32) -> bf16 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::{arb_bf16, arb_f16, arb_f32};
+    use crate::property::arb::{arb_f32, extended_float_bf16 as eb16, extended_float_f16 as ef16};
     use crate::property::laws;
     use proptest::prelude::*;
 
@@ -194,22 +194,6 @@ mod tests {
             1 => Just(ExtendedFloat::Bot),
             1 => Just(ExtendedFloat::Top),
             8 => arb_f32().prop_map(ExtendedFloat::Extend),
-        ]
-    }
-
-    fn ef16() -> impl Strategy<Value = F016> {
-        prop_oneof![
-            1 => Just(ExtendedFloat::Bot),
-            1 => Just(ExtendedFloat::Top),
-            8 => arb_f16().prop_map(ExtendedFloat::Extend),
-        ]
-    }
-
-    fn eb16() -> impl Strategy<Value = B016> {
-        prop_oneof![
-            1 => Just(ExtendedFloat::Bot),
-            1 => Just(ExtendedFloat::Top),
-            8 => arb_bf16().prop_map(ExtendedFloat::Extend),
         ]
     }
 
