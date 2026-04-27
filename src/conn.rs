@@ -350,7 +350,7 @@ mod tests {
     }
 
     #[test]
-    fn compose_inner_at_uni_safe_boundary() {
+    fn compose_inner_at_fd00_safe_boundary() {
         // `fixed_coarse(FD12::PREC)` narrows to |c| ≤ i64::MAX / 1e12
         // because `inner(c) = c · 1e12` overflows past that. The
         // narrowing is architectural (it applies identically to

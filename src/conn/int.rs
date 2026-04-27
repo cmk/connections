@@ -124,7 +124,7 @@ mod tests {
     // ── Spot checks: I??I?? (signed Extended source) ──────────────
 
     #[test]
-    fn int_widening_ceil_at_boundaries() {
+    fn i_to_i_ceil_at_boundaries() {
         // NegInf saturates to target MIN.
         assert_eq!(I008I016.ceil(Extended::NegInf), i16::MIN);
         // PosInf goes to "one above source max".
@@ -138,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn int_widening_floor_at_boundaries() {
+    fn i_to_i_floor_at_boundaries() {
         // NegInf goes to "one below source min".
         assert_eq!(I008I016.floor(Extended::NegInf), -129);
         // PosInf saturates to target MAX.
@@ -148,7 +148,7 @@ mod tests {
     }
 
     #[test]
-    fn int_widening_inner_partitions_target_range() {
+    fn i_to_i_inner_partitions_target_range() {
         // x ≤ below → NegInf
         assert_eq!(I008I016.inner(-129), Extended::NegInf);
         assert_eq!(I008I016.inner(i16::MIN), Extended::NegInf);
@@ -164,7 +164,7 @@ mod tests {
     // ── Spot checks: U??I?? (unsigned Extended source) ────────────
 
     #[test]
-    fn uint_int_ceil_at_boundaries() {
+    fn u_to_i_ceil_at_boundaries() {
         assert_eq!(U008I016.ceil(Extended::NegInf), i16::MIN);
         assert_eq!(U008I016.ceil(Extended::PosInf), 256);
         assert_eq!(U008I016.ceil(Extended::Finite(0)), 0);
@@ -174,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn uint_int_floor_at_boundaries() {
+    fn u_to_i_floor_at_boundaries() {
         assert_eq!(U008I016.floor(Extended::NegInf), -1);
         assert_eq!(U008I016.floor(Extended::PosInf), i16::MAX);
         assert_eq!(U008I016.floor(Extended::Finite(255)), 255);
@@ -183,7 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn uint_int_inner_partitions_target_range() {
+    fn u_to_i_inner_partitions_target_range() {
         assert_eq!(U008I016.inner(-1), Extended::NegInf);
         assert_eq!(U008I016.inner(i16::MIN), Extended::NegInf);
         assert_eq!(U008I016.inner(256), Extended::PosInf);

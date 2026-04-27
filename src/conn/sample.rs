@@ -601,7 +601,7 @@ mod tests {
     // definition: inner(Sxx::from_sample(1)) should be within 0.5 ps
     // of 10^12 / Sxx::HZ.
     #[test]
-    fn pico_inner_matches_ideal() {
+    fn fd12_inner_matches_ideal() {
         // Use f64 for the ideal — this test only, asserts sit here as
         // proof that the integer math agrees with the analytic formula.
         fn check<R: SampleRate + Copy>(conn: Conn<FD12, R>, sample_one: R) {

@@ -98,7 +98,7 @@ mod tests {
     // ── Spot checks ────────────────────────────────────────────────
 
     #[test]
-    fn uint_widening_ceil_at_boundaries() {
+    fn u_to_u_ceil_at_boundaries() {
         assert_eq!(U008U016.ceil(0u8), 0u16);
         assert_eq!(U008U016.ceil(u8::MAX), u8::MAX as u16);
         assert_eq!(U008U032.ceil(u8::MAX), u8::MAX as u32);
@@ -109,7 +109,7 @@ mod tests {
     }
 
     #[test]
-    fn uint_widening_inner_saturates_at_source_max() {
+    fn u_to_u_inner_saturates_at_source_max() {
         assert_eq!(U008U016.inner(u16::MAX), u8::MAX);
         assert_eq!(U008U032.inner(u32::MAX), u8::MAX);
         assert_eq!(U008U064.inner(u64::MAX), u8::MAX);
@@ -122,7 +122,7 @@ mod tests {
     }
 
     #[test]
-    fn int_uint_ceil_clips_negatives_to_zero() {
+    fn i_to_u_ceil_clips_negatives_to_zero() {
         assert_eq!(I008U008.ceil(-5), 0);
         assert_eq!(I008U016.ceil(-128), 0);
         assert_eq!(I016U032.ceil(-32_768), 0);
@@ -131,7 +131,7 @@ mod tests {
     }
 
     #[test]
-    fn int_uint_ceil_passes_non_negative() {
+    fn i_to_u_ceil_passes_non_negative() {
         assert_eq!(I008U008.ceil(0), 0);
         assert_eq!(I008U008.ceil(127), 127);
         assert_eq!(I008U016.ceil(127), 127);
@@ -141,7 +141,7 @@ mod tests {
     }
 
     #[test]
-    fn int_uint_inner_saturates_at_source_max() {
+    fn i_to_u_inner_saturates_at_source_max() {
         assert_eq!(I008U008.inner(u8::MAX), i8::MAX);
         assert_eq!(I008U016.inner(u16::MAX), i8::MAX);
         assert_eq!(I016U016.inner(u16::MAX), i16::MAX);
@@ -154,7 +154,7 @@ mod tests {
     }
 
     #[test]
-    fn int_uint_galois_at_mid_positive() {
+    fn i_to_u_galois_at_mid_positive() {
         // Exercises the active branch (`a >= 0`, ceil widens, inner is
         // below cap so identity-casts back) — proptest covers this too,
         // but proptest's `any::<iN>()` weights heavily toward boundary
