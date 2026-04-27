@@ -27,6 +27,8 @@
 //! | `FD06`   | [`conn::fixed::decimal::FD06`]                      | 10⁻⁶ s  (1 µs)         |
 //! | `FD09`   | [`conn::fixed::decimal::FD09`]                      | 10⁻⁹ s  (1 ns)         |
 //! | `FD12`   | [`conn::fixed::decimal::FD12`]                      | 10⁻¹² s (1 ps)         |
+//! | `F016`   | [`F016`](conn::float::F016)                         | IEEE binary16 (sw via `half`) |
+//! | `B016`   | [`B016`](conn::float::B016)                         | Google bfloat16 (sw via `half`) |
 //! | `F032`   | [`ExtendedFloat<f32>`](conn::float::ExtendedFloat)  | IEEE binary32          |
 //! | `F064`   | [`ExtendedFloat<f64>`](conn::float::ExtendedFloat)  | IEEE binary64          |
 //! | `F128`   | (deferred — `f128` unstable)                        | IEEE binary128         |

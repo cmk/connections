@@ -87,6 +87,22 @@ impl_float_ext!(f64);
 impl_float_ext!(half::f16);
 impl_float_ext!(half::bf16);
 
+/// IEEE binary16 (half-precision) wrapped under the N5 lattice.
+///
+/// **Software-emulated** via the [`half`](https://docs.rs/half) crate;
+/// when native `f16` stabilizes the inner type swaps without changing
+/// `F016`'s public surface or any `F<src>F016` Conn name.
+pub type F016 = ExtendedFloat<half::f16>;
+
+/// Google bfloat16 (Brain Floating Point) wrapped under the N5 lattice.
+///
+/// **Software-emulated** via the [`half`](https://docs.rs/half) crate.
+/// `bf16` shares `f32`'s 8-bit exponent (same dynamic range) but has
+/// only a 7-bit mantissa — preferred over IEEE `f16` for ML
+/// workloads where range matters more than precision. There is no
+/// stable Rust native bf16 today.
+pub type B016 = ExtendedFloat<half::bf16>;
+
 /// Connection between `ExtendedFloat<f64>` and `ExtendedFloat<f32>`
 /// under the N5 lattice ordering.
 ///
