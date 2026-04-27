@@ -13,12 +13,16 @@
 //!   adjacent and non-adjacent pair connections.
 //! - `sample` — rate-typed sample-indexed time; rate ↔ rate and
 //!   rate ↔ FD12 connections.
+//! - `time` — connections among the [`time`](https://docs.rs/time)
+//!   crate's calendar / clock / duration types (8-character names —
+//!   see [`crate::conn::time`]).
 
 pub mod cast;
 pub mod fixed;
 pub mod float;
 pub mod int;
 pub mod sample;
+pub mod time;
 pub mod uint;
 
 /// Compose a chain of `Conn` consts into a single fresh `Conn<Src, Dst>`.

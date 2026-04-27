@@ -8,6 +8,7 @@ description = "Galois connections and lattice-based numerical conversions"
 
 [dependencies]
 fixed = "1"
+time = "0.3"
 proptest = { version = "1", optional = true }
 
 [dev-dependencies]
