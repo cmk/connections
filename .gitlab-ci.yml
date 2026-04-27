@@ -1,3 +1,16 @@
+# One pipeline per push. When an MR is open, the merge-request pipeline
+# is canonical (and is what GitLab attaches to the MR view); when no MR
+# is open, the branch pipeline runs the same jobs. This means `fmt`,
+# `clippy`, `test`, `deny`, `gitleaks` show up on the MR pipeline page
+# the moment an MR is opened, instead of being hidden in a separate
+# "Branch pipelines" tab.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
 stages:
   - check
   - test
@@ -37,22 +50,28 @@ test:
 deny:
   stage: audit
   before_script:
+    # Use the prebuilt cargo-deny binary instead of `cargo install
+    # --locked cargo-deny` (which compiles cargo-deny + ~100 deps
+    # including rustfmt and fs-err from source — about 10 minutes
+    # per CI run). Download is ~5MB and unpack is ~5 seconds.
+    #
     # Pin cargo-deny exactly to 0.18.3 — the last release compatible
     # with rustc 1.85 (this project's rust-toolchain.toml pin).
-    # cargo-deny 0.18.9 and 0.19.x bumped MSRV to 1.88; cargo's own
-    # install error suggests 0.18.3 as the supported version.
-    # Bump both cargo-deny and rust-toolchain together if we need
-    # newer deny rules.
-    - cargo install --locked cargo-deny --version '=0.18.3'
+    # 0.18.9 and 0.19.x bumped MSRV to 1.88; bump both cargo-deny
+    # and rust-toolchain together if we need newer deny rules.
+    - 'curl -fsSL "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.18.3/cargo-deny-0.18.3-x86_64-unknown-linux-musl.tar.gz" | tar -xz -C /tmp'
+    - install -m 755 /tmp/cargo-deny-0.18.3-x86_64-unknown-linux-musl/cargo-deny /usr/local/bin/cargo-deny
   script:
-    - cargo deny check
-  # Advisory-only for now: cargo-deny 0.18.3 cannot parse recent
-  # RUSTSEC advisory files that use CVSS 4.0 (support landed in
-  # 0.19+, which requires rustc 1.88+). Until rust-toolchain.toml
-  # bumps, the advisory-db parse failure blocks the job even though
-  # licenses/bans/sources all pass. Matching the `fmt` posture
-  # (warn-only) keeps the signal visible without blocking merges.
-  allow_failure: true
+    # Skip the `advisories` subcheck: cargo-deny 0.18.3 cannot parse
+    # RUSTSEC advisories that use CVSS 4.0 (support landed in 0.19+,
+    # which requires rustc 1.88+). The whole advisory DB fails to
+    # load — `[advisories] ignore = [...]` in deny.toml does not
+    # help because filtering happens after load. `licenses`, `bans`,
+    # and `sources` all parse normally and stay enforced.
+    #
+    # When rust-toolchain.toml bumps to 1.88+, drop the explicit
+    # subcheck list to re-enable advisories.
+    - cargo-deny check licenses bans sources
 
 gitleaks:
   stage: audit
