@@ -21,7 +21,7 @@ pub type I004 = FixedI8<U4>;
 pub type I006 = FixedI8<U6>;
 pub type I008 = FixedI8<U8>;
 
-macro_rules! fix_fix_i08 {
+macro_rules! fix_fix_i8 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {
         pub const $const_name: Conn<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
@@ -68,27 +68,27 @@ macro_rules! fix_fix_i08 {
 }
 
 // 21 ordered pairs from {U0, U1, U2, U3, U4, U6, U8}.
-fix_fix_i08!(I001I000, U1, U0);
-fix_fix_i08!(I002I000, U2, U0);
-fix_fix_i08!(I003I000, U3, U0);
-fix_fix_i08!(I004I000, U4, U0);
-fix_fix_i08!(I006I000, U6, U0);
-fix_fix_i08!(I008I000, U8, U0);
-fix_fix_i08!(I002I001, U2, U1);
-fix_fix_i08!(I003I001, U3, U1);
-fix_fix_i08!(I004I001, U4, U1);
-fix_fix_i08!(I006I001, U6, U1);
-fix_fix_i08!(I008I001, U8, U1);
-fix_fix_i08!(I003I002, U3, U2);
-fix_fix_i08!(I004I002, U4, U2);
-fix_fix_i08!(I006I002, U6, U2);
-fix_fix_i08!(I008I002, U8, U2);
-fix_fix_i08!(I004I003, U4, U3);
-fix_fix_i08!(I006I003, U6, U3);
-fix_fix_i08!(I008I003, U8, U3);
-fix_fix_i08!(I006I004, U6, U4);
-fix_fix_i08!(I008I004, U8, U4);
-fix_fix_i08!(I008I006, U8, U6);
+fix_fix_i8!(I001I000, U1, U0);
+fix_fix_i8!(I002I000, U2, U0);
+fix_fix_i8!(I003I000, U3, U0);
+fix_fix_i8!(I004I000, U4, U0);
+fix_fix_i8!(I006I000, U6, U0);
+fix_fix_i8!(I008I000, U8, U0);
+fix_fix_i8!(I002I001, U2, U1);
+fix_fix_i8!(I003I001, U3, U1);
+fix_fix_i8!(I004I001, U4, U1);
+fix_fix_i8!(I006I001, U6, U1);
+fix_fix_i8!(I008I001, U8, U1);
+fix_fix_i8!(I003I002, U3, U2);
+fix_fix_i8!(I004I002, U4, U2);
+fix_fix_i8!(I006I002, U6, U2);
+fix_fix_i8!(I008I002, U8, U2);
+fix_fix_i8!(I004I003, U4, U3);
+fix_fix_i8!(I006I003, U6, U3);
+fix_fix_i8!(I008I003, U8, U3);
+fix_fix_i8!(I006I004, U6, U4);
+fix_fix_i8!(I008I004, U8, U4);
+fix_fix_i8!(I008I006, U8, U6);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests

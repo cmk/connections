@@ -1,7 +1,7 @@
 //! Binary fixed-point ladder over `fixed::FixedU8<Frac>`.
 //!
 //! Frac level set: `{U0, U1, U2, U3, U4, U6, U7, U8}` → 28 ordered pairs
-//! `(Fine, Coarse)` with `Fine > Coarse`. Mirrors [`super::i08`] with two
+//! `(Fine, Coarse)` with `Fine > Coarse`. Mirrors [`super::i8`] with two
 //! adaptations:
 //!
 //! - The backing type is `FixedU8<Frac>` (u8) instead of `FixedI8<Frac>`
@@ -32,7 +32,7 @@ pub type U006 = FixedU8<U6>;
 pub type U007 = FixedU8<U7>;
 pub type U008 = FixedU8<U8>;
 
-macro_rules! fix_fix_u08 {
+macro_rules! fix_fix_u8 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {
         pub const $const_name: Conn<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
@@ -76,34 +76,34 @@ macro_rules! fix_fix_u08 {
 }
 
 // 28 ordered pairs from {U0, U1, U2, U3, U4, U6, U7, U8}.
-fix_fix_u08!(U001U000, U1, U0);
-fix_fix_u08!(U002U000, U2, U0);
-fix_fix_u08!(U003U000, U3, U0);
-fix_fix_u08!(U004U000, U4, U0);
-fix_fix_u08!(U006U000, U6, U0);
-fix_fix_u08!(U007U000, U7, U0);
-fix_fix_u08!(U008U000, U8, U0);
-fix_fix_u08!(U002U001, U2, U1);
-fix_fix_u08!(U003U001, U3, U1);
-fix_fix_u08!(U004U001, U4, U1);
-fix_fix_u08!(U006U001, U6, U1);
-fix_fix_u08!(U007U001, U7, U1);
-fix_fix_u08!(U008U001, U8, U1);
-fix_fix_u08!(U003U002, U3, U2);
-fix_fix_u08!(U004U002, U4, U2);
-fix_fix_u08!(U006U002, U6, U2);
-fix_fix_u08!(U007U002, U7, U2);
-fix_fix_u08!(U008U002, U8, U2);
-fix_fix_u08!(U004U003, U4, U3);
-fix_fix_u08!(U006U003, U6, U3);
-fix_fix_u08!(U007U003, U7, U3);
-fix_fix_u08!(U008U003, U8, U3);
-fix_fix_u08!(U006U004, U6, U4);
-fix_fix_u08!(U007U004, U7, U4);
-fix_fix_u08!(U008U004, U8, U4);
-fix_fix_u08!(U007U006, U7, U6);
-fix_fix_u08!(U008U006, U8, U6);
-fix_fix_u08!(U008U007, U8, U7);
+fix_fix_u8!(U001U000, U1, U0);
+fix_fix_u8!(U002U000, U2, U0);
+fix_fix_u8!(U003U000, U3, U0);
+fix_fix_u8!(U004U000, U4, U0);
+fix_fix_u8!(U006U000, U6, U0);
+fix_fix_u8!(U007U000, U7, U0);
+fix_fix_u8!(U008U000, U8, U0);
+fix_fix_u8!(U002U001, U2, U1);
+fix_fix_u8!(U003U001, U3, U1);
+fix_fix_u8!(U004U001, U4, U1);
+fix_fix_u8!(U006U001, U6, U1);
+fix_fix_u8!(U007U001, U7, U1);
+fix_fix_u8!(U008U001, U8, U1);
+fix_fix_u8!(U003U002, U3, U2);
+fix_fix_u8!(U004U002, U4, U2);
+fix_fix_u8!(U006U002, U6, U2);
+fix_fix_u8!(U007U002, U7, U2);
+fix_fix_u8!(U008U002, U8, U2);
+fix_fix_u8!(U004U003, U4, U3);
+fix_fix_u8!(U006U003, U6, U3);
+fix_fix_u8!(U007U003, U7, U3);
+fix_fix_u8!(U008U003, U8, U3);
+fix_fix_u8!(U006U004, U6, U4);
+fix_fix_u8!(U007U004, U7, U4);
+fix_fix_u8!(U008U004, U8, U4);
+fix_fix_u8!(U007U006, U7, U6);
+fix_fix_u8!(U008U006, U8, U6);
+fix_fix_u8!(U008U007, U8, U7);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests

@@ -53,13 +53,13 @@
 //! the underlying primitive — `I###` for `FixedI<width><U<frac>>` (signed)
 //! and `U###` for `FixedU<width><U<frac>>` (unsigned). The 3-digit
 //! field is the frac level. Backing width lives in the module path:
-//! `conn::fixed::i08::I008I004` is the i8-backed 8-frac → 4-frac Conn,
+//! `conn::fixed::i8::I008I004` is the i8-backed 8-frac → 4-frac Conn,
 //! while `conn::fixed::i64::I008I004` is the i64-backed analogue. Both
 //! share the constant name `I008I004`; resolution is by qualified
 //! import:
 //!
 //! ```ignore
-//! use connections::conn::fixed::i08 as fi8;
+//! use connections::conn::fixed::i8 as fi8;
 //! use connections::conn::fixed::i64 as fi64;
 //! let _ = fi8::I008I000;     // i8-backed  Q0.8 → Q8.0
 //! let _ = fi64::I008I000;    // i64-backed Q56.8 → Q64.0
@@ -88,7 +88,7 @@
 //! - [`conn::uint::U008U016`] — `u8 → u16` saturating widen.
 //! - [`conn::int::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
 //! - [`conn::int::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
-//! - [`conn::fixed::u08::U008U007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
+//! - [`conn::fixed::u8::U008U007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
 //!   the 7-bit MIDI velocity format).
 //! - [`conn::fixed::u16::U016U015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
 //!   canonical signed-PCM-equivalent unsigned audio amplitude).
