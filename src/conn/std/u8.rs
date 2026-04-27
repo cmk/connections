@@ -10,11 +10,17 @@
 //!
 //! No widening lands here: `u8` is the narrowest unsigned primitive.
 
-use super::int_uint;
+use super::{int_uint, uint_uint_narrow};
 use crate::conn::Conn;
 
 // ── Existing same-width cross-sign ─────────────────────────────────
 int_uint!(I008U008, i8, u8);
+
+// ── §2 U→U narrowing ───────────────────────────────────────────────
+uint_uint_narrow!(U016U008, u16, u8);
+uint_uint_narrow!(U032U008, u32, u8);
+uint_uint_narrow!(U064U008, u64, u8);
+uint_uint_narrow!(U128U008, u128, u8);
 
 #[cfg(test)]
 mod tests {
@@ -37,5 +43,26 @@ mod tests {
         assert_eq!(I008U008.inner(u8::MAX), i8::MAX);
         assert_eq!(I008U008.inner(127), 127);
         assert_eq!(I008U008.inner(50), 50);
+    }
+
+    // ── Spot checks: U→U narrowing into u8 ─────────────────────────
+
+    #[test]
+    fn u_to_u8_saturate() {
+        assert_eq!(U016U008.ceil(u16::MAX), u8::MAX);
+        assert_eq!(U032U008.ceil(u32::MAX), u8::MAX);
+        assert_eq!(U064U008.ceil(u64::MAX), u8::MAX);
+        assert_eq!(U128U008.ceil(u128::MAX), u8::MAX);
+    }
+
+    #[test]
+    fn u_to_u8_inner_fine_max_fixup() {
+        assert_eq!(U016U008.inner(u8::MAX), u16::MAX);
+        assert_eq!(U032U008.inner(u8::MAX), u32::MAX);
+        assert_eq!(U064U008.inner(u8::MAX), u64::MAX);
+        assert_eq!(U128U008.inner(u8::MAX), u128::MAX);
+        // Below the fixup, lossless widen.
+        assert_eq!(U016U008.inner(0), 0_u16);
+        assert_eq!(U016U008.inner(254), 254_u16);
     }
 }

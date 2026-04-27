@@ -36,3 +36,8 @@ macro_rules! single_sided_props {
 single_sided_props!(u008u016, U008U016, any::<u8>(), any::<u16>());
 single_sided_props!(i008u016, I008U016, any::<i8>(), any::<u16>());
 single_sided_props!(i016u016, I016U016, any::<i16>(), any::<u16>());
+
+// §2 U→U narrowing into u16
+single_sided_props!(u032u016, U032U016, any::<u32>(), any::<u16>());
+single_sided_props!(u064u016, U064U016, any::<u64>(), any::<u16>());
+single_sided_props!(u128u016, U128U016, any::<u128>(), any::<u16>());

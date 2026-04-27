@@ -195,8 +195,36 @@ macro_rules! int_int_narrow {
 }
 pub(crate) use int_int_narrow;
 
-// (`uint_uint_narrow!`, `int_uint_narrow!`, `uint_int_sat!` land in
-// subsequent commits T4-T6 alongside their first invocations.)
+/// `Conn<u_N, u_M>` narrowing (`bits(u_N) > bits(u_M)`).
+///
+/// `ceil` saturates source values above `u_M::MAX` down to
+/// `u_M::MAX` before downcasting; `inner` is the lossless `as`-widen
+/// with a FINE_MAX fixup (`inner(u_M::MAX) = u_N::MAX`). The fixup
+/// is required for left-Galois to hold at the source-side
+/// saturation plateau (mirrors the same pattern in
+/// `conn::fixed::u<width>`).
+macro_rules! uint_uint_narrow {
+    ($NAME:ident, $A:ty, $B:ty) => {
+        #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
+        pub const $NAME: Conn<$A, $B> = {
+            fn ceil(x: $A) -> $B {
+                if x > <$B>::MAX as $A {
+                    <$B>::MAX
+                } else {
+                    x as $B
+                }
+            }
+            fn inner(x: $B) -> $A {
+                if x == <$B>::MAX { <$A>::MAX } else { x as $A }
+            }
+            Conn::new_left(ceil, inner)
+        };
+    };
+}
+pub(crate) use uint_uint_narrow;
+
+// (`int_uint_narrow!`, `uint_int_sat!` land in subsequent commits
+// T5-T6 alongside their first invocations.)
 
 // ── Per-primitive submodules ───────────────────────────────────────
 

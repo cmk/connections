@@ -1,7 +1,7 @@
 //! Conns landing on `u32`. Per the right-side-wins module rule,
 //! this file hosts every Conn whose destination type is `u32`.
 
-use super::{int_uint, uint_uint};
+use super::{int_uint, uint_uint, uint_uint_narrow};
 use crate::conn::Conn;
 
 // ── Existing widening ──────────────────────────────────────────────
@@ -10,6 +10,10 @@ uint_uint!(U016U032, u16, u32);
 int_uint!(I008U032, i8, u32);
 int_uint!(I016U032, i16, u32);
 int_uint!(I032U032, i32, u32);
+
+// ── §2 U→U narrowing ───────────────────────────────────────────────
+uint_uint_narrow!(U064U032, u64, u32);
+uint_uint_narrow!(U128U032, u128, u32);
 
 #[cfg(test)]
 mod tests {
@@ -31,5 +35,15 @@ mod tests {
     fn i032u032_inner_saturates() {
         assert_eq!(I032U032.inner(u32::MAX), i32::MAX);
         assert_eq!(I032U032.inner(20_000), 20_000);
+    }
+
+    // ── Spot checks: U→U narrowing into u32 ────────────────────────
+
+    #[test]
+    fn u_to_u32_saturate_and_fixup() {
+        assert_eq!(U064U032.ceil(u64::MAX), u32::MAX);
+        assert_eq!(U128U032.ceil(u128::MAX), u32::MAX);
+        assert_eq!(U064U032.inner(u32::MAX), u64::MAX);
+        assert_eq!(U128U032.inner(u32::MAX), u128::MAX);
     }
 }
