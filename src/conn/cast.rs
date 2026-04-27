@@ -242,6 +242,15 @@ pub fn minimize<A, B, C>(c: &Conn<(A, B), C>, a: A, b: B) -> C {
 /// Faithful port of Haskell `Cast.hs::interval`:
 /// `interval c x = pcompare (x - lower1 c id x) (upper1 c id x - x)`.
 ///
+/// **Overflow:** the body subtracts `x - lower1(c, id, x)` and
+/// `upper1(c, id, x) - x`. Haskell's `Num` is arbitrary-precision;
+/// Rust's signed integers wrap (release) or panic (debug). On
+/// identity Conns both subtractions reduce to `x - x = 0`, so the
+/// risk is zero. On non-identity Conns where the bracket is far
+/// from `x`, callers driving near the type's `MIN`/`MAX` should
+/// either compose through a wider source type first or stay within
+/// a clamped input range.
+///
 /// ```rust
 /// use core::cmp::Ordering;
 /// use connections::conn::Conn;
@@ -821,40 +830,43 @@ mod tests {
 
         // ── Sprint B: two-sided helpers ────────────────────────────
         //
-        // Drawn from clamped i32/i64 ranges to keep the
-        // `(hi - lo) / 2` formulation in `midpoint` and the
-        // subtraction in `interval` from overflowing on identity
-        // sources at primitive-MIN/MAX. Identity Conns over signed
-        // integers have `lo == hi == x`, so these widths matter only
-        // for the predicate evaluations themselves.
+        // Identity Conns have `lower1(c, id, x) == upper1(c, id, x)
+        // == x`, so the inner subtractions in `interval` reduce to
+        // `x - x = 0`, the offset in `midpoint` reduces to `0 / 2 =
+        // 0`, and no arithmetic between distinct values occurs.
+        // Every Sprint-B predicate driven over `ID_I32` / `ID_I64`
+        // is therefore safe over the full primitive range. When
+        // non-identity Conn coverage lands (separate sprint), the
+        // proptests for those bases will need clamps appropriate to
+        // the bracket width.
 
         #[test]
-        fn interval_at_midpoint_id_i32(a in i32::MIN/2..=i32::MAX/2) {
+        fn interval_at_midpoint_id_i32(a: i32) {
             prop_assert!(laws::cast_interval_at_midpoint_eq_or_none(&ID_I32, a));
         }
 
         #[test]
-        fn interval_at_midpoint_id_i64(a in i64::MIN/2..=i64::MAX/2) {
+        fn interval_at_midpoint_id_i64(a: i64) {
             prop_assert!(laws::cast_interval_at_midpoint_eq_or_none(&ID_I64, a));
         }
 
         #[test]
-        fn midpoint_between_id_i32(a in i32::MIN/2..=i32::MAX/2) {
+        fn midpoint_between_id_i32(a: i32) {
             prop_assert!(laws::cast_midpoint_between(&ID_I32, a));
         }
 
         #[test]
-        fn midpoint_between_id_i64(a in i64::MIN/2..=i64::MAX/2) {
+        fn midpoint_between_id_i64(a: i64) {
             prop_assert!(laws::cast_midpoint_between(&ID_I64, a));
         }
 
         #[test]
-        fn round_picks_endpoint_id_i32(a in i32::MIN/2..=i32::MAX/2) {
+        fn round_picks_endpoint_id_i32(a: i32) {
             prop_assert!(laws::cast_round_picks_endpoint(&ID_I32, a));
         }
 
         #[test]
-        fn round_picks_endpoint_id_i64(a in i64::MIN/2..=i64::MAX/2) {
+        fn round_picks_endpoint_id_i64(a: i64) {
             prop_assert!(laws::cast_round_picks_endpoint(&ID_I64, a));
         }
 
@@ -879,7 +891,7 @@ mod tests {
         }
 
         #[test]
-        fn round1_id_unit_id_i32(a in i32::MIN/2..=i32::MAX/2) {
+        fn round1_id_unit_id_i32(a: i32) {
             prop_assert!(laws::cast_round1_id_unit(&ID_I32, a));
         }
 
@@ -888,10 +900,12 @@ mod tests {
             prop_assert!(laws::cast_truncate1_id_unit(&ID_I32, a));
         }
 
-        // Birkhoff median axioms over ORDERED_PAIR. EF64-backed
-        // median coverage is deferred (see plan-2026-04-27-04.md
-        // Deferred section: ExtendedFloat lacks the arithmetic
-        // bounds that would let median compose through it).
+        // Birkhoff median axioms over ORDERED_PAIR. The fn signature
+        // is `<A: Copy>(c: &Conn<(A, A), A>, ...)`, so it would
+        // compile on `ExtendedFloat<f64>` — coverage there is
+        // deferred only because no `ORDERED_PAIR_EF64` fixture
+        // exists. A future sprint can add one to extend median
+        // coverage to NaN-bearing inputs.
 
         #[test]
         fn median_idempotent_ordered(x: i32, y: i32) {

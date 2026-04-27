@@ -312,3 +312,63 @@ Same fix as the parallel thread — `# Warning` added to both predicates in f873
 #### ↳ cmk (2026-04-27 10:38 UTC) [open]
 
 Fixed in f873def — midpoint doc now scopes the overflow claim explicitly: 'sidesteps the intermediate-sum overflow that `lo/2 + hi/2` would otherwise hit on near-MAX rungs, but the inner subtraction `hi - lo` can itself overflow when the bracket spans the full type range.'
+
+<!-- glab-id: 3289237854 -->
+<!-- glab-discussion: 4a90c27c4e01e82617ebcc573d3dd5f385e94a41 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/cast.rs:268` (2026-04-27 10:54 UTC) [open]
+
+**[follow-up]** The `interval` function computes `d_lo = x - lower1(c, |b| b, x)` and `d_hi = upper1(c, |b| b, x) - x`. For a non-identity `Conn` where `lower1` and `upper1` can return values outside `[x, x]`, both subtractions can overflow on signed integer types — there is no guard or documented precondition analogous to the `lo ≤ hi` note in `midpoint`. The doc comment says the function is the faithful port of Haskell `pcompare (x - lower1 c id x) (upper1 c id x - x)` but Haskell's `Num` instances have arbitrary-precision semantics; Rust's signed integers wrap (in release) or panic (in debug). Consider documenting the overflow precondition or restricting the proptest ranges consistently with the `midpoint` rationale.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3289237892 -->
+<!-- glab-discussion: abe29013dafc2c6b12e6257fcc6af7cdba651460 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/cast.rs:449` (2026-04-27 10:54 UTC) [open]
+
+**[must-fix]** The `median` body is `meet(meet(join(x, y), join(y, z)), join(z, x))`, which computes `(x⊔y) ⊓ (y⊔z) ⊓ (z⊔x)`. The standard Birkhoff median formula is `(x⊔y) ⊓ (x⊔z) ⊓ (y⊔z)`, which is symmetric in all three arguments; the body here groups as `((x⊔y)⊓(y⊔z))⊓(z⊔x)`, identical algebraically when `⊓`/`⊔` are associative and commutative. However the rotation axiom `cast_median_rotate` asserts `median(x,y,z) == median(z,x,y)`: substituting `z,x,y` gives `meet(meet(join(z,x), join(x,y)), join(y,z))`, which equals the original by commutativity and associativity of `meet`. The proptest covers this, so for the `ORDERED_PAIR` conn correctness holds. The concern is that the Haskell source uses the formula `(x⊔y)⊓(y⊔z)⊓(z⊔x)` (left-to-right), and the local review at line 65 quotes the same order; the comment in the doc says the same formula — so body, doc, and Haskell all match. No bug; downgrading. *(Self-resolved — no action needed.)*
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3289237927 -->
+<!-- glab-discussion: f2f0214f1034fd0d889185acdfdb3717991eee8f -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/property/laws.rs:628` (2026-04-27 10:54 UTC) [open]
+
+**[follow-up]** The `cast_round1_id_unit` predicate checks `round1(c, |a| a, x) == x`, which for the identity conn reduces to `round(id, id(id(x))) == x`. For the identity conn over `i32`, `id.inner(x) = x` and `round(id, x)` calls `interval(id, x)`, which computes `x - x = 0` and `x - x = 0`, returning `Some(Equal)`, then calls `truncate(id, x)`, which returns `id.floor(x) = x` (when `x >= 0`) or `id.ceil(x) = x` (when `x < 0`). The law holds tautologically for all identity conns, so the clamped proptest range `i32::MIN/2..=i32::MAX/2` is overly conservative — the full `i32` range is safe here. The comment says the clamp prevents arithmetic overflow, but for identity conns `lo == hi == x` so there is no subtraction between distinct values. Consider using the full range (as `truncate_picks_endpoint` and `truncate_toward_zero` already do) and updating the comment to reflect the actual rationale.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3289237957 -->
+<!-- glab-discussion: 11178bce75c657a9001a09157e34bcd1f56cc352 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/cast.rs:826` (2026-04-27 10:54 UTC) [open]
+
+**[follow-up]** The proptest block comment says Birkhoff median coverage is deferred for EF64 because `ExtendedFloat` lacks arithmetic bounds — but `median` requires only `Copy`, not arithmetic bounds. The actual reason EF64 is not driven is that `ORDERED_PAIR` is a `Conn<(i32,i32), i32>` and there is no `ORDERED_PAIR_EF64` fixture; it is a fixture-scope deferral, not a trait-bound deferral. The comment's stated reason is incorrect and will mislead future readers who want to add EF64 median coverage and find that `median` compiles fine for `ExtendedFloat<f64>`.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3289278493 -->
+<!-- glab-discussion: 4a90c27c4e01e82617ebcc573d3dd5f385e94a41 -->
+#### ↳ cmk (2026-04-27 11:08 UTC) [open]
+
+Fixed in a10c552 — `interval` rustdoc now documents the overflow surface: identity Conns reduce to `x - x = 0` (no risk), non-identity drivers near MIN/MAX should compose through a wider source type or stay in a clamped range.
+
+<!-- glab-id: 3289279167 -->
+<!-- glab-discussion: abe29013dafc2c6b12e6257fcc6af7cdba651460 -->
+#### ↳ cmk (2026-04-27 11:08 UTC) [open]
+
+Acknowledged — self-downgraded mid-comment after the bot re-derived associativity/commutativity. Body matches Haskell `Cast.hs` verbatim. No code change.
+
+<!-- glab-id: 3289279457 -->
+<!-- glab-discussion: f2f0214f1034fd0d889185acdfdb3717991eee8f -->
+#### ↳ cmk (2026-04-27 11:08 UTC) [open]
+
+Fixed in a10c552 — relaxed all six identity-Conn proptest clamps from `MIN/2..=MAX/2` to the full primitive range, and updated the block comment to state the actual rationale (no arithmetic between distinct values on identity sources). Clamps will return when non-identity bases are added in a separate sprint.
+
+<!-- glab-id: 3289279796 -->
+<!-- glab-discussion: 11178bce75c657a9001a09157e34bcd1f56cc352 -->
+#### ↳ cmk (2026-04-27 11:08 UTC) [open]
+
+Fixed in a10c552 — comment now correctly states `median`'s signature is `<A: Copy>` so it would compile on `ExtendedFloat<f64>`; the deferral is fixture-scoped (no `ORDERED_PAIR_EF64`), not trait-bound-scoped. A future sprint can add the fixture for NaN-bearing median coverage.
