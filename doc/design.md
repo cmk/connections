@@ -265,31 +265,42 @@ The key properties:
 - **No wrapper on bare floats**: `ExtendedFloat` is only used at the boundary
   of connections involving floats; internal arithmetic uses bare `f32`/`f64`
 
-### Why not a custom `Preorder` trait?
+### Why `Eq + PartialOrd` suffices
 
-The Haskell library defines a `Preorder` class to work around the broken
-`Ord` instance for floats. Rust's `PartialOrd` already captures partial
-orders correctly — the problem is only NaN self-incomparability, which is
-localized to the `ExtendedFloat` impl. Introducing a separate `Preorder` trait
-would duplicate the ecosystem's `PartialOrd` for no additional expressiveness.
+Rust's standard library separates `PartialEq` (a *partial* equivalence
+relation: symmetric + transitive, **reflexivity not required**) from
+`Eq: PartialEq` (a marker trait whose only requirement is that the
+underlying `PartialEq` is reflexive). `PartialOrd`'s contract is to
+be consistent with `PartialEq`. Once a type satisfies `Eq` (i.e. its
+`PartialEq` is reflexive), its `PartialOrd` encodes a genuine partial
+order in the mathematical sense — reflexive, transitive, antisymmetric
+on the comparable subset.
+
+The IEEE-float "broken" comparison story sits at the `PartialEq`
+level, not `PartialOrd`: raw `f64::PartialEq` says `NaN ≠ NaN`, which
+prevents `f64` from impl'ing `Eq`, which is exactly why raw floats
+cannot be used as Conn endpoints. The fix lives at the wrapper
+boundary: `ExtendedFloat<T>` patches `PartialEq` so `Finite(NaN) ==
+Finite(NaN)` (synthetic `Bot` / `Top` are also reflexive), and
+therefore impls `Eq`. `ExtendedFloat<f32>` / `ExtendedFloat<f64>` are
+genuine partial orders and flow through every law predicate that
+demands `T: Eq + PartialOrd`.
+
+The Haskell upstream `connections` library defines its own `Preorder`
+class because Haskell `base` has no partial-order class. Rust does —
+the lawful framework here is just `Eq + PartialOrd`, with no
+crate-local trait surface for ordering.
 
 ### Connections involving floats
 
 Connections between float types are typed over `ExtendedFloat`:
 
-- `f64_f32: Conn<ExtendedFloat<f64>, ExtendedFloat<f32>>` — not `Conn<f64, f32>`
+- `F064F032: Conn<ExtendedFloat<f64>, ExtendedFloat<f32>>` — not `Conn<f64, f32>`
 
 The `inner` function embeds `ExtendedFloat<f32>` into `ExtendedFloat<f64>` preserving
 `Bot`/`Top`/`NaN`/finite structure. The `ceil` and `floor` functions convert
-in the other direction with appropriate rounding.
-
-> **Status (2026-04-23):** This shape is aspirational — the current
-> `f64_f32()` function in `src/conn/float.rs` still returns
-> `Conn<f64, f32>` over bare floats and ULP-walks under the N5
-> preorder from `lattice::Ple`. Switching to `ExtendedFloat`-typed
-> connections is its own sprint; `ExtendedFloat` lives alongside
-> the bare-float connections in `src/conn/float.rs` waiting to be
-> used.
+in the other direction with appropriate rounding. Both endpoints satisfy
+`Eq + PartialOrd` and flow through the law machinery directly.
 
 Connections between integer types do not need `ExtendedFloat` — integer `Ord` is
 total and well-behaved. The `Extended<T>` enum (with `NegInf`, `Finite(T)`,
@@ -331,7 +342,7 @@ src/
 ├── lib.rs              — crate-level API docs, module declarations
 ├── conn.rs             — Conn type, composition, combinators + `conn::*` submodule decls
 ├── extended.rs         — Extended<T> type for integer range extension
-├── lattice.rs          — Ple trait (N5 preorder) + Join/Meet/Heyting/Coheyting/Symmetric/Boolean stubs
+├── lattice.rs          — Join/Meet/Heyting/Coheyting/Symmetric/Boolean lattice traits
 ├── property.rs         — shared proptest strategies and property helpers (Sprint C)
 └── conn/
     ├── int.rs          — integer ↔ integer connections (stub)
