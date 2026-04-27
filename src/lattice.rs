@@ -1,28 +1,20 @@
-//! Lattice hierarchy and the N5 preorder on IEEE floats.
+//! Lattice hierarchy.
 //!
 //! This module defines the trait hierarchy for bounded lattices,
 //! Heyting algebras, co-Heyting algebras, symmetric (De Morgan)
-//! algebras, and Boolean algebras, plus the N5 partial order
-//! [`Ple`] used by the float connections.
+//! algebras, and Boolean algebras.
 //!
 //! The hierarchy mirrors the Haskell `connections` library's
 //! `Data.Lattice` module. See `doc/design.md` §"Lattice hierarchy"
 //! for the full diagram.
-
-/// Partial less-or-equal under the N5 lattice ordering.
-///
-/// Extends the standard float ordering so that:
-/// - NaN is reflexive: `ple(NaN, NaN)` is true
-/// - NaN is below +∞: `ple(NaN, +∞)` is true
-/// - NaN is above -∞: `ple(-∞, NaN)` is true
-/// - NaN is incomparable with all finite values and with each ±∞
-///   in the other direction
-///
-/// This recovers the N5 lattice shape used in the Haskell
-/// `connections` library.
-pub trait Ple {
-    fn ple(&self, other: &Self) -> bool;
-}
+//!
+//! Ordering laws use the standard library's `Eq + PartialOrd` rather
+//! than a crate-local trait. The fix for IEEE-float NaN's
+//! non-reflexivity lives in [`crate::conn::float::ExtendedFloat`],
+//! whose patched `PartialEq` makes `Finite(NaN) == Finite(NaN)` and
+//! satisfies `Eq`. Floats flow through the laws by wrapping into
+//! `ExtendedFloat<T>`; raw `f32`/`f64` cannot satisfy `Eq` and are
+//! rejected at compile time.
 
 // ── Lattice traits ────────────────────────────────────────────────
 
@@ -344,114 +336,6 @@ pub fn convr<T: Symmetric + Sized>(x: &T) -> T {
 ///
 /// If the algebra is Boolean, then `neg == not == coneg`.
 pub trait Boolean: Symmetric {}
-
-// ── Ple implementations ──────────────────────────────────────────
-
-impl Ple for f32 {
-    fn ple(&self, other: &Self) -> bool {
-        n5_le_f32(*self, *other)
-    }
-}
-
-impl Ple for f64 {
-    fn ple(&self, other: &Self) -> bool {
-        n5_le_f64(*self, *other)
-    }
-}
-
-/// N5 ordering for f32.
-fn n5_le_f32(x: f32, y: f32) -> bool {
-    if x.is_nan() && y.is_nan() {
-        true
-    } else if x.is_nan() {
-        y == f32::INFINITY
-    } else if y.is_nan() {
-        x == f32::NEG_INFINITY
-    } else {
-        x <= y
-    }
-}
-
-/// N5 ordering for f64.
-fn n5_le_f64(x: f64, y: f64) -> bool {
-    if x.is_nan() && y.is_nan() {
-        true
-    } else if x.is_nan() {
-        y == f64::INFINITY
-    } else if y.is_nan() {
-        x == f64::NEG_INFINITY
-    } else {
-        x <= y
-    }
-}
-
-// Blanket impls for totally ordered types — ple is just <=.
-impl Ple for i8 {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-impl Ple for i16 {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-impl Ple for i32 {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-impl Ple for i64 {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-impl Ple for u8 {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-impl Ple for u16 {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-impl Ple for u32 {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-impl Ple for u64 {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-
-// `ExtendedFloat<T>`: its `PartialOrd` is the N5 ordering with the
-// NaN-self-equality patch (see `impl_float_ext!` in
-// `crate::conn::float`), so a delegating `Ple` impl is correct.
-impl<T> Ple for crate::conn::float::ExtendedFloat<T>
-where
-    Self: PartialOrd,
-{
-    fn ple(&self, other: &Self) -> bool {
-        matches!(
-            self.partial_cmp(other),
-            Some(core::cmp::Ordering::Less | core::cmp::Ordering::Equal),
-        )
-    }
-}
-
-// `Extended<T>`: derived `PartialOrd` lifts `T: PartialOrd` while
-// fixing `NegInf < Finite < PosInf`. Delegate.
-impl<T: PartialOrd> Ple for crate::extended::Extended<T> {
-    fn ple(&self, other: &Self) -> bool {
-        matches!(
-            self.partial_cmp(other),
-            Some(core::cmp::Ordering::Less | core::cmp::Ordering::Equal),
-        )
-    }
-}
 
 #[cfg(test)]
 mod tests {

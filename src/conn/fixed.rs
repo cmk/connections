@@ -17,40 +17,7 @@ pub mod i16;
 pub mod i32;
 pub mod i64;
 
-// `Ple` impls for the `fixed`-crate signed types backing the binary
-// sub-modules. The `<=` semantics are the same as `PartialOrd` (values
-// are totally ordered by their underlying integer bits); this just
-// re-exposes them through the `Ple` trait so `property::laws::conn_*`
-// predicates accept the binary `Conn` constants directly.
-
-use crate::lattice::Ple;
-
-impl<F: ::fixed::types::extra::LeEqU8> Ple for ::fixed::FixedI8<F> {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-
-impl<F: ::fixed::types::extra::LeEqU16> Ple for ::fixed::FixedI16<F> {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-
-impl<F: ::fixed::types::extra::LeEqU32> Ple for ::fixed::FixedI32<F> {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-
-impl<F: ::fixed::types::extra::LeEqU64> Ple for ::fixed::FixedI64<F> {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
-
-impl<F: ::fixed::types::extra::LeEqU128> Ple for ::fixed::FixedI128<F> {
-    fn ple(&self, other: &Self) -> bool {
-        self <= other
-    }
-}
+// The `fixed`-crate signed types (`FixedI{8,16,32,64,128}<F>`) already
+// derive `PartialEq` / `Eq` / `PartialOrd` / `Ord` upstream — totally
+// ordered by their underlying integer bits — so they flow through any
+// `T: Eq + PartialOrd` law predicate without per-crate impls.

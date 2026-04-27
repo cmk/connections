@@ -25,7 +25,6 @@
 //! bare-float connections, ready to be used.
 
 use crate::conn::Conn;
-use crate::lattice::Ple;
 use std::cmp::Ordering;
 
 #[derive(Copy, Clone, Debug)]
@@ -122,6 +121,12 @@ pub const F064F032: Conn<ExtendedFloat<f64>, ExtendedFloat<f32>> = {
     Conn::new(ceil, inner, floor)
 };
 
+// All `<=` and `==` comparisons in the helpers below operate on
+// values that the early `is_nan()` checks have already filtered to
+// non-NaN. Standard `<=` / `==` on non-NaN floats is total and exact;
+// the lattice-style preorder patches that `ExtendedFloat` provides
+// are not needed here.
+
 fn ceil_f64_f32(x: f64) -> f32 {
     if x.is_nan() {
         return f32::NAN;
@@ -130,11 +135,11 @@ fn ceil_f64_f32(x: f64) -> f32 {
     let est = x as f32;
     let est_up = est as f64;
 
-    if est_up.ple(&x) && x.ple(&est_up) {
+    if est_up == x {
         return est;
     }
 
-    if x.ple(&est_up) {
+    if x <= est_up {
         descend_to_ceil(est, x)
     } else {
         ascend_to_ceil(est, x)
@@ -149,11 +154,11 @@ fn floor_f64_f32(x: f64) -> f32 {
     let est = x as f32;
     let est_up = est as f64;
 
-    if est_up.ple(&x) && x.ple(&est_up) {
+    if est_up == x {
         return est;
     }
 
-    if est_up.ple(&x) {
+    if est_up <= x {
         ascend_to_floor(est, x)
     } else {
         descend_to_floor(est, x)
@@ -172,11 +177,11 @@ fn ascend_to_ceil(start: f32, x: f64) -> f32 {
     let mut z = start;
     loop {
         let next = shift32(1, z);
-        if next.ple(&z) {
+        if next <= z {
             return z;
         }
         z = next;
-        if x.ple(&(z as f64)) {
+        if x <= z as f64 {
             return z;
         }
     }
@@ -187,11 +192,13 @@ fn descend_to_ceil(start: f32, x: f64) -> f32 {
     let mut z = start;
     loop {
         let next = shift32(-1, z);
-        if z.ple(&next) {
+        if z <= next {
             return z;
         }
         let next_up = next as f64;
-        if !x.ple(&next_up) {
+        // Inputs are non-NaN by construction, so `>` is equivalent to
+        // `!(x <= next_up)` here and clearer to clippy.
+        if x > next_up {
             return z;
         }
         z = next;
@@ -203,11 +210,11 @@ fn descend_to_floor(start: f32, x: f64) -> f32 {
     let mut z = start;
     loop {
         let next = shift32(-1, z);
-        if z.ple(&next) {
+        if z <= next {
             return z;
         }
         z = next;
-        if (z as f64).ple(&x) {
+        if z as f64 <= x {
             return z;
         }
     }
@@ -218,11 +225,13 @@ fn ascend_to_floor(start: f32, x: f64) -> f32 {
     let mut z = start;
     loop {
         let next = shift32(1, z);
-        if next.ple(&z) {
+        if next <= z {
             return z;
         }
         let next_up = next as f64;
-        if !next_up.ple(&x) {
+        // Inputs are non-NaN by construction, so `>` is equivalent to
+        // `!(next_up <= x)` here and clearer to clippy.
+        if next_up > x {
             return z;
         }
         z = next;

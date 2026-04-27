@@ -81,12 +81,6 @@ macro_rules! def_rate {
         #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
         pub struct $name(pub Q48_16);
 
-        impl $crate::lattice::Ple for $name {
-            fn ple(&self, other: &Self) -> bool {
-                self <= other
-            }
-        }
-
         impl SampleRate for $name {
             const HZ: u32 = $hz;
         }

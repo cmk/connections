@@ -34,7 +34,6 @@
 use crate::conn::Conn;
 use crate::conn::float::ExtendedFloat;
 use crate::extended::Extended;
-use crate::lattice::Ple;
 
 macro_rules! def_fixed {
     ($name:ident, $prec:expr) => {
@@ -44,12 +43,6 @@ macro_rules! def_fixed {
 
         impl HasResolution for $name {
             const PREC: i64 = $prec;
-        }
-
-        impl Ple for $name {
-            fn ple(&self, other: &Self) -> bool {
-                self.0 <= other.0
-            }
         }
 
         impl $name {
