@@ -12,6 +12,27 @@ readme = "README.md"
 keywords = ["galois", "connection", "lattice", "fixed-point", "conversion"]
 categories = ["mathematics", "encoding"]
 
+# Trim the published archive to user-facing artifacts only. Cargo's
+# default behavior ships everything not gitignored — including
+# ~600KB of internal sprint plans, reviews, dev tool config, and
+# Claude-agent instructions. None of that helps a downstream
+# consumer; the exclude block keeps the .crate to ~src + tests +
+# README + LICENSE + CHANGELOG.
+exclude = [
+    "/.claude",
+    "/.gitlab-ci.yml",
+    "/.gitleaks.toml",
+    "/CLAUDE.md",
+    "/CODEOWNERS",
+    "/deny.toml",
+    "/doc",
+    "/proptest.toml",
+    "/proptest-regressions",
+    "/rust-toolchain.toml",
+    "/rustfmt.toml",
+    "/scripts",
+]
+
 [dependencies]
 fixed = "1"
 half = { version = "2", default-features = false }
