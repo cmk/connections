@@ -435,3 +435,16 @@ pub fn arb_ns_in_range() -> impl Strategy<Value = i64> {
         8 => 0..=NS_MAX,
     ]
 }
+
+/// `i64` strategy bounded to `[0, 86_400)` — the round-trippable
+/// whole-seconds-since-midnight range for the `Time ↔ secs`
+/// connection.
+pub fn arb_secs_in_range() -> impl Strategy<Value = i64> {
+    const SECS_MAX: i64 = 86_400 - 1;
+    prop_oneof![
+        1 => Just(0_i64),
+        1 => Just(SECS_MAX),
+        1 => Just(43_200_i64),
+        8 => 0..=SECS_MAX,
+    ]
+}

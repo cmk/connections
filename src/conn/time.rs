@@ -235,6 +235,91 @@ pub const TIMENANO: Conn<Extended<Time>, i64> = {
     Conn::new(ceil, inner, floor)
 };
 
+// ── TIMESECS ─────────────────────────────────────────────────────
+
+/// `Extended<Time> → i64` — clock time ↔ whole seconds since
+/// midnight (the first proper-Galois time conn: `ceil` and `floor`
+/// disagree on sub-second inputs).
+///
+/// On the `Finite` portion:
+/// - `floor(Finite(t))` = `t.hour() * 3600 + t.minute() * 60 +
+///   t.second()` — truncates the sub-second part.
+/// - `ceil(Finite(t))` equals `floor` when `t.nanosecond() == 0`,
+///   otherwise `floor + 1`.
+/// - `inner(secs)` = `Finite(Time::from_hms(...))` for
+///   `secs ∈ [0, 86_400)`.
+///
+/// `i64` rung values outside `[0, 86_400)` saturate to
+/// `Extended::NegInf` (negative seconds) / `Extended::PosInf` (≥
+/// 86_400 s).
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::time::TIMESECS;
+/// use connections::extended::Extended;
+/// use time::Time;
+///
+/// // Exact second: ceil = floor.
+/// let noon = Time::from_hms(12, 0, 0).unwrap();
+/// assert_eq!(TIMESECS.ceil(Extended::Finite(noon)), 43_200);
+/// assert_eq!(TIMESECS.floor(Extended::Finite(noon)), 43_200);
+///
+/// // Sub-second: ceil rounds up by one, floor truncates.
+/// let mid_minute = Time::from_hms_nano(12, 0, 0, 1).unwrap();
+/// assert_eq!(TIMESECS.ceil(Extended::Finite(mid_minute)),  43_201);
+/// assert_eq!(TIMESECS.floor(Extended::Finite(mid_minute)), 43_200);
+///
+/// assert_eq!(TIMESECS.inner(43_200), Extended::Finite(noon));
+/// ```
+pub const TIMESECS: Conn<Extended<Time>, i64> = {
+    const SECS_MAX: i64 = 86_400 - 1;
+
+    fn whole_sec(t: Time) -> i64 {
+        let (h, m, s, _ns) = t.as_hms_nano();
+        h as i64 * 3600 + m as i64 * 60 + s as i64
+    }
+
+    fn ceil(t: Extended<Time>) -> i64 {
+        match t {
+            Extended::NegInf => i64::MIN,
+            Extended::Finite(time) => {
+                let s = whole_sec(time);
+                if time.nanosecond() != 0 { s + 1 } else { s }
+            }
+            Extended::PosInf => SECS_MAX + 1,
+        }
+    }
+
+    fn inner(secs: i64) -> Extended<Time> {
+        if secs < 0 {
+            Extended::NegInf
+        } else if secs > SECS_MAX {
+            Extended::PosInf
+        } else {
+            // secs in [0, 86_399]; HMS decomposition is in range.
+            let s = secs as u32;
+            let h = (s / 3600) as u8;
+            let m = ((s / 60) % 60) as u8;
+            let sec = (s % 60) as u8;
+            match Time::from_hms(h, m, sec) {
+                Ok(t) => Extended::Finite(t),
+                Err(_) => unreachable!("secs in [0, SECS_MAX] decomposes to valid HMS"),
+            }
+        }
+    }
+
+    fn floor(t: Extended<Time>) -> i64 {
+        match t {
+            Extended::NegInf => -1,
+            Extended::Finite(time) => whole_sec(time),
+            Extended::PosInf => i64::MAX,
+        }
+    }
+
+    Conn::new(ceil, inner, floor)
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -608,6 +693,124 @@ mod tests {
             #[test]
             fn roundtrip_floor(b in arb_ns_in_range()) {
                 prop_assert!(laws::conn_roundtrip_floor(&TIMENANO, b));
+            }
+        }
+    }
+
+    // ── TIMESECS ────────────────────────────────────────────────
+
+    mod timesecs {
+        use super::*;
+        use crate::property::arb::{arb_extended_time, arb_secs_in_range};
+
+        // ── Spot checks ─────────────────────────────────────────
+
+        #[test]
+        fn midnight_is_zero() {
+            assert_eq!(TIMESECS.ceil(Extended::Finite(Time::MIDNIGHT)), 0);
+            assert_eq!(TIMESECS.floor(Extended::Finite(Time::MIDNIGHT)), 0);
+            assert_eq!(TIMESECS.inner(0), Extended::Finite(Time::MIDNIGHT));
+        }
+
+        #[test]
+        fn exact_second_ceil_eq_floor() {
+            let noon = Time::from_hms(12, 0, 0).unwrap();
+            assert_eq!(TIMESECS.ceil(Extended::Finite(noon)), 43_200);
+            assert_eq!(TIMESECS.floor(Extended::Finite(noon)), 43_200);
+        }
+
+        #[test]
+        fn subsec_rounds_up() {
+            let one_ns_after_noon = Time::from_hms_nano(12, 0, 0, 1).unwrap();
+            assert_eq!(TIMESECS.ceil(Extended::Finite(one_ns_after_noon)), 43_201);
+            assert_eq!(TIMESECS.floor(Extended::Finite(one_ns_after_noon)), 43_200);
+        }
+
+        #[test]
+        fn end_of_day() {
+            let last = Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap();
+            assert_eq!(TIMESECS.ceil(Extended::Finite(last)), 86_400);
+            assert_eq!(TIMESECS.floor(Extended::Finite(last)), 86_399);
+        }
+
+        #[test]
+        fn saturation_extremes() {
+            assert_eq!(TIMESECS.inner(-1), Extended::NegInf);
+            assert_eq!(TIMESECS.inner(86_400), Extended::PosInf);
+            assert_eq!(TIMESECS.ceil(Extended::NegInf), i64::MIN);
+            assert_eq!(TIMESECS.ceil(Extended::PosInf), 86_400);
+            assert_eq!(TIMESECS.floor(Extended::NegInf), -1);
+            assert_eq!(TIMESECS.floor(Extended::PosInf), i64::MAX);
+        }
+
+        // ── Galois law battery ─────────────────────────────────
+
+        proptest! {
+            #[test]
+            fn galois_l(t in arb_extended_time(), b in any::<i64>()) {
+                prop_assert!(laws::conn_galois_l(&TIMESECS, t, b));
+            }
+
+            #[test]
+            fn galois_r(t in arb_extended_time(), b in any::<i64>()) {
+                prop_assert!(laws::conn_galois_r(&TIMESECS, t, b));
+            }
+
+            #[test]
+            fn closure_l(t in arb_extended_time()) {
+                prop_assert!(laws::conn_closure_l(&TIMESECS, t));
+            }
+
+            #[test]
+            fn closure_r(t in arb_extended_time()) {
+                prop_assert!(laws::conn_closure_r(&TIMESECS, t));
+            }
+
+            #[test]
+            fn kernel_l(b in any::<i64>()) {
+                prop_assert!(laws::conn_kernel_l(&TIMESECS, b));
+            }
+
+            #[test]
+            fn kernel_r(b in any::<i64>()) {
+                prop_assert!(laws::conn_kernel_r(&TIMESECS, b));
+            }
+
+            #[test]
+            fn monotone_l(a in arb_extended_time(), b in arb_extended_time()) {
+                prop_assert!(laws::conn_monotone_l(&TIMESECS, a, b));
+            }
+
+            #[test]
+            fn monotone_r(a in any::<i64>(), b in any::<i64>()) {
+                prop_assert!(laws::conn_monotone_r(&TIMESECS, a, b));
+            }
+
+            #[test]
+            fn idempotent(t in arb_extended_time()) {
+                prop_assert!(laws::conn_idempotent(&TIMESECS, t));
+            }
+
+            // ulp_bound is meaningful only on the Finite portion —
+            // the saturation arms drive `floor`/`ceil` to opposite
+            // i64 extremes, which are not "1 ULP" apart.
+            #[test]
+            fn ulp_bound_finite(t in arb_time()) {
+                prop_assert!(laws::conn_ulp_bound(
+                    &TIMESECS,
+                    Extended::Finite(t),
+                    |s| s,
+                ));
+            }
+
+            #[test]
+            fn roundtrip_ceil(b in arb_secs_in_range()) {
+                prop_assert!(laws::conn_roundtrip_ceil(&TIMESECS, b));
+            }
+
+            #[test]
+            fn roundtrip_floor(b in arb_secs_in_range()) {
+                prop_assert!(laws::conn_roundtrip_floor(&TIMESECS, b));
             }
         }
     }
