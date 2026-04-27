@@ -328,3 +328,62 @@ pub fn pico_safe(num: i128) -> impl Strategy<Value = i64> {
         5 => -limit..=limit,
     ]
 }
+
+// ── time-crate strategies ────────────────────────────────────────
+//
+// `arb_date` covers the full default-features Date range
+// (year ±9999) by sampling julian-day integers in
+// `[Date::MIN.to_julian_day(), Date::MAX.to_julian_day()]`. The
+// other strategies bias toward boundary values (MIN/MAX/ZERO/MIDNIGHT)
+// because the Galois rounding edge cases live there.
+
+use time::{Date, Duration, PrimitiveDateTime, Time};
+
+/// Arbitrary `time::Date` over the full default Date range
+/// (year ±9999) with explicit bias toward `Date::{MIN, MAX, EPOCH}`.
+pub fn arb_date() -> impl Strategy<Value = Date> {
+    let min_jd = Date::MIN.to_julian_day();
+    let max_jd = Date::MAX.to_julian_day();
+    prop_oneof![
+        1 => Just(Date::MIN),
+        1 => Just(Date::MAX),
+        1 => Just(Date::from_julian_day(0).expect("jd 0 is in range")),
+        8 => (min_jd..=max_jd).prop_map(|jd| Date::from_julian_day(jd).expect("jd in [MIN..=MAX]")),
+    ]
+}
+
+/// Arbitrary `time::Time` over the full nanosecond range
+/// `[0, 86_400 × 10⁹)` with bias toward `MIDNIGHT` and end-of-day.
+pub fn arb_time() -> impl Strategy<Value = Time> {
+    const NS_PER_DAY: i64 = 86_400 * 1_000_000_000;
+    prop_oneof![
+        1 => Just(Time::MIDNIGHT),
+        1 => Just(Time::MIDNIGHT + Duration::nanoseconds(NS_PER_DAY - 1)),
+        1 => Just(Time::MIDNIGHT + Duration::seconds(1)),
+        1 => Just(Time::MIDNIGHT + Duration::nanoseconds(1)),
+        8 => (0..NS_PER_DAY).prop_map(|ns| Time::MIDNIGHT + Duration::nanoseconds(ns)),
+    ]
+}
+
+/// Arbitrary `time::Duration`. Boundary slots cover `Duration::{MIN,
+/// MAX, ZERO}` plus the signed-rounding edges around ±1s; the uniform
+/// slot stays inside `±10⁹ s` (≈ ±31.7 years) to avoid pathological
+/// shrinkage near `i64::MIN/MAX` while still giving wide coverage.
+pub fn arb_duration() -> impl Strategy<Value = Duration> {
+    prop_oneof![
+        1 => Just(Duration::ZERO),
+        1 => Just(Duration::MIN),
+        1 => Just(Duration::MAX),
+        1 => Just(Duration::seconds(-1) - Duration::nanoseconds(1)),
+        1 => Just(Duration::seconds(0) + Duration::nanoseconds(1)),
+        1 => Just(Duration::seconds(1) - Duration::nanoseconds(1)),
+        8 => (-1_000_000_000_i64..=1_000_000_000_i64, 0..1_000_000_000_i32)
+            .prop_map(|(s, n)| Duration::new(s, n)),
+    ]
+}
+
+/// Arbitrary `time::PrimitiveDateTime` from the cartesian product of
+/// [`arb_date`] and [`arb_time`].
+pub fn arb_primitive_dt() -> impl Strategy<Value = PrimitiveDateTime> {
+    (arb_date(), arb_time()).prop_map(|(d, t)| PrimitiveDateTime::new(d, t))
+}
