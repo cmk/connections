@@ -30,6 +30,8 @@ macro_rules! fix_fix_u64 {
                 let bits = x.to_bits() as u128;
                 let q = bits / RATIO;
                 let r = bits % RATIO;
+                // `res ≤ ⌈u64::MAX / 2⌉ = 2^63` since RATIO ≥ 2;
+                // the `as u64` cast is lossless.
                 let res = if r != 0 { q + 1 } else { q };
                 FixedU64::from_bits(res as u64)
             }
@@ -120,6 +122,30 @@ mod tests {
         assert_eq!(
             U064U000.inner(FixedU64::<U0>::from_bits(1)),
             FixedU64::<U64>::from_bits(u64::MAX),
+        );
+        // ceil: any nonzero Fine bit pattern → 1 (the smallest
+        // representable Coarse value above zero); zero → 0.
+        assert_eq!(
+            U064U000.ceil(FixedU64::<U64>::from_bits(0)),
+            FixedU64::<U0>::from_bits(0),
+        );
+        assert_eq!(
+            U064U000.ceil(FixedU64::<U64>::from_bits(1)),
+            FixedU64::<U0>::from_bits(1),
+        );
+        // floor: any Fine bit pattern below FINE_MAX → 0; FINE_MAX
+        // takes the boundary fixup and returns Coarse::MAX.
+        assert_eq!(
+            U064U000.floor(FixedU64::<U64>::from_bits(0)),
+            FixedU64::<U0>::from_bits(0),
+        );
+        assert_eq!(
+            U064U000.floor(FixedU64::<U64>::from_bits(1)),
+            FixedU64::<U0>::from_bits(0),
+        );
+        assert_eq!(
+            U064U000.floor(FixedU64::<U64>::from_bits(u64::MAX)),
+            FixedU64::<U0>::from_bits(u64::MAX),
         );
     }
 

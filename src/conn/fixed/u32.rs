@@ -30,6 +30,8 @@ macro_rules! fix_fix_u32 {
                 let bits = x.to_bits() as u64;
                 let q = bits / RATIO;
                 let r = bits % RATIO;
+                // `res ≤ ⌈u32::MAX / 2⌉ = 2_147_483_648` since
+                // RATIO ≥ 2; the `as u32` cast is lossless.
                 let res = if r != 0 { q + 1 } else { q };
                 FixedU32::from_bits(res as u32)
             }

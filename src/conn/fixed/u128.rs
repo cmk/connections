@@ -37,6 +37,11 @@ macro_rules! fix_fix_u128 {
                 match RATIO {
                     Some(r) => {
                         let q = bits / r;
+                        // `q + 1` cannot overflow u128: `r ≥ 2` (the
+                        // `Some` arm requires SHIFT ∈ [1, 127], so
+                        // RATIO ∈ [2, 2^127]), and `bits ≤ u128::MAX`,
+                        // so `q ≤ ⌊u128::MAX / 2⌋ = 2^127 − 1`. Hence
+                        // `q + 1 ≤ 2^127 < u128::MAX`.
                         let res = if bits % r != 0 { q + 1 } else { q };
                         FixedU128::from_bits(res)
                     }
@@ -192,6 +197,24 @@ mod tests {
         assert_eq!(
             U128U016.inner(big_coarse),
             FixedU128::<U128>::from_bits(u128::MAX),
+        );
+    }
+
+    /// `ceil`'s `q + 1` step in the `Some(r)` branch must not overflow
+    /// u128 at the worst-case input `bits = u128::MAX`. The proptest
+    /// battery runs only 64 cases per pair (u128 generators are
+    /// expensive), so this regression pins the worst case explicitly:
+    /// SHIFT=1 (RATIO=2) gives `q = ⌊(2^128-1)/2⌋ = 2^127 - 1`, and
+    /// with `r = 1` the branch computes `q + 1 = 2^127`, which fits.
+    #[test]
+    fn ceil_at_fine_max_no_overflow() {
+        // U128U127: SHIFT=1, the smallest RATIO and therefore the
+        // largest `q` for any given `bits`.
+        let fmax = FixedU128::<U128>::from_bits(u128::MAX);
+        // bits = 2^128 - 1, RATIO = 2. q = 2^127 - 1, r = 1, q+1 = 2^127.
+        assert_eq!(
+            U128U127.ceil(fmax),
+            FixedU128::<U127>::from_bits(1_u128 << 127),
         );
     }
 

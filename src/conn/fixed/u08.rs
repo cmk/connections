@@ -45,6 +45,9 @@ macro_rules! fix_fix_u08 {
                 let bits = x.to_bits() as u16;
                 let q = bits / RATIO;
                 let r = bits % RATIO;
+                // `res ≤ ⌈bits / RATIO⌉ ≤ ⌈u8::MAX / 2⌉ = 128` since
+                // RATIO ≥ 2 (Fine has more frac bits than Coarse, so
+                // SHIFT ≥ 1). The `as u8` cast is therefore lossless.
                 let res = if r != 0 { q + 1 } else { q };
                 FixedU8::from_bits(res as u8)
             }

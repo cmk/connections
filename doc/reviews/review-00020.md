@@ -126,3 +126,48 @@ The `pub mod u32` / `pub mod u64` / `pub mod u128` declarations in `src/conn/fix
 1. `src/conn/fixed/u08.rs` — Expand `spot_q17_max_velocity_to_q08` (or add a separate `spot_q08_q07_at_max`) to assert `ceil` and `floor` at velocity=127 from both sides, closing the gap with the Verification table. The behavior is correct; the documentation of intent in test form is incomplete.
 2. Consider adding one explicit spot test for `ceil` at `Fine::MAX - 1` (one below the FINE_MAX fixup boundary) in any module, to document that the non-fixup path does not accidentally trigger for adjacent values.
 3. If/when cross-sign `I??U??` / `U??I??` conns are added (Plan 09 Deferred), the frac levels chosen here (U31/U63/U127 on the unsigned side) have no signed counterpart — the signed modules top out at I032/I064/I128. That asymmetry will need its own plan.
+
+<!-- glab-id: 3288528790 -->
+<!-- glab-discussion: 72212ea36a00a04e6befd3eaff7968cc88e02701 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/fixed/u08.rs:62` (2026-04-27 07:39 UTC) [open]
+
+**[must-fix]** In `ceil`, when `q + 1` overflows `u16` the result wraps silently before being cast to `u8`. This can only happen when `bits = u8::MAX` (255) and `r != 0`, i.e. `bits % RATIO != 0`. For example with RATIO=2: `q = 127`, `r = 1`, `res = 128`, cast to `u8 = 128` — that is fine. But with RATIO=256 (SHIFT=8, `U008U000`): `bits` can be at most 255, `q = 0`, `r = 255`, `res = 1` — also fine. Re-checking: max `q+1` across all SHIFT values is `ceil(255/2)+1 = 128` which fits u16, so there is actually no overflow path here. However, the `res as u8` cast is unchecked and relies on the invariant that the quotient ceiling never exceeds 255. This invariant holds (since Fine bits ≤ 255 and Coarse has fewer frac bits, so the integer part fits in u8), but the reasoning is non-obvious and a debug-mode assert or comment explaining the bound would prevent future regressions if the macro is ever adapted.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3288528814 -->
+<!-- glab-discussion: 1c31131ccf9ef8dcb420e6c39fc2c2cf820473ac -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/fixed/u64.rs:49` (2026-04-27 07:39 UTC) [open]
+
+**[must-fix]** For `U064U000` (SHIFT=64), `RATIO = 1_u128 << 64 = 18446744073709551616`, which fits in u128. In `inner`, `(x.to_bits() as u128) * RATIO` for `x = 1` gives exactly `2^64`, which is greater than `u64::MAX` (2^64 - 1), so saturation fires correctly. However, the `ceil` function computes `bits / RATIO` where `bits` is at most `u64::MAX = 2^64 - 1`, giving `q = 0` for all inputs, and `r = bits`, so `res = 1` for any nonzero input — this is correct (ceiling of any positive fraction < 1 is 1). The `res as u64` cast is safe since `res ≤ 1`. But for `U064U000` the `spot_u064u000_degenerate` test only covers `inner`, not `ceil` or `floor`, leaving the degenerate endpoint's adjoint behavior without a named regression test, unlike `u128`'s `degenerate_max_shift` which covers all three functions.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3288528843 -->
+<!-- glab-discussion: be1df871dcbedf6ad50b010a01f02a7475a943f5 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/fixed/u128.rs:62` (2026-04-27 07:39 UTC) [open]
+
+**[must-fix]** `ceil` for the `Some(r)` branch computes `q + 1` without overflow protection. When `bits = u128::MAX` and `r != 0`, `q = u128::MAX / r` and `q + 1` may overflow. Concretely, for SHIFT=1 (RATIO=2): `bits = u128::MAX` (odd), `q = (2^128-1)/2 = 2^127-1`, `q+1 = 2^127` — fits fine. For SHIFT=127 (RATIO=2^127): `bits = u128::MAX`, `q = 1`, `r = u128::MAX - 2^127 > 0`, `q+1 = 2` — fine. The worst case is SHIFT=1 where `q+1` can reach `2^127`, which fits. So no actual overflow, but the code has no comment or assert documenting this bound, and the `degenerate_max_shift` proptest only runs 64 cases, making it unlikely to hit `(u128::MAX, _)` combinations that stress this path. The `galois_l/r` proptests at 64 cases also have low probability of generating `u128::MAX` inputs.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3288580771 -->
+<!-- glab-discussion: 72212ea36a00a04e6befd3eaff7968cc88e02701 -->
+#### ↳ cmk (2026-04-27 07:59 UTC) [open]
+
+Added an inline comment in `fix_fix_u08!`'s `ceil` documenting the bound: `res ≤ ⌈u8::MAX / 2⌉ = 128` since `RATIO ≥ 2` (Fine has more frac bits than Coarse, so SHIFT ≥ 1), making the `as u8` cast lossless. Same comment shape mirrored in u16/u32/u64 for consistency.
+
+<!-- glab-id: 3288581297 -->
+<!-- glab-discussion: 1c31131ccf9ef8dcb420e6c39fc2c2cf820473ac -->
+#### ↳ cmk (2026-04-27 07:59 UTC) [open]
+
+Expanded `spot_u064u000_degenerate` to walk all three adjoints across `bits ∈ {0, 1, u64::MAX}`, mirroring `u128`'s `degenerate_max_shift` shape. ceil now covers `0 → 0` and `1 → 1`; floor now covers the FINE_MAX boundary fixup explicitly.
+
+<!-- glab-id: 3288581828 -->
+<!-- glab-discussion: be1df871dcbedf6ad50b010a01f02a7475a943f5 -->
+#### ↳ cmk (2026-04-27 07:59 UTC) [open]
+
+Annotated the `Some(r)` arm with the no-overflow argument: `r ∈ [2, 2^127]` for SHIFT ∈ [1, 127], so `q ≤ 2^127 - 1` and `q + 1 ≤ 2^127 < u128::MAX`. Also added `ceil_at_fine_max_no_overflow` pinning the worst case (`bits = u128::MAX`, SHIFT=1 via `U128U127`) explicitly, since the 64-cases-per-pair proptest budget makes random sampling unlikely to land on `u128::MAX`.
