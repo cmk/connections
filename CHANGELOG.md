@@ -43,24 +43,17 @@ hierarchy of lattice-based numerical conversions on top.
 
 #### Conn families
 
-- **`conn::std::i64::decimal`** — decimal-SI ladder `FD00` (1 s) …
-  `FD12` (1 ps). Adjacent and non-adjacent pair Conns
-  (`FD<M>FD<N>`), plus IEEE-float bridges `F064FD<N>` for every
-  rung.
 - **`conn::fixed::{i8,i16,i32,i64,i128}` and `{u8,u16,u32,u64,u128}`**
   — `fixed`-crate-backed binary Q-format ladders. `i128` uses
   `checked_mul`+saturate.
-- **`conn::int`** — signed-int widening (`I###I###`) and
-  unsigned-source-into-signed-target (`U###I###`) families,
-  range-extended via `Extended<T>`.
-- **`conn::uint`** — unsigned widening (`U###U###`) and signed-into-
-  unsigned saturating cast (`I###U###`) families.
+- **`conn::std::{i8,i16,i32,i64,i128,u8,u16,u32,u64,u128}`** —
+  std-int widening + narrowing + cross-sign Conns. Each per-type
+  submodule hosts the Conns whose destination is that primitive.
 - **`conn::float::f64`** — `F064F032`, `F064F016`, `F064B016`.
 - **`conn::float::f32`** — `F032F016`, `F032B016`. (IEEE binary16
   and Google bfloat16 via the [`half`](https://docs.rs/half) crate.)
 - **`conn::time`** — time-crate types: `DATEJDAY`, `TIMENANO`,
-  `TIMESECS`, `DURNSECS`, `DURNFD09`, `PDTMDATE`, `OFDTNANO`,
-  `OFDTSECS`.
+  `TIMESECS`, `DURNSECS`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`.
 
 #### Conventions
 
@@ -68,23 +61,20 @@ hierarchy of lattice-based numerical conversions on top.
   resolution / coarser tier on the right; see CLAUDE.md §Conn-name
   format).
 - Module organization: one `conn::` submodule per dependency crate
-  (`std`, `fixed`, `half`, `time`); type-named filenames; placement
-  by specificity (specific > general; right > left as tie-breaker).
+  (`fixed`, `time`, `half` — pending) plus `conn::std`; type-named
+  filenames; placement by specificity (specific > general; right >
+  left as tie-breaker).
 
 ### Deferred (planned for future releases)
 
-- Symmetric extensions of the integer Conn families (narrowing,
-  cross-sign in the unsigned-target direction). Spec'd in the
-  publish-prep audit notes.
 - Half-bridge Conn relocation into `conn::half::{f16,bf16}` per the
   placement rules (currently still in `conn::float`).
-- `int`/`uint` migration into per-type files under `conn::std`.
-- Float-Duration bridges (`F064DURN`, `F032DURN`, etc.).
 - `f128` Conns (blocked on stable `f128`).
 - Runtime composition (`Conn::then` / `DynConn`).
-- Audio-domain types (sample-rate ladders, rate↔FD12 cross-tier
-  Conns) live in the downstream
-  [`agogo`](https://gitlab.com/cmk/agogo) crate, not here.
+- Domain-specific ladders (decimal time rungs, audio sample rates,
+  float-Duration bridges) live in downstream crates
+  ([`agogo`](https://gitlab.com/cmk/agogo) for audio); this crate
+  ships the algebra plus the per-host-crate cast families.
 
 ### Requirements
 

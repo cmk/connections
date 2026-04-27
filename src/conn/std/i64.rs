@@ -1,13 +1,9 @@
 //! Conns landing on `i64`. Per the right-side-wins module rule,
-//! this file hosts every Conn whose destination type is `i64`. Also
-//! nests the custom [`decimal`] SI-prefix ladder (`FD00`..`FD12`)
-//! built on `i64` as its fixed-point backing.
+//! this file hosts every Conn whose destination type is `i64`.
 
 use super::{ext_int, int_int_narrow, uint_int_sat};
 use crate::conn::Conn;
 use crate::extended::Extended;
-
-pub mod decimal;
 
 // ── Existing widening (Extended source) ────────────────────────────
 ext_int!(I008I064, i8, i64);

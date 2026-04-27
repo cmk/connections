@@ -491,26 +491,26 @@ where
 mod tests {
     use super::*;
     use crate::conn::float::ExtendedFloat;
-    use crate::conn::std::i64::decimal::{FD09, FD12, FD12FD09};
-    use crate::property::arb::{arb_f64, fixed_coarse, fixed_safe_fine};
+    use crate::property::arb::arb_f64;
     use crate::property::laws;
     use proptest::prelude::*;
 
     // ── Conn bases used across the proptest blocks below ──────────
     //
-    // The three bases give us:
+    // Two bases give us:
     //   - ID_I32: Ord path, trivially identity (every lifter reduces
     //     to f(x)).
     //   - ID_EF64: ExtendedFloat<f64> path with Bot/Top/Extend(NaN);
     //     covers the lawful float wrapper (raw f64 is not Eq).
-    //   - FD12FD09: a non-trivial triple (FD12 ⊣ inner ⊣ floor with
-    //     ratio 10³) so the L and R sides of the lifters can differ.
+    //
+    // Earlier revisions also drove the cast laws against the
+    // decimal-ladder Conn `FD12FD09` for L/R-asymmetry coverage on a
+    // non-trivial triple. Removed alongside the decimal ladder; the
+    // asymmetry now lives in per-family tests under
+    // `conn::fixed::*` / `conn::time::*`.
     const ID_I32: Conn<i32, i32> = Conn::identity();
     const ID_I64: Conn<i64, i64> = Conn::identity();
     const ID_EF64: Conn<ExtendedFloat<f64>, ExtendedFloat<f64>> = Conn::identity();
-
-    // FD12FD09 ratio (FD12 → FD09) is 10³.
-    const FD12FD09_RATIO: i64 = 1_000;
 
     // ── Deterministic spot checks (delegation correctness) ────────
 
@@ -763,57 +763,6 @@ mod tests {
         #[test]
         fn floor2_diag_id_ef64(b in arb_f64()) {
             prop_assert!(laws::cast_floor2_id_diag(&ID_EF64, ExtendedFloat::Extend(b)));
-        }
-
-        // ── FD12FD09 (non-trivial triple, FD12 ⊣ inner ⊣ floor) ─────
-        //
-        // Source-side (FD12) generator choice mirrors `conn/fixed/
-        // decimal.rs`: properties that round-trip through `inner`
-        // (i.e. compute `inner(ceil(a))` or `inner(floor(a))`) use
-        // `fixed_safe_fine`, which clamps to `|p| ≤ (i64::MAX / RATIO)
-        // * RATIO` to keep the multiply-by-RATIO inside `inner` from
-        // overflowing. Target-side (FD09) generators use
-        // `fixed_coarse(RATIO)` which is already capped at
-        // `i64::MAX / RATIO`.
-
-        #[test]
-        fn upper1_unit_f12f09(p in fixed_safe_fine(FD12FD09_RATIO)) {
-            prop_assert!(laws::cast_upper1_id_unit(&FD12FD09, FD12(p)));
-        }
-
-        #[test]
-        fn lower1_counit_f12f09(p in fixed_safe_fine(FD12FD09_RATIO)) {
-            prop_assert!(laws::cast_lower1_id_counit(&FD12FD09, FD12(p)));
-        }
-
-        #[test]
-        fn ceiling1_kernel_f12f09(n in fixed_coarse(FD12FD09_RATIO)) {
-            prop_assert!(laws::cast_ceiling1_id_kernel(&FD12FD09, FD09(n)));
-        }
-
-        #[test]
-        fn floor1_kernel_f12f09(n in fixed_coarse(FD12FD09_RATIO)) {
-            prop_assert!(laws::cast_floor1_id_kernel(&FD12FD09, FD09(n)));
-        }
-
-        #[test]
-        fn upper2_diag_f12f09(p in fixed_safe_fine(FD12FD09_RATIO)) {
-            prop_assert!(laws::cast_upper2_id_diag(&FD12FD09, FD12(p)));
-        }
-
-        #[test]
-        fn lower2_diag_f12f09(p in fixed_safe_fine(FD12FD09_RATIO)) {
-            prop_assert!(laws::cast_lower2_id_diag(&FD12FD09, FD12(p)));
-        }
-
-        #[test]
-        fn ceiling2_diag_f12f09(n in fixed_coarse(FD12FD09_RATIO)) {
-            prop_assert!(laws::cast_ceiling2_id_diag(&FD12FD09, FD09(n)));
-        }
-
-        #[test]
-        fn floor2_diag_f12f09(n in fixed_coarse(FD12FD09_RATIO)) {
-            prop_assert!(laws::cast_floor2_id_diag(&FD12FD09, FD09(n)));
         }
 
         // ── maximize / minimize over `ORDERED_PAIR` (random pairs) ─

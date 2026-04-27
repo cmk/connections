@@ -15,18 +15,12 @@
 //!
 //! Every public `Conn` constant has an 8-character `XnnnYmmm` shape:
 //! 4 chars per side (smaller-resolution / coarser tier on the right).
-//! One family takes a 2-letter prefix (decimal-fixed `FD<dd>`); every
-//! other family takes a 1-letter prefix and 3 zero-padded digits.
+//! Most families take a 1-letter prefix and 3 zero-padded digits;
+//! the time-crate Conns use the all-letter `ABCDXYZW` shape (e.g.
+//! `DURNSECS`).
 //!
 //! | code     | type                                                | meaning                |
 //! |----------|-----------------------------------------------------|------------------------|
-//! | `FD00`   | [`conn::std::i64::decimal::FD00`]                      | 10⁰ s   (1 s)          |
-//! | `FD01`   | [`conn::std::i64::decimal::FD01`]                      | 10⁻¹ s  (100 ms)       |
-//! | `FD02`   | [`conn::std::i64::decimal::FD02`]                      | 10⁻² s  (10 ms)        |
-//! | `FD03`   | [`conn::std::i64::decimal::FD03`]                      | 10⁻³ s  (1 ms)         |
-//! | `FD06`   | [`conn::std::i64::decimal::FD06`]                      | 10⁻⁶ s  (1 µs)         |
-//! | `FD09`   | [`conn::std::i64::decimal::FD09`]                      | 10⁻⁹ s  (1 ns)         |
-//! | `FD12`   | [`conn::std::i64::decimal::FD12`]                      | 10⁻¹² s (1 ps)         |
 //! | `F016`   | [`F016`](conn::float::F016)                         | IEEE binary16 (sw via `half`) |
 //! | `B016`   | [`B016`](conn::float::B016)                         | Google bfloat16 (sw via `half`) |
 //! | `F032`   | [`F032`](conn::float::F032)                         | IEEE binary32          |
@@ -77,9 +71,6 @@
 //!
 //! Examples:
 //!
-//! - [`conn::std::i64::decimal::FD12FD06`] — `FD12 → FD06` (exact decimal-ladder embed).
-//! - [`conn::std::i64::decimal::F064FD06`] — `ExtendedFloat<f64> → Extended<FD06>`
-//!   (lawful over the full IEEE domain, with saturation on the Rung side).
 //! - [`conn::float::f64::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
 //! - [`conn::float::f64::F064F016`] — `F064 → F016` (direct f64 → IEEE binary16).
 //! - [`conn::float::f64::F064B016`] — `F064 → B016` (direct f64 → bfloat16).
@@ -99,13 +90,7 @@
 //! - [`conn::fixed::u32::U032U031`] — `FixedU32<U32> → FixedU32<U31>` (Q0.32 ↔ Q1.31,
 //!   the canonical 32-bit normalised-amplitude format).
 //!
-//! An `F032`-into-decimal cross-tier (e.g. `F032FD06`) is not yet
-//! exported: an `inner` that narrows `i64 → f32` collapses large
-//! runs of Rung values onto the same f32, forcing an O(plateau)
-//! correction per ceil/floor call. f32 callers widen losslessly at
-//! the boundary:
-//! `F064FD06.ceil(ExtendedFloat::Extend(arg_f32 as f64))`. `F128` is
-//! blocked on `f128` stabilisation in stable Rust.
+//! `F128` is blocked on `f128` stabilisation in stable Rust.
 //!
 //! ## Composition
 //!
@@ -119,10 +104,10 @@
 //! ```rust,no_run
 //! use connections::compose;
 //! use connections::conn::Conn;
-//! use connections::conn::std::i64::decimal::{FD00, FD03FD00, FD06FD03, FD09FD06, FD12, FD12FD09};
 //!
-//! const FD12FD00_BIS: Conn<FD12, FD00> =
-//!     compose!(FD12FD09, FD09FD06, FD06FD03, FD03FD00);
+//! // Three-step compose: id ∘ id ∘ id = id (any Conn type works).
+//! const ID_I32: Conn<i32, i32> = Conn::identity();
+//! const COMPOSED: Conn<i32, i32> = compose!(ID_I32, ID_I32, ID_I32);
 //! ```
 //!
 //! Source/destination types come from the binding annotation;

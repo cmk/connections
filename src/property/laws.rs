@@ -663,7 +663,7 @@ where
 ///
 /// Only reliable as a law predicate for **identity Conns**. The
 /// signature accepts any `Conn<A, B>`, but driving this predicate
-/// over a non-identity triple (e.g. `FD12FD09`) produces spurious
+/// over a non-identity triple (e.g. `I016I008`) produces spurious
 /// failures whenever `x` does not already lie on a representable
 /// rung — those are not law violations. For non-identity Conns,
 /// use [`cast_round_picks_endpoint`] instead.

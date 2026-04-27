@@ -6,8 +6,7 @@
 //!
 //! - [`date`] — calendar `Date` connections ([`DATEJDAY`]).
 //! - [`clock`] — clock-time connections ([`TIMENANO`], [`TIMESECS`]).
-//! - [`duration`] — signed time-span connections ([`DURNSECS`],
-//!   [`DURNFD09`]).
+//! - [`duration`] — signed time-span connections ([`DURNSECS`]).
 //! - [`datetime`] — naive `PrimitiveDateTime` connections ([`PDTMDATE`]).
 //! - [`offset`] — timezone-aware `OffsetDateTime` connections
 //!   ([`OFDTNANO`], [`OFDTSECS`]). A planned `UtcOffset` conn is
@@ -44,7 +43,6 @@
 //! | [`TIMENANO`] | `Conn<Extended<Time>, i64>` | nanoseconds since midnight (exact bijection on `[0, 86_400 × 10⁹)`). |
 //! | [`TIMESECS`] | `Conn<Extended<Time>, i64>` | whole seconds since midnight; sub-second `ceil` and `floor` differ. |
 //! | [`DURNSECS`] | `Conn<Duration, Extended<i64>>` | signed whole seconds; rung extended for `±i64::MAX ± 1` overflow. |
-//! | [`DURNFD09`] | `Conn<Duration, Extended<FD09>>` | nanosecond-resolution fixed-point; saturates outside `±i64` nanos. |
 //! | [`F064DURN`] | `Conn<F064, Extended<Duration>>` | f64 seconds ↔ Duration; saturating ceil/floor walk on the 1ns Duration rung. |
 //! | [`F032DURN`] | `Conn<F032, Extended<Duration>>` | f32 seconds ↔ Duration; same walk shape with f32 precision. |
 //! | [`PDTMDATE`] | `Conn<PrimitiveDateTime, Extended<Date>>` | drops sub-day time; `ceil` rolls to the next day if past midnight. |
@@ -91,5 +89,5 @@ pub mod offset;
 pub use clock::{TIMENANO, TIMESECS};
 pub use date::DATEJDAY;
 pub use datetime::PDTMDATE;
-pub use duration::{DURNFD09, DURNSECS, F032DURN, F064DURN};
+pub use duration::{DURNSECS, F032DURN, F064DURN};
 pub use offset::{OFDTNANO, OFDTSECS};

@@ -70,7 +70,7 @@ letter / digit shapes:
 | Shape          | Letters | Digits | Example side | Use                                               |
 |----------------|---------|--------|--------------|---------------------------------------------------|
 | `A123` form    | 1       | 3      | `F064`       | most families: `F`, `I`, `U`, `S`                 |
-| `AB12` form    | 2       | 2      | `FD12`       | families that need a 2-letter prefix (`FD`)       |
+| `AB12` form    | 2       | 2      | `FD12`       | reserved — last used by the (lifted-out) decimal `FD<dd>` family; available for future 2-letter-prefix families |
 | `ABC1` form    | 3       | 1      | `FDX1`       | reserved — no current uses                        |
 | `ABCD` form    | 4       | 0      | `DURN`       | domain-mnemonic families: `conn::time` (`DURNSECS`, `DATEJDAY`, `TIMENANO`, `OFDTNANO`, `OFDTSECS`, `PDTMDATE`, …) |
 
@@ -81,11 +81,10 @@ Canonical examples:
 
 | Pattern              | Example       | Meaning                                      |
 |----------------------|---------------|----------------------------------------------|
-| `A123X456` (1L+3D both) | `S088S044` | sample 88.2 kHz → 44.1 kHz                   |
-| `A123X456`           | `I064I128`    | `Extended<i64>` → `i128` (signed widening)   |
-| `AB12XY34` (2L+2D both) | `FD12FD06` | decimal Pico → Micro                         |
-| `A123XY34` (mixed)   | `F064FD12`    | `ExtendedFloat<f64>` → `Extended<Pico>`      |
-| `AB12X456` (mixed)   | `FD12S048`    | decimal Pico → sample 48 kHz                 |
+| `A123X456` (1L+3D both) | `I064I128` | `Extended<i64>` → `i128` (signed widening)   |
+| `A123X456`           | `F064F032`    | `ExtendedFloat<f64>` → `ExtendedFloat<f32>` (lossy IEEE narrowing) |
+| `A123X456`           | `I008I004`    | `FixedI8<U8>` → `FixedI8<U4>` (Q0.8 → Q4.4)  |
+| `ABCDXYZW` (4L+0D both) | `DURNSECS` | `Duration` → `Extended<i64>` (whole seconds) |
 
 Hard rules:
 
@@ -104,9 +103,8 @@ Hard rules:
 
 This applies to all `pub const`s of type `Conn<_, _>` exported from
 `connections`. Type wrappers that show up as either side of a Conn
-(e.g. `FD12`, `S044`) follow the same per-side shape so the Conn
-constant name is the literal concatenation of its two endpoint type
-codes.
+follow the same per-side shape so the Conn constant name is the
+literal concatenation of its two endpoint type codes.
 
 ### Module organization
 
@@ -115,18 +113,23 @@ crate**:
 
 | Submodule        | Host crate      | Files (one per host type)                                  |
 |------------------|-----------------|------------------------------------------------------------|
-| `conn::std`      | `std`           | `i8.rs`–`i128.rs`, `u8.rs`–`u128.rs`, `f32.rs`, `f64.rs`  |
+| `conn::std`      | `std`           | `i8.rs`–`i128.rs`, `u8.rs`–`u128.rs` (per-destination type) |
 | `conn::fixed`    | `fixed`         | `i8.rs`–`i128.rs`, `u8.rs`–`u128.rs`                       |
-| `conn::half`     | `half`          | `f16.rs`, `bf16.rs`                                        |
+| `conn::half`     | `half`          | `f16.rs`, `bf16.rs` (planned; currently still in `conn::float`) |
 | `conn::time`     | `time`          | `clock.rs`, `date.rs`, `datetime.rs`, `duration.rs`, `offset.rs` |
 | `conn::cast`     | (this crate)    | Conn-typed accessors / lifters                             |
-| `conn::float`    | (this crate)    | thin module hosting `ExtendedFloat<T>` only                |
+| `conn::float`    | (this crate)    | `ExtendedFloat<T>` + IEEE narrowing Conns                  |
 
-The custom decimal-SI ladder is nested under its host primitive:
-`conn::std::i64::decimal` (the `FD<N>` types are i64 newtypes, so
-"i64 plus decimal scaling" is a single semantic family). Both
-intra-decimal Conns (`FD<M>FD<N>`) and float-decimal bridges
-(`F064FD<N>`) live there.
+Domain-specific numeric ladders live in downstream crates rather
+than here. The custom decimal-SI ladder (`FD<N>` rungs, intra-
+decimal `FD<M>FD<N>` Conns, float-decimal `F064FD<N>` bridges)
+shipped briefly under `conn::std::i64::decimal` and was lifted
+out before 0.1.0; it now belongs in whatever downstream crate
+needs picosecond-resolution time. Audio sample-rate ladders
+similarly live in the [`agogo`](https://gitlab.com/cmk/agogo)
+crate. The rule of thumb: this crate ships the algebra plus
+per-host-crate cast families; downstream crates ship the named
+constants for their own domain ladders.
 
 **Filenames follow the host type name verbatim** — `i8.rs`,
 `u128.rs`, `f64.rs`, `bf16.rs`, `date.rs`, `duration.rs`. The 8-char
@@ -167,10 +170,7 @@ Worked examples:
 | `I008I016`    | `Extended<i8>` / `i16`             | tie → right wins              | `conn::std::i16`                |
 | `U008I016`    | `Extended<u8>` / `i16`             | tie → right wins              | `conn::std::i16`                |
 | `I008U016`    | `i8` / `u16`                       | tie → right wins              | `conn::std::u16`                |
-| `FD12FD06`    | `FD12` / `FD06` (both decimal)     | tie → right wins              | `conn::std::i64::decimal`       |
-| `F064FD06`    | `f64` (std) / `FD06` (decimal)     | (1) `FD06` more specific      | `conn::std::i64::decimal`       |
 | `I008I004`    | `FixedI8<U8>` / `FixedI8<U7>`      | tie → right wins              | `conn::fixed::i8`               |
-| `DURNFD09`    | `Duration` (time) / `FD09`         | (1) `Duration` more specific  | `conn::time::duration`          |
 | `DATEJDAY`    | `Extended<Date>` / `i32`           | (1) `Date` more specific      | `conn::time::date`              |
 | `OFDTNANO`    | `Extended<OffsetDateTime>` / `i128`| (1) `OffsetDateTime` wins     | `conn::time::offset`            |
 | `PDTMDATE`    | `PrimitiveDateTime` / `Extended<Date>` | (1) `PDT` more semantic   | `conn::time::datetime`          |

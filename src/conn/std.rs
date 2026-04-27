@@ -4,9 +4,6 @@
 //! submodule hosts the Conn consts where that type wins as the
 //! placement target (right-side wins).
 //!
-//! - [`mod@i64`] additionally nests [`i64::decimal`], the custom
-//!   decimal-SI ladder (`FD00`..`FD12`) built on `i64`.
-//!
 //! Mirrors the upstream Haskell `Data.Connection.Int` and
 //! `Data.Connection.Word` modules, with three structural differences:
 //!

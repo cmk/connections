@@ -41,14 +41,12 @@ you that the standard tools don't:
    shipped connection. If you compose two connections with `compose!`,
    the result is property-tested too.
 
-3. **Ladders for time work without hand-rolled multipliers.**
-   Decimal-second granularities (`FD12` 1 ps ↔ `FD09` 1 ns ↔ `FD06`
-   1 µs ↔ `FD03` 1 ms ↔ `FD00` 1 s) ship as named constants.
-   Composing across them is one `compose!` invocation, not a chain
-   of multiply-divides where one off-by-one breaks the whole
-   pipeline. Audio-domain types (sample-rate ladders, rate↔FD12
-   cross-tier conns) live in the downstream
-   [`agogo`](https://gitlab.com/cmk/agogo) crate.
+3. **Conversions composed by `compose!` are property-tested too.**
+   The `compose!` macro folds a chain of pairwise Conns into one
+   fresh `Conn<Src, Dst>` at compile time — type-flow comes from
+   the binding annotation, intermediates are inferred. Domain-
+   specific ladders (decimal time rungs, audio sample rates) live
+   in downstream crates; this crate ships the algebra.
 
 ## The core type
 
@@ -71,27 +69,6 @@ For the math and the rationale behind a single unified `Conn` type
 [`doc/design.md`](doc/design.md).
 
 ## Quick tour
-
-A decimal-ladder cast:
-
-```rust
-use connections::conn::std::i64::decimal::{FD09, FD12, FD12FD09};
-
-let p = FD12(1_500);                    // 1500 picoseconds
-assert_eq!(FD12FD09.ceil(p),  FD09(2));   // round up   → 2 ns
-assert_eq!(FD12FD09.floor(p), FD09(1));   // round down → 1 ns
-```
-
-Composing four pair-conns into one `FD12 → FD00` (picoseconds → seconds) cast:
-
-```rust
-use connections::compose;
-use connections::conn::Conn;
-use connections::conn::std::i64::decimal::{FD03FD00, FD06FD03, FD09FD06, FD12FD09, FD00, FD12};
-
-const FD12FD00: Conn<FD12, FD00> = compose!(FD12FD09, FD09FD06, FD06FD03, FD03FD00);
-assert_eq!(FD12FD00.floor(FD12(1_500_000_000_000)), FD00(1));  // 1.5 s → 1 s
-```
 
 Integer widening through `Extended<T>` (so values *outside* the source
 range have somewhere to land — `floor` saturates to the target bounds,
@@ -120,15 +97,22 @@ assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 ```rust
 use connections::{ceiling, upper1, maximize};
 use connections::conn::Conn;
-use connections::conn::std::i64::decimal::{FD12, FD12FD09};
+use connections::conn::std::i16::U008I016;
+use connections::extended::Extended;
 
 // `ceiling` is the named alias of `c.ceil` under the L-side reading.
-assert_eq!(ceiling(&FD12FD09, FD12(1_500)), FD12FD09.ceil(FD12(1_500)));
+assert_eq!(
+    ceiling(&U008I016, Extended::Finite(200_u8)),
+    U008I016.ceil(Extended::Finite(200_u8)),
+);
 
 // `upper1` lifts an endofunction over the target type back to the source:
 //   upper1(c, f, a) = inner(f(ceil(a)))
-let bumped = upper1(&FD12FD09, |n| n, FD12(1_500));
-assert_eq!(bumped, FD12FD09.inner(FD12FD09.ceil(FD12(1_500))));
+let bumped = upper1(&U008I016, |n| n, Extended::Finite(200_u8));
+assert_eq!(
+    bumped,
+    U008I016.inner(U008I016.ceil(Extended::Finite(200_u8))),
+);
 
 // `maximize` is the curried form of `ceiling` over a `Conn<(A, B), C>`.
 fn pair_max(p: (i32, i32)) -> i32 { p.0.max(p.1) }
@@ -151,21 +135,6 @@ let half = Duration::seconds(5) + Duration::nanoseconds(1);
 assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));
 assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
 assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
-```
-
-A `Duration` exposed at nanosecond fixed-point (`FD09`):
-
-```rust
-use connections::conn::time::DURNFD09;
-use connections::conn::std::i64::decimal::FD09;
-use connections::extended::Extended;
-use time::Duration;
-
-// 1 second = 10⁹ nanoseconds.
-assert_eq!(DURNFD09.ceil(Duration::seconds(1)), Extended::Finite(FD09(1_000_000_000)));
-
-// Out-of-range Duration saturates the rung.
-assert_eq!(DURNFD09.floor(Duration::MIN), Extended::NegInf);
 ```
 
 Round-tripping a unix-timestamp through `OffsetDateTime`:
@@ -268,13 +237,11 @@ and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 
 | Family | Module | Status |
 |--------|--------|--------|
-| Decimal fixed-point ladder (`FD??FD??`, FD00–FD12) | `conn::std::i64::decimal` | shipped |
 | Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `conn::fixed::{i8,i16,i32,i64,i128}` | shipped |
 | Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `conn::std::{i8,i16,i32,i64,i128,u8,u16,u32,u64,u128}` | shipped |
-| Float `f64 ↔ f32` under N5 | `conn::float` | shipped |
-| Float ↔ rung over `ExtendedFloat<T>` (`F064FD??`) | `conn::std::i64::decimal` | shipped |
-| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `DURNFD09`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `conn::time` | shipped |
-| Audio-domain (sample-rate ladders, rate↔FD12) | downstream [`agogo`](https://gitlab.com/cmk/agogo) crate | moved |
+| Float `f64 ↔ f32 ↔ {f16, bf16}` under N5 | `conn::float` | shipped |
+| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `conn::time` | shipped |
+| Domain-specific ladders (decimal time rungs, audio sample rates) | downstream crates ([`agogo`](https://gitlab.com/cmk/agogo) for audio) | moved |
 
 **Cast operations** (Haskell `Data.Connection.Cast`):
 
@@ -330,18 +297,16 @@ src/
 ├── lib.rs              — crate root + Cast API re-exports
 ├── conn.rs             — Conn struct, compose! macro, identity
 ├── conn/
-│   ├── cast.rs         — L/R accessors + lifters (Sprint A)
-│   ├── fixed/          — decimal & binary fixed-point ladders
-│   ├── float.rs        — ExtendedFloat<T> + f64↔f32
-│   ├── int.rs          — signed-widening via Extended<T>
-│   ├── sample.rs       — sample-rate ladders + FD12↔rate
-│   ├── time/           — time-crate types (Date, Time, Duration, OffsetDateTime)
-│   │   ├── date.rs     — Date conns (DATEJDAY)
-│   │   ├── clock.rs    — Time conns (TIMENANO, TIMESECS)
-│   │   ├── duration.rs — Duration conns (DURNSECS, DURNFD09, F064DURN, F032DURN)
-│   │   ├── datetime.rs — PrimitiveDateTime conns (PDTMDATE)
-│   │   └── offset.rs   — OffsetDateTime conns (OFDTNANO, OFDTSECS)
-│   └── uint.rs         — unsigned widening, sign change
+│   ├── cast.rs         — L/R accessors + lifters
+│   ├── fixed/          — `fixed`-crate-backed binary Q-format ladders
+│   ├── float.rs        — ExtendedFloat<T> + f64↔f32↔{f16,bf16}
+│   ├── std/            — std-int widening / narrowing / cross-sign
+│   └── time/           — time-crate types (Date, Time, Duration, OffsetDateTime)
+│       ├── date.rs     — Date conns (DATEJDAY)
+│       ├── clock.rs    — Time conns (TIMENANO, TIMESECS)
+│       ├── duration.rs — Duration conns (DURNSECS, F064DURN, F032DURN)
+│       ├── datetime.rs — PrimitiveDateTime conns (PDTMDATE)
+│       └── offset.rs   — OffsetDateTime conns (OFDTNANO, OFDTSECS)
 ├── extended.rs         — Extended<T> with NegInf/Finite/PosInf
 ├── lattice.rs          — Join, Meet, Heyting, Coheyting, Symmetric, Boolean
 └── property/           — proptest strategies + law predicates

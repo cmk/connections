@@ -6,10 +6,11 @@
 //!   crates wrap them in their own `proptest!` blocks via
 //!   `prop_assert!(connections::property::laws::heyting_adjunction(&x, &y, &z))`.
 //! - [`arb`] — proptest strategies (`arb_f64`, `arb_f32`,
-//!   `arb_f64_bounded`, plus tier-specific generators for the
-//!   fixed/rate/extended Conn families). Gated on the `testing`
-//!   feature, which flips `proptest` from this crate's dev-dep to an
-//!   optional regular dep so downstream callers can pull it in.
+//!   `arb_f64_bounded`, `arb_f16`, `arb_bf16`, the
+//!   `extended_float_*` and time-crate generators). Gated on the
+//!   `testing` feature, which flips `proptest` from this crate's
+//!   dev-dep to an optional regular dep so downstream callers can
+//!   pull it in.
 //!
 //! In-crate tests use both modules through `cfg(any(test,
 //! feature = "testing"))`.
@@ -17,16 +18,15 @@
 //! ## Downstream usage
 //!
 //! ```rust,no_run
-//! use connections::compose;
-//! use connections::conn::Conn;
-//! use connections::conn::std::i64::decimal::{FD00, FD03FD00, FD06FD03, FD09FD06, FD12, FD12FD09};
+//! use connections::conn::float::f64::F064F032;
+//! use connections::conn::float::ExtendedFloat;
 //! use connections::property::laws;
 //!
-//! const COMPOSED: Conn<FD12, FD00> = compose!(FD12FD09, FD09FD06, FD06FD03, FD03FD00);
-//!
-//! // Spot check: a composed Conn satisfies the Galois adjoint law.
-//! assert!(laws::conn_galois_l(&COMPOSED, FD12(1_500_000_000_000), FD00(2)));
-//! assert!(laws::conn_floor_le_ceil(&COMPOSED, FD12(42)));
+//! // Spot check: F064F032 satisfies the Galois adjoint law over a
+//! // representative pair.
+//! let a = ExtendedFloat::Extend(1.5_f64);
+//! let b = ExtendedFloat::Extend(1.5_f32);
+//! assert!(laws::conn_galois_l(&F064F032, a, b));
 //! ```
 //!
 //! With the `testing` feature enabled, downstream proptest blocks
@@ -34,17 +34,21 @@
 //!
 //! ```ignore
 //! use connections::property::{arb, laws};
-//! use connections::conn::std::i64::decimal::FD12FD00;
+//! use connections::conn::float::f64::F064F032;
+//! use connections::conn::float::ExtendedFloat;
 //! use proptest::prelude::*;
 //!
 //! proptest! {
 //!     #[test]
-//!     fn my_fd12_fd00_satisfies_galois(
-//!         p in arb::fixed_fine(1_000_000_000_000),
-//!         u in arb::fixed_coarse(1_000_000_000_000),
+//!     fn f064_f032_satisfies_galois(
+//!         a in arb::arb_f64(),
+//!         b in arb::arb_f32(),
 //!     ) {
-//!         use connections::conn::std::i64::decimal::{FD00, FD12};
-//!         prop_assert!(laws::conn_galois_l(&FD12FD00, FD12(p), FD00(u)));
+//!         prop_assert!(laws::conn_galois_l(
+//!             &F064F032,
+//!             ExtendedFloat::Extend(a),
+//!             ExtendedFloat::Extend(b),
+//!         ));
 //!     }
 //! }
 //! ```
