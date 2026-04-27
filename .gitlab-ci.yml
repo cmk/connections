@@ -33,7 +33,6 @@ fmt:
     - rustup component add rustfmt
   script:
     - cargo fmt --all -- --check
-  allow_failure: true
 
 clippy:
   stage: check
