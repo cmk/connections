@@ -260,6 +260,63 @@ pub fn extended_float_bf16() -> impl Strategy<Value = ExtendedFloat<half::bf16>>
     ]
 }
 
+/// `Extended<FD00>` over `NegInf`, `PosInf`, and finite FD00 (1 s)
+/// values across the full `i64` backing range. FD00::PREC is 1, so
+/// `inner(c) = c · 1` doesn't overflow on any i64.
+pub fn extended_fd00() -> impl Strategy<Value = Extended<crate::conn::std::i64::decimal::FD00>> {
+    use crate::conn::std::i64::decimal::FD00;
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(FD00(0))),
+        1 => Just(Extended::Finite(FD00(i64::MAX))),
+        1 => Just(Extended::Finite(FD00(i64::MIN))),
+        8 => any::<i64>().prop_map(|x| Extended::Finite(FD00(x))),
+    ]
+}
+
+/// `Extended<FD01>` over `NegInf`, `PosInf`, and finite FD01 (100 ms)
+/// values bounded by `i64::MAX / FD01::PREC` (plus i64-edge `Just`s).
+pub fn extended_fd01() -> impl Strategy<Value = Extended<crate::conn::std::i64::decimal::FD01>> {
+    use crate::conn::std::i64::decimal::{FD01, HasResolution};
+    let limit = i64::MAX / FD01::PREC;
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(FD01(i64::MAX))),
+        1 => Just(Extended::Finite(FD01(i64::MIN))),
+        8 => (-limit..=limit).prop_map(|x| Extended::Finite(FD01(x))),
+    ]
+}
+
+/// `Extended<FD02>` over `NegInf`, `PosInf`, and finite FD02 (10 ms)
+/// values bounded by `i64::MAX / FD02::PREC`.
+pub fn extended_fd02() -> impl Strategy<Value = Extended<crate::conn::std::i64::decimal::FD02>> {
+    use crate::conn::std::i64::decimal::{FD02, HasResolution};
+    let limit = i64::MAX / FD02::PREC;
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(FD02(i64::MAX))),
+        1 => Just(Extended::Finite(FD02(i64::MIN))),
+        8 => (-limit..=limit).prop_map(|x| Extended::Finite(FD02(x))),
+    ]
+}
+
+/// `Extended<FD03>` over `NegInf`, `PosInf`, and finite FD03 (1 ms)
+/// values bounded by `i64::MAX / FD03::PREC`.
+pub fn extended_fd03() -> impl Strategy<Value = Extended<crate::conn::std::i64::decimal::FD03>> {
+    use crate::conn::std::i64::decimal::{FD03, HasResolution};
+    let limit = i64::MAX / FD03::PREC;
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(FD03(i64::MAX))),
+        1 => Just(Extended::Finite(FD03(i64::MIN))),
+        8 => (-limit..=limit).prop_map(|x| Extended::Finite(FD03(x))),
+    ]
+}
+
 /// `Extended<FD06>` over `NegInf`, `PosInf`, and finite FD06
 /// values bounded by `i64::MAX / FD06::PREC` (plus i64-edge
 /// `Just`s).

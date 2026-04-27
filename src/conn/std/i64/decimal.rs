@@ -293,7 +293,8 @@ float_conn!(F064FD12, f64, FD12, 1_000_000_000_000);
 mod tests {
     use super::*;
     use crate::property::arb::{
-        extended_fd06, extended_fd12, extended_float_f64, fixed_coarse, fixed_fine, fixed_safe_fine,
+        extended_fd00, extended_fd01, extended_fd02, extended_fd03, extended_fd06, extended_fd09,
+        extended_fd12, extended_float_f64, fixed_coarse, fixed_fine, fixed_safe_fine,
     };
     use proptest::prelude::*;
 
@@ -650,17 +651,52 @@ mod tests {
         };
     }
 
-    // F064FD06 and F064FD12 exercise the two structurally distinct
-    // cases: PREC well below mantissa (FD06) and PREC approaching
-    // mantissa (FD12). Other rungs share the adjoint-law machinery
-    // with one of these, so the spot checks above are sufficient
-    // regression coverage.
+    // Drive the full 9-law battery on every `F064FD<N>` rung. Earlier
+    // versions tested only FD06 + FD12 (the two structurally distinct
+    // PREC regimes — well below mantissa vs. approaching it); the
+    // publish-prep audit pulled the rest forward so each rung gets
+    // its own per-PREC saturation coverage.
+    float_conn_props!(
+        p_f064_fd00,
+        F064FD00,
+        FD00,
+        extended_float_f64,
+        extended_fd00
+    );
+    float_conn_props!(
+        p_f064_fd01,
+        F064FD01,
+        FD01,
+        extended_float_f64,
+        extended_fd01
+    );
+    float_conn_props!(
+        p_f064_fd02,
+        F064FD02,
+        FD02,
+        extended_float_f64,
+        extended_fd02
+    );
+    float_conn_props!(
+        p_f064_fd03,
+        F064FD03,
+        FD03,
+        extended_float_f64,
+        extended_fd03
+    );
     float_conn_props!(
         p_f064_fd06,
         F064FD06,
         FD06,
         extended_float_f64,
         extended_fd06
+    );
+    float_conn_props!(
+        p_f064_fd09,
+        F064FD09,
+        FD09,
+        extended_float_f64,
+        extended_fd09
     );
     float_conn_props!(
         p_f064_fd12,
