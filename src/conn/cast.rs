@@ -206,7 +206,7 @@ pub fn minimize<A, B, C>(c: &Conn<(A, B), C>, a: A, b: B) -> C {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::conn::fixed::decimal::{F12F09, Nano, Pico};
+    use crate::conn::fixed::decimal::{FD09, FD12, FD12FD09};
     use crate::property::arb::{arb_f64, fixed_coarse, fixed_safe_fine};
     use crate::property::laws;
     use proptest::prelude::*;
@@ -217,13 +217,13 @@ mod tests {
     //   - ID_I32: Ord path, trivially identity (every lifter reduces
     //     to f(x)).
     //   - ID_F64: N5 / Ple path with NaN / ±∞ handling.
-    //   - F12F09: a non-trivial triple (Pico ⊣ inner ⊣ floor with
+    //   - FD12FD09: a non-trivial triple (FD12 ⊣ inner ⊣ floor with
     //     ratio 10³) so the L and R sides of the lifters can differ.
     const ID_I32: Conn<i32, i32> = Conn::identity();
     const ID_F64: Conn<f64, f64> = Conn::identity();
 
-    // F12F09 ratio (Pico → Nano) is 10³.
-    const F12F09_RATIO: i64 = 1_000;
+    // FD12FD09 ratio (FD12 → FD09) is 10³.
+    const FD12FD09_RATIO: i64 = 1_000;
 
     // ── Deterministic spot checks (delegation correctness) ────────
 
@@ -404,55 +404,55 @@ mod tests {
             prop_assert!(laws::cast_floor2_id_diag(&ID_F64, b));
         }
 
-        // ── F12F09 (non-trivial triple, Pico ⊣ inner ⊣ floor) ─────
+        // ── FD12FD09 (non-trivial triple, FD12 ⊣ inner ⊣ floor) ─────
         //
-        // Source-side (Pico) generator choice mirrors `conn/fixed/
+        // Source-side (FD12) generator choice mirrors `conn/fixed/
         // decimal.rs`: properties that round-trip through `inner`
         // (i.e. compute `inner(ceil(a))` or `inner(floor(a))`) use
         // `fixed_safe_fine`, which clamps to `|p| ≤ (i64::MAX / RATIO)
         // * RATIO` to keep the multiply-by-RATIO inside `inner` from
-        // overflowing. Target-side (Nano) generators use
+        // overflowing. Target-side (FD09) generators use
         // `fixed_coarse(RATIO)` which is already capped at
         // `i64::MAX / RATIO`.
 
         #[test]
-        fn upper1_unit_f12f09(p in fixed_safe_fine(F12F09_RATIO)) {
-            prop_assert!(laws::cast_upper1_id_unit(&F12F09, Pico(p)));
+        fn upper1_unit_f12f09(p in fixed_safe_fine(FD12FD09_RATIO)) {
+            prop_assert!(laws::cast_upper1_id_unit(&FD12FD09, FD12(p)));
         }
 
         #[test]
-        fn lower1_counit_f12f09(p in fixed_safe_fine(F12F09_RATIO)) {
-            prop_assert!(laws::cast_lower1_id_counit(&F12F09, Pico(p)));
+        fn lower1_counit_f12f09(p in fixed_safe_fine(FD12FD09_RATIO)) {
+            prop_assert!(laws::cast_lower1_id_counit(&FD12FD09, FD12(p)));
         }
 
         #[test]
-        fn ceiling1_kernel_f12f09(n in fixed_coarse(F12F09_RATIO)) {
-            prop_assert!(laws::cast_ceiling1_id_kernel(&F12F09, Nano(n)));
+        fn ceiling1_kernel_f12f09(n in fixed_coarse(FD12FD09_RATIO)) {
+            prop_assert!(laws::cast_ceiling1_id_kernel(&FD12FD09, FD09(n)));
         }
 
         #[test]
-        fn floor1_kernel_f12f09(n in fixed_coarse(F12F09_RATIO)) {
-            prop_assert!(laws::cast_floor1_id_kernel(&F12F09, Nano(n)));
+        fn floor1_kernel_f12f09(n in fixed_coarse(FD12FD09_RATIO)) {
+            prop_assert!(laws::cast_floor1_id_kernel(&FD12FD09, FD09(n)));
         }
 
         #[test]
-        fn upper2_diag_f12f09(p in fixed_safe_fine(F12F09_RATIO)) {
-            prop_assert!(laws::cast_upper2_id_diag(&F12F09, Pico(p)));
+        fn upper2_diag_f12f09(p in fixed_safe_fine(FD12FD09_RATIO)) {
+            prop_assert!(laws::cast_upper2_id_diag(&FD12FD09, FD12(p)));
         }
 
         #[test]
-        fn lower2_diag_f12f09(p in fixed_safe_fine(F12F09_RATIO)) {
-            prop_assert!(laws::cast_lower2_id_diag(&F12F09, Pico(p)));
+        fn lower2_diag_f12f09(p in fixed_safe_fine(FD12FD09_RATIO)) {
+            prop_assert!(laws::cast_lower2_id_diag(&FD12FD09, FD12(p)));
         }
 
         #[test]
-        fn ceiling2_diag_f12f09(n in fixed_coarse(F12F09_RATIO)) {
-            prop_assert!(laws::cast_ceiling2_id_diag(&F12F09, Nano(n)));
+        fn ceiling2_diag_f12f09(n in fixed_coarse(FD12FD09_RATIO)) {
+            prop_assert!(laws::cast_ceiling2_id_diag(&FD12FD09, FD09(n)));
         }
 
         #[test]
-        fn floor2_diag_f12f09(n in fixed_coarse(F12F09_RATIO)) {
-            prop_assert!(laws::cast_floor2_id_diag(&F12F09, Nano(n)));
+        fn floor2_diag_f12f09(n in fixed_coarse(FD12FD09_RATIO)) {
+            prop_assert!(laws::cast_floor2_id_diag(&FD12FD09, FD09(n)));
         }
 
         // ── maximize / minimize over `ORDERED_PAIR` (random pairs) ─

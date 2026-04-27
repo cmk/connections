@@ -18,7 +18,7 @@
   `cast_*2_id_diag` for the binary lifters), each routed through the
   lifter under test. 38 new proptest blocks (8 predicates × 3 conn
   bases — `Conn::<i32, i32>::identity()`, `Conn::<f64, f64>::identity()`,
-  and the non-trivial triple `F12F09`) plus deterministic spot checks.
+  and the non-trivial triple `FD12FD09`) plus deterministic spot checks.
   Total: 1298 lib tests (up from 1260) + 11 doctests.
 - Rewrite `README.md` as a Rust-native landing page (Rust-native
   motivations: gaps in `as`/`From`, round-trip law guarantees, ladder
@@ -44,8 +44,8 @@
       introduced by this MR).
 - [ ] Pre-commit hook green on every commit.
 - [ ] Manual smoke:
-      `connections::ceiling(&F12F09, Pico(1_500))` returns
-      `F12F09.ceil(Pico(1_500))`; `connections::maximize(&ord_pair,
+      `connections::ceiling(&FD12FD09, FD12(1_500))` returns
+      `FD12FD09.ceil(FD12(1_500))`; `connections::maximize(&ord_pair,
       3, 5)` returns `5` for the obvious `Conn<(i32, i32), i32>`
       built from `(max, diag, min)`.
 
@@ -136,7 +136,7 @@ take `&Conn<A,B>` first. The `*_diag` predicates use `ple`-based
 equivalence (`l.ple(&r) && r.ple(&l)`) rather than `==`, which is correct
 for N5-ordered types.
 
-Generator choice for F12F09 blocks is correct: `fixed_safe_fine`
+Generator choice for FD12FD09 blocks is correct: `fixed_safe_fine`
 (source-side, prevents inner-round-trip overflow) for properties that
 pass through `inner(ceil(a))` or `inner(floor(a))`; `fixed_coarse`
 (target-side) for `ceiling1`/`floor1` properties that start at `B`.
@@ -226,7 +226,7 @@ All three review recommendations addressed in one `fix:` commit:
    five Quick Tour blocks from `rust,no_run` to plain `rust` so
    `cargo test --doc` now executes the assertions (not just compile-
    checks them). Doctest count unchanged at 11 passing (the same
-   blocks now both compile *and* run). Fixed the `U08I16` example
+   blocks now both compile *and* run). Fixed the `U008I016` example
    along the way: the original asserted `ceil(PosInf) == i16::MAX`,
    which is wrong — `ceil(PosInf)` returns the synthetic "one past
    source max" point (`u8::MAX + 1 = 256`), and `i16::MAX` is what

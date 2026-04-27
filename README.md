@@ -27,10 +27,12 @@ you that the standard tools don't:
    the result is property-tested too.
 
 3. **Ladders for time and rate work without hand-rolled multipliers.**
-   Pico ↔ Nano ↔ Micro ↔ Milli ↔ Uni and S44.1 ↔ S48 ↔ S88.2 ↔ S96 ↔ S176
-   ↔ S192 ladders ship as named constants. Composing across them is one
-   `compose!` invocation, not a chain of multiply-divides where one
-   off-by-one breaks the whole pipeline.
+   Decimal-second granularities (`FD12` 1 ps ↔ `FD09` 1 ns ↔ `FD06`
+   1 µs ↔ `FD03` 1 ms ↔ `FD00` 1 s) and audio sample rates (`S044`
+   44.1 kHz ↔ `S048` 48 kHz ↔ `S088` 88.2 kHz ↔ `S096` 96 kHz ↔ `S176`
+   176.4 kHz ↔ `S192` 192 kHz) ship as named constants. Composing
+   across them is one `compose!` invocation, not a chain of
+   multiply-divides where one off-by-one breaks the whole pipeline.
 
 ## The core type
 
@@ -57,31 +59,31 @@ For the math and the rationale behind a single unified `Conn` type
 A decimal-ladder cast:
 
 ```rust
-use connections::conn::fixed::decimal::{F12F09, Pico, Nano};
+use connections::conn::fixed::decimal::{FD09, FD12, FD12FD09};
 
-let p = Pico(1_500);                    // 1500 picoseconds
-assert_eq!(F12F09.ceil(p),  Nano(2));   // round up   → 2 ns
-assert_eq!(F12F09.floor(p), Nano(1));   // round down → 1 ns
+let p = FD12(1_500);                    // 1500 picoseconds
+assert_eq!(FD12FD09.ceil(p),  FD09(2));   // round up   → 2 ns
+assert_eq!(FD12FD09.floor(p), FD09(1));   // round down → 1 ns
 ```
 
-Composing four pair-conns into one `Pico → Uni` (seconds) cast:
+Composing four pair-conns into one `FD12 → FD00` (picoseconds → seconds) cast:
 
 ```rust
 use connections::compose;
 use connections::conn::Conn;
-use connections::conn::fixed::decimal::{F12F09, F09F06, F06F03, F03F00, Pico, Uni};
+use connections::conn::fixed::decimal::{FD03FD00, FD06FD03, FD09FD06, FD12FD09, FD00, FD12};
 
-const F12F00: Conn<Pico, Uni> = compose!(F12F09, F09F06, F06F03, F03F00);
-assert_eq!(F12F00.floor(Pico(1_500_000_000_000)), Uni(1));  // 1.5 s → 1 s
+const FD12FD00: Conn<FD12, FD00> = compose!(FD12FD09, FD09FD06, FD06FD03, FD03FD00);
+assert_eq!(FD12FD00.floor(FD12(1_500_000_000_000)), FD00(1));  // 1.5 s → 1 s
 ```
 
 A sample-rate cast (88.2 kHz → 44.1 kHz, 2:1 ratio):
 
 ```rust
-use connections::conn::sample::{S44, S88, S88S44};
+use connections::conn::sample::{S044, S088, S088S044};
 
-assert_eq!(S88S44.ceil(S88::from_sample(14)), S44::from_sample(7));
-assert_eq!(S88S44.inner(S44::from_sample(7)), S88::from_sample(14));
+assert_eq!(S088S044.ceil(S088::from_sample(14)), S044::from_sample(7));
+assert_eq!(S088S044.inner(S044::from_sample(7)), S088::from_sample(14));
 ```
 
 Integer widening through `Extended<T>` (so values *outside* the source
@@ -89,21 +91,21 @@ range have somewhere to land — `floor` saturates to the target bounds,
 `ceil` lands on a synthetic point one past the source range):
 
 ```rust
-use connections::conn::int::U08I16;
+use connections::conn::int::U008I016;
 use connections::extended::Extended;
 
 // Finite passes through.
-assert_eq!(U08I16.ceil(Extended::Finite(200_u8)), 200_i16);
+assert_eq!(U008I016.ceil(Extended::Finite(200_u8)), 200_i16);
 
 // `floor` saturates the infinities to target bounds.
-assert_eq!(U08I16.floor(Extended::PosInf), i16::MAX);
-assert_eq!(U08I16.ceil(Extended::NegInf),  i16::MIN);
+assert_eq!(U008I016.floor(Extended::PosInf), i16::MAX);
+assert_eq!(U008I016.ceil(Extended::NegInf),  i16::MIN);
 
 // `ceil(PosInf)` and `floor(NegInf)` land on the "one past source"
 // markers — distinct from the target bounds, so `inner` can recover
 // PosInf/NegInf round-trip.
-assert_eq!(U08I16.ceil(Extended::PosInf),  256_i16);   // u8::MAX + 1
-assert_eq!(U08I16.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
+assert_eq!(U008I016.ceil(Extended::PosInf),  256_i16);   // u8::MAX + 1
+assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 ```
 
 The Sprint A `Cast` API — accessors and lifters operating on any `Conn`:
@@ -111,15 +113,15 @@ The Sprint A `Cast` API — accessors and lifters operating on any `Conn`:
 ```rust
 use connections::{ceiling, upper1, maximize};
 use connections::conn::Conn;
-use connections::conn::fixed::decimal::{F12F09, Pico};
+use connections::conn::fixed::decimal::{FD12, FD12FD09};
 
 // `ceiling` is the named alias of `c.ceil` under the L-side reading.
-assert_eq!(ceiling(&F12F09, Pico(1_500)), F12F09.ceil(Pico(1_500)));
+assert_eq!(ceiling(&FD12FD09, FD12(1_500)), FD12FD09.ceil(FD12(1_500)));
 
 // `upper1` lifts an endofunction over the target type back to the source:
 //   upper1(c, f, a) = inner(f(ceil(a)))
-let bumped = upper1(&F12F09, |n| n, Pico(1_500));
-assert_eq!(bumped, F12F09.inner(F12F09.ceil(Pico(1_500))));
+let bumped = upper1(&FD12FD09, |n| n, FD12(1_500));
+assert_eq!(bumped, FD12FD09.inner(FD12FD09.ceil(FD12(1_500))));
 
 // `maximize` is the curried form of `ceiling` over a `Conn<(A, B), C>`.
 fn pair_max(p: (i32, i32)) -> i32 { p.0.max(p.1) }
@@ -163,14 +165,14 @@ ordered. The `Ple` trait at `src/lattice.rs` carries this semantics.
 
 | Family | Module | Status |
 |--------|--------|--------|
-| Decimal fixed-point ladder (`F??F??`, F00–F12) | `conn::fixed::decimal` | shipped |
-| Binary fixed-point (`fixed`-crate native, `i08`/`i16`/`i32`/`i64`) | `conn::fixed::{i08,i16,i32,i64}` | shipped |
+| Decimal fixed-point ladder (`FD??FD??`, FD00–FD12) | `conn::fixed::decimal` | shipped |
+| Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `conn::fixed::{i08,i16,i32,i64,i128}` | shipped |
 | Sample-rate pairs (`S???S???`, 6 audio rates) | `conn::sample` | shipped |
-| Pico ↔ rate cross-tier (`F12S???`) | `conn::sample` | shipped |
-| Signed widening over `Extended<T>` (`I??I??`, `U??I??`) | `conn::int` | shipped |
-| Unsigned widening / sign change (`U??U??`, `I??U??`) | `conn::uint` | shipped |
+| Picoseconds ↔ rate cross-tier (`FD12S???`) | `conn::sample` | shipped |
+| Signed widening over `Extended<T>` (`I###I###`, `U###I###`) | `conn::int` | shipped |
+| Unsigned widening / sign change (`U###U###`, `I###U###`) | `conn::uint` | shipped |
 | Float `f64 ↔ f32` under N5 | `conn::float` | shipped |
-| Float ↔ rung over `ExtendedFloat<T>` (`F64F??`) | `conn::fixed::decimal` | shipped |
+| Float ↔ rung over `ExtendedFloat<T>` (`F064FD??`) | `conn::fixed::decimal` | shipped |
 
 **Cast operations** (Haskell `Data.Connection.Cast`):
 
@@ -230,7 +232,7 @@ src/
 │   ├── fixed/          — decimal & binary fixed-point ladders
 │   ├── float.rs        — ExtendedFloat<T> + f64↔f32
 │   ├── int.rs          — signed-widening via Extended<T>
-│   ├── sample.rs       — sample-rate ladders + Pico↔rate
+│   ├── sample.rs       — sample-rate ladders + FD12↔rate
 │   └── uint.rs         — unsigned widening, sign change
 ├── extended.rs         — Extended<T> with NegInf/Finite/PosInf
 ├── lattice.rs          — Ple, Join, Meet, Heyting, Coheyting, Symmetric, Boolean
