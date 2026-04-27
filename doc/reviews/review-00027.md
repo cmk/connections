@@ -158,3 +158,48 @@ addressed in the fix commit).
 2. Update `src/conn/time/date.rs:217` stale comment. One-line.
 3. Document the `floor_le_ceil` skip rationale inline in the
    proptest macros (cosmetic).
+
+<!-- glab-id: 3289342452 -->
+<!-- glab-discussion: b3e7c82853271d1646fcc839ad2337d80251e2e3 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/std.rs:207` (2026-04-27 11:30 UTC) [open]
+
+**[must-fix]** The `int_int_narrow!` macro's `inner` returns `<$B>::MIN as $A` for the low-plateau case without a FINE_MIN fixup, but the doc comment claims "The low-end plateau holds without fixup because `i_M::MIN as i_N` is strictly above `i_N::MIN`". While true for signed→signed narrowing (e.g. `i16::MIN as i32 = -32768 > i32::MIN`), the `ceil` function checks `x < <$B>::MIN as $A` and collapses everything below that threshold to `i_M::MIN` — so the left-Galois law requires `inner(i_M::MIN) ≤ a` for all `a` in that plateau (i.e. all `a < i_M::MIN as i_A`). Since `inner(i_M::MIN) = i_M::MIN as i_A` and every plateau source satisfies `a < i_M::MIN as i_A`, the law `a ≤ inner(b)` at `b = i_M::MIN` reduces to `a ≤ i_M::MIN as i_A`, which fails for plateau sources one below that value. This is the symmetric low-end analogue of the FINE_MAX bug and should be verified against the proptest `galois_upper` at `(a = i_A::MIN, b = i_B::MIN)`.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3289342503 -->
+<!-- glab-discussion: 06c11d7a303ae756d23634b7205da17e56846962 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/std.rs:251` (2026-04-27 11:30 UTC) [open]
+
+**[follow-up]** The `uint_uint_narrow!` macro's `ceil` only saturates at the high end (`x > <$B>::MAX as $A → <$B>::MAX`) but has no low-end branch, which is correct since `u_N ≥ 0` always. However the doc comment says "The low end works without fixup" without explaining why, which makes the asymmetry with `int_int_narrow!` surprising. A one-line comment noting that unsigned source values are always ≥ 0 ≥ `u_M::MIN` would prevent future confusion.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3289342552 -->
+<!-- glab-discussion: 4ffe45c53096db04a7c8e3b021f3759ab901aaf6 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `tests/conn_std_i8_galois.rs:59` (2026-04-27 11:30 UTC) [open]
+
+**[must-fix]** The `single_sided_props!` macro for left-Galois Conns in this file tests `galois_upper` but not `galois_lower` (i.e., `inner(b) ≤ a ⟺ b ≤ floor(a)`). For `Conn::new_left`, `floor = ceil`, so `galois_lower` is a non-trivial constraint and is listed as a required property in the plan's Verification table (`conn_galois_l` covers both directions). The missing `galois_lower` test means the low-plateau behaviour of `int_int_narrow!`'s `inner` is unchecked by proptest in this file (and in the identical `single_sided_props!` macros in `conn_std_i16_galois.rs`, `conn_std_i32_galois.rs`, `conn_std_i64_galois.rs`, `conn_std_u16_galois.rs`, `conn_std_u32_galois.rs`, `conn_std_u64_galois.rs`, `conn_std_u128_galois.rs`).
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3289360791 -->
+<!-- glab-discussion: b3e7c82853271d1646fcc839ad2337d80251e2e3 -->
+#### ↳ cmk (2026-04-27 11:36 UTC) [open]
+
+The Galois law actually holds at the low plateau — your derivation has a sign error: the law is `a ≤ inner(b)`, not `inner(b) ≤ a`. At `(a = i32::MIN, b = i8::MIN)`: `ceil(a) = i8::MIN ≤ i8::MIN = b` (true) and `a = i32::MIN ≤ inner(i8::MIN) = -128_i32` (true) — both sides match. Same at the "one below" boundary `(a = -129, b = -128)`. The proptest battery's `galois_upper` already covers these corners (proptest biases `any::<i32>()` toward boundary values) and they all pass. No fixup needed.
+
+<!-- glab-id: 3289361254 -->
+<!-- glab-discussion: 06c11d7a303ae756d23634b7205da17e56846962 -->
+#### ↳ cmk (2026-04-27 11:36 UTC) [open]
+
+Added a paragraph to the macro doc explaining why no low-end branch exists (unsigned sources start at `0 = u_N::MIN ≥ u_M::MIN = 0`, so no source value can fall below the target's minimum) and contrasting with `int_int_narrow!`'s symmetric two-arm shape.
+
+<!-- glab-id: 3289361891 -->
+<!-- glab-discussion: 4ffe45c53096db04a7c8e3b021f3759ab901aaf6 -->
+#### ↳ cmk (2026-04-27 11:36 UTC) [open]
+
+`galois_r` is not equivalent to `galois_l` at saturation plateaus, even for `Conn::new_left` where `floor = ceil`. Testing it on these single-sided Conns would FAIL by design. Verified at `(a = i32::MIN, b = i8::MIN)`: `inner(b) = -128`, so `b ≤ ceil(a) = i8::MIN ≤ i8::MIN` (true) but `inner(b) ≤ a` is `-128 ≤ -2_147_483_648` (false) — the bi-implication breaks. That's the defining asymmetry of single-sided new_left: only one of the two Galois laws holds. The plan's Verification table correctly lists `galois_l` only for §1/§2/§4; the pre-existing `single_sided_props!` macro in `conn::int`/`conn::uint` (now in `conn::std`) follows the same convention.

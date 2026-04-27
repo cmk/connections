@@ -203,11 +203,17 @@ pub(crate) use int_int_narrow;
 /// `Conn<u_N, u_M>` narrowing (`bits(u_N) > bits(u_M)`).
 ///
 /// `ceil` saturates source values above `u_M::MAX` down to
-/// `u_M::MAX` before downcasting; `inner` is the lossless `as`-widen
-/// with a FINE_MAX fixup (`inner(u_M::MAX) = u_N::MAX`). The fixup
-/// is required for left-Galois to hold at the source-side
-/// saturation plateau (mirrors the same pattern in
-/// `conn::fixed::u<width>`).
+/// `u_M::MAX` before downcasting. There is **no** low-end branch
+/// (no `MIN` saturation arm) because both endpoints are unsigned —
+/// the source range starts at `0 = u_N::MIN ≥ u_M::MIN = 0`, so no
+/// source value can fall below the target's minimum. Compare
+/// `int_int_narrow!`, which needs both arms because signed sources
+/// can dip below the target's `MIN`.
+///
+/// `inner` is the lossless `as`-widen with a FINE_MAX fixup
+/// (`inner(u_M::MAX) = u_N::MAX`). The fixup is required for
+/// left-Galois to hold at the source-side saturation plateau
+/// (mirrors the same pattern in `conn::fixed::u<width>`).
 macro_rules! uint_uint_narrow {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
