@@ -8,8 +8,6 @@
 //!   decimal-SI ladder (`FD00`..`FD12`) built on `i64`.
 //!
 //! Mirrors the upstream Haskell `Data.Connection.Int` and
-//!
-//! Mirrors the upstream Haskell `Data.Connection.Int` and
 //! `Data.Connection.Word` modules, with three structural differences:
 //!
 //! - Per-primitive submodules (`i8` / `i16` / `i32` / `i64` / `i128` /

@@ -85,9 +85,13 @@
 //! - [`conn::float::f64::F064B016`] — `F064 → B016` (direct f64 → bfloat16).
 //! - [`conn::float::f32::F032F016`] — `F032 → F016` (f32 → IEEE binary16).
 //! - [`conn::float::f32::F032B016`] — `F032 → B016` (f32 → bfloat16).
-//! - [`conn::std::u16::U008U016`] — `u8 → u16` saturating widen.
+//! - [`conn::std::u16::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
 //! - [`conn::std::i16::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
 //! - [`conn::std::i16::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
+//! - [`conn::std::i8::I016I008`] — `i16 → i8` signed-narrowing saturating cast.
+//! - [`conn::std::u8::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
+//! - [`conn::std::i8::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
+//! - [`conn::std::u8::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
 //! - [`conn::fixed::u8::U008U007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
 //!   the 7-bit MIDI velocity format).
 //! - [`conn::fixed::u16::U016U015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
