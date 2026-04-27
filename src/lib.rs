@@ -53,8 +53,8 @@
 //! ```ignore
 //! use connections::conn::fixed::i08 as fi8;
 //! use connections::conn::fixed::i64 as fi64;
-//! let _ = fi8::I008I004;     // FixedI8<U8> → FixedI8<U4>
-//! let _ = fi64::I008I004;    // FixedI64<U8> → FixedI64<U4>
+//! let _ = fi8::I008I000;     // i8-backed  Q0.8 → Q8.0
+//! let _ = fi64::I008I000;    // i64-backed Q56.8 → Q64.0
 //! ```
 //!
 //! Integer-conn families (`conn::int`, `conn::uint`) name primitives

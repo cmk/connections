@@ -60,6 +60,54 @@ doc/                    — design docs, notes, plans
     `#[ignore]` it temporarily **but you must document it** in the
     plan's Review section with the reason and a plan to re-enable.
 
+### Conn-name format (mandatory)
+
+Every public `Conn` constant has an **8-character** identifier split
+into two **4-character sides**. The smaller-resolution / coarser tier
+goes on the right. Each side independently follows one of four
+letter / digit shapes:
+
+| Shape          | Letters | Digits | Example side | Use                                               |
+|----------------|---------|--------|--------------|---------------------------------------------------|
+| `A123` form    | 1       | 3      | `F064`       | most families: `F`, `I`, `U`, `S`                 |
+| `AB12` form    | 2       | 2      | `FD12`       | families that need a 2-letter prefix (`FD`)       |
+| `ABC1` form    | 3       | 1      | `FDX1`       | reserved — no current uses                        |
+| `ABCD` form    | 4       | 0      | `FOOO`       | reserved — no current uses                        |
+
+The two sides may pick **independently**: a Conn that bridges two
+families with different prefix lengths is allowed and expected.
+
+Canonical examples:
+
+| Pattern              | Example       | Meaning                                      |
+|----------------------|---------------|----------------------------------------------|
+| `A123X456` (1L+3D both) | `S088S044` | sample 88.2 kHz → 44.1 kHz                   |
+| `A123X456`           | `I064I128`    | `Extended<i64>` → `i128` (signed widening)   |
+| `AB12XY34` (2L+2D both) | `FD12FD06` | decimal Pico → Micro                         |
+| `A123XY34` (mixed)   | `F064FD12`    | `ExtendedFloat<f64>` → `Extended<Pico>`      |
+| `AB12X456` (mixed)   | `FD12S048`    | decimal Pico → sample 48 kHz                 |
+
+Hard rules:
+
+- The total identifier is **exactly 8 ASCII chars**. Names shorter
+  than 8 chars (e.g. the legacy `S88S44`) are not permitted.
+- Each side is **exactly 4 chars**, picking one of `{A123, AB12,
+  ABC1, ABCD}` independently. Sides shorter or longer than 4 chars
+  are not permitted.
+- Digits are zero-padded to fill the digit count for the side's
+  shape (e.g. `S048`, not `S48`).
+- Letters and digits only — no underscores, hyphens, or other
+  separators inside the name.
+- Cross-module name collisions are **allowed** and resolved by
+  qualified-import; e.g. `conn::fixed::i08::I008I000` and
+  `conn::fixed::i64::I008I000` co-exist by `use … as alias;`.
+
+This applies to all `pub const`s of type `Conn<_, _>` exported from
+`connections`. Type wrappers that show up as either side of a Conn
+(e.g. `FD12`, `S044`) follow the same per-side shape so the Conn
+constant name is the literal concatenation of its two endpoint type
+codes.
+
 ### Session notes
 
 Session notes live in `doc/notes/note-YYYY-MM-DD-nn.md`. The final field
