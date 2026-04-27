@@ -1,3 +1,9 @@
+#![doc = include_str!("../README.md")]
+//!
+//! ---
+//!
+//! ## Internal docs (additional context for code readers)
+//!
 //! Rust port of [Haskell `connections`](https://github.com/cmk/connections).
 //!
 //! A Galois connection (adjoint triple `ceil ⊣ inner ⊣ floor`) between
@@ -104,12 +110,44 @@
 //! Source/destination types come from the binding annotation;
 //! intermediates are inferred. Runtime composition is deferred until
 //! a closure-capturing `DynConn` variant lands — see `doc/design.md`.
+//!
+//! ## Cast operations
+//!
+//! Operations on a [`Conn`](conn::Conn) — accessors, lifters, and the
+//! curried [`maximize`] / [`minimize`] helpers — live in
+//! [`conn::cast`] and are re-exported at the crate root for ergonomic
+//! access (`connections::ceiling(&c, x)` rather than
+//! `connections::conn::cast::ceiling(&c, x)`).
+//!
+//! The Haskell `Data.Connection.Cast` module distinguishes
+//! L-side names (`ceiling`/`upper`/`maximize`) from R-side names
+//! (`floor`/`lower`/`minimize`) via a phantom `Side` data kind. This
+//! port collapses both sides onto the unified [`Conn`](conn::Conn) (it
+//! always carries the full triple `ceil ⊣ inner ⊣ floor`), so both
+//! naming conventions are simultaneously available on every value.
+//! See [`conn::cast`] for the rationale.
+//!
+//! | Haskell | Rust (free fn at crate root) |
+//! |---------|-------------------------------|
+//! | `ceiling`/`upper` | [`ceiling`] / [`upper`] |
+//! | `floor`/`lower` | [`floor`] / [`lower`] |
+//! | `ceiling1`/`upper1` | [`ceiling1`] / [`upper1`] |
+//! | `floor1`/`lower1` | [`floor1`] / [`lower1`] |
+//! | `ceiling2`/`upper2` | [`ceiling2`] / [`upper2`] |
+//! | `floor2`/`lower2` | [`floor2`] / [`lower2`] |
+//! | `maximize` | [`maximize`] |
+//! | `minimize` | [`minimize`] |
 
 #![forbid(unsafe_code)]
 
 pub mod conn;
 pub mod extended;
 pub mod lattice;
+
+pub use conn::cast::{
+    ceiling, ceiling1, ceiling2, floor, floor1, floor2, lower, lower1, lower2, maximize, minimize,
+    upper, upper1, upper2,
+};
 
 // Property predicates (`property::laws`) and proptest strategies
 // (`property::arb`) for downstream crates that want to drive their

@@ -3,6 +3,8 @@
 //! Submodules under `conn/` each implement a family of connections
 //! for a specific domain:
 //!
+//! - `cast` — operations on a [`Conn`] (L/R-side accessors, lifters,
+//!   and — once Sprint B lands — the two-sided rounding helpers).
 //! - `int` / `uint` — integer ↔ integer connections (signed and
 //!   unsigned ladders + Word↔Int cross-sign conns).
 //! - `float` — float ↔ float connections; also hosts the
@@ -12,6 +14,7 @@
 //! - `sample` — rate-typed sample-indexed time; rate ↔ rate and
 //!   rate ↔ FD12 connections.
 
+pub mod cast;
 pub mod fixed;
 pub mod float;
 pub mod int;

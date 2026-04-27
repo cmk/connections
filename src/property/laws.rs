@@ -458,6 +458,70 @@ where
         .is_some_and(|d| (0..=1).contains(&d))
 }
 
+// ── Cast lifter laws (for `conn::cast::*`) ───────────────────────
+//
+// These predicates exercise the lifter free functions (`upper1`,
+// `ceiling1`, etc.) in `conn::cast`. The underlying algebraic laws
+// (closure / kernel / monotonicity) are already covered by the
+// `conn_*` predicates above; these add a thin layer that catches
+// mis-delegation in the lifters themselves (e.g. an `upper1` that
+// accidentally calls `floor` instead of `ceil` would still typecheck
+// but would fail the unit law on a non-degenerate triple).
+
+/// `upper1` unit law: `a ≤ upper1(c, id, a)`. Equivalent to
+/// [`conn_closure_l`] routed through the lifter.
+pub fn cast_upper1_id_unit<A: Copy + Ple, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+    a.ple(&crate::conn::cast::upper1(c, |x| x, a))
+}
+
+/// `lower1` counit law: `lower1(c, id, a) ≤ a`. Equivalent to
+/// [`conn_closure_r`] routed through the lifter.
+pub fn cast_lower1_id_counit<A: Copy + Ple, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+    crate::conn::cast::lower1(c, |x| x, a).ple(&a)
+}
+
+/// `ceiling1` kernel law: `ceiling1(c, id, b) ≤ b`. Equivalent to
+/// [`conn_kernel_l`] routed through the lifter.
+pub fn cast_ceiling1_id_kernel<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bool {
+    crate::conn::cast::ceiling1(c, |x| x, b).ple(&b)
+}
+
+/// `floor1` kernel law: `b ≤ floor1(c, id, b)`. Equivalent to
+/// [`conn_kernel_r`] routed through the lifter.
+pub fn cast_floor1_id_kernel<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bool {
+    b.ple(&crate::conn::cast::floor1(c, |x| x, b))
+}
+
+/// `upper2` diagonal: with the projection `|p, _| p`, calling on
+/// `(a, a)` collapses to `upper1` with `id`.
+pub fn cast_upper2_id_diag<A: Copy + Ple, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+    let l = crate::conn::cast::upper2(c, |p, _q| p, a, a);
+    let r = crate::conn::cast::upper1(c, |x| x, a);
+    l.ple(&r) && r.ple(&l)
+}
+
+/// `lower2` diagonal: dual of [`cast_upper2_id_diag`].
+pub fn cast_lower2_id_diag<A: Copy + Ple, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+    let l = crate::conn::cast::lower2(c, |p, _q| p, a, a);
+    let r = crate::conn::cast::lower1(c, |x| x, a);
+    l.ple(&r) && r.ple(&l)
+}
+
+/// `ceiling2` diagonal: with `|p, _| p` on `(b, b)`, collapses to
+/// `ceiling1` with `id`.
+pub fn cast_ceiling2_id_diag<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bool {
+    let l = crate::conn::cast::ceiling2(c, |p, _q| p, b, b);
+    let r = crate::conn::cast::ceiling1(c, |x| x, b);
+    l.ple(&r) && r.ple(&l)
+}
+
+/// `floor2` diagonal: dual of [`cast_ceiling2_id_diag`].
+pub fn cast_floor2_id_diag<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bool {
+    let l = crate::conn::cast::floor2(c, |p, _q| p, b, b);
+    let r = crate::conn::cast::floor1(c, |x| x, b);
+    l.ple(&r) && r.ple(&l)
+}
+
 // ── Bare-preorder laws (for types impl'ing `Ple`) ────────────────
 
 /// Reflexivity: `x ≤ x` — every element is comparable to itself.
