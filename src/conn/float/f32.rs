@@ -609,6 +609,8 @@ mod tests {
     #[test]
     fn b16_bot_top_pass_through() {
         assert_eq!(F032B016.ceil(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F032B016.floor(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F032B016.ceil(ExtendedFloat::Top), ExtendedFloat::Top);
         assert_eq!(F032B016.floor(ExtendedFloat::Top), ExtendedFloat::Top);
         assert_eq!(F032B016.inner(ExtendedFloat::Bot), ExtendedFloat::Bot);
         assert_eq!(F032B016.inner(ExtendedFloat::Top), ExtendedFloat::Top);

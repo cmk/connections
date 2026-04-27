@@ -328,7 +328,7 @@ fn ascend_to_floor_f64_f16(start: f16, x: f64) -> (f16, u32) {
 /// `bf16::from_f64` does single-step RNE rounding; the walk
 /// converges in ≤ 2 ULPs on the bf16 side.
 ///
-/// **This is the headline new feature of MR !19** — direct f64 →
+/// **This is the headline new feature of MR !20** — direct f64 →
 /// bfloat16 with full Galois-law backing, on stable Rust.
 ///
 /// ```
@@ -867,6 +867,8 @@ mod tests {
     #[test]
     fn f16_bot_top_pass_through() {
         assert_eq!(F064F016.ceil(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F064F016.floor(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F064F016.ceil(ExtendedFloat::Top), ExtendedFloat::Top);
         assert_eq!(F064F016.floor(ExtendedFloat::Top), ExtendedFloat::Top);
         assert_eq!(F064F016.inner(ExtendedFloat::Bot), ExtendedFloat::Bot);
         assert_eq!(F064F016.inner(ExtendedFloat::Top), ExtendedFloat::Top);
@@ -911,6 +913,8 @@ mod tests {
     #[test]
     fn b16_bot_top_pass_through() {
         assert_eq!(F064B016.ceil(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F064B016.floor(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F064B016.ceil(ExtendedFloat::Top), ExtendedFloat::Top);
         assert_eq!(F064B016.floor(ExtendedFloat::Top), ExtendedFloat::Top);
         assert_eq!(F064B016.inner(ExtendedFloat::Bot), ExtendedFloat::Bot);
         assert_eq!(F064B016.inner(ExtendedFloat::Top), ExtendedFloat::Top);

@@ -197,7 +197,6 @@ fn clamp32(x: i32) -> i32 {
 /// Maps the 16-bit float bit-space onto integers so that integer
 /// order matches the float total order (excluding NaN):
 ///   +0 → 0, +inf-bits → small positive, -0 → -1, -inf-bits → large negative.
-#[allow(dead_code)] // exercised by shift16_* helpers + their tests
 pub(crate) fn signed16(x: u16) -> i32 {
     if x < 0x8000 {
         x as i32
@@ -210,7 +209,6 @@ pub(crate) fn signed16(x: u16) -> i32 {
 }
 
 /// Sign-magnitude i32 → Word16 (bit pattern).
-#[allow(dead_code)] // exercised by shift16_* helpers + their tests
 pub(crate) fn unsigned16(i: i32) -> u16 {
     if i >= 0 {
         i as u16
@@ -220,7 +218,6 @@ pub(crate) fn unsigned16(i: i32) -> u16 {
 }
 
 /// Clamp between the i32 representations of f16's ±∞.
-#[allow(dead_code)]
 pub(crate) fn clamp16_f16(x: i32) -> i32 {
     // half::f16::INFINITY.to_bits() = 0x7C00 → signed16 = 31744
     // half::f16::NEG_INFINITY bits  = 0xFC00 → signed16 = -31745
@@ -228,7 +225,6 @@ pub(crate) fn clamp16_f16(x: i32) -> i32 {
 }
 
 /// Clamp between the i32 representations of bf16's ±∞.
-#[allow(dead_code)]
 pub(crate) fn clamp16_bf16(x: i32) -> i32 {
     // half::bf16::INFINITY.to_bits() = 0x7F80 → signed16 = 32640
     // half::bf16::NEG_INFINITY bits  = 0xFF80 → signed16 = -32641
@@ -239,7 +235,6 @@ pub(crate) fn clamp16_bf16(x: i32) -> i32 {
 ///
 /// NaN maps to ±∞ for non-zero shifts (matches `shift32`); ±∞ are
 /// clamped (shifting past stays at ±∞).
-#[allow(dead_code)] // first consumer lands with F032F016 / F064F016
 pub(crate) fn shift16_f16(n: i32, x: half::f16) -> half::f16 {
     if x.is_nan() {
         return match n.signum() {
@@ -253,7 +248,6 @@ pub(crate) fn shift16_f16(n: i32, x: half::f16) -> half::f16 {
 }
 
 /// Shift a [`half::bf16`] by `n` ULPs in the sign-magnitude total order.
-#[allow(dead_code)] // first consumer lands with F032B016 / F064B016
 pub(crate) fn shift16_bf16(n: i32, x: half::bf16) -> half::bf16 {
     if x.is_nan() {
         return match n.signum() {
