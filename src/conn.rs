@@ -223,24 +223,36 @@ mod tests {
         }
     }
 
-    // ── Property tests for identity on f64 (exercises N5 ordering) ─
+    // ── Property tests for identity on ExtendedFloat<f64> ─────────
+    //
+    // Exercises the float-aware lawful path. Raw `f64` is not `Eq`
+    // (NaN ≠ NaN under standard PartialEq), so `Conn<f64, f64>` can't
+    // satisfy the law-machinery bounds. `ExtendedFloat<f64>` patches
+    // `PartialEq` to be reflexive at NaN and impls `Eq`, which is
+    // what the laws require.
 
-    const ID_F64: Conn<f64, f64> = Conn::identity();
+    use crate::conn::float::ExtendedFloat;
+
+    const ID_EF64: Conn<ExtendedFloat<f64>, ExtendedFloat<f64>> = Conn::identity();
 
     proptest! {
         #[test]
-        fn galois_l_f64(a in arb_f64(), b in arb_f64()) {
-            prop_assert!(laws::conn_galois_l(&ID_F64, a, b));
+        fn galois_l_ef64(a in arb_f64(), b in arb_f64()) {
+            prop_assert!(laws::conn_galois_l(
+                &ID_EF64,
+                ExtendedFloat::Finite(a),
+                ExtendedFloat::Finite(b),
+            ));
         }
 
         #[test]
-        fn closure_l_f64(a in arb_f64()) {
-            prop_assert!(laws::conn_closure_l(&ID_F64, a));
+        fn closure_l_ef64(a in arb_f64()) {
+            prop_assert!(laws::conn_closure_l(&ID_EF64, ExtendedFloat::Finite(a)));
         }
 
         #[test]
-        fn kernel_l_f64(b in arb_f64()) {
-            prop_assert!(laws::conn_kernel_l(&ID_F64, b));
+        fn kernel_l_ef64(b in arb_f64()) {
+            prop_assert!(laws::conn_kernel_l(&ID_EF64, ExtendedFloat::Finite(b)));
         }
     }
 

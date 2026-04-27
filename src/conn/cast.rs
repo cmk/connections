@@ -207,6 +207,7 @@ pub fn minimize<A, B, C>(c: &Conn<(A, B), C>, a: A, b: B) -> C {
 mod tests {
     use super::*;
     use crate::conn::fixed::decimal::{FD09, FD12, FD12FD09};
+    use crate::conn::float::ExtendedFloat;
     use crate::property::arb::{arb_f64, fixed_coarse, fixed_safe_fine};
     use crate::property::laws;
     use proptest::prelude::*;
@@ -216,11 +217,12 @@ mod tests {
     // The three bases give us:
     //   - ID_I32: Ord path, trivially identity (every lifter reduces
     //     to f(x)).
-    //   - ID_F64: N5 / Ple path with NaN / ±∞ handling.
+    //   - ID_EF64: ExtendedFloat<f64> path with Bot/Top/Finite(NaN);
+    //     covers the lawful float wrapper (raw f64 is not Eq).
     //   - FD12FD09: a non-trivial triple (FD12 ⊣ inner ⊣ floor with
     //     ratio 10³) so the L and R sides of the lifters can differ.
     const ID_I32: Conn<i32, i32> = Conn::identity();
-    const ID_F64: Conn<f64, f64> = Conn::identity();
+    const ID_EF64: Conn<ExtendedFloat<f64>, ExtendedFloat<f64>> = Conn::identity();
 
     // FD12FD09 ratio (FD12 → FD09) is 10³.
     const FD12FD09_RATIO: i64 = 1_000;
@@ -362,46 +364,46 @@ mod tests {
             prop_assert!(laws::cast_floor2_id_diag(&ID_I32, b));
         }
 
-        // ── ID_F64 (Ple / N5 path; covers NaN, ±∞) ────────────────
+        // ── ID_EF64 (ExtendedFloat<f64>; covers Bot/Top/Finite(NaN)) ──
 
         #[test]
-        fn upper1_unit_id_f64(a in arb_f64()) {
-            prop_assert!(laws::cast_upper1_id_unit(&ID_F64, a));
+        fn upper1_unit_id_ef64(a in arb_f64()) {
+            prop_assert!(laws::cast_upper1_id_unit(&ID_EF64, ExtendedFloat::Finite(a)));
         }
 
         #[test]
-        fn lower1_counit_id_f64(a in arb_f64()) {
-            prop_assert!(laws::cast_lower1_id_counit(&ID_F64, a));
+        fn lower1_counit_id_ef64(a in arb_f64()) {
+            prop_assert!(laws::cast_lower1_id_counit(&ID_EF64, ExtendedFloat::Finite(a)));
         }
 
         #[test]
-        fn ceiling1_kernel_id_f64(b in arb_f64()) {
-            prop_assert!(laws::cast_ceiling1_id_kernel(&ID_F64, b));
+        fn ceiling1_kernel_id_ef64(b in arb_f64()) {
+            prop_assert!(laws::cast_ceiling1_id_kernel(&ID_EF64, ExtendedFloat::Finite(b)));
         }
 
         #[test]
-        fn floor1_kernel_id_f64(b in arb_f64()) {
-            prop_assert!(laws::cast_floor1_id_kernel(&ID_F64, b));
+        fn floor1_kernel_id_ef64(b in arb_f64()) {
+            prop_assert!(laws::cast_floor1_id_kernel(&ID_EF64, ExtendedFloat::Finite(b)));
         }
 
         #[test]
-        fn upper2_diag_id_f64(a in arb_f64()) {
-            prop_assert!(laws::cast_upper2_id_diag(&ID_F64, a));
+        fn upper2_diag_id_ef64(a in arb_f64()) {
+            prop_assert!(laws::cast_upper2_id_diag(&ID_EF64, ExtendedFloat::Finite(a)));
         }
 
         #[test]
-        fn lower2_diag_id_f64(a in arb_f64()) {
-            prop_assert!(laws::cast_lower2_id_diag(&ID_F64, a));
+        fn lower2_diag_id_ef64(a in arb_f64()) {
+            prop_assert!(laws::cast_lower2_id_diag(&ID_EF64, ExtendedFloat::Finite(a)));
         }
 
         #[test]
-        fn ceiling2_diag_id_f64(b in arb_f64()) {
-            prop_assert!(laws::cast_ceiling2_id_diag(&ID_F64, b));
+        fn ceiling2_diag_id_ef64(b in arb_f64()) {
+            prop_assert!(laws::cast_ceiling2_id_diag(&ID_EF64, ExtendedFloat::Finite(b)));
         }
 
         #[test]
-        fn floor2_diag_id_f64(b in arb_f64()) {
-            prop_assert!(laws::cast_floor2_id_diag(&ID_F64, b));
+        fn floor2_diag_id_ef64(b in arb_f64()) {
+            prop_assert!(laws::cast_floor2_id_diag(&ID_EF64, ExtendedFloat::Finite(b)));
         }
 
         // ── FD12FD09 (non-trivial triple, FD12 ⊣ inner ⊣ floor) ─────

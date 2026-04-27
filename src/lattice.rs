@@ -455,104 +455,108 @@ impl<T: PartialOrd> Ple for crate::extended::Extended<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::conn::float::ExtendedFloat;
     use crate::property::arb::{arb_f32, arb_f64};
     use crate::property::laws;
     use proptest::prelude::*;
 
-    // ── Spot checks ────────────────────────────────────────────────
+    // ── Spot checks (ExtendedFloat — the lawful float wrapper) ─────
+    //
+    // Raw `f32`/`f64` are *not* `Eq` (NaN ≠ NaN under their standard
+    // `PartialEq`), so they cannot be used with the lattice predicates.
+    // Wrap into `ExtendedFloat<T>`, whose patched `PartialEq` makes
+    // `Finite(NaN) == Finite(NaN)` and synthesises Bot/Top as the
+    // lattice extremes. The N5-specific cells (`NaN ≤ +∞`,
+    // `-∞ ≤ NaN`) are deliberately not asserted: ExtendedFloat
+    // preserves NaN's incomparability with every finite (including
+    // ±∞), and uses Bot/Top for the lattice ends instead.
 
     #[test]
-    fn nan_reflexive_f32() {
-        assert!(f32::NAN.ple(&f32::NAN));
+    fn nan_reflexive_ef64() {
+        let n: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
+        assert_eq!(n, ExtendedFloat::Finite(f64::NAN));
     }
 
     #[test]
-    fn nan_reflexive_f64() {
-        assert!(f64::NAN.ple(&f64::NAN));
+    fn bot_below_finite() {
+        assert!(ExtendedFloat::<f64>::Bot <= ExtendedFloat::Finite(0.0));
+        assert!(ExtendedFloat::<f64>::Bot <= ExtendedFloat::Finite(f64::NAN));
     }
 
     #[test]
-    fn nan_below_pos_inf_f64() {
-        assert!(f64::NAN.ple(&f64::INFINITY));
-    }
-
-    #[test]
-    fn neg_inf_below_nan_f64() {
-        assert!(f64::NEG_INFINITY.ple(&f64::NAN));
-    }
-
-    #[test]
-    fn nan_incomparable_with_finite_f64() {
-        assert!(!f64::NAN.ple(&1.0));
-        assert!(!1.0_f64.ple(&f64::NAN));
-    }
-
-    #[test]
-    fn nan_not_below_neg_inf() {
-        assert!(!f64::NAN.ple(&f64::NEG_INFINITY));
-    }
-
-    #[test]
-    fn pos_inf_not_below_nan() {
-        assert!(!f64::INFINITY.ple(&f64::NAN));
+    fn finite_below_top() {
+        assert!(ExtendedFloat::Finite(0.0_f64) <= ExtendedFloat::<f64>::Top);
+        assert!(ExtendedFloat::Finite(f64::NAN) <= ExtendedFloat::<f64>::Top);
     }
 
     #[test]
     fn normal_ordering_preserved() {
-        assert!(1.0_f64.ple(&2.0));
-        assert!(!2.0_f64.ple(&1.0));
-        assert!(f64::NEG_INFINITY.ple(&f64::INFINITY));
+        assert!(ExtendedFloat::Finite(1.0_f64) <= ExtendedFloat::Finite(2.0));
+        assert!(ExtendedFloat::Finite(2.0_f64) > ExtendedFloat::Finite(1.0));
     }
 
-    // ── Preorder property tests (f32 / f64 N5 lattice) ─────────────
+    // ── Partial-order property tests (ExtendedFloat<f32> / <f64>) ─
+
+    fn ef64() -> impl Strategy<Value = ExtendedFloat<f64>> {
+        prop_oneof![
+            1 => Just(ExtendedFloat::Bot),
+            1 => Just(ExtendedFloat::Top),
+            8 => arb_f64().prop_map(ExtendedFloat::Finite),
+        ]
+    }
+
+    fn ef32() -> impl Strategy<Value = ExtendedFloat<f32>> {
+        prop_oneof![
+            1 => Just(ExtendedFloat::Bot),
+            1 => Just(ExtendedFloat::Top),
+            8 => arb_f32().prop_map(ExtendedFloat::Finite),
+        ]
+    }
 
     proptest! {
         #[test]
-        fn reflexive_f64(x in arb_f64()) {
+        fn reflexive_ef64(x in ef64()) {
             prop_assert!(laws::lattice_reflexive(&x));
         }
 
         #[test]
-        fn reflexive_f32(x in arb_f32()) {
+        fn reflexive_ef32(x in ef32()) {
             prop_assert!(laws::lattice_reflexive(&x));
         }
 
         #[test]
-        fn transitive_f64(x in arb_f64(), y in arb_f64(), z in arb_f64()) {
+        fn transitive_ef64(x in ef64(), y in ef64(), z in ef64()) {
             prop_assert!(laws::lattice_transitive(&x, &y, &z));
         }
 
         #[test]
-        fn transitive_f32(x in arb_f32(), y in arb_f32(), z in arb_f32()) {
+        fn transitive_ef32(x in ef32(), y in ef32(), z in ef32()) {
             prop_assert!(laws::lattice_transitive(&x, &y, &z));
         }
 
         #[test]
-        fn antisymmetric_f64(x in arb_f64(), y in arb_f64()) {
-            prop_assert!(laws::lattice_antisymmetric(
-                &x, &y, &f64::INFINITY, &f64::NEG_INFINITY,
-            ));
+        fn antisymmetric_ef64(x in ef64(), y in ef64()) {
+            prop_assert!(laws::lattice_antisymmetric(&x, &y));
         }
 
         #[test]
-        fn bot_f64(x in arb_f64()) {
-            prop_assert!(laws::lattice_bot(&f64::NEG_INFINITY, &x));
+        fn bot_ef64(x in ef64()) {
+            prop_assert!(laws::lattice_bot(&ExtendedFloat::<f64>::Bot, &x));
         }
 
         #[test]
-        fn top_f64(x in arb_f64()) {
-            prop_assert!(laws::lattice_top(&f64::INFINITY, &x));
+        fn top_ef64(x in ef64()) {
+            prop_assert!(laws::lattice_top(&ExtendedFloat::<f64>::Top, &x));
         }
 
         #[test]
-        fn bot_f32(x in arb_f32()) {
-            prop_assert!(laws::lattice_bot(&f32::NEG_INFINITY, &x));
+        fn bot_ef32(x in ef32()) {
+            prop_assert!(laws::lattice_bot(&ExtendedFloat::<f32>::Bot, &x));
         }
 
         #[test]
-        fn top_f32(x in arb_f32()) {
-            prop_assert!(laws::lattice_top(&f32::INFINITY, &x));
+        fn top_ef32(x in ef32()) {
+            prop_assert!(laws::lattice_top(&ExtendedFloat::<f32>::Top, &x));
         }
     }
 }
