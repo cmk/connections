@@ -3,7 +3,7 @@
 //! nests the custom [`decimal`] SI-prefix ladder (`FD00`..`FD12`)
 //! built on `i64` as its fixed-point backing.
 
-use super::ext_int;
+use super::{ext_int, int_int_narrow};
 use crate::conn::Conn;
 use crate::extended::Extended;
 
@@ -16,6 +16,9 @@ ext_int!(I032I064, i32, i64);
 ext_int!(U008I064, u8, i64);
 ext_int!(U016I064, u16, i64);
 ext_int!(U032I064, u32, i64);
+
+// ── §1 I→I narrowing ───────────────────────────────────────────────
+int_int_narrow!(I128I064, i128, i64);
 
 #[cfg(test)]
 mod tests {
@@ -31,5 +34,15 @@ mod tests {
     fn u032i064_extends_to_one_above() {
         assert_eq!(U032I064.ceil(Extended::PosInf), 4_294_967_296);
         assert_eq!(U032I064.floor(Extended::NegInf), -1);
+    }
+
+    // ── Spot checks: I→I narrowing into i64 ────────────────────────
+
+    #[test]
+    fn i128i064_saturate_and_fixup() {
+        assert_eq!(I128I064.ceil(i128::MAX), i64::MAX);
+        assert_eq!(I128I064.ceil(i128::MIN), i64::MIN);
+        assert_eq!(I128I064.inner(i64::MAX), i128::MAX);
+        assert_eq!(I128I064.inner(i64::MIN), i64::MIN as i128);
     }
 }

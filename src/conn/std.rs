@@ -163,9 +163,40 @@ macro_rules! ext_int {
 }
 pub(crate) use ext_int;
 
-// New narrowing macros (`uint_uint_narrow!`, `int_int_narrow!`,
-// `int_uint_narrow!`, `uint_int_sat!`) land in subsequent commits
-// (T3-T6) alongside their first invocations.
+// ── Narrowing macros ───────────────────────────────────────────────
+
+/// `Conn<i_N, i_M>` narrowing (`bits(i_N) > bits(i_M)`).
+///
+/// `ceil` saturates at both `i_M::MIN` and `i_M::MAX`; `inner` is
+/// the lossless widen with the high-end FINE_MAX fixup
+/// (`inner(i_M::MAX) = i_N::MAX`). The low-end plateau holds
+/// without fixup because `i_M::MIN as i_N` is strictly above
+/// `i_N::MIN`, so `inner(i_M::MIN)` lands above every low-plateau
+/// source value.
+macro_rules! int_int_narrow {
+    ($NAME:ident, $A:ty, $B:ty) => {
+        #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
+        pub const $NAME: Conn<$A, $B> = {
+            fn ceil(x: $A) -> $B {
+                if x > <$B>::MAX as $A {
+                    <$B>::MAX
+                } else if x < <$B>::MIN as $A {
+                    <$B>::MIN
+                } else {
+                    x as $B
+                }
+            }
+            fn inner(x: $B) -> $A {
+                if x == <$B>::MAX { <$A>::MAX } else { x as $A }
+            }
+            Conn::new_left(ceil, inner)
+        };
+    };
+}
+pub(crate) use int_int_narrow;
+
+// (`uint_uint_narrow!`, `int_uint_narrow!`, `uint_int_sat!` land in
+// subsequent commits T4-T6 alongside their first invocations.)
 
 // ── Per-primitive submodules ───────────────────────────────────────
 

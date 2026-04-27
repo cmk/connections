@@ -70,3 +70,36 @@ ext_int_props!(i008i032, I008I032, arb_ext_i8(), any::<i32>());
 ext_int_props!(i016i032, I016I032, arb_ext_i16(), any::<i32>());
 ext_int_props!(u008i032, U008I032, arb_ext_u8(), any::<i32>());
 ext_int_props!(u016i032, U016I032, arb_ext_u16(), any::<i32>());
+
+// §1 I→I narrowing — single-sided left-Galois.
+macro_rules! single_sided_props {
+    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+        mod $mod_name {
+            use super::*;
+
+            proptest! {
+                #[test]
+                fn galois_upper(a in $arb_src, b in $arb_tgt) {
+                    prop_assert_eq!($CONN.ceil(a) <= b, a <= $CONN.inner(b));
+                }
+                #[test]
+                fn ceil_monotone(a1 in $arb_src, a2 in $arb_src) {
+                    let (lo, hi) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
+                    prop_assert!($CONN.ceil(lo) <= $CONN.ceil(hi));
+                }
+                #[test]
+                fn inner_monotone(b1 in $arb_tgt, b2 in $arb_tgt) {
+                    let (lo, hi) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
+                    prop_assert!($CONN.inner(lo) <= $CONN.inner(hi));
+                }
+                #[test]
+                fn kernel(b in $arb_tgt) {
+                    prop_assert!($CONN.ceil($CONN.inner(b)) <= b);
+                }
+            }
+        }
+    };
+}
+
+single_sided_props!(i064i032, I064I032, any::<i64>(), any::<i32>());
+single_sided_props!(i128i032, I128I032, any::<i128>(), any::<i32>());
