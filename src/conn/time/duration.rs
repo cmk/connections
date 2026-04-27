@@ -354,7 +354,7 @@ mod fd09_tests {
     #[test]
     fn one_second() {
         let d = Duration::seconds(1);
-        assert_eq!(DURNFD09.ceil(d),  Extended::Finite(FD09(1_000_000_000)));
+        assert_eq!(DURNFD09.ceil(d), Extended::Finite(FD09(1_000_000_000)));
         assert_eq!(DURNFD09.floor(d), Extended::Finite(FD09(1_000_000_000)));
         assert_eq!(DURNFD09.inner(Extended::Finite(FD09(1_000_000_000))), d);
     }
@@ -362,14 +362,14 @@ mod fd09_tests {
     #[test]
     fn one_nanosecond() {
         let d = Duration::nanoseconds(1);
-        assert_eq!(DURNFD09.ceil(d),  Extended::Finite(FD09(1)));
+        assert_eq!(DURNFD09.ceil(d), Extended::Finite(FD09(1)));
         assert_eq!(DURNFD09.floor(d), Extended::Finite(FD09(1)));
         assert_eq!(DURNFD09.inner(Extended::Finite(FD09(1))), d);
     }
 
     #[test]
     fn zero() {
-        assert_eq!(DURNFD09.ceil(Duration::ZERO),  Extended::Finite(FD09(0)));
+        assert_eq!(DURNFD09.ceil(Duration::ZERO), Extended::Finite(FD09(0)));
         assert_eq!(DURNFD09.floor(Duration::ZERO), Extended::Finite(FD09(0)));
         assert_eq!(DURNFD09.inner(Extended::Finite(FD09(0))), Duration::ZERO);
     }
@@ -378,21 +378,21 @@ mod fd09_tests {
     fn fd09_extremes_round_trip() {
         // FD09(i64::MAX) ↔ Duration::nanoseconds(i64::MAX).
         let d_max_fd09 = Duration::nanoseconds(i64::MAX);
-        assert_eq!(DURNFD09.ceil(d_max_fd09),  Extended::Finite(FD09(i64::MAX)));
+        assert_eq!(DURNFD09.ceil(d_max_fd09), Extended::Finite(FD09(i64::MAX)));
         assert_eq!(DURNFD09.floor(d_max_fd09), Extended::Finite(FD09(i64::MAX)));
         assert_eq!(DURNFD09.inner(Extended::Finite(FD09(i64::MAX))), d_max_fd09);
 
         let d_min_fd09 = Duration::nanoseconds(i64::MIN);
-        assert_eq!(DURNFD09.ceil(d_min_fd09),  Extended::Finite(FD09(i64::MIN)));
+        assert_eq!(DURNFD09.ceil(d_min_fd09), Extended::Finite(FD09(i64::MIN)));
         assert_eq!(DURNFD09.floor(d_min_fd09), Extended::Finite(FD09(i64::MIN)));
         assert_eq!(DURNFD09.inner(Extended::Finite(FD09(i64::MIN))), d_min_fd09);
     }
 
     #[test]
     fn duration_extremes_saturate() {
-        assert_eq!(DURNFD09.ceil(Duration::MAX),  Extended::PosInf);
+        assert_eq!(DURNFD09.ceil(Duration::MAX), Extended::PosInf);
         assert_eq!(DURNFD09.floor(Duration::MAX), Extended::PosInf);
-        assert_eq!(DURNFD09.ceil(Duration::MIN),  Extended::NegInf);
+        assert_eq!(DURNFD09.ceil(Duration::MIN), Extended::NegInf);
         assert_eq!(DURNFD09.floor(Duration::MIN), Extended::NegInf);
         assert_eq!(DURNFD09.inner(Extended::NegInf), Duration::MIN);
         assert_eq!(DURNFD09.inner(Extended::PosInf), Duration::MAX);
@@ -403,7 +403,7 @@ mod fd09_tests {
         // d is one nanosecond past Duration::nanoseconds(i64::MAX),
         // so its whole_nanoseconds = i64::MAX + 1 (overflows i64).
         let d = Duration::nanoseconds(i64::MAX) + Duration::nanoseconds(1);
-        assert_eq!(DURNFD09.ceil(d),  Extended::PosInf);
+        assert_eq!(DURNFD09.ceil(d), Extended::PosInf);
         assert_eq!(DURNFD09.floor(d), Extended::Finite(FD09(i64::MAX)));
     }
 

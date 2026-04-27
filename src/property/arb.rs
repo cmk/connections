@@ -619,8 +619,8 @@ pub fn arb_extended_utc_offset() -> impl Strategy<Value = Extended<UtcOffset>> {
 /// landmarks: `UNIX_EPOCH`, the type-level extremes, ±1 ns from
 /// epoch, and the Y2038 cutover.
 pub fn arb_offset_dt() -> impl Strategy<Value = OffsetDateTime> {
-    let y2038 = OffsetDateTime::from_unix_timestamp(2_147_483_648)
-        .expect("Y2038 in OffsetDateTime range");
+    let y2038 =
+        OffsetDateTime::from_unix_timestamp(2_147_483_648).expect("Y2038 in OffsetDateTime range");
     let landmarks = prop_oneof![
         1 => Just(OffsetDateTime::UNIX_EPOCH),
         1 => Just(OffsetDateTime::from_unix_timestamp_nanos(1).expect("epoch + 1ns")),
@@ -730,8 +730,8 @@ pub fn arb_unix_nanos_in_range() -> impl Strategy<Value = i128> {
 
 /// `i64` strategy bounded to OffsetDateTime's whole-second range.
 pub fn arb_unix_secs_in_range() -> impl Strategy<Value = i64> {
-    let min_s = OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC)
-        .unix_timestamp();
+    let min_s =
+        OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC).unix_timestamp();
     let max_s = OffsetDateTime::new_in_offset(
         Date::MAX,
         Time::from_hms_nano(23, 59, 59, 999_999_999).expect("end-of-day"),

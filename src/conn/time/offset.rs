@@ -61,8 +61,7 @@ use time::{Date, OffsetDateTime, Time, UtcOffset};
 
 #[inline]
 fn end_of_day_time() -> Time {
-    Time::from_hms_nano(23, 59, 59, 999_999_999)
-        .expect("23:59:59.999_999_999 is a valid Time")
+    Time::from_hms_nano(23, 59, 59, 999_999_999).expect("23:59:59.999_999_999 is a valid Time")
 }
 
 /// Minimum-instant OffsetDateTime: Date::MIN at midnight, with the
@@ -97,8 +96,7 @@ fn ofdt_max_instant() -> OffsetDateTime {
 /// the inverse direction (rung → OFDT) only constructs UTC OFDTs.
 #[inline]
 fn utc_min_ns() -> i128 {
-    OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC)
-        .unix_timestamp_nanos()
+    OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC).unix_timestamp_nanos()
 }
 
 #[inline]
@@ -109,14 +107,12 @@ fn utc_max_ns() -> i128 {
 
 #[inline]
 fn utc_min_s() -> i64 {
-    OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC)
-        .unix_timestamp()
+    OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC).unix_timestamp()
 }
 
 #[inline]
 fn utc_max_s() -> i64 {
-    OffsetDateTime::new_in_offset(Date::MAX, end_of_day_time(), UtcOffset::UTC)
-        .unix_timestamp()
+    OffsetDateTime::new_in_offset(Date::MAX, end_of_day_time(), UtcOffset::UTC).unix_timestamp()
 }
 
 // ── OFDTNANO ─────────────────────────────────────────────────────
@@ -317,8 +313,7 @@ pub const OFDTSECS: Conn<Extended<OffsetDateTime>, i64> = {
 mod ofdt_tests {
     use super::*;
     use crate::property::arb::{
-        arb_extended_offset_dt, arb_offset_dt, arb_unix_nanos_in_range,
-        arb_unix_secs_in_range,
+        arb_extended_offset_dt, arb_offset_dt, arb_unix_nanos_in_range, arb_unix_secs_in_range,
     };
     use crate::property::laws;
     use proptest::prelude::*;
@@ -361,9 +356,18 @@ mod ofdt_tests {
 
     #[test]
     fn epoch_is_zero() {
-        assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
-        assert_eq!(OFDTNANO.floor(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
-        assert_eq!(OFDTNANO.inner(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
+        assert_eq!(
+            OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)),
+            0
+        );
+        assert_eq!(
+            OFDTNANO.floor(Extended::Finite(OffsetDateTime::UNIX_EPOCH)),
+            0
+        );
+        assert_eq!(
+            OFDTNANO.inner(0),
+            Extended::Finite(OffsetDateTime::UNIX_EPOCH)
+        );
     }
 
     #[test]
@@ -441,15 +445,24 @@ mod ofdt_tests {
 
     #[test]
     fn ofdtsecs_epoch() {
-        assert_eq!(OFDTSECS.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
-        assert_eq!(OFDTSECS.floor(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
-        assert_eq!(OFDTSECS.inner(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
+        assert_eq!(
+            OFDTSECS.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)),
+            0
+        );
+        assert_eq!(
+            OFDTSECS.floor(Extended::Finite(OffsetDateTime::UNIX_EPOCH)),
+            0
+        );
+        assert_eq!(
+            OFDTSECS.inner(0),
+            Extended::Finite(OffsetDateTime::UNIX_EPOCH)
+        );
     }
 
     #[test]
     fn ofdtsecs_subsec_rounds_up() {
         let mid = OffsetDateTime::UNIX_EPOCH + Duration::nanoseconds(1);
-        assert_eq!(OFDTSECS.ceil(Extended::Finite(mid)),  1);
+        assert_eq!(OFDTSECS.ceil(Extended::Finite(mid)), 1);
         assert_eq!(OFDTSECS.floor(Extended::Finite(mid)), 0);
     }
 
@@ -458,7 +471,7 @@ mod ofdt_tests {
         // 1969-12-31 23:59:59.5 UTC = unix timestamp -1 (whole),
         // nanosecond 500_000_000. Instant = -0.5 s. ceil = 0, floor = -1.
         let half_before = OffsetDateTime::UNIX_EPOCH - Duration::milliseconds(500);
-        assert_eq!(OFDTSECS.ceil(Extended::Finite(half_before)),  0);
+        assert_eq!(OFDTSECS.ceil(Extended::Finite(half_before)), 0);
         assert_eq!(OFDTSECS.floor(Extended::Finite(half_before)), -1);
     }
 
@@ -591,4 +604,3 @@ mod ofdt_tests {
         }
     }
 }
-
