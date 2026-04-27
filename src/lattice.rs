@@ -386,14 +386,46 @@ fn n5_le_f64(x: f64, y: f64) -> bool {
 }
 
 // Blanket impls for totally ordered types — ple is just <=.
-impl Ple for i8 { fn ple(&self, other: &Self) -> bool { self <= other } }
-impl Ple for i16 { fn ple(&self, other: &Self) -> bool { self <= other } }
-impl Ple for i32 { fn ple(&self, other: &Self) -> bool { self <= other } }
-impl Ple for i64 { fn ple(&self, other: &Self) -> bool { self <= other } }
-impl Ple for u8 { fn ple(&self, other: &Self) -> bool { self <= other } }
-impl Ple for u16 { fn ple(&self, other: &Self) -> bool { self <= other } }
-impl Ple for u32 { fn ple(&self, other: &Self) -> bool { self <= other } }
-impl Ple for u64 { fn ple(&self, other: &Self) -> bool { self <= other } }
+impl Ple for i8 {
+    fn ple(&self, other: &Self) -> bool {
+        self <= other
+    }
+}
+impl Ple for i16 {
+    fn ple(&self, other: &Self) -> bool {
+        self <= other
+    }
+}
+impl Ple for i32 {
+    fn ple(&self, other: &Self) -> bool {
+        self <= other
+    }
+}
+impl Ple for i64 {
+    fn ple(&self, other: &Self) -> bool {
+        self <= other
+    }
+}
+impl Ple for u8 {
+    fn ple(&self, other: &Self) -> bool {
+        self <= other
+    }
+}
+impl Ple for u16 {
+    fn ple(&self, other: &Self) -> bool {
+        self <= other
+    }
+}
+impl Ple for u32 {
+    fn ple(&self, other: &Self) -> bool {
+        self <= other
+    }
+}
+impl Ple for u64 {
+    fn ple(&self, other: &Self) -> bool {
+        self <= other
+    }
+}
 
 // `ExtendedFloat<T>`: its `PartialOrd` is the N5 ordering with the
 // NaN-self-equality patch (see `impl_float_ext!` in

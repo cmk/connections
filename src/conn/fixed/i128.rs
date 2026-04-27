@@ -72,7 +72,11 @@ macro_rules! fix_fix_i128 {
                     Some(r) => match bits.checked_mul(r) {
                         Some(v) => v,
                         None => {
-                            if bits > 0 { FINE_MAX } else { FINE_MIN }
+                            if bits > 0 {
+                                FINE_MAX
+                            } else {
+                                FINE_MIN
+                            }
                         }
                     },
                     None => {
@@ -115,19 +119,19 @@ macro_rules! fix_fix_i128 {
 }
 
 // 15 ordered pairs from {U0, U16, U32, U64, U96, U128}.
-fix_fix_i128!(I016I000, U16,  U0);
-fix_fix_i128!(I032I000, U32,  U0);
-fix_fix_i128!(I064I000, U64,  U0);
-fix_fix_i128!(I096I000, U96,  U0);
+fix_fix_i128!(I016I000, U16, U0);
+fix_fix_i128!(I032I000, U32, U0);
+fix_fix_i128!(I064I000, U64, U0);
+fix_fix_i128!(I096I000, U96, U0);
 fix_fix_i128!(I128I000, U128, U0);
-fix_fix_i128!(I032I016, U32,  U16);
-fix_fix_i128!(I064I016, U64,  U16);
-fix_fix_i128!(I096I016, U96,  U16);
+fix_fix_i128!(I032I016, U32, U16);
+fix_fix_i128!(I064I016, U64, U16);
+fix_fix_i128!(I096I016, U96, U16);
 fix_fix_i128!(I128I016, U128, U16);
-fix_fix_i128!(I064I032, U64,  U32);
-fix_fix_i128!(I096I032, U96,  U32);
+fix_fix_i128!(I064I032, U64, U32);
+fix_fix_i128!(I096I032, U96, U32);
 fix_fix_i128!(I128I032, U128, U32);
-fix_fix_i128!(I096I064, U96,  U64);
+fix_fix_i128!(I096I064, U96, U64);
 fix_fix_i128!(I128I064, U128, U64);
 fix_fix_i128!(I128I096, U128, U96);
 
@@ -304,19 +308,19 @@ mod tests {
     }
 
     // 15 conns × 9 properties = 135 generated proptests (64 cases each).
-    props_for_pair!(i016i000, I016I000, U16,  U0);
-    props_for_pair!(i032i000, I032I000, U32,  U0);
-    props_for_pair!(i064i000, I064I000, U64,  U0);
-    props_for_pair!(i096i000, I096I000, U96,  U0);
+    props_for_pair!(i016i000, I016I000, U16, U0);
+    props_for_pair!(i032i000, I032I000, U32, U0);
+    props_for_pair!(i064i000, I064I000, U64, U0);
+    props_for_pair!(i096i000, I096I000, U96, U0);
     props_for_pair!(i128i000, I128I000, U128, U0);
-    props_for_pair!(i032i016, I032I016, U32,  U16);
-    props_for_pair!(i064i016, I064I016, U64,  U16);
-    props_for_pair!(i096i016, I096I016, U96,  U16);
+    props_for_pair!(i032i016, I032I016, U32, U16);
+    props_for_pair!(i064i016, I064I016, U64, U16);
+    props_for_pair!(i096i016, I096I016, U96, U16);
     props_for_pair!(i128i016, I128I016, U128, U16);
-    props_for_pair!(i064i032, I064I032, U64,  U32);
-    props_for_pair!(i096i032, I096I032, U96,  U32);
+    props_for_pair!(i064i032, I064I032, U64, U32);
+    props_for_pair!(i096i032, I096I032, U96, U32);
     props_for_pair!(i128i032, I128I032, U128, U32);
-    props_for_pair!(i096i064, I096I064, U96,  U64);
+    props_for_pair!(i096i064, I096I064, U96, U64);
     props_for_pair!(i128i064, I128I064, U128, U64);
     props_for_pair!(i128i096, I128I096, U128, U96);
 }

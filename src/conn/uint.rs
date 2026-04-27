@@ -49,13 +49,18 @@ uint_uint!(U064U128, u64, u128);
 
 macro_rules! int_uint {
     ($NAME:ident, $A:ty, $B:ty) => {
+        // rustfmt's indent-instability bug with `#[doc = concat!(...)]`
+        // means each fmt round pushes the args further right.
+        // `#[rustfmt::skip]` pins the layout. See ext_int! in int.rs
+        // for the same workaround.
+#[rustfmt::skip]
         #[doc = concat!(
-                    "`",
-                    stringify!($A),
-                    " → ",
-                    stringify!($B),
-                    "` saturating cast: negatives clip to 0; `inner` saturates at source max."
-                )]
+            "`",
+            stringify!($A),
+            " → ",
+            stringify!($B),
+            "` saturating cast: negatives clip to 0; `inner` saturates at source max."
+        )]
         pub const $NAME: Conn<$A, $B> = {
             fn ceil(x: $A) -> $B {
                 if x < 0 { 0 } else { x as $B }

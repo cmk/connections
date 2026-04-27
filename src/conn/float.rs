@@ -402,7 +402,10 @@ mod tests {
     fn nan_reflexive_f64() {
         let n: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
         assert_eq!(n, ExtendedFloat::Finite(f64::NAN));
-        assert_eq!(n.partial_cmp(&ExtendedFloat::Finite(f64::NAN)), Some(Ordering::Equal));
+        assert_eq!(
+            n.partial_cmp(&ExtendedFloat::Finite(f64::NAN)),
+            Some(Ordering::Equal)
+        );
     }
 
     #[test]

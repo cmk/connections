@@ -127,10 +127,10 @@ macro_rules! def_rate {
     };
 }
 
-def_rate!(S044,  44_100);
-def_rate!(S048,  48_000);
-def_rate!(S088,  88_200);
-def_rate!(S096,  96_000);
+def_rate!(S044, 44_100);
+def_rate!(S048, 48_000);
+def_rate!(S088, 88_200);
+def_rate!(S096, 96_000);
 def_rate!(S176, 176_400);
 def_rate!(S192, 192_000);
 
@@ -181,12 +181,12 @@ macro_rules! rate_conn {
 }
 
 // Integer ratios (power-of-two intra-family).
-rate_conn!(S088S044,  S088,  S044,  2, 1);
-rate_conn!(S176S044, S176, S044,  4, 1);
-rate_conn!(S176S088, S176, S088,  2, 1);
-rate_conn!(S096S048,  S096,  S048,  2, 1);
-rate_conn!(S192S048, S192, S048,  4, 1);
-rate_conn!(S192S096, S192, S096,  2, 1);
+rate_conn!(S088S044, S088, S044, 2, 1);
+rate_conn!(S176S044, S176, S044, 4, 1);
+rate_conn!(S176S088, S176, S088, 2, 1);
+rate_conn!(S096S048, S096, S048, 2, 1);
+rate_conn!(S192S048, S192, S048, 4, 1);
+rate_conn!(S192S096, S192, S096, 2, 1);
 
 // Rational ratios (cross-family). Naming convention: `SXX_SYY` has
 // `SXX` as the Fine side (higher Q48.16-bits-per-second) and `SYY` as
@@ -194,14 +194,14 @@ rate_conn!(S192S096, S192, S096,  2, 1);
 // upscale. Reduced ratios; gcd(NUM, 147) = 1 in every case so 147
 // (= 3² · 7²) stays in the denominator whenever one side is from the
 // 44.1k family.
-rate_conn!(S048S044,   S048,  S044,  160, 147);
-rate_conn!(S088S048,   S088,  S048,  147, 80);
-rate_conn!(S176S048,  S176, S048,  147, 40);
-rate_conn!(S096S044,   S096,  S044,  320, 147);
-rate_conn!(S096S088,   S096,  S088,  160, 147);
-rate_conn!(S176S096,  S176, S096,  147, 80);
-rate_conn!(S192S044,  S192, S044,  640, 147);
-rate_conn!(S192S088,  S192, S088,  320, 147);
+rate_conn!(S048S044, S048, S044, 160, 147);
+rate_conn!(S088S048, S088, S048, 147, 80);
+rate_conn!(S176S048, S176, S048, 147, 40);
+rate_conn!(S096S044, S096, S044, 320, 147);
+rate_conn!(S096S088, S096, S088, 160, 147);
+rate_conn!(S176S096, S176, S096, 147, 80);
+rate_conn!(S192S044, S192, S044, 640, 147);
+rate_conn!(S192S088, S192, S088, 320, 147);
 rate_conn!(S192S176, S192, S176, 160, 147);
 
 // ─────────────────────────────────────────────────────────────────
@@ -271,12 +271,12 @@ macro_rules! pico_conn {
     };
 }
 
-pico_conn!(FD12S044,  S044,  9_765_625,  28_224);
-pico_conn!(FD12S048,  S048,  1_953_125,  6_144);
-pico_conn!(FD12S088,  S088,  9_765_625,  56_448);
-pico_conn!(FD12S096,  S096,  1_953_125,  12_288);
-pico_conn!(FD12S176, S176, 9_765_625,  112_896);
-pico_conn!(FD12S192, S192, 1_953_125,  24_576);
+pico_conn!(FD12S044, S044, 9_765_625, 28_224);
+pico_conn!(FD12S048, S048, 1_953_125, 6_144);
+pico_conn!(FD12S088, S088, 9_765_625, 56_448);
+pico_conn!(FD12S096, S096, 1_953_125, 12_288);
+pico_conn!(FD12S176, S176, 9_765_625, 112_896);
+pico_conn!(FD12S192, S192, 1_953_125, 24_576);
 
 #[cfg(test)]
 mod tests {
@@ -319,8 +319,14 @@ mod tests {
         assert_eq!(S088S044.floor(S088::from_sample(14)), S044::from_sample(7));
         // Off-by-one S088 bit → ceil/floor differ by 1 S044 bit.
         let s088_odd = S088::from_bits(S088::from_sample(14).to_bits() + 1);
-        assert_eq!(S088S044.ceil(s088_odd), S044::from_bits(S044::from_sample(7).to_bits() + 1));
-        assert_eq!(S088S044.floor(s088_odd), S044::from_bits(S044::from_sample(7).to_bits()));
+        assert_eq!(
+            S088S044.ceil(s088_odd),
+            S044::from_bits(S044::from_sample(7).to_bits() + 1)
+        );
+        assert_eq!(
+            S088S044.floor(s088_odd),
+            S044::from_bits(S044::from_sample(7).to_bits())
+        );
     }
 
     #[test]
@@ -478,22 +484,22 @@ mod tests {
     }
 
     // Integer-ratio pairs.
-    props_for_conn!(p_s088s044,  S088S044,  S088,  S044,  2, 1);
-    props_for_conn!(p_s176s044, S176S044, S176, S044,  4, 1);
-    props_for_conn!(p_s176s088, S176S088, S176, S088,  2, 1);
-    props_for_conn!(p_s096s048,  S096S048,  S096,  S048,  2, 1);
-    props_for_conn!(p_s192s048, S192S048, S192, S048,  4, 1);
-    props_for_conn!(p_s192s096, S192S096, S192, S096,  2, 1);
+    props_for_conn!(p_s088s044, S088S044, S088, S044, 2, 1);
+    props_for_conn!(p_s176s044, S176S044, S176, S044, 4, 1);
+    props_for_conn!(p_s176s088, S176S088, S176, S088, 2, 1);
+    props_for_conn!(p_s096s048, S096S048, S096, S048, 2, 1);
+    props_for_conn!(p_s192s048, S192S048, S192, S048, 4, 1);
+    props_for_conn!(p_s192s096, S192S096, S192, S096, 2, 1);
 
     // Cross-family rational pairs.
-    props_for_conn!(p_s048s044,   S048S044,   S048,  S044,  160, 147);
-    props_for_conn!(p_s088s048,   S088S048,   S088,  S048,  147, 80);
-    props_for_conn!(p_s176s048,  S176S048,  S176, S048,  147, 40);
-    props_for_conn!(p_s096s044,   S096S044,   S096,  S044,  320, 147);
-    props_for_conn!(p_s096s088,   S096S088,   S096,  S088,  160, 147);
-    props_for_conn!(p_s176s096,  S176S096,  S176, S096,  147, 80);
-    props_for_conn!(p_s192s044,  S192S044,  S192, S044,  640, 147);
-    props_for_conn!(p_s192s088,  S192S088,  S192, S088,  320, 147);
+    props_for_conn!(p_s048s044, S048S044, S048, S044, 160, 147);
+    props_for_conn!(p_s088s048, S088S048, S088, S048, 147, 80);
+    props_for_conn!(p_s176s048, S176S048, S176, S048, 147, 40);
+    props_for_conn!(p_s096s044, S096S044, S096, S044, 320, 147);
+    props_for_conn!(p_s096s088, S096S088, S096, S088, 160, 147);
+    props_for_conn!(p_s176s096, S176S096, S176, S096, 147, 80);
+    props_for_conn!(p_s192s044, S192S044, S192, S044, 640, 147);
+    props_for_conn!(p_s192s088, S192S088, S192, S088, 320, 147);
     props_for_conn!(p_s192s176, S192S176, S192, S176, 160, 147);
 
     // FD12 connections. Here Fine = FD12, Coarse = Sxx. The macro is
@@ -584,12 +590,12 @@ mod tests {
         };
     }
 
-    props_for_pico_conn!(p_fd12s044,  FD12S044,  S044,  9_765_625,  28_224);
-    props_for_pico_conn!(p_fd12s048,  FD12S048,  S048,  1_953_125,  6_144);
-    props_for_pico_conn!(p_fd12s088,  FD12S088,  S088,  9_765_625,  56_448);
-    props_for_pico_conn!(p_fd12s096,  FD12S096,  S096,  1_953_125,  12_288);
-    props_for_pico_conn!(p_fd12s176, FD12S176, S176, 9_765_625,  112_896);
-    props_for_pico_conn!(p_fd12s192, FD12S192, S192, 1_953_125,  24_576);
+    props_for_pico_conn!(p_fd12s044, FD12S044, S044, 9_765_625, 28_224);
+    props_for_pico_conn!(p_fd12s048, FD12S048, S048, 1_953_125, 6_144);
+    props_for_pico_conn!(p_fd12s088, FD12S088, S088, 9_765_625, 56_448);
+    props_for_pico_conn!(p_fd12s096, FD12S096, S096, 1_953_125, 12_288);
+    props_for_pico_conn!(p_fd12s176, FD12S176, S176, 9_765_625, 112_896);
+    props_for_pico_conn!(p_fd12s192, FD12S192, S192, 1_953_125, 24_576);
 
     // Sanity-check the FD12↔sample rate against the transcendental
     // definition: inner(Sxx::from_sample(1)) should be within 0.5 ps
@@ -601,12 +607,18 @@ mod tests {
         fn check<R: SampleRate + Copy>(conn: Conn<FD12, R>, sample_one: R) {
             let got = conn.inner(sample_one).0 as f64;
             let ideal = 1.0e12 / (R::HZ as f64);
-            assert!((got - ideal).abs() <= 1.0, "Rate {}: got {}, ideal {}", R::HZ, got, ideal);
+            assert!(
+                (got - ideal).abs() <= 1.0,
+                "Rate {}: got {}, ideal {}",
+                R::HZ,
+                got,
+                ideal
+            );
         }
-        check(FD12S044,  S044::from_sample(1));
-        check(FD12S048,  S048::from_sample(1));
-        check(FD12S088,  S088::from_sample(1));
-        check(FD12S096,  S096::from_sample(1));
+        check(FD12S044, S044::from_sample(1));
+        check(FD12S048, S048::from_sample(1));
+        check(FD12S088, S088::from_sample(1));
+        check(FD12S096, S096::from_sample(1));
         check(FD12S176, S176::from_sample(1));
         check(FD12S192, S192::from_sample(1));
     }

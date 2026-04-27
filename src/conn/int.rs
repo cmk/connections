@@ -43,13 +43,18 @@ use crate::extended::Extended;
 //     beyond the source range so saturation values are distinct).
 macro_rules! ext_int {
     ($NAME:ident, $A:ty, $B:ty) => {
+        // rustfmt has an indent-instability bug with `#[doc =
+        // concat!(...)]`: each `cargo fmt` run pushes the string
+        // arguments two more spaces to the right. `#[rustfmt::skip]`
+        // pins the layout so CI's `--check` mode is stable.
+#[rustfmt::skip]
         #[doc = concat!(
-                    "`Extended<",
-                    stringify!($A),
-                    "> → ",
-                    stringify!($B),
-                    "` adjoint triple."
-                )]
+            "`Extended<",
+            stringify!($A),
+            "> → ",
+            stringify!($B),
+            "` adjoint triple."
+        )]
         pub const $NAME: Conn<Extended<$A>, $B> = {
             // `BELOW` is one below the source's MIN; `ABOVE` is one
             // above the source's MAX. Both are themselves in the

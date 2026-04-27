@@ -12,10 +12,10 @@
 
 pub mod decimal;
 pub mod i08;
+pub mod i128;
 pub mod i16;
 pub mod i32;
 pub mod i64;
-pub mod i128;
 
 // `Ple` impls for the `fixed`-crate signed types backing the binary
 // sub-modules. The `<=` semantics are the same as `PartialOrd` (values

@@ -104,7 +104,11 @@ impl<A, B> Conn<A, B> {
     ///
     /// Sets `floor = ceil`, matching the Haskell `CastL` representation.
     pub const fn new_left(ceil: fn(A) -> B, inner: fn(B) -> A) -> Self {
-        Conn { ceil, inner, floor: ceil }
+        Conn {
+            ceil,
+            inner,
+            floor: ceil,
+        }
     }
 
     /// Apply the lower adjoint (ceiling / round-up).
@@ -126,8 +130,14 @@ impl<A, B> Conn<A, B> {
 impl<T> Conn<T, T> {
     /// The identity connection: `ceil = inner = floor = id`.
     pub const fn identity() -> Self {
-        fn id<T>(x: T) -> T { x }
-        Conn { ceil: id, inner: id, floor: id }
+        fn id<T>(x: T) -> T {
+            x
+        }
+        Conn {
+            ceil: id,
+            inner: id,
+            floor: id,
+        }
     }
 }
 
@@ -158,8 +168,12 @@ mod tests {
 
     #[test]
     fn new_left_floor_eq_ceil() {
-        fn double(x: i32) -> i64 { x as i64 * 2 }
-        fn halve(x: i64) -> i32 { (x / 2) as i32 }
+        fn double(x: i32) -> i64 {
+            x as i64 * 2
+        }
+        fn halve(x: i64) -> i32 {
+            (x / 2) as i32
+        }
         let c = Conn::new_left(double, halve);
         // floor should behave identically to ceil
         assert_eq!(c.ceil(5), c.floor(5));
@@ -254,8 +268,8 @@ mod tests {
 
     use crate::compose;
     use crate::conn::fixed::decimal::{
-        HasResolution, FD06, FD03, FD12, FD00, FD03FD00, FD06FD03, FD06FD00, FD09FD06, FD12FD00, FD12FD06,
-        FD12FD09,
+        FD00, FD03, FD03FD00, FD06, FD06FD00, FD06FD03, FD09FD06, FD12, FD12FD00, FD12FD06,
+        FD12FD09, HasResolution,
     };
     use crate::property::arb::{fixed_coarse, fixed_fine, fixed_safe_fine};
 
@@ -287,12 +301,24 @@ mod tests {
             -999_999_999_999,
         ] {
             let x = FD12(p);
-            assert_eq!(COMPOSED_FD12FD00_VIA_FD06.ceil(x), FD12FD00.ceil(x), "ceil @ {p}");
-            assert_eq!(COMPOSED_FD12FD00_VIA_FD06.floor(x), FD12FD00.floor(x), "floor @ {p}");
+            assert_eq!(
+                COMPOSED_FD12FD00_VIA_FD06.ceil(x),
+                FD12FD00.ceil(x),
+                "ceil @ {p}"
+            );
+            assert_eq!(
+                COMPOSED_FD12FD00_VIA_FD06.floor(x),
+                FD12FD00.floor(x),
+                "floor @ {p}"
+            );
         }
         for u in [0_i64, 1, -1, 42, -42] {
             let x = FD00(u);
-            assert_eq!(COMPOSED_FD12FD00_VIA_FD06.inner(x), FD12FD00.inner(x), "inner @ {u}");
+            assert_eq!(
+                COMPOSED_FD12FD00_VIA_FD06.inner(x),
+                FD12FD00.inner(x),
+                "inner @ {u}"
+            );
         }
     }
 
@@ -331,9 +357,18 @@ mod tests {
         // `FD12FD00.inner`); confirm composed and hand-written agree at
         // and just inside the limit.
         let limit = i64::MAX / FD12::PREC;
-        assert_eq!(COMPOSED_FD12FD00.inner(FD00(limit)), FD12FD00.inner(FD00(limit)));
-        assert_eq!(COMPOSED_FD12FD00.inner(FD00(-limit)), FD12FD00.inner(FD00(-limit)));
-        assert_eq!(COMPOSED_FD12FD00.inner(FD00(limit - 1)), FD12FD00.inner(FD00(limit - 1)));
+        assert_eq!(
+            COMPOSED_FD12FD00.inner(FD00(limit)),
+            FD12FD00.inner(FD00(limit))
+        );
+        assert_eq!(
+            COMPOSED_FD12FD00.inner(FD00(-limit)),
+            FD12FD00.inner(FD00(-limit))
+        );
+        assert_eq!(
+            COMPOSED_FD12FD00.inner(FD00(limit - 1)),
+            FD12FD00.inner(FD00(limit - 1))
+        );
         assert_eq!(
             COMPOSED_FD12FD00.inner(FD00(-limit + 1)),
             FD12FD00.inner(FD00(-limit + 1))

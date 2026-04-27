@@ -63,7 +63,7 @@ macro_rules! fix_fix_i64 {
 }
 
 // 15 ordered pairs from {U0, U8, U16, U32, U48, U64}.
-fix_fix_i64!(I008I000, U8,  U0);
+fix_fix_i64!(I008I000, U8, U0);
 fix_fix_i64!(I016I000, U16, U0);
 fix_fix_i64!(I032I000, U32, U0);
 fix_fix_i64!(I048I000, U48, U0);
@@ -188,7 +188,7 @@ mod tests {
     }
 
     // 15 conns × 9 properties = 135 generated proptests (64 cases each).
-    props_for_pair!(i008i000, I008I000, U8,  U0);
+    props_for_pair!(i008i000, I008I000, U8, U0);
     props_for_pair!(i016i000, I016I000, U16, U0);
     props_for_pair!(i032i000, I032I000, U32, U0);
     props_for_pair!(i048i000, I048I000, U48, U0);

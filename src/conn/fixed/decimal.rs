@@ -233,9 +233,7 @@ macro_rules! float_conn {
                 match b {
                     Extended::NegInf => ExtendedFloat::Bot,
                     Extended::PosInf => ExtendedFloat::Top,
-                    Extended::Finite(r) => {
-                        ExtendedFloat::Finite(((r.0 as f64) / PREC_F) as $float)
-                    }
+                    Extended::Finite(r) => ExtendedFloat::Finite(((r.0 as f64) / PREC_F) as $float),
                 }
             }
 
@@ -302,8 +300,7 @@ float_conn!(F064FD12, f64, FD12, 1_000_000_000_000);
 mod tests {
     use super::*;
     use crate::property::arb::{
-        extended_fd06, extended_fd12, extended_float_f64, fixed_coarse, fixed_fine,
-        fixed_safe_fine,
+        extended_fd06, extended_fd12, extended_float_f64, fixed_coarse, fixed_fine, fixed_safe_fine,
     };
     use proptest::prelude::*;
 
@@ -470,14 +467,24 @@ mod tests {
         assert_eq!(F064FD03.ceil(half), Extended::Finite(FD03(500)));
         assert_eq!(F064FD03.floor(half), Extended::Finite(FD03(500)));
         assert_eq!(F064FD06.ceil(half), Extended::Finite(FD06(500_000)));
-        assert_eq!(F064FD12.ceil(ExtendedFloat::Finite(0.25_f64)),
-                   Extended::Finite(FD12(250_000_000_000)));
+        assert_eq!(
+            F064FD12.ceil(ExtendedFloat::Finite(0.25_f64)),
+            Extended::Finite(FD12(250_000_000_000))
+        );
 
         let one_and_half = ExtendedFloat::Finite(1.5_f64);
-        assert_eq!(F064FD06.ceil(one_and_half), Extended::Finite(FD06(1_500_000)));
-        assert_eq!(F064FD06.floor(one_and_half), Extended::Finite(FD06(1_500_000)));
-        assert_eq!(F064FD06.inner(Extended::Finite(FD06(1_500_000))),
-                   ExtendedFloat::Finite(1.5_f64));
+        assert_eq!(
+            F064FD06.ceil(one_and_half),
+            Extended::Finite(FD06(1_500_000))
+        );
+        assert_eq!(
+            F064FD06.floor(one_and_half),
+            Extended::Finite(FD06(1_500_000))
+        );
+        assert_eq!(
+            F064FD06.inner(Extended::Finite(FD06(1_500_000))),
+            ExtendedFloat::Finite(1.5_f64)
+        );
 
         // Saturation map (matches the table in the macro doc comment).
         assert_eq!(F064FD06.ceil(ExtendedFloat::Bot), Extended::NegInf);
@@ -527,24 +534,48 @@ mod tests {
         assert_eq!(F064FD00.floor(neg_inf), Extended::NegInf);
 
         // Identity on exact integers.
-        assert_eq!(F064FD00.ceil(ExtendedFloat::Finite(42.0)), Extended::Finite(FD00(42)));
-        assert_eq!(F064FD00.floor(ExtendedFloat::Finite(42.0)), Extended::Finite(FD00(42)));
-        assert_eq!(F064FD00.ceil(ExtendedFloat::Finite(-42.0)), Extended::Finite(FD00(-42)));
-        assert_eq!(F064FD00.floor(ExtendedFloat::Finite(-42.0)), Extended::Finite(FD00(-42)));
+        assert_eq!(
+            F064FD00.ceil(ExtendedFloat::Finite(42.0)),
+            Extended::Finite(FD00(42))
+        );
+        assert_eq!(
+            F064FD00.floor(ExtendedFloat::Finite(42.0)),
+            Extended::Finite(FD00(42))
+        );
+        assert_eq!(
+            F064FD00.ceil(ExtendedFloat::Finite(-42.0)),
+            Extended::Finite(FD00(-42))
+        );
+        assert_eq!(
+            F064FD00.floor(ExtendedFloat::Finite(-42.0)),
+            Extended::Finite(FD00(-42))
+        );
 
         // Non-integer: ceil up, floor down.
-        assert_eq!(F064FD00.ceil(ExtendedFloat::Finite(0.25)), Extended::Finite(FD00(1)));
-        assert_eq!(F064FD00.floor(ExtendedFloat::Finite(0.25)), Extended::Finite(FD00(0)));
-        assert_eq!(F064FD00.ceil(ExtendedFloat::Finite(-0.25)), Extended::Finite(FD00(0)));
-        assert_eq!(F064FD00.floor(ExtendedFloat::Finite(-0.25)), Extended::Finite(FD00(-1)));
+        assert_eq!(
+            F064FD00.ceil(ExtendedFloat::Finite(0.25)),
+            Extended::Finite(FD00(1))
+        );
+        assert_eq!(
+            F064FD00.floor(ExtendedFloat::Finite(0.25)),
+            Extended::Finite(FD00(0))
+        );
+        assert_eq!(
+            F064FD00.ceil(ExtendedFloat::Finite(-0.25)),
+            Extended::Finite(FD00(0))
+        );
+        assert_eq!(
+            F064FD00.floor(ExtendedFloat::Finite(-0.25)),
+            Extended::Finite(FD00(-1))
+        );
 
         // Very large finite: saturating, into Finite at the ceil/floor
         // boundary rather than flowing to ±Inf on the target.
-        let huge = ExtendedFloat::Finite(2.0_f64.powi(70));  // > i64::MAX
+        let huge = ExtendedFloat::Finite(2.0_f64.powi(70)); // > i64::MAX
         assert_eq!(F064FD00.ceil(huge), Extended::PosInf);
         assert_eq!(F064FD00.floor(huge), Extended::Finite(FD00(i64::MAX)));
 
-        let tiny = ExtendedFloat::Finite(-2.0_f64.powi(70));  // < i64::MIN
+        let tiny = ExtendedFloat::Finite(-2.0_f64.powi(70)); // < i64::MIN
         assert_eq!(F064FD00.ceil(tiny), Extended::Finite(FD00(i64::MIN)));
         assert_eq!(F064FD00.floor(tiny), Extended::NegInf);
     }
@@ -631,6 +662,18 @@ mod tests {
     // mantissa (FD12). Other rungs share the adjoint-law machinery
     // with one of these, so the spot checks above are sufficient
     // regression coverage.
-    float_conn_props!(p_f064_fd06, F064FD06, FD06, extended_float_f64, extended_fd06);
-    float_conn_props!(p_f064_fd12, F064FD12, FD12, extended_float_f64, extended_fd12);
+    float_conn_props!(
+        p_f064_fd06,
+        F064FD06,
+        FD06,
+        extended_float_f64,
+        extended_fd06
+    );
+    float_conn_props!(
+        p_f064_fd12,
+        F064FD12,
+        FD12,
+        extended_float_f64,
+        extended_fd12
+    );
 }

@@ -17,8 +17,8 @@ pub enum Extended<T> {
 
 impl<T: PartialOrd> PartialOrd for Extended<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        use std::cmp::Ordering::*;
         use Extended::*;
+        use std::cmp::Ordering::*;
         match (self, other) {
             (NegInf, NegInf) => Some(Equal),
             (PosInf, PosInf) => Some(Equal),

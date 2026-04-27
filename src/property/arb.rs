@@ -166,8 +166,8 @@ pub fn fixed_safe_fine(prec: i64) -> impl Strategy<Value = i64> {
 // dominates runtime without finding structural bugs; bounded ranges
 // plus explicit boundaries give wide enough adjoint-law coverage.
 
-use crate::conn::float::ExtendedFloat;
 use crate::conn::fixed::decimal::{FD06, FD12, HasResolution};
+use crate::conn::float::ExtendedFloat;
 use crate::extended::Extended;
 
 /// `ExtendedFloat<f64>` over `Bot`, `Top`, and bounded `Finite`

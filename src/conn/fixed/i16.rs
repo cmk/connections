@@ -95,16 +95,16 @@ macro_rules! fix_fix_i16 {
 
 // All ordered (Fine, Coarse) pairs from {U0, U2, U4, U8, U12, U16}
 // with Fine > Coarse. 15 conns total.
-fix_fix_i16!(I002I000, U2,  U0);
-fix_fix_i16!(I004I000, U4,  U0);
-fix_fix_i16!(I008I000, U8,  U0);
+fix_fix_i16!(I002I000, U2, U0);
+fix_fix_i16!(I004I000, U4, U0);
+fix_fix_i16!(I008I000, U8, U0);
 fix_fix_i16!(I012I000, U12, U0);
 fix_fix_i16!(I016I000, U16, U0);
-fix_fix_i16!(I004I002, U4,  U2);
-fix_fix_i16!(I008I002, U8,  U2);
+fix_fix_i16!(I004I002, U4, U2);
+fix_fix_i16!(I008I002, U8, U2);
 fix_fix_i16!(I012I002, U12, U2);
 fix_fix_i16!(I016I002, U16, U2);
-fix_fix_i16!(I008I004, U8,  U4);
+fix_fix_i16!(I008I004, U8, U4);
 fix_fix_i16!(I012I004, U12, U4);
 fix_fix_i16!(I016I004, U16, U4);
 fix_fix_i16!(I012I008, U12, U8);
@@ -264,16 +264,16 @@ mod tests {
     }
 
     // 15 conns × 9 properties = 135 generated proptests.
-    props_for_pair!(i002i000, I002I000, U2,  U0);
-    props_for_pair!(i004i000, I004I000, U4,  U0);
-    props_for_pair!(i008i000, I008I000, U8,  U0);
+    props_for_pair!(i002i000, I002I000, U2, U0);
+    props_for_pair!(i004i000, I004I000, U4, U0);
+    props_for_pair!(i008i000, I008I000, U8, U0);
     props_for_pair!(i012i000, I012I000, U12, U0);
     props_for_pair!(i016i000, I016I000, U16, U0);
-    props_for_pair!(i004i002, I004I002, U4,  U2);
-    props_for_pair!(i008i002, I008I002, U8,  U2);
+    props_for_pair!(i004i002, I004I002, U4, U2);
+    props_for_pair!(i008i002, I008I002, U8, U2);
     props_for_pair!(i012i002, I012I002, U12, U2);
     props_for_pair!(i016i002, I016I002, U16, U2);
-    props_for_pair!(i008i004, I008I004, U8,  U4);
+    props_for_pair!(i008i004, I008I004, U8, U4);
     props_for_pair!(i012i004, I012I004, U12, U4);
     props_for_pair!(i016i004, I016I004, U16, U4);
     props_for_pair!(i012i008, I012I008, U12, U8);

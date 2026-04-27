@@ -106,7 +106,10 @@ mod tests {
         let q44 = FixedI8::<U4>::from_bits(24);
         assert_eq!(I004I000.floor(q44), FixedI8::<U0>::from_bits(1));
         assert_eq!(I004I000.ceil(q44), FixedI8::<U0>::from_bits(2));
-        assert_eq!(I004I000.inner(FixedI8::<U0>::from_bits(1)), FixedI8::<U4>::from_bits(16));
+        assert_eq!(
+            I004I000.inner(FixedI8::<U0>::from_bits(1)),
+            FixedI8::<U4>::from_bits(16)
+        );
     }
 
     #[test]

@@ -333,11 +333,7 @@ pub fn boolean_non_contradiction<T: Coheyting + Eq>(x: &T) -> bool {
 
 /// boolean4: contrapositive — `(x <= y) implies (y.neg() <= x.neg())`
 pub fn boolean_contrapositive<T: Heyting>(x: &T, y: &T) -> bool {
-    if *x <= *y {
-        y.neg() <= x.neg()
-    } else {
-        true
-    }
+    if *x <= *y { y.neg() <= x.neg() } else { true }
 }
 
 /// boolean5: `x.coimp(y) == neg(neg(y).imp(neg(x)))` (Biheyting)
@@ -457,7 +453,9 @@ where
 {
     let c_val = rung(c.ceil(a));
     let f_val = rung(c.floor(a));
-    c_val.checked_sub(f_val).is_some_and(|d| (0..=1).contains(&d))
+    c_val
+        .checked_sub(f_val)
+        .is_some_and(|d| (0..=1).contains(&d))
 }
 
 // ── Bare-preorder laws (for types impl'ing `Ple`) ────────────────
@@ -469,11 +467,7 @@ pub fn lattice_reflexive<T: Ple>(x: &T) -> bool {
 
 /// Transitivity: `x ≤ y ∧ y ≤ z ⟹ x ≤ z`.
 pub fn lattice_transitive<T: Ple>(x: &T, y: &T, z: &T) -> bool {
-    if x.ple(y) && y.ple(z) {
-        x.ple(z)
-    } else {
-        true
-    }
+    if x.ple(y) && y.ple(z) { x.ple(z) } else { true }
 }
 
 /// Antisymmetry under preorder equivalence: if `x ≤ y` and `y ≤ x`
