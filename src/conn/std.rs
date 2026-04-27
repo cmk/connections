@@ -22,21 +22,28 @@
 //!   `pub const` Conns (whereas in Haskell narrowing is only
 //!   accessible via the `inner` adjoint of the widening Cast).
 //!
-//! Macro families generate the Conns; all live in this parent
-//! module and are `pub(crate)`-imported by the per-primitive
+//! Seven macro families generate the Conns; all live in this
+//! parent module and are `pub(crate)`-imported by the per-primitive
 //! submodules:
 //!
 //! | macro | direction | Galois | constructor |
 //! |---|---|---|---|
-//! | `uint_uint!` | U→U widening    | left  | `new_left` |
-//! | `int_uint!`  | I→U widening    | left  | `new_left` |
-//! | `ext_int!`   | I→I, U→I widening (Extended source) | full triple | `new` |
+//! | `uint_uint!`        | U→U widening    | left  | `new_left` |
+//! | `int_uint!`         | I→U widening    | left  | `new_left` |
+//! | `ext_int!`          | I→I, U→I widening (Extended source) | full triple | `new` |
+//! | `int_int_narrow!`   | I→I narrowing   | left  | `new_left` |
+//! | `uint_uint_narrow!` | U→U narrowing   | left  | `new_left` |
+//! | `int_uint_narrow!`  | I→U narrowing   | left  | `new_left` |
+//! | `uint_int_sat!`     | U→I non-widening | right | `new_right` |
 //!
-//! Future commits (T3–T6) add four more macros covering the
-//! narrowing and non-widening directions: `int_int_narrow!`,
-//! `uint_uint_narrow!`, `int_uint_narrow!` (all left-Galois with a
-//! FINE_MAX fixup in `inner`), and `uint_int_sat!` (right-Galois
-//! via `Conn::new_right`).
+//! The four narrowing/non-widening macros use a **FINE_MAX
+//! boundary fixup** in `inner` (`inner(Coarse::MAX) =
+//! Source::MAX`) so the relevant Galois bi-implication holds at
+//! the source-side saturation plateau — same pattern as
+//! `conn::fixed::u<width>`. The right-Galois `uint_int_sat!` macro
+//! doesn't need the fixup: its plateau lives on the target side
+//! (negative `i_N` values clip to `0_u_M` via `inner`), and `floor`
+//! collapses the symmetric way at the high end.
 
 // The macros expand at the call site (in each submodule), so this
 // parent file doesn't need to import `Conn` or `Extended` itself —

@@ -28,6 +28,12 @@ macro_rules! single_sided_props {
                 fn kernel(b in $arb_tgt) {
                     prop_assert!($CONN.ceil($CONN.inner(b)) <= b);
                 }
+                #[test]
+                fn idempotent(a in $arb_src) {
+                    let once = $CONN.inner($CONN.ceil(a));
+                    let twice = $CONN.inner($CONN.ceil(once));
+                    prop_assert_eq!(once, twice);
+                }
             }
         }
     };

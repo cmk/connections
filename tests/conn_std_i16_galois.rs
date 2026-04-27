@@ -67,6 +67,12 @@ macro_rules! ext_int_props {
                 fn kernel_lower(b in $arb_tgt) {
                     prop_assert!(b <= $CONN.floor($CONN.inner(b)));
                 }
+                #[test]
+                fn idempotent(a in $arb_src) {
+                    let once = $CONN.inner($CONN.floor(a));
+                    let twice = $CONN.inner($CONN.floor(once));
+                    prop_assert_eq!(once, twice);
+                }
             }
         }
     };
@@ -99,6 +105,12 @@ macro_rules! single_sided_props {
                 #[test]
                 fn kernel(b in $arb_tgt) {
                     prop_assert!($CONN.ceil($CONN.inner(b)) <= b);
+                }
+                #[test]
+                fn idempotent(a in $arb_src) {
+                    let once = $CONN.inner($CONN.ceil(a));
+                    let twice = $CONN.inner($CONN.ceil(once));
+                    prop_assert_eq!(once, twice);
                 }
             }
         }
@@ -133,6 +145,12 @@ macro_rules! single_sided_right_props {
                 #[test]
                 fn kernel_lower(b in $arb_tgt) {
                     prop_assert!(b <= $CONN.floor($CONN.inner(b)));
+                }
+                #[test]
+                fn idempotent(a in $arb_src) {
+                    let once = $CONN.inner($CONN.floor(a));
+                    let twice = $CONN.inner($CONN.floor(once));
+                    prop_assert_eq!(once, twice);
                 }
             }
         }
