@@ -84,6 +84,8 @@ macro_rules! impl_float_ext {
 
 impl_float_ext!(f32);
 impl_float_ext!(f64);
+impl_float_ext!(half::f16);
+impl_float_ext!(half::bf16);
 
 /// Connection between `ExtendedFloat<f64>` and `ExtendedFloat<f32>`
 /// under the N5 lattice ordering.
@@ -531,5 +533,29 @@ mod tests {
         assert!(ExtendedFloat::<f32>::Bot < n);
         assert!(n < ExtendedFloat::<f32>::Top);
         assert!(n.partial_cmp(&ExtendedFloat::Finite(1.0_f32)).is_none());
+    }
+
+    #[test]
+    fn f16_same_shape() {
+        let n: ExtendedFloat<half::f16> = ExtendedFloat::Finite(half::f16::NAN);
+        assert_eq!(n, ExtendedFloat::Finite(half::f16::NAN));
+        assert!(ExtendedFloat::<half::f16>::Bot < n);
+        assert!(n < ExtendedFloat::<half::f16>::Top);
+        assert!(
+            n.partial_cmp(&ExtendedFloat::Finite(half::f16::ONE))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn bf16_same_shape() {
+        let n: ExtendedFloat<half::bf16> = ExtendedFloat::Finite(half::bf16::NAN);
+        assert_eq!(n, ExtendedFloat::Finite(half::bf16::NAN));
+        assert!(ExtendedFloat::<half::bf16>::Bot < n);
+        assert!(n < ExtendedFloat::<half::bf16>::Top);
+        assert!(
+            n.partial_cmp(&ExtendedFloat::Finite(half::bf16::ONE))
+                .is_none()
+        );
     }
 }
