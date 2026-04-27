@@ -231,15 +231,22 @@ outside the float range:
 ```rust
 pub enum ExtendedFloat<T> {
     Bot,        // synthetic bottom, below -∞
-    Finite(T),  // the float value (including NaN, ±∞)
+    Extend(T),  // the float value (including NaN, ±∞)
     Top,        // synthetic top, above +∞
 }
 ```
 
+The wrapped variant is named `Extend` rather than `Finite` because
+the wrapped value can be `NaN` or `±∞`, neither of which is finite.
+The variant name reflects the lattice-theoretic role (the *extension*
+slot between `Bot` and `Top`) instead of a numeric property of the
+inhabitant. Sister type `Extended<T>` keeps `Finite` since its
+wrapped values really are finite.
+
 With `PartialOrd` defined as:
 
 - `Bot ≤ x` and `x ≤ Top` for all `x` (by construction)
-- `Finite(a).partial_cmp(Finite(b))` delegates to `T::partial_cmp`
+- `Extend(a).partial_cmp(Extend(b))` delegates to `T::partial_cmp`
   **except** when both values are NaN, where it returns `Some(Equal)`
 
 This recovers the N5 lattice shape:
@@ -280,8 +287,8 @@ The IEEE-float "broken" comparison story sits at the `PartialEq`
 level, not `PartialOrd`: raw `f64::PartialEq` says `NaN ≠ NaN`, which
 prevents `f64` from impl'ing `Eq`, which is exactly why raw floats
 cannot be used as Conn endpoints. The fix lives at the wrapper
-boundary: `ExtendedFloat<T>` patches `PartialEq` so `Finite(NaN) ==
-Finite(NaN)` (synthetic `Bot` / `Top` are also reflexive), and
+boundary: `ExtendedFloat<T>` patches `PartialEq` so `Extend(NaN) ==
+Extend(NaN)` (synthetic `Bot` / `Top` are also reflexive), and
 therefore impls `Eq`. `ExtendedFloat<f32>` / `ExtendedFloat<f64>` are
 genuine partial orders and flow through every law predicate that
 demands `T: Eq + PartialOrd`.

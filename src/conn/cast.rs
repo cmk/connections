@@ -217,7 +217,7 @@ mod tests {
     // The three bases give us:
     //   - ID_I32: Ord path, trivially identity (every lifter reduces
     //     to f(x)).
-    //   - ID_EF64: ExtendedFloat<f64> path with Bot/Top/Finite(NaN);
+    //   - ID_EF64: ExtendedFloat<f64> path with Bot/Top/Extend(NaN);
     //     covers the lawful float wrapper (raw f64 is not Eq).
     //   - FD12FD09: a non-trivial triple (FD12 ⊣ inner ⊣ floor with
     //     ratio 10³) so the L and R sides of the lifters can differ.
@@ -309,7 +309,10 @@ mod tests {
 
     #[test]
     fn maximize_eq_ceiling_pair() {
-        assert_eq!(maximize(&ORDERED_PAIR, 3, 5), ceiling(&ORDERED_PAIR, (3, 5)));
+        assert_eq!(
+            maximize(&ORDERED_PAIR, 3, 5),
+            ceiling(&ORDERED_PAIR, (3, 5))
+        );
         assert_eq!(maximize(&ORDERED_PAIR, 3, 5), 5);
     }
 
@@ -364,46 +367,46 @@ mod tests {
             prop_assert!(laws::cast_floor2_id_diag(&ID_I32, b));
         }
 
-        // ── ID_EF64 (ExtendedFloat<f64>; covers Bot/Top/Finite(NaN)) ──
+        // ── ID_EF64 (ExtendedFloat<f64>; covers Bot/Top/Extend(NaN)) ──
 
         #[test]
         fn upper1_unit_id_ef64(a in arb_f64()) {
-            prop_assert!(laws::cast_upper1_id_unit(&ID_EF64, ExtendedFloat::Finite(a)));
+            prop_assert!(laws::cast_upper1_id_unit(&ID_EF64, ExtendedFloat::Extend(a)));
         }
 
         #[test]
         fn lower1_counit_id_ef64(a in arb_f64()) {
-            prop_assert!(laws::cast_lower1_id_counit(&ID_EF64, ExtendedFloat::Finite(a)));
+            prop_assert!(laws::cast_lower1_id_counit(&ID_EF64, ExtendedFloat::Extend(a)));
         }
 
         #[test]
         fn ceiling1_kernel_id_ef64(b in arb_f64()) {
-            prop_assert!(laws::cast_ceiling1_id_kernel(&ID_EF64, ExtendedFloat::Finite(b)));
+            prop_assert!(laws::cast_ceiling1_id_kernel(&ID_EF64, ExtendedFloat::Extend(b)));
         }
 
         #[test]
         fn floor1_kernel_id_ef64(b in arb_f64()) {
-            prop_assert!(laws::cast_floor1_id_kernel(&ID_EF64, ExtendedFloat::Finite(b)));
+            prop_assert!(laws::cast_floor1_id_kernel(&ID_EF64, ExtendedFloat::Extend(b)));
         }
 
         #[test]
         fn upper2_diag_id_ef64(a in arb_f64()) {
-            prop_assert!(laws::cast_upper2_id_diag(&ID_EF64, ExtendedFloat::Finite(a)));
+            prop_assert!(laws::cast_upper2_id_diag(&ID_EF64, ExtendedFloat::Extend(a)));
         }
 
         #[test]
         fn lower2_diag_id_ef64(a in arb_f64()) {
-            prop_assert!(laws::cast_lower2_id_diag(&ID_EF64, ExtendedFloat::Finite(a)));
+            prop_assert!(laws::cast_lower2_id_diag(&ID_EF64, ExtendedFloat::Extend(a)));
         }
 
         #[test]
         fn ceiling2_diag_id_ef64(b in arb_f64()) {
-            prop_assert!(laws::cast_ceiling2_id_diag(&ID_EF64, ExtendedFloat::Finite(b)));
+            prop_assert!(laws::cast_ceiling2_id_diag(&ID_EF64, ExtendedFloat::Extend(b)));
         }
 
         #[test]
         fn floor2_diag_id_ef64(b in arb_f64()) {
-            prop_assert!(laws::cast_floor2_id_diag(&ID_EF64, ExtendedFloat::Finite(b)));
+            prop_assert!(laws::cast_floor2_id_diag(&ID_EF64, ExtendedFloat::Extend(b)));
         }
 
         // ── FD12FD09 (non-trivial triple, FD12 ⊣ inner ⊣ floor) ─────

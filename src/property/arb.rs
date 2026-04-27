@@ -222,7 +222,7 @@ pub fn extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
     prop_oneof![
         1 => Just(ExtendedFloat::Bot),
         1 => Just(ExtendedFloat::Top),
-        8 => arb_f64_bounded().prop_map(ExtendedFloat::Finite),
+        8 => arb_f64_bounded().prop_map(ExtendedFloat::Extend),
     ]
 }
 
@@ -233,7 +233,7 @@ pub fn extended_float_f16() -> impl Strategy<Value = ExtendedFloat<half::f16>> {
     prop_oneof![
         1 => Just(ExtendedFloat::Bot),
         1 => Just(ExtendedFloat::Top),
-        8 => arb_f16().prop_map(ExtendedFloat::Finite),
+        8 => arb_f16().prop_map(ExtendedFloat::Extend),
     ]
 }
 
@@ -243,7 +243,7 @@ pub fn extended_float_bf16() -> impl Strategy<Value = ExtendedFloat<half::bf16>>
     prop_oneof![
         1 => Just(ExtendedFloat::Bot),
         1 => Just(ExtendedFloat::Top),
-        8 => arb_bf16().prop_map(ExtendedFloat::Finite),
+        8 => arb_bf16().prop_map(ExtendedFloat::Extend),
     ]
 }
 

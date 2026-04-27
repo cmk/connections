@@ -7,9 +7,9 @@
 //! canonical top/bottom elements. `ExtendedFloat` addresses both:
 //!
 //! - `Bot ≤ x` and `x ≤ Top` for every `x` (including `NaN`, `±∞`).
-//! - `Finite(NaN)` is reflexive: `Finite(NaN) == Finite(NaN)` and
-//!   `Finite(NaN).partial_cmp(&Finite(NaN)) == Some(Equal)`.
-//! - `Finite(NaN)` remains incomparable with every other `Finite(_)`
+//! - `Extend(NaN)` is reflexive: `Extend(NaN) == Extend(NaN)` and
+//!   `Extend(NaN).partial_cmp(&Extend(NaN)) == Some(Equal)`.
+//! - `Extend(NaN)` remains incomparable with every other `Extend(_)`
 //!   value (including `±∞`) — that comparison returns `None`.
 //!
 //! The N5 lattice (`-∞ ≤ NaN ≤ +∞`, NaN incomparable with finites) is
@@ -27,10 +27,19 @@
 use crate::conn::Conn;
 use std::cmp::Ordering;
 
+/// Three-element extension of a (possibly partial) order:
+/// `Bot < Extend(_) < Top`.
+///
+/// The wrapped variant is named `Extend`, not `Finite`, because for
+/// IEEE floats the wrapped value can be `NaN` or `±∞` — neither of
+/// which is finite. The variant name reflects the lattice-theoretic
+/// role (the *extension* slot between `Bot` and `Top`), not a numeric
+/// property of the inhabitant. Sister type [`crate::extended::Extended`]
+/// keeps `Finite` since its wrapped values really are finite.
 #[derive(Copy, Clone, Debug)]
 pub enum ExtendedFloat<T> {
     Bot,
-    Finite(T),
+    Extend(T),
     Top,
 }
 
@@ -41,7 +50,7 @@ macro_rules! impl_float_ext {
                 use ExtendedFloat::*;
                 match (self, other) {
                     (Bot, Bot) | (Top, Top) => true,
-                    (Finite(a), Finite(b)) => {
+                    (Extend(a), Extend(b)) => {
                         if a.is_nan() && b.is_nan() {
                             true
                         } else {
@@ -62,7 +71,7 @@ macro_rules! impl_float_ext {
                     (_, Bot) => Some(Ordering::Greater),
                     (_, Top) => Some(Ordering::Less),
                     (Top, _) => Some(Ordering::Greater),
-                    (Finite(a), Finite(b)) => {
+                    (Extend(a), Extend(b)) => {
                         if a.is_nan() && b.is_nan() {
                             Some(Ordering::Equal)
                         } else {
@@ -73,7 +82,7 @@ macro_rules! impl_float_ext {
             }
         }
 
-        // The `PartialEq` above is reflexive (`Finite(NaN) == Finite(NaN)`
+        // The `PartialEq` above is reflexive (`Extend(NaN) == Extend(NaN)`
         // is true), so `Eq`'s contract is satisfied. Adding the marker
         // lets `ExtendedFloat<$T>` flow through any `T: Eq + PartialOrd`
         // bound — which is the lawful framework the Galois-connection
@@ -106,34 +115,34 @@ pub type B016 = ExtendedFloat<half::bf16>;
 /// Connection between `ExtendedFloat<f64>` and `ExtendedFloat<f32>`
 /// under the N5 lattice ordering.
 ///
-/// - `inner`: lossless `f32 → f64` embedding (`Bot/Top/Finite` pass through;
-///   `Finite(v)` casts `v as f64`).
+/// - `inner`: lossless `f32 → f64` embedding (`Bot/Top/Extend` pass through;
+///   `Extend(v)` casts `v as f64`).
 /// - `ceil`: smallest `f32` whose `f64` embedding is ≥ the input (round up).
 /// - `floor`: largest `f32` whose `f64` embedding is ≤ the input (round down).
 ///
 /// `ExtendedFloat::Bot` / `Top` are preserved on both sides;
-/// `Finite(NaN)` flows through unchanged because the `Finite(NaN) →
-/// Finite(NaN as f32)` cast is bit-preserving for NaN.
+/// `Extend(NaN)` flows through unchanged because the `Extend(NaN) →
+/// Extend(NaN as f32)` cast is bit-preserving for NaN.
 pub const F064F032: Conn<ExtendedFloat<f64>, ExtendedFloat<f32>> = {
     fn ceil(x: ExtendedFloat<f64>) -> ExtendedFloat<f32> {
         match x {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Finite(v) => ExtendedFloat::Finite(ceil_f64_f32(v)),
+            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f64_f32(v)),
         }
     }
     fn inner(y: ExtendedFloat<f32>) -> ExtendedFloat<f64> {
         match y {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Finite(v) => ExtendedFloat::Finite(v as f64),
+            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f64),
         }
     }
     fn floor(x: ExtendedFloat<f64>) -> ExtendedFloat<f32> {
         match x {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Finite(v) => ExtendedFloat::Finite(floor_f64_f32(v)),
+            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f64_f32(v)),
         }
     }
     Conn::new(ceil, inner, floor)
@@ -410,7 +419,7 @@ mod tests {
     // ── Helpers ────────────────────────────────────────────────────
 
     /// Local strategy: `ExtendedFloat<f64>` over `Bot`, `Top`, and full-
-    /// range `Finite(_)` (8:1:1 weighting toward finite). Unlike
+    /// range `Extend(_)` (8:1:1 weighting toward the extension slot). Unlike
     /// [`crate::property::arb::extended_float_f64`] which uses the
     /// bounded f64 generator (for connections whose target is a
     /// bounded integer rung), `F064F032`'s target is full-range f32 —
@@ -419,7 +428,7 @@ mod tests {
         prop_oneof![
             1 => Just(ExtendedFloat::Bot),
             1 => Just(ExtendedFloat::Top),
-            8 => arb_f64().prop_map(ExtendedFloat::Finite),
+            8 => arb_f64().prop_map(ExtendedFloat::Extend),
         ]
     }
 
@@ -427,7 +436,7 @@ mod tests {
         prop_oneof![
             1 => Just(ExtendedFloat::Bot),
             1 => Just(ExtendedFloat::Top),
-            8 => arb_f32().prop_map(ExtendedFloat::Finite),
+            8 => arb_f32().prop_map(ExtendedFloat::Extend),
         ]
     }
 
@@ -483,7 +492,10 @@ mod tests {
         for w in samples.windows(2) {
             let (a, b) = (w[0], w[1]);
             let (ia, ib) = (signed16(a.to_bits()), signed16(b.to_bits()));
-            assert!(ia < ib, "signed16 order broken: {a:?} ({ia}) </ {b:?} ({ib})");
+            assert!(
+                ia < ib,
+                "signed16 order broken: {a:?} ({ia}) </ {b:?} ({ib})"
+            );
         }
     }
 
@@ -546,46 +558,46 @@ mod tests {
     #[test]
     fn ceil_exact_value() {
         assert_eq!(
-            F064F032.ceil(ExtendedFloat::Finite(0.5_f64)),
-            ExtendedFloat::Finite(0.5_f32),
+            F064F032.ceil(ExtendedFloat::Extend(0.5_f64)),
+            ExtendedFloat::Extend(0.5_f32),
         );
     }
 
     #[test]
     fn floor_exact_value() {
         assert_eq!(
-            F064F032.floor(ExtendedFloat::Finite(0.5_f64)),
-            ExtendedFloat::Finite(0.5_f32),
+            F064F032.floor(ExtendedFloat::Extend(0.5_f64)),
+            ExtendedFloat::Extend(0.5_f32),
         );
     }
 
     #[test]
     fn ceil_nan() {
-        match F064F032.ceil(ExtendedFloat::Finite(f64::NAN)) {
-            ExtendedFloat::Finite(v) => assert!(v.is_nan()),
-            _ => panic!("expected Finite(NaN)"),
+        match F064F032.ceil(ExtendedFloat::Extend(f64::NAN)) {
+            ExtendedFloat::Extend(v) => assert!(v.is_nan()),
+            _ => panic!("expected Extend(NaN)"),
         }
     }
 
     #[test]
     fn floor_nan() {
-        match F064F032.floor(ExtendedFloat::Finite(f64::NAN)) {
-            ExtendedFloat::Finite(v) => assert!(v.is_nan()),
-            _ => panic!("expected Finite(NaN)"),
+        match F064F032.floor(ExtendedFloat::Extend(f64::NAN)) {
+            ExtendedFloat::Extend(v) => assert!(v.is_nan()),
+            _ => panic!("expected Extend(NaN)"),
         }
     }
 
     #[test]
     fn inner_nan() {
-        match F064F032.inner(ExtendedFloat::Finite(f32::NAN)) {
-            ExtendedFloat::Finite(v) => assert!(v.is_nan()),
-            _ => panic!("expected Finite(NaN)"),
+        match F064F032.inner(ExtendedFloat::Extend(f32::NAN)) {
+            ExtendedFloat::Extend(v) => assert!(v.is_nan()),
+            _ => panic!("expected Extend(NaN)"),
         }
     }
 
     #[test]
     fn ceil_ge_floor() {
-        let x = ExtendedFloat::Finite(std::f64::consts::PI);
+        let x = ExtendedFloat::Extend(std::f64::consts::PI);
         assert!(F064F032.floor(x) <= F064F032.ceil(x));
     }
 
@@ -667,80 +679,80 @@ mod tests {
 
     #[test]
     fn bot_below_everything_f64() {
-        assert!(ExtendedFloat::<f64>::Bot < ExtendedFloat::Finite(0.0));
-        assert!(ExtendedFloat::<f64>::Bot < ExtendedFloat::Finite(f64::NEG_INFINITY));
-        assert!(ExtendedFloat::<f64>::Bot < ExtendedFloat::Finite(f64::NAN));
+        assert!(ExtendedFloat::<f64>::Bot < ExtendedFloat::Extend(0.0));
+        assert!(ExtendedFloat::<f64>::Bot < ExtendedFloat::Extend(f64::NEG_INFINITY));
+        assert!(ExtendedFloat::<f64>::Bot < ExtendedFloat::Extend(f64::NAN));
         assert!(ExtendedFloat::<f64>::Bot < ExtendedFloat::<f64>::Top);
     }
 
     #[test]
     fn top_above_everything_f64() {
-        assert!(ExtendedFloat::Finite(0.0_f64) < ExtendedFloat::<f64>::Top);
-        assert!(ExtendedFloat::Finite(f64::INFINITY) < ExtendedFloat::<f64>::Top);
-        assert!(ExtendedFloat::Finite(f64::NAN) < ExtendedFloat::<f64>::Top);
+        assert!(ExtendedFloat::Extend(0.0_f64) < ExtendedFloat::<f64>::Top);
+        assert!(ExtendedFloat::Extend(f64::INFINITY) < ExtendedFloat::<f64>::Top);
+        assert!(ExtendedFloat::Extend(f64::NAN) < ExtendedFloat::<f64>::Top);
     }
 
     #[test]
     fn nan_reflexive_f64() {
-        let n: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
-        assert_eq!(n, ExtendedFloat::Finite(f64::NAN));
+        let n: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::NAN);
+        assert_eq!(n, ExtendedFloat::Extend(f64::NAN));
         assert_eq!(
-            n.partial_cmp(&ExtendedFloat::Finite(f64::NAN)),
+            n.partial_cmp(&ExtendedFloat::Extend(f64::NAN)),
             Some(Ordering::Equal)
         );
     }
 
     #[test]
     fn nan_incomparable_with_finite_f64() {
-        let n: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
-        assert!(n.partial_cmp(&ExtendedFloat::Finite(1.0)).is_none());
-        assert!(ExtendedFloat::Finite(1.0_f64).partial_cmp(&n).is_none());
+        let n: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::NAN);
+        assert!(n.partial_cmp(&ExtendedFloat::Extend(1.0)).is_none());
+        assert!(ExtendedFloat::Extend(1.0_f64).partial_cmp(&n).is_none());
     }
 
     #[test]
     fn nan_incomparable_with_infinity_f64() {
-        let n: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
-        let i: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::INFINITY);
+        let n: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::NAN);
+        let i: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::INFINITY);
         assert!(n.partial_cmp(&i).is_none());
         assert!(i.partial_cmp(&n).is_none());
     }
 
     #[test]
     fn standard_order_preserved_f64() {
-        assert!(ExtendedFloat::Finite(1.0_f64) < ExtendedFloat::Finite(2.0));
-        assert!(ExtendedFloat::Finite(f64::NEG_INFINITY) < ExtendedFloat::Finite(0.0_f64));
-        assert!(ExtendedFloat::Finite(0.0_f64) < ExtendedFloat::Finite(f64::INFINITY));
+        assert!(ExtendedFloat::Extend(1.0_f64) < ExtendedFloat::Extend(2.0));
+        assert!(ExtendedFloat::Extend(f64::NEG_INFINITY) < ExtendedFloat::Extend(0.0_f64));
+        assert!(ExtendedFloat::Extend(0.0_f64) < ExtendedFloat::Extend(f64::INFINITY));
     }
 
     #[test]
     fn f32_same_shape() {
-        let n: ExtendedFloat<f32> = ExtendedFloat::Finite(f32::NAN);
-        assert_eq!(n, ExtendedFloat::Finite(f32::NAN));
+        let n: ExtendedFloat<f32> = ExtendedFloat::Extend(f32::NAN);
+        assert_eq!(n, ExtendedFloat::Extend(f32::NAN));
         assert!(ExtendedFloat::<f32>::Bot < n);
         assert!(n < ExtendedFloat::<f32>::Top);
-        assert!(n.partial_cmp(&ExtendedFloat::Finite(1.0_f32)).is_none());
+        assert!(n.partial_cmp(&ExtendedFloat::Extend(1.0_f32)).is_none());
     }
 
     #[test]
     fn f16_same_shape() {
-        let n: ExtendedFloat<half::f16> = ExtendedFloat::Finite(half::f16::NAN);
-        assert_eq!(n, ExtendedFloat::Finite(half::f16::NAN));
+        let n: ExtendedFloat<half::f16> = ExtendedFloat::Extend(half::f16::NAN);
+        assert_eq!(n, ExtendedFloat::Extend(half::f16::NAN));
         assert!(ExtendedFloat::<half::f16>::Bot < n);
         assert!(n < ExtendedFloat::<half::f16>::Top);
         assert!(
-            n.partial_cmp(&ExtendedFloat::Finite(half::f16::ONE))
+            n.partial_cmp(&ExtendedFloat::Extend(half::f16::ONE))
                 .is_none()
         );
     }
 
     #[test]
     fn bf16_same_shape() {
-        let n: ExtendedFloat<half::bf16> = ExtendedFloat::Finite(half::bf16::NAN);
-        assert_eq!(n, ExtendedFloat::Finite(half::bf16::NAN));
+        let n: ExtendedFloat<half::bf16> = ExtendedFloat::Extend(half::bf16::NAN);
+        assert_eq!(n, ExtendedFloat::Extend(half::bf16::NAN));
         assert!(ExtendedFloat::<half::bf16>::Bot < n);
         assert!(n < ExtendedFloat::<half::bf16>::Top);
         assert!(
-            n.partial_cmp(&ExtendedFloat::Finite(half::bf16::ONE))
+            n.partial_cmp(&ExtendedFloat::Extend(half::bf16::ONE))
                 .is_none()
         );
     }

@@ -129,25 +129,25 @@ fix_fix!(FD12FD06, FD12, FD06, 1_000_000);
 // sides.
 //
 // Source lattice (`ExtendedFloat<T>`):
-//   `Bot` < `Finite(-∞)` < `Finite(finite)` < `Finite(+∞)` < `Top`,
-//   with `Finite(NaN)` reflexive and incomparable with every other
-//   `Finite(_)`.
+//   `Bot` < `Extend(-∞)` < `Extend(finite)` < `Extend(+∞)` < `Top`,
+//   with `Extend(NaN)` reflexive and incomparable with every other
+//   `Extend(_)`.
 //
 // Target lattice (`Extended<Rung>`):
 //   `NegInf` < `Finite(Rung(i64::MIN))` < … < `Finite(Rung(i64::MAX))`
 //   < `PosInf`.
 //
 // `inner` embeds the target into the source: `NegInf → Bot`,
-// `PosInf → Top`, `Finite(r) → Finite(r/PREC)`. The adjoint laws then
+// `PosInf → Top`, `Finite(r) → Extend(r/PREC)`. The adjoint laws then
 // fix the saturation behaviour of `ceil` and `floor`:
 //
 // | source input          | ceil                 | floor                 |
 // |-----------------------|----------------------|-----------------------|
 // | `Bot`                 | `NegInf`             | `NegInf`              |
 // | `Top`                 | `PosInf`             | `PosInf`              |
-// | `Finite(NaN)`         | `PosInf`             | `NegInf`              |
-// | `Finite(-∞)`          | `Finite(Rung::MIN)`  | `NegInf`              |
-// | `Finite(+∞)`          | `PosInf`             | `Finite(Rung::MAX)`   |
+// | `Extend(NaN)`         | `PosInf`             | `NegInf`              |
+// | `Extend(-∞)`          | `Finite(Rung::MIN)`  | `NegInf`              |
+// | `Extend(+∞)`          | `PosInf`             | `Finite(Rung::MAX)`   |
 // | finite < inner(MIN)   | `Finite(Rung::MIN)`  | `NegInf`              |
 // | finite > inner(MAX)   | `PosInf`             | `Finite(Rung::MAX)`   |
 // | finite in range       | round-up rung        | round-down rung       |
@@ -178,7 +178,7 @@ macro_rules! float_conn {
                 let f = match x {
                     ExtendedFloat::Bot => return Extended::NegInf,
                     ExtendedFloat::Top => return Extended::PosInf,
-                    ExtendedFloat::Finite(v) => v,
+                    ExtendedFloat::Extend(v) => v,
                 };
                 if f.is_nan() {
                     return Extended::PosInf;
@@ -226,7 +226,7 @@ macro_rules! float_conn {
                 match b {
                     Extended::NegInf => ExtendedFloat::Bot,
                     Extended::PosInf => ExtendedFloat::Top,
-                    Extended::Finite(r) => ExtendedFloat::Finite(((r.0 as f64) / PREC_F) as $float),
+                    Extended::Finite(r) => ExtendedFloat::Extend(((r.0 as f64) / PREC_F) as $float),
                 }
             }
 
@@ -234,7 +234,7 @@ macro_rules! float_conn {
                 let f = match x {
                     ExtendedFloat::Bot => return Extended::NegInf,
                     ExtendedFloat::Top => return Extended::PosInf,
-                    ExtendedFloat::Finite(v) => v,
+                    ExtendedFloat::Extend(v) => v,
                 };
                 if f.is_nan() {
                     return Extended::NegInf;
@@ -279,7 +279,7 @@ macro_rules! float_conn {
 // call.
 //
 // f32 callers widen losslessly at the boundary —
-// `F064FD06.ceil(ExtendedFloat::Finite(arg_f32 as f64))` — and get the
+// `F064FD06.ceil(ExtendedFloat::Extend(arg_f32 as f64))` — and get the
 // same adjoint answer as native f64 input.
 float_conn!(F064FD00, f64, FD00, 1);
 float_conn!(F064FD01, f64, FD01, 10);
@@ -456,16 +456,16 @@ mod tests {
     // Spot checks with exactly-representable f64 values.
     #[test]
     fn float_conn_spot() {
-        let half = ExtendedFloat::Finite(0.5_f64);
+        let half = ExtendedFloat::Extend(0.5_f64);
         assert_eq!(F064FD03.ceil(half), Extended::Finite(FD03(500)));
         assert_eq!(F064FD03.floor(half), Extended::Finite(FD03(500)));
         assert_eq!(F064FD06.ceil(half), Extended::Finite(FD06(500_000)));
         assert_eq!(
-            F064FD12.ceil(ExtendedFloat::Finite(0.25_f64)),
+            F064FD12.ceil(ExtendedFloat::Extend(0.25_f64)),
             Extended::Finite(FD12(250_000_000_000))
         );
 
-        let one_and_half = ExtendedFloat::Finite(1.5_f64);
+        let one_and_half = ExtendedFloat::Extend(1.5_f64);
         assert_eq!(
             F064FD06.ceil(one_and_half),
             Extended::Finite(FD06(1_500_000))
@@ -476,7 +476,7 @@ mod tests {
         );
         assert_eq!(
             F064FD06.inner(Extended::Finite(FD06(1_500_000))),
-            ExtendedFloat::Finite(1.5_f64)
+            ExtendedFloat::Extend(1.5_f64)
         );
 
         // Saturation map (matches the table in the macro doc comment).
@@ -485,20 +485,20 @@ mod tests {
         assert_eq!(F064FD06.ceil(ExtendedFloat::Top), Extended::PosInf);
         assert_eq!(F064FD06.floor(ExtendedFloat::Top), Extended::PosInf);
 
-        let nan: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
+        let nan: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::NAN);
         assert_eq!(F064FD06.ceil(nan), Extended::PosInf);
         assert_eq!(F064FD06.floor(nan), Extended::NegInf);
 
-        let pos_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::INFINITY);
+        let pos_inf: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::INFINITY);
         assert_eq!(F064FD06.ceil(pos_inf), Extended::PosInf);
         assert_eq!(F064FD06.floor(pos_inf), Extended::Finite(FD06(i64::MAX)));
 
-        let neg_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NEG_INFINITY);
+        let neg_inf: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::NEG_INFINITY);
         assert_eq!(F064FD06.ceil(neg_inf), Extended::Finite(FD06(i64::MIN)));
         assert_eq!(F064FD06.floor(neg_inf), Extended::NegInf);
 
         // Inner maps target ±Inf to ExtendedFloat's Top/Bot (synthetic
-        // bounds outside the float range), NOT to Finite(±f64::INFINITY).
+        // bounds outside the float range), NOT to Extend(±f64::INFINITY).
         assert_eq!(F064FD06.inner(Extended::PosInf), ExtendedFloat::Top);
         assert_eq!(F064FD06.inner(Extended::NegInf), ExtendedFloat::Bot);
     }
@@ -514,61 +514,61 @@ mod tests {
         assert_eq!(F064FD00.ceil(ExtendedFloat::Top), Extended::PosInf);
         assert_eq!(F064FD00.floor(ExtendedFloat::Top), Extended::PosInf);
 
-        let nan: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
+        let nan: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::NAN);
         assert_eq!(F064FD00.ceil(nan), Extended::PosInf);
         assert_eq!(F064FD00.floor(nan), Extended::NegInf);
 
-        let pos_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::INFINITY);
+        let pos_inf: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::INFINITY);
         assert_eq!(F064FD00.ceil(pos_inf), Extended::PosInf);
         assert_eq!(F064FD00.floor(pos_inf), Extended::Finite(FD00(i64::MAX)));
 
-        let neg_inf: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NEG_INFINITY);
+        let neg_inf: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::NEG_INFINITY);
         assert_eq!(F064FD00.ceil(neg_inf), Extended::Finite(FD00(i64::MIN)));
         assert_eq!(F064FD00.floor(neg_inf), Extended::NegInf);
 
         // Identity on exact integers.
         assert_eq!(
-            F064FD00.ceil(ExtendedFloat::Finite(42.0)),
+            F064FD00.ceil(ExtendedFloat::Extend(42.0)),
             Extended::Finite(FD00(42))
         );
         assert_eq!(
-            F064FD00.floor(ExtendedFloat::Finite(42.0)),
+            F064FD00.floor(ExtendedFloat::Extend(42.0)),
             Extended::Finite(FD00(42))
         );
         assert_eq!(
-            F064FD00.ceil(ExtendedFloat::Finite(-42.0)),
+            F064FD00.ceil(ExtendedFloat::Extend(-42.0)),
             Extended::Finite(FD00(-42))
         );
         assert_eq!(
-            F064FD00.floor(ExtendedFloat::Finite(-42.0)),
+            F064FD00.floor(ExtendedFloat::Extend(-42.0)),
             Extended::Finite(FD00(-42))
         );
 
         // Non-integer: ceil up, floor down.
         assert_eq!(
-            F064FD00.ceil(ExtendedFloat::Finite(0.25)),
+            F064FD00.ceil(ExtendedFloat::Extend(0.25)),
             Extended::Finite(FD00(1))
         );
         assert_eq!(
-            F064FD00.floor(ExtendedFloat::Finite(0.25)),
+            F064FD00.floor(ExtendedFloat::Extend(0.25)),
             Extended::Finite(FD00(0))
         );
         assert_eq!(
-            F064FD00.ceil(ExtendedFloat::Finite(-0.25)),
+            F064FD00.ceil(ExtendedFloat::Extend(-0.25)),
             Extended::Finite(FD00(0))
         );
         assert_eq!(
-            F064FD00.floor(ExtendedFloat::Finite(-0.25)),
+            F064FD00.floor(ExtendedFloat::Extend(-0.25)),
             Extended::Finite(FD00(-1))
         );
 
         // Very large finite: saturating, into Finite at the ceil/floor
         // boundary rather than flowing to ±Inf on the target.
-        let huge = ExtendedFloat::Finite(2.0_f64.powi(70)); // > i64::MAX
+        let huge = ExtendedFloat::Extend(2.0_f64.powi(70)); // > i64::MAX
         assert_eq!(F064FD00.ceil(huge), Extended::PosInf);
         assert_eq!(F064FD00.floor(huge), Extended::Finite(FD00(i64::MAX)));
 
-        let tiny = ExtendedFloat::Finite(-2.0_f64.powi(70)); // < i64::MIN
+        let tiny = ExtendedFloat::Extend(-2.0_f64.powi(70)); // < i64::MIN
         assert_eq!(F064FD00.ceil(tiny), Extended::Finite(FD00(i64::MIN)));
         assert_eq!(F064FD00.floor(tiny), Extended::NegInf);
     }
@@ -629,7 +629,7 @@ mod tests {
 
                     // Idempotence: inner∘ceil is idempotent on its
                     // image. ExtendedFloat<f64>'s PartialEq treats
-                    // Finite(NaN) == Finite(NaN) as true, so the
+                    // Extend(NaN) == Extend(NaN) as true, so the
                     // Eq-bound `conn_idempotent` predicate is the
                     // right comparison here.
                     #[test]

@@ -91,7 +91,7 @@
 //! runs of Rung values onto the same f32, forcing an O(plateau)
 //! correction per ceil/floor call. f32 callers widen losslessly at
 //! the boundary:
-//! `F064FD06.ceil(ExtendedFloat::Finite(arg_f32 as f64))`. `F128` is
+//! `F064FD06.ceil(ExtendedFloat::Extend(arg_f32 as f64))`. `F128` is
 //! blocked on `f128` stabilisation in stable Rust.
 //!
 //! ## Composition

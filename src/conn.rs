@@ -240,19 +240,19 @@ mod tests {
         fn galois_l_ef64(a in arb_f64(), b in arb_f64()) {
             prop_assert!(laws::conn_galois_l(
                 &ID_EF64,
-                ExtendedFloat::Finite(a),
-                ExtendedFloat::Finite(b),
+                ExtendedFloat::Extend(a),
+                ExtendedFloat::Extend(b),
             ));
         }
 
         #[test]
         fn closure_l_ef64(a in arb_f64()) {
-            prop_assert!(laws::conn_closure_l(&ID_EF64, ExtendedFloat::Finite(a)));
+            prop_assert!(laws::conn_closure_l(&ID_EF64, ExtendedFloat::Extend(a)));
         }
 
         #[test]
         fn kernel_l_ef64(b in arb_f64()) {
-            prop_assert!(laws::conn_kernel_l(&ID_EF64, ExtendedFloat::Finite(b)));
+            prop_assert!(laws::conn_kernel_l(&ID_EF64, ExtendedFloat::Extend(b)));
         }
     }
 

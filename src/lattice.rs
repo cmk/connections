@@ -11,7 +11,7 @@
 //! Ordering laws use the standard library's `Eq + PartialOrd` rather
 //! than a crate-local trait. The fix for IEEE-float NaN's
 //! non-reflexivity lives in [`crate::conn::float::ExtendedFloat`],
-//! whose patched `PartialEq` makes `Finite(NaN) == Finite(NaN)` and
+//! whose patched `PartialEq` makes `Extend(NaN) == Extend(NaN)` and
 //! satisfies `Eq`. Floats flow through the laws by wrapping into
 //! `ExtendedFloat<T>`; raw `f32`/`f64` cannot satisfy `Eq` and are
 //! rejected at compile time.
@@ -349,7 +349,7 @@ mod tests {
     // Raw `f32`/`f64` are *not* `Eq` (NaN ≠ NaN under their standard
     // `PartialEq`), so they cannot be used with the lattice predicates.
     // Wrap into `ExtendedFloat<T>`, whose patched `PartialEq` makes
-    // `Finite(NaN) == Finite(NaN)` and synthesises Bot/Top as the
+    // `Extend(NaN) == Extend(NaN)` and synthesises Bot/Top as the
     // lattice extremes. The N5-specific cells (`NaN ≤ +∞`,
     // `-∞ ≤ NaN`) are deliberately not asserted: ExtendedFloat
     // preserves NaN's incomparability with every finite (including
@@ -357,26 +357,26 @@ mod tests {
 
     #[test]
     fn nan_reflexive_ef64() {
-        let n: ExtendedFloat<f64> = ExtendedFloat::Finite(f64::NAN);
-        assert_eq!(n, ExtendedFloat::Finite(f64::NAN));
+        let n: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::NAN);
+        assert_eq!(n, ExtendedFloat::Extend(f64::NAN));
     }
 
     #[test]
     fn bot_below_finite() {
-        assert!(ExtendedFloat::<f64>::Bot <= ExtendedFloat::Finite(0.0));
-        assert!(ExtendedFloat::<f64>::Bot <= ExtendedFloat::Finite(f64::NAN));
+        assert!(ExtendedFloat::<f64>::Bot <= ExtendedFloat::Extend(0.0));
+        assert!(ExtendedFloat::<f64>::Bot <= ExtendedFloat::Extend(f64::NAN));
     }
 
     #[test]
     fn finite_below_top() {
-        assert!(ExtendedFloat::Finite(0.0_f64) <= ExtendedFloat::<f64>::Top);
-        assert!(ExtendedFloat::Finite(f64::NAN) <= ExtendedFloat::<f64>::Top);
+        assert!(ExtendedFloat::Extend(0.0_f64) <= ExtendedFloat::<f64>::Top);
+        assert!(ExtendedFloat::Extend(f64::NAN) <= ExtendedFloat::<f64>::Top);
     }
 
     #[test]
     fn normal_ordering_preserved() {
-        assert!(ExtendedFloat::Finite(1.0_f64) <= ExtendedFloat::Finite(2.0));
-        assert!(ExtendedFloat::Finite(2.0_f64) > ExtendedFloat::Finite(1.0));
+        assert!(ExtendedFloat::Extend(1.0_f64) <= ExtendedFloat::Extend(2.0));
+        assert!(ExtendedFloat::Extend(2.0_f64) > ExtendedFloat::Extend(1.0));
     }
 
     // ── Partial-order property tests (ExtendedFloat<f32> / <f64>) ─
@@ -385,7 +385,7 @@ mod tests {
         prop_oneof![
             1 => Just(ExtendedFloat::Bot),
             1 => Just(ExtendedFloat::Top),
-            8 => arb_f64().prop_map(ExtendedFloat::Finite),
+            8 => arb_f64().prop_map(ExtendedFloat::Extend),
         ]
     }
 
@@ -393,7 +393,7 @@ mod tests {
         prop_oneof![
             1 => Just(ExtendedFloat::Bot),
             1 => Just(ExtendedFloat::Top),
-            8 => arb_f32().prop_map(ExtendedFloat::Finite),
+            8 => arb_f32().prop_map(ExtendedFloat::Extend),
         ]
     }
 
