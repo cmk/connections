@@ -111,11 +111,33 @@ impl<A, B> Conn<A, B> {
     /// Construct a one-sided connection `ceil ⊣ inner` (no distinct floor).
     ///
     /// Sets `floor = ceil`, matching the Haskell `CastL` representation.
+    /// Use this when the connection is naturally "left-Galois": the
+    /// saturation plateau (if any) lives on the source side, where
+    /// `ceil` collapses extra source values onto a single target. The
+    /// `conn_galois_l` law (`ceil(a) ≤ b ⟺ a ≤ inner(b)`) holds; the
+    /// right-Galois law generally does not.
     pub const fn new_left(ceil: fn(A) -> B, inner: fn(B) -> A) -> Self {
         Conn {
             ceil,
             inner,
             floor: ceil,
+        }
+    }
+
+    /// Construct a one-sided connection `inner ⊣ floor` (no distinct ceil).
+    ///
+    /// Sets `ceil = floor`, the right-Galois mirror of [`new_left`] —
+    /// matching the Haskell `CastR` representation. Use this when the
+    /// saturation plateau lives on the *target* side, where `inner`
+    /// collapses extra target values onto a single source (e.g. an
+    /// unsigned source clipping a signed target's negative half to
+    /// `0`). The `conn_galois_r` law (`inner(b) ≤ a ⟺ b ≤ floor(a)`)
+    /// holds; the left-Galois law generally does not.
+    pub const fn new_right(inner: fn(B) -> A, floor: fn(A) -> B) -> Self {
+        Conn {
+            ceil: floor,
+            inner,
+            floor,
         }
     }
 
@@ -192,6 +214,23 @@ mod tests {
         // floor should behave identically to ceil
         assert_eq!(c.ceil(5), c.floor(5));
         assert_eq!(c.ceil(-3), c.floor(-3));
+    }
+
+    #[test]
+    fn new_right_ceil_eq_floor() {
+        fn halve(x: i64) -> i32 {
+            (x / 2) as i32
+        }
+        fn double(x: i32) -> i64 {
+            x as i64 * 2
+        }
+        let c = Conn::new_right(halve, double);
+        // ceil should behave identically to floor
+        assert_eq!(c.ceil(5), c.floor(5));
+        assert_eq!(c.ceil(-3), c.floor(-3));
+        // and round-trip through the explicit floor/inner pair.
+        assert_eq!(c.floor(5), 10);
+        assert_eq!(c.inner(10), 5);
     }
 
     // ── Property tests for identity connection (i32, exercises Ord) ──
