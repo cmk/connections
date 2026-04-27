@@ -6,8 +6,12 @@
 //!
 //! - [`date`] — calendar `Date` connections ([`DATEJDAY`]).
 //! - [`clock`] — clock-time connections ([`TIMENANO`], [`TIMESECS`]).
-//! - [`duration`] — signed time-span connections ([`DURNSECS`]).
+//! - [`duration`] — signed time-span connections ([`DURNSECS`],
+//!   [`DURNFD09`]).
 //! - [`datetime`] — naive `PrimitiveDateTime` connections ([`PDTMDATE`]).
+//! - [`offset`] — timezone-aware `OffsetDateTime` connections
+//!   ([`OFDTNANO`], [`OFDTSECS`]). A planned `UtcOffset` conn is
+//!   deferred — see the module docs for the rationale.
 //!
 //! Every public `Conn` constant is re-exported from this module's
 //! root, so callers continue to write
@@ -40,7 +44,10 @@
 //! | [`TIMENANO`] | `Conn<Extended<Time>, i64>` | nanoseconds since midnight (exact bijection on `[0, 86_400 × 10⁹)`). |
 //! | [`TIMESECS`] | `Conn<Extended<Time>, i64>` | whole seconds since midnight; sub-second `ceil` and `floor` differ. |
 //! | [`DURNSECS`] | `Conn<Duration, Extended<i64>>` | signed whole seconds; rung extended for `±i64::MAX ± 1` overflow. |
+//! | [`DURNFD09`] | `Conn<Duration, Extended<FD09>>` | nanosecond-resolution fixed-point; saturates outside `±i64` nanos. |
 //! | [`PDTMDATE`] | `Conn<PrimitiveDateTime, Extended<Date>>` | drops sub-day time; `ceil` rolls to the next day if past midnight. |
+//! | [`OFDTNANO`] | `Conn<Extended<OffsetDateTime>, i128>` | unix nanoseconds since epoch (lossless across full OffsetDateTime range). |
+//! | [`OFDTSECS`] | `Conn<Extended<OffsetDateTime>, i64>` | unix whole seconds since epoch; sub-second rounding. |
 //!
 //! Each constant ships with a runnable `# Examples` doctest and a
 //! `proptest!` block driving the laws in [`crate::property::laws`].
@@ -77,8 +84,10 @@ pub mod clock;
 pub mod date;
 pub mod datetime;
 pub mod duration;
+pub mod offset;
 
 pub use clock::{TIMENANO, TIMESECS};
 pub use date::DATEJDAY;
 pub use datetime::PDTMDATE;
 pub use duration::{DURNFD09, DURNSECS};
+pub use offset::{OFDTNANO, OFDTSECS};
