@@ -448,3 +448,15 @@ pub fn arb_secs_in_range() -> impl Strategy<Value = i64> {
         8 => 0..=SECS_MAX,
     ]
 }
+
+/// `Extended<i64>` over `NegInf`, `PosInf`, and `Finite` values —
+/// 1:1:8 weighting with explicit bias toward `Finite::{MIN, MAX}`.
+pub fn arb_extended_i64() -> impl Strategy<Value = Extended<i64>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(i64::MIN)),
+        1 => Just(Extended::Finite(i64::MAX)),
+        8 => any::<i64>().prop_map(Extended::Finite),
+    ]
+}
