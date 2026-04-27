@@ -3,13 +3,13 @@
 //! - [`decimal`] — `i64`-backed SI-prefix ladder (`FD00`..`FD12`,
 //!   base-10 scaling). Hand-rolled, independent of the upstream
 //!   `fixed` crate.
-//! - [`i08`] / [`i16`] / [`i32`] / [`i64`] / [`i128`] — `fixed`-crate
+//! - [`i08`] / [`mod@i16`] / [`mod@i32`] / [`mod@i64`] / [`mod@i128`] — `fixed`-crate
 //!   `FixedI<width><Frac>` ladders (base-2 scaling). The submodule
 //!   name encodes the inner primitive width; `Frac` levels are
 //!   encoded in the Conn-constant names (`I<frac>I<frac>`, three-digit
 //!   zero-padded). The `i128` module uses `checked_mul`+saturate
 //!   instead of widening (no native `i256` in stable Rust).
-//! - [`u08`] / [`u16`] / [`u32`] / [`u64`] / [`u128`] — same shape
+//! - [`u08`] / [`mod@u16`] / [`mod@u32`] / [`mod@u64`] / [`mod@u128`] — same shape
 //!   over `FixedU<width><Frac>`. Frac level set extends each signed
 //!   counterpart with the canonical Q1.N format for the width
 //!   (`U7` in u08 for MIDI velocity, `U14`/`U15` in u16, etc.).

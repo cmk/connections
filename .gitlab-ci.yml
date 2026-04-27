@@ -41,6 +41,17 @@ clippy:
   script:
     - cargo clippy --all-targets -- -D warnings
 
+doc:
+  stage: check
+  # Catch broken intra-doc links and rustdoc warnings before docs.rs
+  # builds the published release. `--all-features` matches the
+  # docs.rs config in Cargo.toml so feature-gated items (property::arb)
+  # render the same way locally as on docs.rs.
+  variables:
+    RUSTDOCFLAGS: "-D warnings"
+  script:
+    - cargo doc --no-deps --all-features --document-private-items
+
 test:
   stage: test
   script:
@@ -71,6 +82,13 @@ deny:
     # When rust-toolchain.toml bumps to 1.88+, drop the explicit
     # subcheck list to re-enable advisories.
     - cargo-deny check licenses bans sources
+  # `deny` audits a snapshot of dependencies; the inputs don't move
+  # between sibling commits on a feature branch. Run once per landed
+  # change (post-merge on main) and on scheduled pipelines, not on
+  # every push/MR.
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
 
 gitleaks:
   stage: audit
@@ -85,6 +103,13 @@ gitleaks:
   cache: []
   script:
     - gitleaks detect --source . --verbose --config .gitleaks.toml
+  # Same cadence rationale as `deny`: secret scans match this commit's
+  # working tree, but a leak introduced earlier on a feature branch
+  # will still get caught on the post-merge run on `main`. Skip the
+  # per-MR run to save ~30s per pipeline.
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
 
 claude-review:
   stage: audit

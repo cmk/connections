@@ -1,4 +1,4 @@
-//! Conns originating at [`F064`](super::F064).
+//! Conns originating at [`F064`].
 //!
 //! Currently houses [`F064F032`] (`ExtendedFloat<f64> → ExtendedFloat<f32>`).
 //! Future direct-precision Conns from f64 (e.g. `F064F016`, `F064B016`)
