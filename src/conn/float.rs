@@ -18,11 +18,11 @@
 //! incomparability with finites is inherited unchanged from
 //! `PartialOrd` on the wrapped `T`.
 //!
-//! This module also defines the connections between bare float types
-//! (`f64 ↔ f32`). Connections involving `ExtendedFloat` wrappers will be
-//! added when the design.md §"Connections involving floats" is
-//! implemented; for now, the wrapper type lives here alongside the
-//! bare-float connections, ready to be used.
+//! This module also defines [`F064F032`], the
+//! `Conn<ExtendedFloat<f64>, ExtendedFloat<f32>>` lossy float
+//! narrowing connection. Both endpoints are `ExtendedFloat<T>`; raw
+//! `f32`/`f64` are not Conn endpoints because they cannot impl `Eq`
+//! (NaN ≠ NaN under standard `PartialEq`).
 
 use crate::conn::Conn;
 use std::cmp::Ordering;
@@ -459,6 +459,20 @@ mod tests {
         fn idempotent(a in ef64()) {
             prop_assert!(laws::conn_idempotent(&F064F032, a));
         }
+
+        #[test]
+        fn floor_le_ceil(a in ef64()) {
+            prop_assert!(laws::conn_floor_le_ceil(&F064F032, a));
+        }
+
+        // `conn_ulp_bound` is intentionally omitted for `F064F032`.
+        // The predicate's `rung: F where F: Fn(B) -> i64` extractor
+        // is documented (`laws.rs:439-447`) as "specific to integer-
+        // tier connections (the rung types have an i64 payload)".
+        // For float Conns, ULP is bit-level (mantissa increment), a
+        // different concept — and there is no clean i64 mapping for
+        // `ExtendedFloat<f32>` (Bot / Top would have to alias to
+        // sentinel ints, which isn't a meaningful "rung distance").
     }
 
     // ── ExtendedFloat tests (folded in from former src/float_ext.rs) ────
