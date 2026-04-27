@@ -72,7 +72,7 @@ letter / digit shapes:
 | `A123` form    | 1       | 3      | `F064`       | most families: `F`, `I`, `U`, `S`                 |
 | `AB12` form    | 2       | 2      | `FD12`       | families that need a 2-letter prefix (`FD`)       |
 | `ABC1` form    | 3       | 1      | `FDX1`       | reserved — no current uses                        |
-| `ABCD` form    | 4       | 0      | `FOOO`       | reserved — no current uses                        |
+| `ABCD` form    | 4       | 0      | `DURN`       | domain-mnemonic families: `conn::time` (`DURNSECS`, `DATEJDAY`, `TIMENANO`, `OFDTNANO`, `OFDTSECS`, `PDTMDATE`, …) |
 
 The two sides may pick **independently**: a Conn that bridges two
 families with different prefix lengths is allowed and expected.
@@ -99,7 +99,7 @@ Hard rules:
 - Letters and digits only — no underscores, hyphens, or other
   separators inside the name.
 - Cross-module name collisions are **allowed** and resolved by
-  qualified-import; e.g. `conn::fixed::i08::I008I000` and
+  qualified-import; e.g. `conn::fixed::i8::I008I000` and
   `conn::fixed::i64::I008I000` co-exist by `use … as alias;`.
 
 This applies to all `pub const`s of type `Conn<_, _>` exported from
@@ -107,6 +107,77 @@ This applies to all `pub const`s of type `Conn<_, _>` exported from
 (e.g. `FD12`, `S044`) follow the same per-side shape so the Conn
 constant name is the literal concatenation of its two endpoint type
 codes.
+
+### Module organization
+
+The `conn::*` tree is organized **one submodule per dependency
+crate**:
+
+| Submodule        | Host crate      | Files (one per host type)                                  |
+|------------------|-----------------|------------------------------------------------------------|
+| `conn::std`      | `std`           | `i8.rs`–`i128.rs`, `u8.rs`–`u128.rs`, `f32.rs`, `f64.rs`  |
+| `conn::fixed`    | `fixed`         | `i8.rs`–`i128.rs`, `u8.rs`–`u128.rs`                       |
+| `conn::half`     | `half`          | `f16.rs`, `bf16.rs`                                        |
+| `conn::time`     | `time`          | `clock.rs`, `date.rs`, `datetime.rs`, `duration.rs`, `offset.rs` |
+| `conn::cast`     | (this crate)    | Conn-typed accessors / lifters                             |
+| `conn::float`    | (this crate)    | thin module hosting `ExtendedFloat<T>` only                |
+
+The custom decimal-SI ladder is nested under its host primitive:
+`conn::std::i64::decimal` (the `FD<N>` types are i64 newtypes, so
+"i64 plus decimal scaling" is a single semantic family). Both
+intra-decimal Conns (`FD<M>FD<N>`) and float-decimal bridges
+(`F064FD<N>`) live there.
+
+**Filenames follow the host type name verbatim** — `i8.rs`,
+`u128.rs`, `f64.rs`, `bf16.rs`, `date.rs`, `duration.rs`. The 8-char
+zero-padded form (`I008I016`) is reserved for Conn const
+**identifiers** (per §Conn-name format) and is **never** used as a
+module path.
+
+#### Conn placement: which module hosts each `pub const`?
+
+When deciding where a new `Conn<A, B>` const lives, apply the
+following precedence in order:
+
+1. **Specificity: more-specific type wins over more-general type.**
+   The Conn lives in the module of the more-specific endpoint.
+   Specificity is roughly:
+       domain types (Duration, Date, OffsetDateTime, FixedI8, f16, bf16)
+       > generic numeric wrappers (Extended<T>, ExtendedFloat<T>, FD<N>)
+       > std primitives (i8, …, i128, u8, …, u128, f32, f64).
+   When ambiguous, the more-semantically-loaded type wins.
+2. **Same-tier tie-breaker: right-side wins over left-side.** If
+   both endpoints sit at the same specificity tier, the Conn lives
+   in the module of the **right-hand-side** type — which is the
+   coarser / smaller-resolution side per the §Conn-name format
+   rule.
+
+**(1) subsumes "external-crate type beats `std`":** std primitives
+are at the bottom of the specificity order, so any Conn touching a
+`fixed`-, `half`-, or `time`-crate type is hosted in that crate's
+submodule by rule (1) alone.
+
+Worked examples:
+
+| Conn          | Sides                              | Rule                          | Module                          |
+|---------------|------------------------------------|-------------------------------|---------------------------------|
+| `F064F032`    | `f64` / `f32`                      | tie → right wins              | `conn::std::f32`                |
+| `F064F016`    | `f64` (std) / `f16` (half)         | (1) `f16` more specific       | `conn::half::f16`               |
+| `F032B016`    | `f32` (std) / `bf16` (half)        | (1) `bf16` more specific      | `conn::half::bf16`              |
+| `I008I016`    | `Extended<i8>` / `i16`             | tie → right wins              | `conn::std::i16`                |
+| `U008I016`    | `Extended<u8>` / `i16`             | tie → right wins              | `conn::std::i16`                |
+| `I008U016`    | `i8` / `u16`                       | tie → right wins              | `conn::std::u16`                |
+| `FD12FD06`    | `FD12` / `FD06` (both decimal)     | tie → right wins              | `conn::std::i64::decimal`       |
+| `F064FD06`    | `f64` (std) / `FD06` (decimal)     | (1) `FD06` more specific      | `conn::std::i64::decimal`       |
+| `I008I004`    | `FixedI8<U8>` / `FixedI8<U7>`      | tie → right wins              | `conn::fixed::i8`               |
+| `DURNFD09`    | `Duration` (time) / `FD09`         | (1) `Duration` more specific  | `conn::time::duration`          |
+| `DATEJDAY`    | `Extended<Date>` / `i32`           | (1) `Date` more specific      | `conn::time::date`              |
+| `OFDTNANO`    | `Extended<OffsetDateTime>` / `i128`| (1) `OffsetDateTime` wins     | `conn::time::offset`            |
+| `PDTMDATE`    | `PrimitiveDateTime` / `Extended<Date>` | (1) `PDT` more semantic   | `conn::time::datetime`          |
+
+Cross-module name collisions are allowed (per §Conn-name format) —
+e.g. `conn::fixed::i8::I008I000` and `conn::fixed::i64::I008I000`
+both exist; users resolve by qualified import.
 
 ### Session notes
 
