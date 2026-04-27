@@ -4,6 +4,8 @@
 use connections::conn::std::u128::*;
 use proptest::prelude::*;
 
+// `galois_lower` intentionally omitted; see
+// `tests/conn_std_u8_galois.rs`.
 macro_rules! single_sided_props {
     ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {

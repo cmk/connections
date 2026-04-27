@@ -172,12 +172,27 @@ pub(crate) use ext_int;
 
 /// `Conn<i_N, i_M>` narrowing (`bits(i_N) > bits(i_M)`).
 ///
+/// **Constraint** (verified at the call site, not at compile time):
+/// `bits($A) > bits($B)`. The macro's `ceil` casts `<$B>::MAX as $A`
+/// and `<$B>::MIN as $A` for its threshold checks; both must fit
+/// losslessly in `$A` for the saturation logic to be correct.
+/// Mirrors the `ext_int!` constraint a few lines up.
+///
 /// `ceil` saturates at both `i_M::MIN` and `i_M::MAX`; `inner` is
 /// the lossless widen with the high-end FINE_MAX fixup
-/// (`inner(i_M::MAX) = i_N::MAX`). The low-end plateau holds
-/// without fixup because `i_M::MIN as i_N` is strictly above
-/// `i_N::MIN`, so `inner(i_M::MIN)` lands above every low-plateau
-/// source value.
+/// (`inner(i_M::MAX) = i_N::MAX`).
+///
+/// **Why no FINE_MIN fixup?** The low-end plateau holds for
+/// `galois_l` without one. The plateau covers source values
+/// `a < i_M::MIN as i_N` (everything `ceil` collapses onto
+/// `i_M::MIN`). For these, `ceil(a) = i_M::MIN ≤ b` is true for
+/// every `b ∈ i_M`, so the law's LHS is always true, and the RHS
+/// (`a ≤ inner(b)`) is also always true because
+/// `inner(b) ≥ i_M::MIN as i_N > a` (since
+/// `i_M::MIN as i_N > i_N::MIN ≥ a` by the bit-width
+/// constraint). Both sides match without fiddling. Compare the
+/// high end, where `ceil` collapsing onto `i_M::MAX` does require
+/// the fixup so `a ≤ inner(i_M::MAX) = i_N::MAX` holds.
 macro_rules! int_int_narrow {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
@@ -235,6 +250,14 @@ macro_rules! uint_uint_narrow {
 pub(crate) use uint_uint_narrow;
 
 /// `Conn<u_N, i_M>` non-widening cross-sign (`bits(u_N) ≥ bits(i_M)`).
+///
+/// **Constraint** (verified at the call site, not at compile time):
+/// `bits($A) ≥ bits($B)`. `floor` casts `<$B>::MAX as $A`, which
+/// must fit in `$A` losslessly — guaranteed by the bit-width
+/// constraint since `$B::MAX > 0` and unsigned `$A` can hold any
+/// positive value up to `$A::MAX ≥ $B::MAX`. `inner` casts
+/// non-negative `$B` values to `$A`, also lossless under the
+/// same constraint. Mirrors the `ext_int!` constraint pattern.
 ///
 /// **Right-Galois single-sided** (uses [`Conn::new_right`](crate::conn::Conn::new_right)). The
 /// saturation plateau lives on the target side: `inner` clips

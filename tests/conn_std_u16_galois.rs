@@ -4,6 +4,10 @@
 use connections::conn::std::u16::*;
 use proptest::prelude::*;
 
+// Tests `galois_upper` only; `galois_lower` is intentionally
+// omitted (fails by design for `Conn::new_left` at saturation
+// plateaus). See `tests/conn_std_u8_galois.rs` for the worked
+// counter-example.
 macro_rules! single_sided_props {
     ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {

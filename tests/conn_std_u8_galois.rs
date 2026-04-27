@@ -7,6 +7,14 @@
 use connections::conn::std::u8::*;
 use proptest::prelude::*;
 
+// Left-Galois single-sided battery: `galois_upper`, monotonicity,
+// kernel, idempotent. **`galois_lower` is intentionally omitted**
+// — for `Conn::new_left` (where `floor = ceil`), the right-Galois
+// bi-implication `inner(b) ≤ a ⟺ b ≤ floor(a)` fails by design at
+// saturation plateaus. That asymmetry is the defining property of
+// "single-sided"; only one Galois direction holds. See the review
+// thread on MR !27 for the worked counter-example at
+// `(a = i32::MIN, b = i8::MIN)`.
 macro_rules! single_sided_props {
     ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {

@@ -82,6 +82,8 @@ ext_int_props!(i008i016, I008I016, arb_ext_i8(), any::<i16>());
 ext_int_props!(u008i016, U008I016, arb_ext_u8(), any::<i16>());
 
 // §1 I→I narrowing — single-sided left-Galois.
+// `galois_lower` intentionally omitted; see
+// `tests/conn_std_u8_galois.rs`.
 macro_rules! single_sided_props {
     ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
