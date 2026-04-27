@@ -95,6 +95,52 @@ pub fn arb_f64_bounded() -> impl Strategy<Value = f64> {
 // saturates f32 into a bounded integer rung. Add it (mirroring
 // `arb_f64_bounded` above) when an F32F?? or similar conn appears.
 
+/// Arbitrary [`half::f16`] with edge-case-heavy boundary set.
+///
+/// 8:2 boundary-to-uniform weighting (boundary-heavy by design — the
+/// 16-bit type's interesting failure modes are concentrated at NaN,
+/// ±0, ±∞, MIN/MAX, and the subnormal boundary). The uniform slot is
+/// a bounded `f32` range covering the full finite `f16` domain
+/// (`±f16::MAX = ±65504`) mapped through `from_f32` (RTNE) — bounded
+/// so proptest's float-range strategy does binary-search shrinking
+/// rather than per-bit toggling on the 16-bit pattern.
+pub fn arb_f16() -> impl Strategy<Value = half::f16> {
+    prop_oneof![
+        1 => Just(half::f16::NAN),
+        1 => Just(half::f16::INFINITY),
+        1 => Just(half::f16::NEG_INFINITY),
+        1 => Just(half::f16::ZERO),
+        1 => Just(half::f16::NEG_ZERO),
+        1 => Just(half::f16::MIN_POSITIVE),
+        1 => Just(half::f16::MIN_POSITIVE_SUBNORMAL),
+        1 => Just(half::f16::MAX),
+        1 => Just(half::f16::MIN),
+        2 => (-65504.0_f32..=65504.0_f32).prop_map(half::f16::from_f32),
+    ]
+}
+
+/// Arbitrary [`half::bf16`] with edge-case-heavy boundary set.
+///
+/// Same 8:2 shape as [`arb_f16`]. The uniform slot uses a smaller
+/// bounded f32 range (`±1e6`) than bf16's true ±3.4e38 dynamic range
+/// — the boundary slot still includes `bf16::MAX` / `bf16::MIN` so
+/// extreme magnitudes are covered. Tight uniform range keeps shrink
+/// time bounded.
+pub fn arb_bf16() -> impl Strategy<Value = half::bf16> {
+    prop_oneof![
+        1 => Just(half::bf16::NAN),
+        1 => Just(half::bf16::INFINITY),
+        1 => Just(half::bf16::NEG_INFINITY),
+        1 => Just(half::bf16::ZERO),
+        1 => Just(half::bf16::NEG_ZERO),
+        1 => Just(half::bf16::MIN_POSITIVE),
+        1 => Just(half::bf16::MIN_POSITIVE_SUBNORMAL),
+        1 => Just(half::bf16::MAX),
+        1 => Just(half::bf16::MIN),
+        2 => (-1.0e6_f32..=1.0e6_f32).prop_map(half::bf16::from_f32),
+    ]
+}
+
 // ── Fixed-point ladder (FD12..FD00) strategies ───────────────────
 //
 // For each (Fine, Coarse) pair with ratio PREC, the `inner` call
@@ -177,6 +223,27 @@ pub fn extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
         1 => Just(ExtendedFloat::Bot),
         1 => Just(ExtendedFloat::Top),
         8 => arb_f64_bounded().prop_map(ExtendedFloat::Finite),
+    ]
+}
+
+/// `ExtendedFloat<half::f16>` over `Bot`, `Top`, and `Finite` from
+/// [`arb_f16`] (1:1:8 weighting toward finite, matching the existing
+/// extended-float strategies).
+pub fn extended_float_f16() -> impl Strategy<Value = ExtendedFloat<half::f16>> {
+    prop_oneof![
+        1 => Just(ExtendedFloat::Bot),
+        1 => Just(ExtendedFloat::Top),
+        8 => arb_f16().prop_map(ExtendedFloat::Finite),
+    ]
+}
+
+/// `ExtendedFloat<half::bf16>` over `Bot`, `Top`, and `Finite` from
+/// [`arb_bf16`] (1:1:8 weighting).
+pub fn extended_float_bf16() -> impl Strategy<Value = ExtendedFloat<half::bf16>> {
+    prop_oneof![
+        1 => Just(ExtendedFloat::Bot),
+        1 => Just(ExtendedFloat::Top),
+        8 => arb_bf16().prop_map(ExtendedFloat::Finite),
     ]
 }
 
