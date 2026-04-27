@@ -181,7 +181,7 @@ fn floor_f64_f16(x: f64) -> f16 {
 /// `bf16::from_f64` does single-step RNE rounding; the walk
 /// converges in ≤ 2 ULPs on the bf16 side.
 ///
-/// **This is the headline new feature of MR !20** — direct f64 →
+/// **This is the headline new feature of MR !21** — direct f64 →
 /// bfloat16 with full Galois-law backing, on stable Rust.
 ///
 /// ```
