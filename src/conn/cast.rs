@@ -292,7 +292,7 @@ mod tests {
     // shipped here only as a test fixture (full `ordered!` macro
     // arrives in Sprint C).
 
-    fn ordered_pair() -> Conn<(i32, i32), i32> {
+    const ORDERED_PAIR: Conn<(i32, i32), i32> = {
         fn ceil(p: (i32, i32)) -> i32 {
             p.0.max(p.1)
         }
@@ -303,20 +303,18 @@ mod tests {
             p.0.min(p.1)
         }
         Conn::new(ceil, inner, floor)
-    }
+    };
 
     #[test]
     fn maximize_eq_ceiling_pair() {
-        let c = ordered_pair();
-        assert_eq!(maximize(&c, 3, 5), ceiling(&c, (3, 5)));
-        assert_eq!(maximize(&c, 3, 5), 5);
+        assert_eq!(maximize(&ORDERED_PAIR, 3, 5), ceiling(&ORDERED_PAIR, (3, 5)));
+        assert_eq!(maximize(&ORDERED_PAIR, 3, 5), 5);
     }
 
     #[test]
     fn minimize_eq_floor_pair() {
-        let c = ordered_pair();
-        assert_eq!(minimize(&c, 3, 5), floor(&c, (3, 5)));
-        assert_eq!(minimize(&c, 3, 5), 3);
+        assert_eq!(minimize(&ORDERED_PAIR, 3, 5), floor(&ORDERED_PAIR, (3, 5)));
+        assert_eq!(minimize(&ORDERED_PAIR, 3, 5), 3);
     }
 
     // ── Proptest blocks: predicates × 3 conn bases ────────────────
@@ -457,16 +455,16 @@ mod tests {
             prop_assert!(laws::cast_floor2_id_diag(&F12F09, Nano(n)));
         }
 
-        // ── maximize / minimize over `ordered_pair` (random pairs) ─
+        // ── maximize / minimize over `ORDERED_PAIR` (random pairs) ─
 
         #[test]
         fn maximize_eq_ceiling_random(a: i32, b: i32) {
-            prop_assert!(laws::cast_maximize_eq_ceiling(&ordered_pair(), a, b));
+            prop_assert!(laws::cast_maximize_eq_ceiling(&ORDERED_PAIR, a, b));
         }
 
         #[test]
         fn minimize_eq_floor_random(a: i32, b: i32) {
-            prop_assert!(laws::cast_minimize_eq_floor(&ordered_pair(), a, b));
+            prop_assert!(laws::cast_minimize_eq_floor(&ORDERED_PAIR, a, b));
         }
     }
 }

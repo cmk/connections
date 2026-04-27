@@ -236,3 +236,48 @@ All three review recommendations addressed in one `fix:` commit:
 Test counts after fix: **1298 lib tests + 11 doctests, all passing.**
 Clippy clean. Cargo doc clean modulo the pre-existing `[arb]` link
 warning on `src/property/mod.rs:8`.
+
+<!-- glab-id: 3288059588 -->
+<!-- glab-discussion: c3a41e70b74c8cb0d559d79f55f5d07b78eddbac -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/property/laws.rs:497` (2026-04-27 03:39 UTC) [open]
+
+**[must-fix]** The doc comment on `cast_upper2_id_diag` states the diagonal law holds with projection `|p, _| p`, but the predicate uses `upper2(c, |p, _q| p, a, a)` and compares it to `upper1(c, |x| x, a)`. `upper2(c, |p, _| p, a, a)` expands to `inner(f(ceil(a), ceil(a)))` where `f` discards the second argument and returns the first, which equals `inner(ceil(a))` — the same as `upper1(c, id, a)`. The law holds here, but the claimed diagonal collapse is specific to idempotent-style projections; the predicate name and doc should clarify it tests the `|p, _| p` projection specifically, not the general diagonal `|p, q| p` (where `p ≠ q` could produce a different result). As stated in the plan (`cast_upper2_diag: upper2(c, |p, q| p, a, a) == upper1(c, id, a)`), the intent matches, but the comment says "with the projection `|p, _| p`" which is ambiguous — future readers may misread this as a general diag law. A minor doc clarification is sufficient, but the current wording risks confusion about the scope of the guarantee.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3288059603 -->
+<!-- glab-discussion: b83ec72ce53a7c44ab9ae227bc395b48ef685552 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn/cast.rs:198` (2026-04-27 03:39 UTC) [open]
+
+**[follow-up]** The `ordered_pair` helper is defined as a function returning a fresh `Conn<(i32, i32), i32>` rather than a module-level `const`, and is called once per proptest iteration in `maximize_eq_ceiling_random` / `minimize_eq_floor_random`. This is harmless for correctness but allocates a new closure/function-pointer triple on every proptest case; a `const` would match the pattern of `ID_I32` / `ID_F64` and avoid the (small) per-iteration cost.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3288059612 -->
+<!-- glab-discussion: e7b64e774c9e09a1e8ece0f103beacb64081d4ca -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/lib.rs:133` (2026-04-27 03:39 UTC) [open]
+
+**[follow-up]** The `pub use conn::cast::{ceiling, ..., floor, ...}` re-export shadows `std::f32::consts`-style names but more critically shadows Rust's own `floor` and `ceiling` if a user glob-imports `connections::*` alongside `std::primitive` or `libm`. The re-exported names `floor` and `ceiling` are free functions whose first argument is `&Conn<A,B>`, so accidental shadowing would produce a type error rather than silent misbehavior — but adding a module-level doc note warning against glob-importing would help downstream users avoid confusing error messages.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3288063739 -->
+<!-- glab-discussion: c3a41e70b74c8cb0d559d79f55f5d07b78eddbac -->
+#### ↳ cmk (2026-04-27 03:44 UTC) [open]
+
+Fixed — clarified the docstring on the four `cast_*2_id_diag` predicates: header is now "collapse-on-projection" rather than "diagonal", with an explicit note that the broader f-parametric diagonal law would require the projection to be a parameter.
+
+<!-- glab-id: 3288063911 -->
+<!-- glab-discussion: b83ec72ce53a7c44ab9ae227bc395b48ef685552 -->
+#### ↳ cmk (2026-04-27 03:44 UTC) [open]
+
+Fixed — converted `ordered_pair()` to `const ORDERED_PAIR: Conn<(i32, i32), i32>` matching the `ID_I32` / `ID_F64` pattern in the same module, and updated the spot-check and proptest call sites accordingly.
+
+<!-- glab-id: 3288064044 -->
+<!-- glab-discussion: e7b64e774c9e09a1e8ece0f103beacb64081d4ca -->
+#### ↳ cmk (2026-04-27 03:44 UTC) [open]
+
+Fixed — added a doc comment above the `pub use conn::cast::{...}` block in `lib.rs` explaining the shadowing scenario (`floor` / `ceiling` vs other crates' globs), noting that the `&Conn<A, B>` first arg makes a wrong import a type error rather than silent misbehavior, and recommending named imports over globs.

@@ -144,6 +144,19 @@ pub mod conn;
 pub mod extended;
 pub mod lattice;
 
+// Re-exports of [`conn::cast`] free functions at the crate root for
+// ergonomic access (`connections::ceiling(&c, x)` rather than the
+// module path).
+//
+// Note on glob-imports: `floor` / `ceiling` are the bare function
+// names from category theory, not the `f32::floor` / `f64::ceil`
+// methods. If you `use connections::*` alongside another crate's
+// glob (e.g. `use libm::*`, `use num_traits::*`), the names may
+// collide. Resolution is by type — these take `&Conn<A, B>` as their
+// first argument, so a wrong `floor` will produce a type error
+// rather than silent misbehavior — but prefer named imports
+// (`use connections::{ceiling, floor};`) over globs to make the
+// origin explicit.
 pub use conn::cast::{
     ceiling, ceiling1, ceiling2, floor, floor1, floor2, lower, lower1, lower2, maximize, minimize,
     upper, upper1, upper2,

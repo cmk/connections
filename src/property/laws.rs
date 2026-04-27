@@ -492,30 +492,36 @@ pub fn cast_floor1_id_kernel<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bo
     b.ple(&crate::conn::cast::floor1(c, |x| x, b))
 }
 
-/// `upper2` diagonal: with the projection `|p, _| p`, calling on
-/// `(a, a)` collapses to `upper1` with `id`.
+/// `upper2` collapse-on-projection: when called with the
+/// first-projection `|p, _| p` on equal args `(a, a)`, `upper2`
+/// equals `upper1` with `id`. This is a narrow consistency check on
+/// the lifter, **not** a general diagonal law; for arbitrary `f`,
+/// the broader `upper2(c, f, a, a) == upper1(c, |b| f(b, b), a)`
+/// would require `f` to be supplied as a parameter.
 pub fn cast_upper2_id_diag<A: Copy + Ple, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
     let l = crate::conn::cast::upper2(c, |p, _q| p, a, a);
     let r = crate::conn::cast::upper1(c, |x| x, a);
     l.ple(&r) && r.ple(&l)
 }
 
-/// `lower2` diagonal: dual of [`cast_upper2_id_diag`].
+/// `lower2` collapse-on-projection: dual of [`cast_upper2_id_diag`]
+/// — narrow check that `lower2(c, |p, _| p, a, a) == lower1(c, id, a)`.
 pub fn cast_lower2_id_diag<A: Copy + Ple, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
     let l = crate::conn::cast::lower2(c, |p, _q| p, a, a);
     let r = crate::conn::cast::lower1(c, |x| x, a);
     l.ple(&r) && r.ple(&l)
 }
 
-/// `ceiling2` diagonal: with `|p, _| p` on `(b, b)`, collapses to
-/// `ceiling1` with `id`.
+/// `ceiling2` collapse-on-projection: with `|p, _| p` on `(b, b)`,
+/// equals `ceiling1` with `id`. Narrow check, see
+/// [`cast_upper2_id_diag`] for why.
 pub fn cast_ceiling2_id_diag<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bool {
     let l = crate::conn::cast::ceiling2(c, |p, _q| p, b, b);
     let r = crate::conn::cast::ceiling1(c, |x| x, b);
     l.ple(&r) && r.ple(&l)
 }
 
-/// `floor2` diagonal: dual of [`cast_ceiling2_id_diag`].
+/// `floor2` collapse-on-projection: dual of [`cast_ceiling2_id_diag`].
 pub fn cast_floor2_id_diag<A: Copy, B: Copy + Ple>(c: &Conn<A, B>, b: B) -> bool {
     let l = crate::conn::cast::floor2(c, |p, _q| p, b, b);
     let r = crate::conn::cast::floor1(c, |x| x, b);
