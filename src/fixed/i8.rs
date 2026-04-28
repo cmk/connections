@@ -32,7 +32,6 @@
 
 use super::{int_int_narrow, nz_int_ext, uint_int_sat};
 use crate::conn::Conn;
-use crate::extended::Extended;
 use core::num::NonZeroI8;
 use ::fixed::FixedI8;
 use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U8, Unsigned};
@@ -243,48 +242,31 @@ mod tests {
         }
     }
 
-    // ── §3 Extended<i8> ↔ NonZeroI8 spot checks ────────────────────
+    // ── §3 i8 ↔ NonZeroI8 spot checks ──────────────────────────────
 
     #[test]
     fn i008n008_floor_ceil_split_at_zero() {
         // Asymmetric-adjoint at zero: floor lands on the largest
         // NonZero ≤ 0 (-1); ceil lands on the smallest NonZero ≥ 0 (+1).
-        assert_eq!(
-            I008N008.floor(Extended::Finite(0)),
-            NonZeroI8::new(-1).unwrap()
-        );
-        assert_eq!(
-            I008N008.ceil(Extended::Finite(0)),
-            NonZeroI8::new(1).unwrap()
-        );
+        assert_eq!(I008N008.floor(0_i8), NonZeroI8::new(-1).unwrap());
+        assert_eq!(I008N008.ceil(0_i8), NonZeroI8::new(1).unwrap());
     }
 
     #[test]
     fn i008n008_finite_nonzero_round_trip() {
-        for &v in &[-128, -50, -1, 1, 50, 127] {
+        for &v in &[i8::MIN, -50, -1, 1, 50, i8::MAX] {
             let nz = NonZeroI8::new(v).unwrap();
-            assert_eq!(I008N008.ceil(Extended::Finite(v)), nz);
-            assert_eq!(I008N008.floor(Extended::Finite(v)), nz);
+            assert_eq!(I008N008.ceil(v), nz);
+            assert_eq!(I008N008.floor(v), nz);
         }
     }
 
     #[test]
-    fn i008n008_infinities_saturate() {
-        // Both adjoints saturate identically at the extremes.
-        let min_nz = NonZeroI8::new(i8::MIN).unwrap();
-        let max_nz = NonZeroI8::new(i8::MAX).unwrap();
-        assert_eq!(I008N008.ceil(Extended::NegInf), min_nz);
-        assert_eq!(I008N008.floor(Extended::NegInf), min_nz);
-        assert_eq!(I008N008.ceil(Extended::PosInf), max_nz);
-        assert_eq!(I008N008.floor(Extended::PosInf), max_nz);
-    }
-
-    #[test]
     fn i008n008_inner_is_total_embedding() {
-        // inner: NonZero → Extended<i8> is the trivial Finite(.get()).
-        for &v in &[-128, -1, 1, 127] {
+        // inner: NonZeroI8 → i8 is just .get().
+        for &v in &[i8::MIN, -1, 1, i8::MAX] {
             let nz = NonZeroI8::new(v).unwrap();
-            assert_eq!(I008N008.inner(nz), Extended::Finite(v));
+            assert_eq!(I008N008.inner(nz), v);
         }
     }
 
@@ -309,34 +291,24 @@ mod tests {
         any::<i8>().prop_filter_map("non-zero i8", NonZeroI8::new)
     }
 
-    fn arb_extended_i8() -> impl Strategy<Value = Extended<i8>> {
-        prop_oneof![
-            1 => Just(Extended::NegInf),
-            1 => Just(Extended::PosInf),
-            8 => any::<i8>().prop_map(Extended::Finite),
-        ]
-    }
-
     proptest! {
-        // I008N008: source is Extended<i8>, target is NonZeroI8. Both
-        // Galois laws hold (the asymmetric floor/ceil at Finite(0)
-        // exists precisely so that inner(NonZero(-1)) ≤ Finite(0) ⟺
-        // NonZero(-1) ≤ floor(Finite(0)) = NonZero(-1)).
+        // I008N008: source is i8, target is NonZeroI8. Both Galois
+        // laws hold — the asymmetric floor/ceil at v=0 brackets the
+        // target's puncture between -1 and +1.
         #[test]
-        fn i008n008_galois_l(a in arb_extended_i8(), b in arb_nz_i8()) {
+        fn i008n008_galois_l(a in any::<i8>(), b in arb_nz_i8()) {
             prop_assert!(conn_laws::conn_galois_l(&I008N008, a, b));
         }
 
         #[test]
-        fn i008n008_galois_r(a in arb_extended_i8(), b in arb_nz_i8()) {
+        fn i008n008_galois_r(a in any::<i8>(), b in arb_nz_i8()) {
             prop_assert!(conn_laws::conn_galois_r(&I008N008, a, b));
         }
 
         #[test]
         fn i008n008_inner_then_ceil_recovers_nonzero(nz in arb_nz_i8()) {
-            // ceil(inner(nz)) lands back on nz — inner is the trivial
-            // embedding into Finite, then ceil on Finite(v != 0) is
-            // lossless.
+            // For non-zero nz, both ceil and floor recover nz from
+            // its Finite embedding via inner.
             prop_assert_eq!(I008N008.ceil(I008N008.inner(nz)), nz);
             prop_assert_eq!(I008N008.floor(I008N008.inner(nz)), nz);
         }

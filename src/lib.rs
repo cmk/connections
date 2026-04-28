@@ -150,7 +150,6 @@ pub mod conn;
 pub mod extended;
 pub mod fixed;
 pub mod float;
-pub mod int;
 pub mod lattice;
 pub mod time;
 

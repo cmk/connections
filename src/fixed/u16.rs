@@ -22,7 +22,6 @@
 
 use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
 use crate::conn::Conn;
-use crate::extended::Extended;
 use core::num::NonZeroU16;
 use ::fixed::FixedU16;
 use ::fixed::types::extra::{U0, U2, U4, U8, U12, U14, U15, U16, Unsigned};
