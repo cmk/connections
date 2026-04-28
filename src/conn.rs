@@ -1533,5 +1533,10 @@ mod tests {
         fn median_swap_yz_ordered(x: i32, y: i32, z: i32) {
             prop_assert!(conn_laws::conn_median_swap_yz(&ORDERED_PAIR, x, y, z));
         }
+
+        #[test]
+        fn median_associative_ordered(w: i32, x: i32, y: i32, z: i32) {
+            prop_assert!(laws::cast_median_associative(&ORDERED_PAIR, w, x, y, z));
+        }
     }
 }

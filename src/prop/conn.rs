@@ -152,6 +152,17 @@ pub fn conn_lower2_id_diag<A: Copy + Eq, B: Copy>(c: &Conn<A, B>, a: A) -> bool 
     l == r
 }
 
+/// Birkhoff median axiom 4 (associativity):
+/// `median(median(c, x, w, y), w, z) == median(c, x, w, median(c, y, w, z))`.
+pub fn conn_median_associative<A>(c: &Conn<(A, A), A>, w: A, x: A, y: A, z: A) -> bool
+where
+    A: Copy + Eq,
+{
+    let lhs = crate::conn::median(c, crate::conn::median(c, x, w, y), w, z);
+    let rhs = crate::conn::median(c, x, w, crate::conn::median(c, y, w, z));
+    lhs == rhs
+}
+
 /// Birkhoff median axiom 1: `median(c, x, x, y) == x`.
 pub fn conn_median_idempotent<A>(c: &Conn<(A, A), A>, x: A, y: A) -> bool
 where
