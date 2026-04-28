@@ -44,13 +44,16 @@ clippy:
 doc:
   stage: check
   # Catch broken intra-doc links and rustdoc warnings before docs.rs
-  # builds the published release. `--all-features` matches the
+  # builds the published release. `--features testing` matches the
   # docs.rs config in Cargo.toml so feature-gated items (property::arb)
-  # render the same way locally as on docs.rs.
+  # render the same way locally as on docs.rs. Cannot use
+  # `--all-features` here: the `f16` feature activates
+  # `#![cfg_attr(feature = "f16", feature(f16))]`, a nightly-only
+  # attribute that errors on this CI image's stable rustc.
   variables:
     RUSTDOCFLAGS: "-D warnings"
   script:
-    - cargo doc --no-deps --all-features --document-private-items
+    - cargo doc --no-deps --features testing --document-private-items
 
 test:
   stage: test
