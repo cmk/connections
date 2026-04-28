@@ -302,17 +302,24 @@ automatically at Step 0.
 ### Pre-commit hook
 
 A Claude Code hook in `.claude/settings.json` runs, in order, on every
-`git commit` tool call:
+`git commit` tool call. Every step is blocking — the chain short-
+circuits on the first failure and the commit is aborted:
 
-1. `cargo fmt --all -- --check` — non-blocking, logs a warning.
-2. `scripts/check-pii.sh` — blocking; fails if staged diff contains
-   absolute user-home paths or common API-token shapes.
-3. `cargo test --workspace --quiet` — blocking.
-4. `cargo clippy --all-targets --quiet -- -D warnings` — blocking.
+1. `cargo fmt --all -- --check` — fmt drift aborts the commit. Was
+   non-blocking through Plan 25; flipped to blocking in Plan 26 after
+   MR !39 hit a real CI fmt failure (import ordering + the rustfmt
+   indent-instability bug on the new `nz_*_ext!` macros) that local
+   tooling let through.
+2. `scripts/check-pii.sh` — fails if staged diff contains absolute
+   user-home paths or common API-token shapes.
+3. `scripts/check_readme_mirror.sh` — fails if README sections that
+   are mirrored from rustdoc have drifted out of sync.
+4. `cargo test --workspace --quiet`.
+5. `cargo clippy --all-targets --quiet -- -D warnings`.
 
-If any blocking step fails, the commit is aborted. This is the
-automated quality gate; `/sprint-review` is the manual one. Never
-bypass with `--no-verify` unless Chris explicitly authorizes it.
+This is the automated quality gate; `/sprint-review` is the manual
+one. Never bypass with `--no-verify` unless Chris explicitly
+authorizes it.
 
 ### Commands (`.claude/commands/`)
 
