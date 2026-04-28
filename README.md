@@ -11,186 +11,6 @@ behavior is property-tested rather than left to chance.
 changes — pin `connections = "0.1"` and an MSRV upgrade will surface as
 a 0.2 release rather than a silent break on a patch update.
 
-## What are Galois connections?
-
-A [Galois connection](https://en.wikipedia.org/wiki/Galois_connection)
-between preorders P and Q is a pair of monotone maps `f: P → Q` and
-`g: Q → P` such that `f(x) ≤ y ⇔ x ≤ g(y)`. We say `f` is the *left*
-or *lower* adjoint, and `g` is the *right* or *upper* adjoint of the
-connection.
-
-Drawn between two 3-element chains
-(adapted from [7 Sketches](https://math.mit.edu/~dspivak/teaching/sp18/7Sketches.pdf)):
-
-```text
-P  ←  Q
-   g
-
-3  ↔  3
-
-
-2  ←  2
-   ↰
-   ↳
-1  →  1
-
-   f
-P  →  Q
-```
-
-Each row is a `(p, q)` pair; arrows show the action of `f` (P → Q,
-bottom legend) and `g` (Q → P, top legend). Lone arrows mark
-single-direction maps (`f(1) = 1`, `g(2) = 2`); the `↔` marks a
-matched pair where both adjoints agree (`f(3) = 3`, `g(3) = 3`); the
-adjacent `↰ ↳` glyphs depict the *lens* `f(2) ↔ g(1)` — two
-non-crossing curves between rows 2 and 1, the geometric signature of
-adjointness.
-
-Connections are useful for **lawful conversions** between types: every
-operation derived from a `Conn` (rounding, saturation, midpoint,
-median, ...) carries a property-tested invariant, so round-trips
-behave the way the math says.
-
-## How connections work
-
-Let's build the simplest possible connection in Rust — between
-[`Ordering`](https://doc.rust-lang.org/core/cmp/enum.Ordering.html)
-and `bool` — three different ways, each illustrating one more piece
-of the structure that the unified `Conn<A, B>` type carries.
-
-### Example 1: a one-sided connection
-
-```rust
-use connections::conn::Conn;
-use std::cmp::Ordering;
-
-fn ceil(o: Ordering) -> bool {
-    !matches!(o, Ordering::Less)
-}
-fn inner(b: bool) -> Ordering {
-    if b { Ordering::Greater } else { Ordering::Less }
-}
-const ORDBIN: Conn<Ordering, bool> = Conn::new_left(ceil, inner);
-
-assert_eq!(ORDBIN.ceil(Ordering::Less),    false);
-assert_eq!(ORDBIN.ceil(Ordering::Greater), true);
-assert_eq!(ORDBIN.inner(false),            Ordering::Less);
-assert_eq!(ORDBIN.inner(true),             Ordering::Greater);
-```
-
-Each function is monotone (`x₁ ≤ x₂ ⇒ f(x₁) ≤ f(x₂)`) and the pair is
-*adjoint*: for every input we have `ceil(x) ≤ y ⇔ x ≤ inner(y)`. We
-can verify this by hand. Each cell shows the relation between
-`ceil(x)` and `y` (left of the slash) and between `x` and `inner(y)`
-(right of the slash). The two relations always agree on whether `≤`
-holds:
-
-| ceil/inner   | `false` | `true`  |
-|--------------|---------|---------|
-| `Less`       | `=`/`=` | `<`/`<` |
-| `Equal`      | `>`/`>` | `=`/`<` |
-| `Greater`    | `>`/`>` | `=`/`=` |
-
-A cell with `=`/`>` or `>`/`=` (or arrows facing in opposite
-directions) would be a counterexample to adjointness. There are none.
-
-### Example 2: the same `inner`, flipped
-
-Notice that `inner` from Example 1 — the `bool → Ordering` function —
-is itself *also* the lower adjoint of a different pair. Define a new
-upper adjoint `h` going the other way:
-
-```rust
-use connections::conn::Conn;
-use std::cmp::Ordering;
-
-fn ceil(b: bool) -> Ordering {
-    if b { Ordering::Greater } else { Ordering::Less }
-}
-fn inner(o: Ordering) -> bool {
-    matches!(o, Ordering::Greater)
-}
-const BINORD: Conn<bool, Ordering> = Conn::new_left(ceil, inner);
-
-assert_eq!(BINORD.ceil(false),              Ordering::Less);
-assert_eq!(BINORD.ceil(true),               Ordering::Greater);
-assert_eq!(BINORD.inner(Ordering::Less),    false);
-assert_eq!(BINORD.inner(Ordering::Equal),   false);
-assert_eq!(BINORD.inner(Ordering::Greater), true);
-```
-
-The verification table is consistent again:
-
-| ceil/inner | `Less`  | `Equal` | `Greater` |
-|------------|---------|---------|-----------|
-| `false`    | `=`/`=` | `<`/`=` | `<`/`<`   |
-| `true`     | `>`/`>` | `>`/`>` | `=`/`=`   |
-
-The same function (`bool → Ordering`) plays two roles: the *upper*
-adjoint of Example 1's pair, and the *lower* adjoint of Example 2's
-pair. Together with Example 1's `ceil` and Example 2's `inner`, the
-three functions form an *adjoint string of length 3*: `f ⊣ g ⊣ h`.
-The two adjoint pairs (`f`/`g` and `g`/`h`) give *two routes* back
-from `Ordering` to `bool` — and that two-route choice is exactly what
-enables lawful `ceiling`, `floor`, `round`, and `truncate` on
-arbitrary `Conn`s.
-
-### Example 3: the full triple
-
-A small change to Example 1 — supplying both the upper and lower
-adjoints on the L side — packs the whole chain into a single value:
-
-```rust
-use connections::conn::Conn;
-use std::cmp::Ordering;
-
-fn ceil(o: Ordering) -> bool {
-    !matches!(o, Ordering::Less)
-}
-fn inner(b: bool) -> Ordering {
-    if b { Ordering::Greater } else { Ordering::Less }
-}
-fn floor(o: Ordering) -> bool {
-    matches!(o, Ordering::Greater)
-}
-const ORDBIN: Conn<Ordering, bool> = Conn::new(ceil, inner, floor);
-
-// `ceil` reads the L-pair (ceil ⊣ inner); `floor` reads the R-pair
-// (inner ⊣ floor). They differ on `Equal`, where the bracket is open:
-assert_eq!(ORDBIN.ceil(Ordering::Equal),  true);
-assert_eq!(ORDBIN.floor(Ordering::Equal), false);
-```
-
-Each cell is now a triple: `ceil(x) ⋈ y` / `x ⋈ inner(y)` /
-`floor(x) ⋈ y`. Columns 1–2 verify the `f ⊣ g` pair; columns 2–3
-verify the `g ⊣ h` pair (with the appropriate reversal):
-
-| ceil/inner/floor | `false`     | `true`      |
-|------------------|-------------|-------------|
-| `Less`           | `=`/`=`/`=` | `<`/`<`/`<` |
-| `Equal`          | `>`/`>`/`=` | `=`/`<`/`<` |
-| `Greater`        | `>`/`>`/`>` | `=`/`=`/`=` |
-
-This is the shape `Conn<A, B>` carries: three function pointers in
-one value. The crate-root `ceiling` / `floor` / `upper` / `lower` free
-functions select which adjoint pair you read off per call.
-
-The two-sided combinators (`round`, `truncate`, `midpoint`,
-`interval`, `median`) are defined on every `Conn<A, B>` — not just
-full triples. On a one-sided connection (Examples 1 and 2,
-constructed via `Conn::new_left`) they still type-check and run; they
-just don't return anything interesting because the bracket between
-`floor` and `ceil` collapses to a single point. `interval` returns
-`Some(Ordering::Equal)`, `round` and `truncate` both pick that point,
-and `midpoint` lands on it too. The API surface is uniform — you
-don't track 'one-sided vs two-sided' at the type level; a one-sided
-conn passed into a function expecting `round` behavior just
-degenerates gracefully into the trivial case.
-
-For the structural mirror to the Haskell library's `Cast 'L` / `Cast 'R`
-data-kind split, see [Relationship to the Haskell `connections`
-library](#relationship-to-the-haskell-connections-library) below.
-
 ## Why this crate
 
 The standard cast operators `as`, `From`, and `Into` give you exactly one
@@ -217,32 +37,49 @@ you that the standard tools don't:
    specific ladders (decimal time rungs, audio sample rates) live
    in downstream crates; this crate ships the algebra.
 
-## Installation
+## What are Galois connections?
 
-```sh
-cargo add connections
+A [Galois connection](https://en.wikipedia.org/wiki/Galois_connection)
+between preorders A and B is a pair of monotone maps `f: A → B` and
+`g: B → A` such that `f(x) ≤ y ⇔ x ≤ g(y)`. We say `f` is the *left*
+or *lower* adjoint, and `g` is the *right* or *upper* adjoint of the
+connection.
+
+Drawn between two 3-element chains
+(adapted from [7 Sketches](https://math.mit.edu/~dspivak/teaching/sp18/7Sketches.pdf)):
+
+```text
+A  ←  B
+   g
+
+3  ↔  3
+
+
+2  ←  2
+   ↰
+   ↳
+1  →  1
+
+   f
+A  →  B
 ```
 
-| | |
-|--|--|
-| **MSRV** | Rust 1.85 (matches `rust-toolchain.toml`) |
-| **Edition** | 2024 |
-| **License** | MIT (see [`LICENSE-MIT`](LICENSE-MIT)) |
+Each row is a `(a, b)` pair; arrows show the action of `f` (A → B,
+bottom legend) and `g` (B → A, top legend). Lone arrows mark
+single-direction maps (`f(1) = 1`, `g(2) = 2`); the `↔` marks a
+matched pair where both adjoints agree (`f(3) = 3`, `g(3) = 3`); the
+adjacent `↰ ↳` glyphs depict the *lens* `f(2) ↔ g(1)` — two
+non-crossing curves between rows 2 and 1, the geometric signature of
+adjointness.
 
-Optional cargo features:
+Connections are useful for **lawful conversions** between types: every
+operation derived from a `Conn` (rounding, saturation, midpoint,
+median, ...) carries a property-tested invariant, so round-trips
+behave the way the math says.
 
-| Feature | What it enables | Toolchain |
-|---------|-----------------|-----------|
-| `testing` | Re-exports `connections::prop::arb` (proptest strategies) for downstream test suites | stable |
-| `f16` | IEEE binary16 connections (`F016`, `F032F016`, `F064F016`) and their proptest strategies | nightly (uses `#![feature(f16)]` — tracking [#116909](https://github.com/rust-lang/rust/issues/116909)) |
+## How connections work
 
-The `connections::prop::conn` and `connections::prop::lattice`
-predicate modules are *always* public — they're pure `bool`-returning
-functions over this crate's own types and don't depend on `proptest`.
-The `testing` feature only adds `prop::arb`, the strategy module that
-does pull `proptest` in as a regular dependency.
-
-## The core type
+The basic type in this library is:
 
 ```rust,no_run
 pub struct Conn<A, B> {
@@ -252,18 +89,169 @@ pub struct Conn<A, B> {
 }
 ```
 
-A `Conn<A, B>` is an [adjoint
+The first thing you'll notice is that there are three functions, not
+two as in the example above. That's because we are chaining two sets
+of connections together. A `Conn<A, B>` is an [adjoint
 triple](https://ncatlab.org/nlab/show/adjoint+triple) `ceil ⊣ inner ⊣
 floor` between two preordered sets — exactly the `f ⊣ g ⊣ h` chain
 that Example 3 above derived. A length-2 (one-sided) connection sets
 `floor = ceil`. The struct is `Copy`, `const`-constructible,
 heap-free, and the crate is `#![forbid(unsafe_code)]`.
 
-For the math and the rationale behind a single unified `Conn` type
-(rather than a Haskell-style `Cast 'L` / `Cast 'R` split), see
-[`doc/design.md`](doc/design.md).
-
 ## Quick tour
+
+**Connection Families:**
+
+| Family | Module |
+|--------|--------|
+| Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `fixed::{i8,i16,i32,i64,i128}` |
+| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `int::{i8,i16,i32,i64,i128,u8,u16,u32,u64,u128}` |
+| Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
+| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `time` |
+
+**Conn API**
+
+- L-side accessors + lifters: `upper`, `upper1`, `upper2`, `ceiling`, `ceiling1`, `ceiling2`
+- R-side accessors + lifters: `lower`, `lower1`, `lower2`, `floor`, `floor1`, `floor2`
+- Two-sided helpers: `interval`, `midpoint`, `round`/`round1`/`round2`, `truncate`/`truncate1`/`truncate2`, `median`
+
+The two-sided combinators (`round`, `truncate`, `midpoint`,
+`interval`, `median`) are defined on every `Conn<A, B>` — not just
+full triples. On a one-sided connection (Examples 1 and 2,
+constructed via `Conn::new_left`) they still type-check and run; they
+just don't return anything interesting because the bracket between
+`floor` and `ceil` collapses to a single point. `interval` returns
+`Some(Ordering::Equal)`, `round` and `truncate` both pick that point,
+and `midpoint` lands on it too. The API surface is uniform — you
+don't track 'one-sided vs two-sided' at the type level; a one-sided
+conn passed into a function expecting `round` behavior just
+degenerates gracefully into the trivial case.
+
+## Examples
+
+### Example 1
+
+Let's build the simplest possible connection in Rust — between
+[`Ordering`](https://doc.rust-lang.org/core/cmp/enum.Ordering.html)
+and `bool` — three different ways, each illustrating one more piece
+of the structure that the unified `Conn<A, B>` type carries.
+
+```rust
+use connections::conn::Conn;
+use std::cmp::Ordering;
+
+fn ceil(o: Ordering) -> bool {
+    !matches!(o, Ordering::Less)
+}
+fn inner(b: bool) -> Ordering {
+    if b { Ordering::Greater } else { Ordering::Less }
+}
+const ORDRBOOL: Conn<Ordering, bool> = Conn::new_left(ceil, inner);
+
+assert_eq!(ORDRBOOL.ceil(Ordering::Less),    false);
+assert_eq!(ORDRBOOL.ceil(Ordering::Greater), true);
+assert_eq!(ORDRBOOL.inner(false),            Ordering::Less);
+assert_eq!(ORDRBOOL.inner(true),             Ordering::Greater);
+```
+
+Each function is monotone (`x₁ ≤ x₂ ⇒ f(x₁) ≤ f(x₂)`) and the pair is
+*adjoint*: for every input we have `ceil(x) ≤ y ⇔ x ≤ inner(y)`. We
+can verify this by hand. Each cell shows the relation between
+`ceil(x)` and `y` (left of the slash) and between `x` and `inner(y)`
+(right of the slash). The two relations always agree on whether `≤`
+holds:
+
+| ceil/inner   | `false` | `true`  |
+|--------------|---------|---------|
+| `Less`       | `=`/`=` | `<`/`<` |
+| `Equal`      | `>`/`>` | `=`/`<` |
+| `Greater`    | `>`/`>` | `=`/`=` |
+
+A cell with `=`/`>` or `>`/`=` (or arrows facing in opposite
+directions) would be a counterexample to adjointness. There are none.
+
+### Example 2
+
+Notice that `inner` from Example 1 — the `bool → Ordering` function —
+is itself *also* the lower adjoint of a different pair. Define a new
+upper adjoint `h` going the other way:
+
+```rust
+use connections::conn::Conn;
+use std::cmp::Ordering;
+
+fn ceil(b: bool) -> Ordering {
+    if b { Ordering::Greater } else { Ordering::Less }
+}
+fn inner(o: Ordering) -> bool {
+    matches!(o, Ordering::Greater)
+}
+const BOOLORDR: Conn<bool, Ordering> = Conn::new_left(ceil, inner);
+
+assert_eq!(BOOLORDR.ceil(false),              Ordering::Less);
+assert_eq!(BOOLORDR.ceil(true),               Ordering::Greater);
+assert_eq!(BOOLORDR.inner(Ordering::Less),    false);
+assert_eq!(BOOLORDR.inner(Ordering::Equal),   false);
+assert_eq!(BOOLORDR.inner(Ordering::Greater), true);
+```
+
+The verification table is consistent again:
+
+| ceil/inner | `Less`  | `Equal` | `Greater` |
+|------------|---------|---------|-----------|
+| `false`    | `=`/`=` | `<`/`=` | `<`/`<`   |
+| `true`     | `>`/`>` | `>`/`>` | `=`/`=`   |
+
+The same function (`bool → Ordering`) plays two roles: the *upper*
+adjoint of Example 1's pair, and the *lower* adjoint of Example 2's
+pair. Together with Example 1's `ceil` and Example 2's `inner`, the
+three functions form an *adjoint string of length 3*: `f ⊣ g ⊣ h`.
+The two adjoint pairs (`f`/`g` and `g`/`h`) give *two routes* back
+from `Ordering` to `bool` — and that two-route choice is exactly what
+enables lawful `ceiling`, `floor`, `round`, and `truncate` on
+arbitrary `Conn`s.
+
+### Example 3
+
+A small change to Example 1 — supplying both the upper and lower
+adjoints on the L side — packs the whole chain into a single value:
+
+```rust
+use connections::conn::Conn;
+use std::cmp::Ordering;
+
+fn ceil(o: Ordering) -> bool {
+    !matches!(o, Ordering::Less)
+}
+fn inner(b: bool) -> Ordering {
+    if b { Ordering::Greater } else { Ordering::Less }
+}
+fn floor(o: Ordering) -> bool {
+    matches!(o, Ordering::Greater)
+}
+const ORDRBOOL: Conn<Ordering, bool> = Conn::new(ceil, inner, floor);
+
+// `ceil` reads the L-pair (ceil ⊣ inner); `floor` reads the R-pair
+// (inner ⊣ floor). They differ on `Equal`, where the bracket is open:
+assert_eq!(ORDRBOOL.ceil(Ordering::Equal),  true);
+assert_eq!(ORDRBOOL.floor(Ordering::Equal), false);
+```
+
+Each cell is now a triple: `ceil(x) ⋈ y` / `x ⋈ inner(y)` /
+`floor(x) ⋈ y`. Columns 1–2 verify the `f ⊣ g` pair; columns 2–3
+verify the `g ⊣ h` pair (with the appropriate reversal):
+
+| ceil/inner/floor | `false`     | `true`      |
+|------------------|-------------|-------------|
+| `Less`           | `=`/`=`/`=` | `<`/`<`/`<` |
+| `Equal`          | `>`/`>`/`=` | `=`/`<`/`<` |
+| `Greater`        | `>`/`>`/`>` | `=`/`=`/`=` |
+
+This is the shape `Conn<A, B>` carries: three function pointers in
+one value. The crate-root `ceiling` / `floor` / `upper` / `lower` free
+functions select which adjoint pair you read off per call.
+
+### Example 4
 
 Integer widening through `Extended<T>` (so values *outside* the source
 range have somewhere to land — `floor` saturates to the target bounds,
@@ -287,7 +275,9 @@ assert_eq!(U008I016.ceil(Extended::PosInf),  256_i16);   // u8::MAX + 1
 assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 ```
 
-`Cast` API — accessors and lifters operating on any `Conn`:
+### Example 5
+
+`Conn` API — accessors and lifters operating on any `Conn`:
 
 ```rust
 use connections::{ceiling, upper1};
@@ -309,6 +299,8 @@ assert_eq!(
 );
 ```
 
+### Example 6
+
 A sub-second `Duration` bracketed via the `time`-crate ladder (the same
 code block is mirrored verbatim into the `time` module-level
 rustdoc, so `cargo test --doc` keeps the two in sync):
@@ -324,6 +316,8 @@ assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
 assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
 ```
 
+### Example 7
+
 Round-tripping a unix-timestamp through `OffsetDateTime`:
 
 ```rust
@@ -334,6 +328,8 @@ use time::OffsetDateTime;
 assert_eq!(OFDTNANO.inner(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
 assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
 ```
+
+### Example 5
 
 Bracketing an IEEE-float number of seconds with `Duration`:
 
@@ -352,6 +348,8 @@ let nan = ExtendedFloat::Extend(f64::NAN);
 assert_eq!(F064DURN.ceil(nan),  Extended::PosInf);
 assert_eq!(F064DURN.floor(nan), Extended::NegInf);
 ```
+
+### Example 8
 
 A direct `f64 → f16` narrowing — wrapped with `ExtendedFloat` so it
 satisfies `Eq + PartialOrd` and flows through the law machinery.
@@ -389,7 +387,48 @@ Each goes f64/f32 → narrower with RNE rounding, walks ≤ 2 ULPs on the
 target side to find the exact ceiling/floor, and saturates extreme
 magnitudes to ±∞.
 
-## What's lawful
+## Installation
+
+```sh
+cargo add connections
+```
+
+| | |
+|--|--|
+| **MSRV** | Rust 1.85 (matches `rust-toolchain.toml`) |
+| **Edition** | 2024 |
+| **License** | MIT (see [`LICENSE-MIT`](LICENSE-MIT)) |
+
+Optional cargo features:
+
+| Feature | What it enables | Toolchain |
+|---------|-----------------|-----------|
+| `testing` | Re-exports `connections::prop::arb` (proptest strategies) for downstream test suites | stable |
+| `f16` | IEEE binary16 connections (`F016`, `F032F016`, `F064F016`) and their proptest strategies | nightly (uses `#![feature(f16)]` — tracking [#116909](https://github.com/rust-lang/rust/issues/116909)) |
+
+The `connections::prop::conn` and `connections::prop::lattice`
+predicate modules are *always* public — they're pure `bool`-returning
+functions over this crate's own types and don't depend on `proptest`.
+The `testing` feature only adds `prop::arb`, the strategy module that
+does pull `proptest` in as a regular dependency.
+
+## Testing
+
+```sh
+cargo test --workspace
+```
+
+Every connection runs its `proptest` law suite on every commit (the
+pre-commit hook in `.claude/settings.json` enforces this). Float
+generators are biased toward NaN, ±∞, ±0, denormals, and ULP-boundary
+values. Fixed-point generators are biased toward `0`, `±PREC`, and
+`±i64::MAX/PREC` so saturation boundaries are exercised on every run.
+
+Runtime dependencies are the [`fixed`](https://crates.io/crates/fixed)
+crate (binary fixed-point ladder) and the
+[`time`](https://crates.io/crates/time) crate (calendar / clock /
+duration types in `time`). Proptest is a dev-dependency, exposed
+publicly behind the `testing` feature for downstream test suites.
 
 Every connection ships with proptest coverage of the following laws — the
 predicates live in `prop::conn` and are re-runnable by downstream
@@ -417,99 +456,6 @@ For float-bearing types, the `≤` is a [N5 lattice](https://en.wikipedia.org/wi
 In particular, NaN is reflexive, NaN sits between ±∞ in the synthetic lattice, 
 and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 
-## What's shipped vs deferred
-
-**Connection families (named consts):**
-
-| Family | Module | Status |
-|--------|--------|--------|
-| Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `fixed::{i8,i16,i32,i64,i128}` | shipped |
-| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `int::{i8,i16,i32,i64,i128,u8,u16,u32,u64,u128}` | shipped |
-| Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) | shipped |
-| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `time` | shipped |
-| Domain-specific ladders (decimal time rungs, audio sample rates) | downstream crates ([`agogo`](https://gitlab.com/cmk/agogo) for audio) | moved |
-
-**Cast operations** (Haskell `Data.Connection.Cast`):
-
-| API | Status |
-|-----|--------|
-| L-side accessors + lifters: `upper`, `upper1`, `upper2`, `ceiling`, `ceiling1`, `ceiling2` | shipped (Sprint A) |
-| R-side accessors + lifters: `lower`, `lower1`, `lower2`, `floor`, `floor1`, `floor2` | shipped (Sprint A) |
-| Two-sided helpers: `interval`, `midpoint`, `round`/`round1`/`round2`, `truncate`/`truncate1`/`truncate2`, `median` | shipped (Sprint B) |
-| Combinators: `bounded`, `ordered` (as macros) | planned (Sprint C) |
-| `Down<T>` newtype + `filterL`/`filterR` | planned (Sprint D) |
-
-**Intentionally not ported:**
-
-- The `Side` data kind (`Cast 'L` / `Cast 'R`) — Rust lacks data kinds,
-  and a single unified `Conn` carries both sides without compile-time
-  bookkeeping. See [`doc/design.md`](doc/design.md) §"Core type" and
-  §"Cast: L/R as a naming axis, not a type axis".
-- `mapped` (lift a Conn through a `Functor f`) — needs HKTs. Specialize
-  per container at the call site if needed.
-- A standalone `Preorder` trait — Rust's `PartialOrd` covers most cases;
-  the localized `Ple` handles the float-N5 corner. See
-  [`doc/design.md`](doc/design.md) §"Why not a custom `Preorder` trait".
-
-## Layout
-
-```text
-src/
-├── lib.rs             — crate root + Cast API re-exports
-├── conn.rs            — Conn struct, compose! macro, identity, Cast API
-├── conn/              — supporting helpers split out of conn.rs
-├── extended.rs        — Extended<T> with NegInf/Finite/PosInf
-├── lattice.rs         — Join, Meet, Heyting, Coheyting, Symmetric, Boolean
-├── int.rs   + int/    — i8..i128, u8..u128 widening / narrowing / cross-sign
-├── fixed.rs + fixed/  — fixed-crate-backed binary Q-format ladders
-├── float.rs + float/  — ExtendedFloat<T> + f64↔f32↔f16 (f16 nightly-gated)
-├── time.rs  + time/   — Date, Time, Duration, OffsetDateTime conns
-└── prop.rs  + prop/   — proptest strategies + law predicates
-```
-
-## Relationship to the Haskell `connections` library
-
-This crate is a port of the Haskell library
-[`connections`](https://github.com/cmk/connections/) (same author, same
-mathematical content, different ergonomic trade-offs). The faithful
-parts:
-
-- The lattice trait hierarchy (`Join`, `Meet`, `Heyting`, `Coheyting`,
-  `Symmetric`, `Boolean`).
-- The N5 ordering on float-bearing types via `Ple` and
-  `ExtendedFloat<T>`.
-- The connection families (decimal/binary fixed-point, sample rates,
-  integer widening, float pairs).
-- The Cast API (Sprint A onward).
-
-The deliberate divergences:
-
-- One `Conn<A, B>` type instead of `Cast (k :: Side) a b`. Both
-  L-side and R-side accessors are free functions on the unified type.
-- Composition is a `compose!` macro over module-scope `const`s, not a
-  generic `Category` instance. The trade-off is documented in
-  [`doc/design.md`](doc/design.md) §"Composition".
-- No `Preorder` class; `PartialOrd` + the localized `Ple` trait covers
-  the cases that matter.
-
-## Testing
-
-```sh
-cargo test --workspace
-```
-
-Every connection runs its `proptest` law suite on every commit (the
-pre-commit hook in `.claude/settings.json` enforces this). Float
-generators are biased toward NaN, ±∞, ±0, denormals, and ULP-boundary
-values. Fixed-point generators are biased toward `0`, `±PREC`, and
-`±i64::MAX/PREC` so saturation boundaries are exercised on every run.
-
-Runtime dependencies are the [`fixed`](https://crates.io/crates/fixed)
-crate (binary fixed-point ladder) and the
-[`time`](https://crates.io/crates/time) crate (calendar / clock /
-duration types in `time`). Proptest is a dev-dependency, exposed
-publicly behind the `testing` feature for downstream test suites.
-
 ## Links
 
 - [API docs on docs.rs](https://docs.rs/connections) — published
@@ -525,3 +471,27 @@ publicly behind the `testing` feature for downstream test suites.
   upstream library this port mirrors.
 - [nLab: Galois connection](https://ncatlab.org/nlab/show/Galois+connection) —
   background reading.
+
+## Relationship to the Haskell library
+
+This crate is a port of the Haskell library
+[`connections`](https://github.com/cmk/connections/) (same author, same
+mathematical content, different ergonomic trade-offs). The faithful
+parts:
+
+- The `Conn` API
+- The connection families (decimal/binary fixed-point, sample rates,
+  integer widening, float pairs).
+- The N5 ordering on float-bearing types via `ExtendedFloat<T>`.
+- The lattice trait hierarchy (`Join`, `Meet`, `Heyting`, `Coheyting`,
+  `Symmetric`, `Boolean`).
+
+The deliberate divergences:
+
+- One `Conn<A, B>` type instead of `Cast (k :: Side) a b`. Both
+  L-side and R-side accessors are free functions on the unified type.
+- Composition is a `compose!` macro over module-scope `const`s, not a
+  generic `Category` instance. The trade-off is documented in
+  [`doc/design.md`](doc/design.md) §"Composition".
+- No `Preorder` class; `PartialOrd` + `ExtendedFloat` cover the cases
+  that matter.
