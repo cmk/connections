@@ -1,29 +1,31 @@
 //! Conns originating at [`F032`].
 //!
-//! Currently houses [`F032F016`] (`ExtendedFloat<f32> → ExtendedFloat<half::f16>`).
+//! Currently houses [`F032F016`] (`ExtendedFloat<f32> → ExtendedFloat<f16>`).
+//!
+//! Gated on the `f16` cargo feature (nightly required).
 
-use super::{ExtendedFloat, F016, F032, def_walk_helpers, shift16_f16};
+use super::{ExtendedFloat, F016, F032, def_walk_helpers, shift16_f16, widen_f16_f32};
 use crate::conn::Conn;
-use half::f16;
 
-def_walk_helpers!(f32_f16_walks, f32, f16, shift16_f16, f16::to_f32);
+def_walk_helpers!(f32_f16_walks, f32, f16, shift16_f16, widen_f16_f32);
 
 /// Connection between [`super::F032`] (`ExtendedFloat<f32>`) and
-/// [`super::F016`] (`ExtendedFloat<half::f16>`) under the N5 lattice.
+/// [`super::F016`] (`ExtendedFloat<f16>`) under the N5 lattice.
 ///
 /// - `inner`: lossless `f16 → f32` widening (`Bot/Top/Extend` pass through;
-///   `Extend(v)` calls `v.to_f32()`).
+///   `Extend(v)` performs `v as f32`).
 /// - `ceil`: smallest `f16` whose `f32` widening is ≥ the input (round up).
 /// - `floor`: largest `f16` whose `f32` widening is ≤ the input (round down).
 ///
 /// `Bot`/`Top` are preserved on both sides; `Extend(NaN)` flows through
-/// (half-rs's `from_f32` collapses distinct f32 NaN bit patterns to a
-/// canonical f16 NaN, but our `Eq` impl on `ExtendedFloat<half::f16>`
-/// treats `Extend(NaN) == Extend(NaN)` regardless of bit pattern).
-/// f32 magnitudes outside f16's ±65504 range saturate to `Extend(±INFINITY)`
-/// — RNE narrowing in `half::f16::from_f32`.
+/// (`x as f16` collapses distinct f32 NaN bit patterns to a canonical
+/// f16 NaN, but our `Eq` impl on `ExtendedFloat<f16>` treats
+/// `Extend(NaN) == Extend(NaN)` regardless of bit pattern). f32
+/// magnitudes outside f16's ±65504 range saturate to
+/// `Extend(±INFINITY)` — RNE narrowing in `x as f16`.
 ///
 /// ```
+/// # #![feature(f16)]
 /// use connections::conn::float::f32::F032F016;
 /// use connections::conn::float::{ExtendedFloat::Extend, F032};
 ///
@@ -36,7 +38,7 @@ def_walk_helpers!(f32_f16_walks, f32, f16, shift16_f16, f16::to_f32);
 ///
 /// // f32::MAX saturates to f16::INFINITY.
 /// let huge: F032 = Extend(f32::MAX);
-/// assert_eq!(F032F016.ceil(huge), Extend(half::f16::INFINITY));
+/// assert_eq!(F032F016.ceil(huge), Extend(f16::INFINITY));
 /// ```
 pub const F032F016: Conn<F032, F016> = {
     fn ceil(x: F032) -> F016 {
@@ -50,7 +52,7 @@ pub const F032F016: Conn<F032, F016> = {
         match y {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v.to_f32()),
+            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f32),
         }
     }
     fn floor(x: F032) -> F016 {
@@ -65,14 +67,14 @@ pub const F032F016: Conn<F032, F016> = {
 
 // `<=` and `==` on the f32 side (after the early NaN filter) is total
 // and exact. The walk converges in ≤ 2 ULPs because RNE narrowing
-// places `est = f16::from_f32(x)` within 1 ULP of the true target.
+// places `est = x as f16` within 1 ULP of the true target.
 
 fn ceil_f32_f16(x: f32) -> f16 {
     if x.is_nan() {
         return f16::NAN;
     }
-    let est = f16::from_f32(x);
-    let est_up = est.to_f32();
+    let est = x as f16;
+    let est_up = est as f32;
     if est_up == x {
         return est;
     }
@@ -88,8 +90,8 @@ fn floor_f32_f16(x: f32) -> f16 {
     if x.is_nan() {
         return f16::NAN;
     }
-    let est = f16::from_f32(x);
-    let est_up = est.to_f32();
+    let est = x as f16;
+    let est_up = est as f32;
     if est_up == x {
         return est;
     }
@@ -122,11 +124,11 @@ mod tests {
     fn ceil_floor_zero() {
         assert_eq!(
             F032F016.ceil(ExtendedFloat::Extend(0.0_f32)),
-            ExtendedFloat::Extend(f16::ZERO),
+            ExtendedFloat::Extend(0.0_f16),
         );
         assert_eq!(
             F032F016.floor(ExtendedFloat::Extend(0.0_f32)),
-            ExtendedFloat::Extend(f16::ZERO),
+            ExtendedFloat::Extend(0.0_f16),
         );
     }
 
@@ -239,7 +241,7 @@ mod tests {
         }
 
         // The four walk helpers must converge in ≤ 2 ULP corrections
-        // on the f16 side. RNE narrowing places `est = f16::from_f32(x)`
+        // on the f16 side. RNE narrowing places `est = x as f16`
         // within 1 ULP of the true ceil/floor; saturation boundaries
         // and subnormals can require a second step. More signals a bug.
         #[test]
@@ -247,8 +249,8 @@ mod tests {
             if x.is_nan() {
                 return Ok(());
             }
-            let est = f16::from_f32(x);
-            let est_up = est.to_f32();
+            let est = x as f16;
+            let est_up = est as f32;
             if est_up == x {
                 return Ok(());
             }

@@ -35,7 +35,6 @@ exclude = [
 
 [dependencies]
 fixed = "1"
-half = { version = "2", default-features = false }
 time = "0.3"
 proptest = { version = "1", optional = true }
 
@@ -48,6 +47,14 @@ proptest = "1"
 # are always public — they only depend on this crate's own types
 # (Conn, Ple, Heyting, …) and don't need proptest at all.
 testing = ["dep:proptest"]
+
+# Enable IEEE binary16 (`f16`) support: `F016`, `F032F016`, `F064F016`,
+# the f16-specific ULP machinery, and the `arb_f16` /
+# `extended_float_f16` proptest strategies. Requires nightly Rust
+# because `f16` is currently a nightly-only primitive
+# (`#![feature(f16)]`, tracking issue #116909). Default stable
+# builds skip the f16 path entirely.
+f16 = []
 
 # docs.rs builds the published crate with default features only by
 # default; opt into `all-features` so `property::arb` (gated on

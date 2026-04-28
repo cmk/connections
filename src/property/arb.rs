@@ -93,27 +93,31 @@ pub fn arb_f64_bounded() -> impl Strategy<Value = f64> {
 // saturates f32 into a bounded integer rung. Add it (mirroring
 // `arb_f64_bounded` above) when an F32F?? or similar conn appears.
 
-/// Arbitrary [`half::f16`] with edge-case-heavy boundary set.
+/// Arbitrary `f16` with edge-case-heavy boundary set.
 ///
 /// 8:2 boundary-to-uniform weighting (boundary-heavy by design — the
 /// 16-bit type's interesting failure modes are concentrated at NaN,
 /// ±0, ±∞, MIN/MAX, and the subnormal boundary). The uniform slot is
 /// a bounded `f32` range covering the full finite `f16` domain
-/// (`±f16::MAX = ±65504`) mapped through `from_f32` (RTNE) — bounded
+/// (`±f16::MAX = ±65504`) mapped through `as f16` (RTNE) — bounded
 /// so proptest's float-range strategy does binary-search shrinking
 /// rather than per-bit toggling on the 16-bit pattern.
-pub fn arb_f16() -> impl Strategy<Value = half::f16> {
+///
+/// Gated on the `f16` cargo feature (nightly required).
+#[cfg(feature = "f16")]
+pub fn arb_f16() -> impl Strategy<Value = f16> {
     prop_oneof![
-        1 => Just(half::f16::NAN),
-        1 => Just(half::f16::INFINITY),
-        1 => Just(half::f16::NEG_INFINITY),
-        1 => Just(half::f16::ZERO),
-        1 => Just(half::f16::NEG_ZERO),
-        1 => Just(half::f16::MIN_POSITIVE),
-        1 => Just(half::f16::MIN_POSITIVE_SUBNORMAL),
-        1 => Just(half::f16::MAX),
-        1 => Just(half::f16::MIN),
-        2 => (-65504.0_f32..=65504.0_f32).prop_map(half::f16::from_f32),
+        1 => Just(f16::NAN),
+        1 => Just(f16::INFINITY),
+        1 => Just(f16::NEG_INFINITY),
+        1 => Just(0.0_f16),
+        1 => Just(-0.0_f16),
+        1 => Just(f16::MIN_POSITIVE),
+        // Smallest positive subnormal (bit pattern 0x0001).
+        1 => Just(f16::from_bits(1)),
+        1 => Just(f16::MAX),
+        1 => Just(f16::MIN),
+        2 => (-65504.0_f32..=65504.0_f32).prop_map(|x| x as f16),
     ]
 }
 
@@ -256,10 +260,13 @@ pub fn arb_extended_duration_bounded_f32() -> impl Strategy<Value = Extended<Dur
     ]
 }
 
-/// `ExtendedFloat<half::f16>` over `Bot`, `Top`, and `Finite` from
+/// `ExtendedFloat<f16>` over `Bot`, `Top`, and `Finite` from
 /// [`arb_f16`] (1:1:8 weighting toward finite, matching the existing
 /// extended-float strategies).
-pub fn extended_float_f16() -> impl Strategy<Value = ExtendedFloat<half::f16>> {
+///
+/// Gated on the `f16` cargo feature (nightly required).
+#[cfg(feature = "f16")]
+pub fn extended_float_f16() -> impl Strategy<Value = ExtendedFloat<f16>> {
     prop_oneof![
         1 => Just(ExtendedFloat::Bot),
         1 => Just(ExtendedFloat::Top),

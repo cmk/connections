@@ -20,9 +20,12 @@
 //!
 //! Per-source-tier Conns live in submodules:
 //!
-//! - [`mod@f64`] — Conns originating at [`F064`] (currently `F064F032`).
-//! - [`mod@f32`] — Conns originating at [`F032`] (currently `F032F016`).
+//! - [`mod@f64`] — Conns originating at [`F064`] (`F064F032`; `F064F016`
+//!   when the `f16` feature is enabled).
+//! - [`mod@f32`] — Conns originating at [`F032`] (`F032F016`; gated on
+//!   the `f16` feature).
 
+#[cfg(feature = "f16")]
 pub mod f32;
 pub mod f64;
 
@@ -95,7 +98,8 @@ macro_rules! impl_float_ext {
 
 impl_float_ext!(f32);
 impl_float_ext!(f64);
-impl_float_ext!(half::f16);
+#[cfg(feature = "f16")]
+impl_float_ext!(f16);
 
 // ── Numeric impls: minimal surface for `crate::conn::cast` chain
 //    combinators (`interval`, `midpoint`, `round`, `truncate`).
@@ -184,10 +188,11 @@ impl_float_arith!(f64);
 
 /// IEEE binary16 (half-precision) wrapped under the N5 lattice.
 ///
-/// **Software-emulated** via the [`half`](https://docs.rs/half) crate;
-/// when native `f16` stabilizes the inner type swaps without changing
-/// `F016`'s public surface or any `F<src>F016` Conn name.
-pub type F016 = ExtendedFloat<half::f16>;
+/// Available behind the `f16` cargo feature; requires nightly Rust
+/// because std `f16` is currently a nightly-only primitive
+/// (`#![feature(f16)]`, tracking issue #116909).
+#[cfg(feature = "f16")]
+pub type F016 = ExtendedFloat<f16>;
 
 /// IEEE binary32 wrapped under the N5 lattice.
 pub type F032 = ExtendedFloat<f32>;
@@ -257,13 +262,14 @@ fn clamp32(x: i32) -> i32 {
     x.clamp(-2139095041, 2139095040)
 }
 
-// ── 16-bit ULP machinery (used by half::f16) ──
+// ── 16-bit ULP machinery (used by f16; gated on the `f16` feature) ──
 
 /// Word16 (sign-magnitude bit pattern) → sign-magnitude i32.
 ///
 /// Maps the 16-bit float bit-space onto integers so that integer
 /// order matches the float total order (excluding NaN):
 ///   +0 → 0, +inf-bits → small positive, -0 → -1, -inf-bits → large negative.
+#[cfg(feature = "f16")]
 pub(crate) fn signed16(x: u16) -> i32 {
     if x < 0x8000 {
         x as i32
@@ -276,6 +282,7 @@ pub(crate) fn signed16(x: u16) -> i32 {
 }
 
 /// Sign-magnitude i32 → Word16 (bit pattern).
+#[cfg(feature = "f16")]
 pub(crate) fn unsigned16(i: i32) -> u16 {
     if i >= 0 {
         i as u16
@@ -285,16 +292,31 @@ pub(crate) fn unsigned16(i: i32) -> u16 {
 }
 
 /// Clamp between the i32 representations of f16's ±∞.
+#[cfg(feature = "f16")]
 pub(crate) fn clamp16_f16(x: i32) -> i32 {
-    // half::f16::INFINITY.to_bits() = 0x7C00 → signed16 = 31744
-    // half::f16::NEG_INFINITY bits  = 0xFC00 → signed16 = -31745
+    // f16::INFINITY.to_bits() = 0x7C00 → signed16 = 31744
+    // f16::NEG_INFINITY bits  = 0xFC00 → signed16 = -31745
     x.clamp(-31745, 31744)
 }
 
 /// Widen `f32` to `f64`. Used by [`def_walk_helpers!`] to give the
 /// `F064F032` Conn a uniform `widen` shape with the half-precision
-/// Conns (which use `f16::to_f64` etc. as fn pointers).
+/// Conns (which use [`widen_f16_f64`] etc. as fn pointers).
 pub(crate) fn widen_f32_f64(x: f32) -> f64 {
+    x as f64
+}
+
+/// Widen `f16` to `f32` via an `as` cast. Wrapped as a free fn so it
+/// can be passed as a fn pointer to [`def_walk_helpers!`] (the macro
+/// can't take an `as` cast directly).
+#[cfg(feature = "f16")]
+pub(crate) fn widen_f16_f32(x: f16) -> f32 {
+    x as f32
+}
+
+/// Widen `f16` to `f64` via an `as` cast. See [`widen_f16_f32`].
+#[cfg(feature = "f16")]
+pub(crate) fn widen_f16_f64(x: f16) -> f64 {
     x as f64
 }
 
@@ -312,16 +334,15 @@ pub(crate) fn widen_f32_f64(x: f32) -> f64 {
 /// - `$mod_name` — the private submodule wrapping this Conn's
 ///   helpers, e.g. `f064_f016_walks`.
 /// - `$src` — the wider float type (`f32`, `f64`).
-/// - `$dst` — the narrower float type (`f32`, `half::f16`).
+/// - `$dst` — the narrower float type (`f32`, or `f16` when the
+///   `f16` cargo feature is enabled).
 /// - `$shift` — a `fn(i32, $dst) -> $dst` that shifts `n` ULPs in
 ///   sign-magnitude total order. Already in scope via the parent
 ///   module's `use super::{shift32, shift16_f16, …};`.
-/// - `$widen` — a `fn($dst) -> $src` that widens losslessly. For
-///   `f32 → f64` use [`widen_f32_f64`] (a free fn wrapper around
-///   `as f64` because `as` casts can't be passed as fn pointers);
-///   for `half::f16` use `half::f16::to_f64` / `half::f16::to_f32`
-///   (value-receiver methods that coerce to the right fn pointer
-///   shape).
+/// - `$widen` — a `fn($dst) -> $src` that widens losslessly. Always
+///   a free fn wrapper around `as` casts (since `as` casts can't be
+///   passed as fn pointers): [`widen_f32_f64`], [`widen_f16_f32`],
+///   or [`widen_f16_f64`].
 ///
 /// The generated module's helpers are `pub(super)` — visible to the
 /// owning Conn's `ceil`/`floor` functions and to `#[cfg(test)]` code
@@ -409,20 +430,21 @@ macro_rules! def_walk_helpers {
 
 pub(crate) use def_walk_helpers;
 
-/// Shift a [`half::f16`] by `n` ULPs in the sign-magnitude total order.
+/// Shift an `f16` by `n` ULPs in the sign-magnitude total order.
 ///
 /// NaN maps to ±∞ for non-zero shifts (matches `shift32`); ±∞ are
 /// clamped (shifting past stays at ±∞).
-pub(crate) fn shift16_f16(n: i32, x: half::f16) -> half::f16 {
+#[cfg(feature = "f16")]
+pub(crate) fn shift16_f16(n: i32, x: f16) -> f16 {
     if x.is_nan() {
         return match n.signum() {
-            -1 => half::f16::NEG_INFINITY,
-            1 => half::f16::INFINITY,
-            _ => half::f16::NAN,
+            -1 => f16::NEG_INFINITY,
+            1 => f16::INFINITY,
+            _ => f16::NAN,
         };
     }
     let i = signed16(x.to_bits());
-    half::f16::from_bits(unsigned16(clamp16_f16(i.saturating_add(n))))
+    f16::from_bits(unsigned16(clamp16_f16(i.saturating_add(n))))
 }
 
 #[cfg(test)]
@@ -451,8 +473,9 @@ mod tests {
         assert_eq!(shift32(-1, f32::NEG_INFINITY), f32::NEG_INFINITY);
     }
 
-    // ── 16-bit ULP machinery sanity ────────────────────────────────
+    // ── 16-bit ULP machinery sanity (f16 feature only) ─────────────
 
+    #[cfg(feature = "f16")]
     #[test]
     fn signed16_round_trip() {
         // Sweep every u16 → i32 → u16 must be the identity.
@@ -461,22 +484,23 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "f16")]
     #[test]
     fn signed16_total_order_matches_float_order_f16() {
         // For non-NaN f16 values, signed16(a.to_bits()) <= signed16(b.to_bits())
         // iff a.total_cmp(&b) is Less or Equal.
-        let samples = [
-            half::f16::NEG_INFINITY,
-            half::f16::MIN,
-            half::f16::from_f32(-1.0),
-            half::f16::from_f32(-0.5),
-            half::f16::NEG_ZERO,
-            half::f16::ZERO,
-            half::f16::MIN_POSITIVE,
-            half::f16::from_f32(0.5),
-            half::f16::ONE,
-            half::f16::MAX,
-            half::f16::INFINITY,
+        let samples: [f16; 11] = [
+            f16::NEG_INFINITY,
+            f16::MIN,
+            -1.0_f16,
+            -0.5_f16,
+            -0.0_f16,
+            0.0_f16,
+            f16::MIN_POSITIVE,
+            0.5_f16,
+            1.0_f16,
+            f16::MAX,
+            f16::INFINITY,
         ];
         for w in samples.windows(2) {
             let (a, b) = (w[0], w[1]);
@@ -488,33 +512,34 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "f16")]
     #[test]
     fn shift16_f16_from_zero() {
-        let z = shift16_f16(1, half::f16::ZERO);
-        assert!(z > half::f16::ZERO);
-        assert_eq!(z, half::f16::from_bits(1));
+        let z = shift16_f16(1, 0.0_f16);
+        assert!(z > 0.0_f16);
+        assert_eq!(z, f16::from_bits(1));
     }
 
+    #[cfg(feature = "f16")]
     #[test]
     fn shift16_f16_nan_to_inf() {
-        assert_eq!(shift16_f16(1, half::f16::NAN), half::f16::INFINITY);
-        assert_eq!(shift16_f16(-1, half::f16::NAN), half::f16::NEG_INFINITY);
-        assert!(shift16_f16(0, half::f16::NAN).is_nan());
+        assert_eq!(shift16_f16(1, f16::NAN), f16::INFINITY);
+        assert_eq!(shift16_f16(-1, f16::NAN), f16::NEG_INFINITY);
+        assert!(shift16_f16(0, f16::NAN).is_nan());
     }
 
+    #[cfg(feature = "f16")]
     #[test]
     fn shift16_f16_inf_clamped() {
-        assert_eq!(shift16_f16(1, half::f16::INFINITY), half::f16::INFINITY);
-        assert_eq!(
-            shift16_f16(-1, half::f16::NEG_INFINITY),
-            half::f16::NEG_INFINITY
-        );
+        assert_eq!(shift16_f16(1, f16::INFINITY), f16::INFINITY);
+        assert_eq!(shift16_f16(-1, f16::NEG_INFINITY), f16::NEG_INFINITY);
     }
 
+    #[cfg(feature = "f16")]
     #[test]
     fn clamp16_constants_match_inf_bits() {
-        assert_eq!(signed16(half::f16::INFINITY.to_bits()), 31744);
-        assert_eq!(signed16(half::f16::NEG_INFINITY.to_bits()), -31745);
+        assert_eq!(signed16(f16::INFINITY.to_bits()), 31744);
+        assert_eq!(signed16(f16::NEG_INFINITY.to_bits()), -31745);
     }
 
     // ── ExtendedFloat tests (folded in from former src/float_ext.rs) ────
@@ -575,16 +600,14 @@ mod tests {
         assert!(n.partial_cmp(&ExtendedFloat::Extend(1.0_f32)).is_none());
     }
 
+    #[cfg(feature = "f16")]
     #[test]
     fn f16_same_shape() {
-        let n: ExtendedFloat<half::f16> = ExtendedFloat::Extend(half::f16::NAN);
-        assert_eq!(n, ExtendedFloat::Extend(half::f16::NAN));
-        assert!(ExtendedFloat::<half::f16>::Bot < n);
-        assert!(n < ExtendedFloat::<half::f16>::Top);
-        assert!(
-            n.partial_cmp(&ExtendedFloat::Extend(half::f16::ONE))
-                .is_none()
-        );
+        let n: ExtendedFloat<f16> = ExtendedFloat::Extend(f16::NAN);
+        assert_eq!(n, ExtendedFloat::Extend(f16::NAN));
+        assert!(ExtendedFloat::<f16>::Bot < n);
+        assert!(n < ExtendedFloat::<f16>::Top);
+        assert!(n.partial_cmp(&ExtendedFloat::Extend(1.0_f16)).is_none());
     }
 
     // ── Numeric impls for ExtendedFloat<f32 | f64> ────────────────

@@ -1,14 +1,18 @@
 //! Conns originating at [`F064`].
 //!
-//! Currently houses [`F064F032`] (`ExtendedFloat<f64> → ExtendedFloat<f32>`)
-//! and [`F064F016`] (`ExtendedFloat<f64> → ExtendedFloat<half::f16>`).
+//! Houses [`F064F032`] (`ExtendedFloat<f64> → ExtendedFloat<f32>`)
+//! unconditionally, and [`F064F016`]
+//! (`ExtendedFloat<f64> → ExtendedFloat<f16>`) behind the `f16`
+//! cargo feature.
 
-use super::{ExtendedFloat, F016, F064, def_walk_helpers, shift16_f16, shift32, widen_f32_f64};
+use super::{ExtendedFloat, def_walk_helpers, shift32, widen_f32_f64};
+#[cfg(feature = "f16")]
+use super::{F016, F064, shift16_f16, widen_f16_f64};
 use crate::conn::Conn;
-use half::f16;
 
 def_walk_helpers!(f64_f32_walks, f64, f32, shift32, widen_f32_f64);
-def_walk_helpers!(f64_f16_walks, f64, f16, shift16_f16, f16::to_f64);
+#[cfg(feature = "f16")]
+def_walk_helpers!(f64_f16_walks, f64, f16, shift16_f16, widen_f16_f64);
 
 /// Connection between [`super::F064`] (i.e. `ExtendedFloat<f64>`) and
 /// [`super::F032`] (`ExtendedFloat<f32>`) under the N5 lattice ordering.
@@ -86,18 +90,19 @@ fn floor_f64_f32(x: f64) -> f32 {
     z
 }
 
-// ── F064F016 ───────────────────────────────────────────────────────
+// ── F064F016 (gated on the `f16` cargo feature) ────────────────────
 
 /// Connection between [`super::F064`] and [`super::F016`] under the
-/// N5 lattice — direct `f64 ↔ half::f16` narrowing.
+/// N5 lattice — direct `f64 ↔ f16` narrowing.
 ///
 /// Direct (rather than `compose!(F064F032, F032F016)`) because the
 /// two-stage version rounds twice — RNE-RNE composition can land on
 /// a value 1 ULP off from the true f64 → f16 ceiling/floor on
-/// double-rounding cases. The direct path uses `f16::from_f64`
-/// (single RNE step) and then walks ≤ 2 f16 ULPs to correct.
+/// double-rounding cases. The direct path uses `x as f16` (single
+/// RNE step) and then walks ≤ 2 f16 ULPs to correct.
 ///
 /// ```
+/// # #![feature(f16)]
 /// use connections::conn::float::f64::F064F016;
 /// use connections::conn::float::ExtendedFloat::Extend;
 ///
@@ -106,6 +111,7 @@ fn floor_f64_f32(x: f64) -> f32 {
 /// // Widening f16 back to f64 lands above the original.
 /// assert!(F064F016.inner(pi_up) >= pi);
 /// ```
+#[cfg(feature = "f16")]
 pub const F064F016: Conn<F064, F016> = {
     fn ceil(x: F064) -> F016 {
         match x {
@@ -118,7 +124,7 @@ pub const F064F016: Conn<F064, F016> = {
         match y {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v.to_f64()),
+            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f64),
         }
     }
     fn floor(x: F064) -> F016 {
@@ -131,12 +137,13 @@ pub const F064F016: Conn<F064, F016> = {
     Conn::new(ceil, inner, floor)
 };
 
+#[cfg(feature = "f16")]
 fn ceil_f64_f16(x: f64) -> f16 {
     if x.is_nan() {
         return f16::NAN;
     }
-    let est = f16::from_f64(x);
-    let est_up = est.to_f64();
+    let est = x as f16;
+    let est_up = est as f64;
     if est_up == x {
         return est;
     }
@@ -148,12 +155,13 @@ fn ceil_f64_f16(x: f64) -> f16 {
     z
 }
 
+#[cfg(feature = "f16")]
 fn floor_f64_f16(x: f64) -> f16 {
     if x.is_nan() {
         return f16::NAN;
     }
-    let est = f16::from_f64(x);
-    let est_up = est.to_f64();
+    let est = x as f16;
+    let est_up = est as f64;
     if est_up == x {
         return est;
     }
@@ -168,7 +176,9 @@ fn floor_f64_f16(x: f64) -> f16 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::{arb_f32, arb_f64, extended_float_f16 as ef16};
+    #[cfg(feature = "f16")]
+    use crate::property::arb::extended_float_f16 as ef16;
+    use crate::property::arb::{arb_f32, arb_f64};
     use crate::property::laws;
     use proptest::prelude::*;
 
@@ -351,7 +361,17 @@ mod tests {
         // `ExtendedFloat<f32>` (Bot / Top would have to alias to
         // sentinel ints, which isn't a meaningful "rung distance").
 
-        // ── F064F016 battery ─────────────────────────────────────
+    }
+
+    // ── F064F016 battery (gated on the `f16` cargo feature) ───────
+
+    #[cfg(feature = "f16")]
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 256,
+            max_shrink_iters: 200,
+            .. ProptestConfig::default()
+        })]
 
         #[test]
         fn f16_galois_l(a in ef64(), b in ef16()) {
@@ -408,8 +428,8 @@ mod tests {
             if x.is_nan() {
                 return Ok(());
             }
-            let est = f16::from_f64(x);
-            let est_up = est.to_f64();
+            let est = x as f16;
+            let est_up = est as f64;
             if est_up == x {
                 return Ok(());
             }
@@ -427,11 +447,11 @@ mod tests {
             };
             prop_assert!(steps <= 2, "f64_f16_walks::ascend/descend_to_floor took {steps} steps on x={x}");
         }
-
     }
 
     // ── F064F016 spot checks ───────────────────────────────────────
 
+    #[cfg(feature = "f16")]
     #[test]
     fn f16_neg_zero_sign_preserved() {
         let neg = F064F016.ceil(ExtendedFloat::Extend(-0.0_f64));
@@ -441,6 +461,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "f16")]
     #[test]
     fn f16_ceil_nan() {
         match F064F016.ceil(ExtendedFloat::Extend(f64::NAN)) {
@@ -449,6 +470,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "f16")]
     #[test]
     fn f16_pos_inf_preserved() {
         assert_eq!(
@@ -457,6 +479,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "f16")]
     #[test]
     fn f16_f64_max_saturates_to_inf() {
         // f64::MAX (≈ 1.8e308) is far above f16::MAX (65504). RNE → ∞.
@@ -466,6 +489,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "f16")]
     #[test]
     fn f16_bot_top_pass_through() {
         assert_eq!(F064F016.ceil(ExtendedFloat::Bot), ExtendedFloat::Bot);

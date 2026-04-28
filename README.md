@@ -158,13 +158,15 @@ assert_eq!(F064DURN.ceil(nan),  Extended::PosInf);
 assert_eq!(F064DURN.floor(nan), Extended::NegInf);
 ```
 
-A direct `f64 → f16` narrowing — the `half` crate provides a
-software-emulated `f16` on stable Rust, wrapped with `ExtendedFloat`
-so it satisfies `Eq + PartialOrd` and flows through the law
-machinery. This block is mirrored verbatim into `F064F016`'s
-rustdoc; `cargo test --doc` keeps the two in sync:
+A direct `f64 → f16` narrowing — wrapped with `ExtendedFloat` so it
+satisfies `Eq + PartialOrd` and flows through the law machinery.
+**Requires the `f16` cargo feature** (and a nightly toolchain, since
+`f16` is currently a nightly-only primitive — tracking
+[#116909](https://github.com/rust-lang/rust/issues/116909)). Default
+stable builds skip the f16 path entirely:
 
-```rust
+```rust,ignore
+// Build with `--features f16` on nightly to enable F064F016.
 use connections::conn::float::f64::F064F016;
 use connections::conn::float::ExtendedFloat::Extend;
 
@@ -177,17 +179,16 @@ assert!(pi <= F064F016.inner(pi_up));
 
 // f64::MAX saturates to f16::INFINITY.
 let huge = Extend(f64::MAX);
-assert_eq!(F064F016.ceil(huge), Extend(half::f16::INFINITY));
+assert_eq!(F064F016.ceil(huge), Extend(f16::INFINITY));
 ```
 
-The full set of `f64 ↔ f32 ↔ f16` narrowings ships as three named
-constants:
+The set of float-narrowing Conns ships as three named constants:
 
-| Constant | Source | Target | Module |
-|----------|--------|--------|--------|
-| `F064F032` | `ExtendedFloat<f64>` | `ExtendedFloat<f32>` | [`conn::float::f64`] |
-| `F064F016` | `ExtendedFloat<f64>` | `ExtendedFloat<half::f16>` | [`conn::float::f64`] |
-| `F032F016` | `ExtendedFloat<f32>` | `ExtendedFloat<half::f16>` | [`conn::float::f32`] |
+| Constant | Source | Target | Module | Feature |
+|----------|--------|--------|--------|---------|
+| `F064F032` | `ExtendedFloat<f64>` | `ExtendedFloat<f32>` | [`conn::float::f64`] | always |
+| `F064F016` | `ExtendedFloat<f64>` | `ExtendedFloat<f16>` | [`conn::float::f64`] | `f16` |
+| `F032F016` | `ExtendedFloat<f32>` | `ExtendedFloat<f16>` | [`conn::float::f32`] | `f16` |
 
 Each goes f64/f32 → narrower with RNE rounding, walks ≤ 2 ULPs on the
 target side to find the exact ceiling/floor, and saturates extreme

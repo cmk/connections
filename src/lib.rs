@@ -21,7 +21,7 @@
 //!
 //! | code     | type                                                | meaning                |
 //! |----------|-----------------------------------------------------|------------------------|
-//! | `F016`   | [`F016`](conn::float::F016)                         | IEEE binary16 (sw via `half`) |
+//! | `F016`   | [`F016`](conn::float::F016)                         | IEEE binary16 (`f16` feature, nightly) |
 //! | `F032`   | [`F032`](conn::float::F032)                         | IEEE binary32          |
 //! | `F064`   | [`F064`](conn::float::F064)                         | IEEE binary64          |
 //! | `F128`   | (deferred — `f128` unstable)                        | IEEE binary128         |
@@ -135,6 +135,12 @@
 //! | `ceiling2`/`upper2` | [`ceiling2`] / [`upper2`] |
 //! | `floor2`/`lower2` | [`floor2`] / [`lower2`] |
 
+// `f16` is currently a nightly-only primitive (tracking #116909). Opting
+// into the `f16` cargo feature enables the gated `F016` / `F032F016` /
+// `F064F016` Conns and arb strategies, but requires building on nightly
+// because `#![feature(f16)]` is a nightly-only attribute. Default stable
+// builds skip the f16 path entirely.
+#![cfg_attr(feature = "f16", feature(f16))]
 #![forbid(unsafe_code)]
 
 pub mod conn;
