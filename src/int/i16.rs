@@ -3,12 +3,19 @@
 //!
 //! # Examples
 //!
-//! `Extended<u8> → i16` widening — the source's range fits inside
-//! `i16`, so finite values pass through untouched. The synthetic
-//! markers `NegInf` / `PosInf` land at distinct boundary integers
-//! so `inner` can round-trip them, while `floor`/`ceil` saturate to
-//! the target's `MIN`/`MAX` for downstream consumers that don't
-//! know about `Extended`:
+//! `Extended<u8> → i16` widening. Finite values pass through
+//! untouched. Each infinity yields *two* different i16 answers
+//! depending on which adjoint you call:
+//!
+//! - `ceil` (lower adjoint) rounds *up* to the smallest target `b`
+//!   with `inner(b) ≥ source`. For `PosInf` that's the synthetic
+//!   marker `u8::MAX + 1 = 256` — the least i16 that maps back to
+//!   `PosInf` under `inner`. For `NegInf`, every i16 satisfies
+//!   `inner(b) ≥ NegInf`, so the smallest — `i16::MIN` — wins.
+//! - `floor` (upper adjoint) rounds *down* to the largest target
+//!   `b` with `inner(b) ≤ source`. For `PosInf` every i16 qualifies,
+//!   so the largest — `i16::MAX` — wins. For `NegInf` it's the
+//!   synthetic marker `u8::MIN - 1 = -1`.
 //!
 //! ```rust
 //! use connections::int::i16::U008I016;
@@ -17,16 +24,19 @@
 //! // Finite passes through:
 //! assert_eq!(U008I016.ceil(Extended::Finite(200_u8)), 200_i16);
 //!
-//! // The synthetic markers land one past the source bounds — distinct
-//! // from the i16 saturation, so `inner` can recover them:
-//! assert_eq!(U008I016.ceil(Extended::PosInf),   256_i16);  // u8::MAX + 1
-//! assert_eq!(U008I016.floor(Extended::NegInf),   -1_i16);  // u8::MIN - 1
-//!
-//! // Outer `floor` / `ceil` of the synthetic markers saturate the
-//! // target type instead, for consumers that need a plain i16:
+//! // PosInf: ceil → synthetic marker; floor → target MAX.
+//! assert_eq!(U008I016.ceil(Extended::PosInf),  256_i16);   // u8::MAX + 1
 //! assert_eq!(U008I016.floor(Extended::PosInf), i16::MAX);
+//!
+//! // NegInf: ceil → target MIN; floor → synthetic marker.
 //! assert_eq!(U008I016.ceil(Extended::NegInf),  i16::MIN);
+//! assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 //! ```
+//!
+//! `floor(a) ≤ ceil(a)` does *not* hold at the saturation plateau
+//! (e.g. for `PosInf` here, `floor = i16::MAX > ceil = 256`). This is
+//! the saturating-conn carve-out from the rounding-sandwich law
+//! documented in the README's "What's lawful" table.
 
 use super::{ext_int, int_int_narrow, uint_int_sat};
 use crate::conn::Conn;
