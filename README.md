@@ -158,38 +158,36 @@ assert_eq!(F064DURN.ceil(nan),  Extended::PosInf);
 assert_eq!(F064DURN.floor(nan), Extended::NegInf);
 ```
 
-A direct `f64 → bfloat16` narrowing — the `half` crate provides a
-software-emulated `bf16` (and `f16`) on stable Rust, wrapped with
-`ExtendedFloat` so it satisfies `Eq + PartialOrd` and flows through the
-law machinery. This block is mirrored verbatim into `F064B016`'s
+A direct `f64 → f16` narrowing — the `half` crate provides a
+software-emulated `f16` on stable Rust, wrapped with `ExtendedFloat`
+so it satisfies `Eq + PartialOrd` and flows through the law
+machinery. This block is mirrored verbatim into `F064F016`'s
 rustdoc; `cargo test --doc` keeps the two in sync:
 
 ```rust
-use connections::conn::float::f64::F064B016;
+use connections::conn::float::f64::F064F016;
 use connections::conn::float::ExtendedFloat::Extend;
 
-// π narrows to bf16. The two-sided round-trip brackets π.
+// π narrows to f16. The two-sided round-trip brackets π.
 let pi = Extend(std::f64::consts::PI);
-let pi_up   = F064B016.ceil(pi);
-let pi_down = F064B016.floor(pi);
-assert!(F064B016.inner(pi_down) <= pi);
-assert!(pi <= F064B016.inner(pi_up));
+let pi_up   = F064F016.ceil(pi);
+let pi_down = F064F016.floor(pi);
+assert!(F064F016.inner(pi_down) <= pi);
+assert!(pi <= F064F016.inner(pi_up));
 
-// f64::MAX saturates to bf16::INFINITY.
+// f64::MAX saturates to f16::INFINITY.
 let huge = Extend(f64::MAX);
-assert_eq!(F064B016.ceil(huge), Extend(half::bf16::INFINITY));
+assert_eq!(F064F016.ceil(huge), Extend(half::f16::INFINITY));
 ```
 
-The full set of `f64 ↔ f32 ↔ {f16, bf16}` narrowings ships as five
-named constants:
+The full set of `f64 ↔ f32 ↔ f16` narrowings ships as three named
+constants:
 
 | Constant | Source | Target | Module |
 |----------|--------|--------|--------|
 | `F064F032` | `ExtendedFloat<f64>` | `ExtendedFloat<f32>` | [`conn::float::f64`] |
 | `F064F016` | `ExtendedFloat<f64>` | `ExtendedFloat<half::f16>` | [`conn::float::f64`] |
-| `F064B016` | `ExtendedFloat<f64>` | `ExtendedFloat<half::bf16>` | [`conn::float::f64`] |
 | `F032F016` | `ExtendedFloat<f32>` | `ExtendedFloat<half::f16>` | [`conn::float::f32`] |
-| `F032B016` | `ExtendedFloat<f32>` | `ExtendedFloat<half::bf16>` | [`conn::float::f32`] |
 
 Each goes f64/f32 → narrower with RNE rounding, walks ≤ 2 ULPs on the
 target side to find the exact ceiling/floor, and saturates extreme
@@ -231,7 +229,7 @@ and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 |--------|--------|--------|
 | Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `conn::fixed::{i8,i16,i32,i64,i128}` | shipped |
 | Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `conn::std::{i8,i16,i32,i64,i128,u8,u16,u32,u64,u128}` | shipped |
-| Float `f64 ↔ f32 ↔ {f16, bf16}` under N5 | `conn::float` | shipped |
+| Float `f64 ↔ f32 ↔ f16` under N5 | `conn::float` | shipped |
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `conn::time` | shipped |
 | Domain-specific ladders (decimal time rungs, audio sample rates) | downstream crates ([`agogo`](https://gitlab.com/cmk/agogo) for audio) | moved |
 
@@ -291,7 +289,7 @@ src/
 ├── conn/
 │   ├── cast.rs         — L/R accessors + lifters
 │   ├── fixed/          — `fixed`-crate-backed binary Q-format ladders
-│   ├── float.rs        — ExtendedFloat<T> + f64↔f32↔{f16,bf16}
+│   ├── float.rs        — ExtendedFloat<T> + f64↔f32↔f16
 │   ├── std/            — std-int widening / narrowing / cross-sign
 │   └── time/           — time-crate types (Date, Time, Duration, OffsetDateTime)
 │       ├── date.rs     — Date conns (DATEJDAY)

@@ -6,8 +6,8 @@
 //!   crates wrap them in their own `proptest!` blocks via
 //!   `prop_assert!(connections::property::laws::heyting_adjunction(&x, &y, &z))`.
 //! - [`arb`] — proptest strategies (`arb_f64`, `arb_f32`,
-//!   `arb_f64_bounded`, `arb_f16`, `arb_bf16`, the
-//!   `extended_float_*` and time-crate generators). Gated on the
+//!   `arb_f64_bounded`, `arb_f16`, the `extended_float_*` and
+//!   time-crate generators). Gated on the
 //!   `testing` feature, which flips `proptest` from this crate's
 //!   dev-dep to an optional regular dep so downstream callers can
 //!   pull it in.

@@ -1,19 +1,14 @@
 //! Conns originating at [`F064`].
 //!
-//! Currently houses [`F064F032`] (`ExtendedFloat<f64> → ExtendedFloat<f32>`).
-//! Future direct-precision Conns from f64 (e.g. `F064F016`, `F064B016`)
-//! land alongside it.
+//! Currently houses [`F064F032`] (`ExtendedFloat<f64> → ExtendedFloat<f32>`)
+//! and [`F064F016`] (`ExtendedFloat<f64> → ExtendedFloat<half::f16>`).
 
-use super::{
-    B016, ExtendedFloat, F016, F064, def_walk_helpers, shift16_bf16, shift16_f16, shift32,
-    widen_f32_f64,
-};
+use super::{ExtendedFloat, F016, F064, def_walk_helpers, shift16_f16, shift32, widen_f32_f64};
 use crate::conn::Conn;
-use half::{bf16, f16};
+use half::f16;
 
 def_walk_helpers!(f64_f32_walks, f64, f32, shift32, widen_f32_f64);
 def_walk_helpers!(f64_f16_walks, f64, f16, shift16_f16, f16::to_f64);
-def_walk_helpers!(f64_b16_walks, f64, bf16, shift16_bf16, bf16::to_f64);
 
 /// Connection between [`super::F064`] (i.e. `ExtendedFloat<f64>`) and
 /// [`super::F032`] (`ExtendedFloat<f32>`) under the N5 lattice ordering.
@@ -170,100 +165,10 @@ fn floor_f64_f16(x: f64) -> f16 {
     z
 }
 
-// ── F064B016 ───────────────────────────────────────────────────────
-
-/// Connection between [`super::F064`] and [`super::B016`] under the
-/// N5 lattice — direct `f64 ↔ half::bf16` narrowing.
-///
-/// bf16's exponent matches f32's (8 bits) but is narrower than f64's
-/// (11 bits), so f64 magnitudes outside `bf16::MAX` (≈ 3.39e38)
-/// saturate to ±∞. The mantissa drop is severe (52 → 7 bits) but
-/// `bf16::from_f64` does single-step RNE rounding; the walk
-/// converges in ≤ 2 ULPs on the bf16 side.
-///
-/// **This is the headline new feature of MR !21** — direct f64 →
-/// bfloat16 with full Galois-law backing, on stable Rust.
-///
-/// ```
-/// use connections::conn::float::f64::F064B016;
-/// use connections::conn::float::ExtendedFloat::Extend;
-///
-/// // π narrows to bf16. The two-sided round-trip brackets π.
-/// let pi = Extend(std::f64::consts::PI);
-/// let pi_up   = F064B016.ceil(pi);
-/// let pi_down = F064B016.floor(pi);
-/// assert!(F064B016.inner(pi_down) <= pi);
-/// assert!(pi <= F064B016.inner(pi_up));
-///
-/// // f64::MAX saturates to bf16::INFINITY.
-/// let huge = Extend(f64::MAX);
-/// assert_eq!(F064B016.ceil(huge), Extend(half::bf16::INFINITY));
-/// ```
-pub const F064B016: Conn<F064, B016> = {
-    fn ceil(x: F064) -> B016 {
-        match x {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f64_bf16(v)),
-        }
-    }
-    fn inner(y: B016) -> F064 {
-        match y {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v.to_f64()),
-        }
-    }
-    fn floor(x: F064) -> B016 {
-        match x {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f64_bf16(v)),
-        }
-    }
-    Conn::new(ceil, inner, floor)
-};
-
-fn ceil_f64_bf16(x: f64) -> bf16 {
-    if x.is_nan() {
-        return bf16::NAN;
-    }
-    let est = bf16::from_f64(x);
-    let est_up = est.to_f64();
-    if est_up == x {
-        return est;
-    }
-    let (z, _steps) = if x <= est_up {
-        f64_b16_walks::descend_to_ceil(est, x)
-    } else {
-        f64_b16_walks::ascend_to_ceil(est, x)
-    };
-    z
-}
-
-fn floor_f64_bf16(x: f64) -> bf16 {
-    if x.is_nan() {
-        return bf16::NAN;
-    }
-    let est = bf16::from_f64(x);
-    let est_up = est.to_f64();
-    if est_up == x {
-        return est;
-    }
-    let (z, _steps) = if est_up <= x {
-        f64_b16_walks::ascend_to_floor(est, x)
-    } else {
-        f64_b16_walks::descend_to_floor(est, x)
-    };
-    z
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::{
-        arb_f32, arb_f64, extended_float_bf16 as eb16, extended_float_f16 as ef16,
-    };
+    use crate::property::arb::{arb_f32, arb_f64, extended_float_f16 as ef16};
     use crate::property::laws;
     use proptest::prelude::*;
 
@@ -523,82 +428,6 @@ mod tests {
             prop_assert!(steps <= 2, "f64_f16_walks::ascend/descend_to_floor took {steps} steps on x={x}");
         }
 
-        // ── F064B016 battery ─────────────────────────────────────
-
-        #[test]
-        fn b16_galois_l(a in ef64(), b in eb16()) {
-            prop_assert!(laws::conn_galois_l(&F064B016, a, b));
-        }
-
-        #[test]
-        fn b16_galois_r(a in ef64(), b in eb16()) {
-            prop_assert!(laws::conn_galois_r(&F064B016, a, b));
-        }
-
-        #[test]
-        fn b16_closure_l(a in ef64()) {
-            prop_assert!(laws::conn_closure_l(&F064B016, a));
-        }
-
-        #[test]
-        fn b16_closure_r(a in ef64()) {
-            prop_assert!(laws::conn_closure_r(&F064B016, a));
-        }
-
-        #[test]
-        fn b16_kernel_l(b in eb16()) {
-            prop_assert!(laws::conn_kernel_l(&F064B016, b));
-        }
-
-        #[test]
-        fn b16_kernel_r(b in eb16()) {
-            prop_assert!(laws::conn_kernel_r(&F064B016, b));
-        }
-
-        #[test]
-        fn b16_monotone_l(a1 in ef64(), a2 in ef64()) {
-            prop_assert!(laws::conn_monotone_l(&F064B016, a1, a2));
-        }
-
-        #[test]
-        fn b16_monotone_r(b1 in eb16(), b2 in eb16()) {
-            prop_assert!(laws::conn_monotone_r(&F064B016, b1, b2));
-        }
-
-        #[test]
-        fn b16_idempotent(a in ef64()) {
-            prop_assert!(laws::conn_idempotent(&F064B016, a));
-        }
-
-        #[test]
-        fn b16_floor_le_ceil(a in ef64()) {
-            prop_assert!(laws::conn_floor_le_ceil(&F064B016, a));
-        }
-
-        #[test]
-        fn b16_ulp_steps_bounded(x in arb_f64()) {
-            if x.is_nan() {
-                return Ok(());
-            }
-            let est = bf16::from_f64(x);
-            let est_up = est.to_f64();
-            if est_up == x {
-                return Ok(());
-            }
-            let (_, steps) = if x <= est_up {
-                f64_b16_walks::descend_to_ceil(est, x)
-            } else {
-                f64_b16_walks::ascend_to_ceil(est, x)
-            };
-            prop_assert!(steps <= 2, "f64_b16_walks::ascend/descend_to_ceil took {steps} steps on x={x}");
-
-            let (_, steps) = if est_up <= x {
-                f64_b16_walks::ascend_to_floor(est, x)
-            } else {
-                f64_b16_walks::descend_to_floor(est, x)
-            };
-            prop_assert!(steps <= 2, "f64_b16_walks::ascend/descend_to_floor took {steps} steps on x={x}");
-        }
     }
 
     // ── F064F016 spot checks ───────────────────────────────────────
@@ -645,51 +474,5 @@ mod tests {
         assert_eq!(F064F016.floor(ExtendedFloat::Top), ExtendedFloat::Top);
         assert_eq!(F064F016.inner(ExtendedFloat::Bot), ExtendedFloat::Bot);
         assert_eq!(F064F016.inner(ExtendedFloat::Top), ExtendedFloat::Top);
-    }
-
-    // ── F064B016 spot checks ───────────────────────────────────────
-
-    #[test]
-    fn b16_neg_zero_sign_preserved() {
-        let neg = F064B016.ceil(ExtendedFloat::Extend(-0.0_f64));
-        match neg {
-            ExtendedFloat::Extend(v) => assert!(v.is_sign_negative()),
-            _ => panic!("expected Extend(-0)"),
-        }
-    }
-
-    #[test]
-    fn b16_ceil_nan() {
-        match F064B016.ceil(ExtendedFloat::Extend(f64::NAN)) {
-            ExtendedFloat::Extend(v) => assert!(v.is_nan()),
-            _ => panic!("expected Extend(NaN)"),
-        }
-    }
-
-    #[test]
-    fn b16_pos_inf_preserved() {
-        assert_eq!(
-            F064B016.ceil(ExtendedFloat::Extend(f64::INFINITY)),
-            ExtendedFloat::Extend(bf16::INFINITY),
-        );
-    }
-
-    #[test]
-    fn b16_f64_max_saturates_to_inf() {
-        // f64::MAX (≈ 1.8e308) is far above bf16::MAX (≈ 3.39e38). RNE → ∞.
-        assert_eq!(
-            F064B016.ceil(ExtendedFloat::Extend(f64::MAX)),
-            ExtendedFloat::Extend(bf16::INFINITY),
-        );
-    }
-
-    #[test]
-    fn b16_bot_top_pass_through() {
-        assert_eq!(F064B016.ceil(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F064B016.floor(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F064B016.ceil(ExtendedFloat::Top), ExtendedFloat::Top);
-        assert_eq!(F064B016.floor(ExtendedFloat::Top), ExtendedFloat::Top);
-        assert_eq!(F064B016.inner(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F064B016.inner(ExtendedFloat::Top), ExtendedFloat::Top);
     }
 }

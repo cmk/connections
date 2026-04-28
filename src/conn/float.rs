@@ -96,7 +96,6 @@ macro_rules! impl_float_ext {
 impl_float_ext!(f32);
 impl_float_ext!(f64);
 impl_float_ext!(half::f16);
-impl_float_ext!(half::bf16);
 
 // ── Numeric impls: minimal surface for `crate::conn::cast` chain
 //    combinators (`interval`, `midpoint`, `round`, `truncate`).
@@ -107,9 +106,8 @@ impl_float_ext!(half::bf16);
 // algebra: `Mul`, `Neg`, `Rem`, `AddAssign`, etc. are deliberately
 // omitted. Implemented only for `f32` / `f64` because the chain
 // combinators are exercised on those source types in-tree;
-// `half::f16` / `half::bf16` versions can be added later if a
-// caller needs them (they require routing `From<u8>` through
-// `from_f32`).
+// A `half::f16` version can be added later if a caller needs it
+// (it requires routing `From<u8>` through `from_f32`).
 //
 // Edge-case semantics for Bot/Top operands. The chain combinators
 // pass `(c.inner ∘ c.ceil)(x)` and `(c.inner ∘ c.floor)(x)` to the
@@ -197,15 +195,6 @@ pub type F032 = ExtendedFloat<f32>;
 /// IEEE binary64 wrapped under the N5 lattice.
 pub type F064 = ExtendedFloat<f64>;
 
-/// Google bfloat16 (Brain Floating Point) wrapped under the N5 lattice.
-///
-/// **Software-emulated** via the [`half`](https://docs.rs/half) crate.
-/// `bf16` shares `f32`'s 8-bit exponent (same dynamic range) but has
-/// only a 7-bit mantissa — preferred over IEEE `f16` for ML
-/// workloads where range matters more than precision. There is no
-/// stable Rust native bf16 today.
-pub type B016 = ExtendedFloat<half::bf16>;
-
 // ── ULP machinery ──────────────────────────────────────────────────
 
 /// Shift a float by `n` ULPs (units of least precision) in the
@@ -268,13 +257,7 @@ fn clamp32(x: i32) -> i32 {
     x.clamp(-2139095041, 2139095040)
 }
 
-// ── 16-bit ULP machinery (shared between half::f16 and half::bf16) ──
-//
-// Both half-precision types are u16-backed sign-magnitude with the
-// sign at the MSB, so the bit-pattern → total-order int mapping
-// (`signed16` / `unsigned16`) is identical. Only the ±∞ clamp values
-// differ — `clamp16_f16` vs `clamp16_bf16` — because IEEE binary16
-// and bfloat16 have different exponent fields.
+// ── 16-bit ULP machinery (used by half::f16) ──
 
 /// Word16 (sign-magnitude bit pattern) → sign-magnitude i32.
 ///
@@ -308,16 +291,9 @@ pub(crate) fn clamp16_f16(x: i32) -> i32 {
     x.clamp(-31745, 31744)
 }
 
-/// Clamp between the i32 representations of bf16's ±∞.
-pub(crate) fn clamp16_bf16(x: i32) -> i32 {
-    // half::bf16::INFINITY.to_bits() = 0x7F80 → signed16 = 32640
-    // half::bf16::NEG_INFINITY bits  = 0xFF80 → signed16 = -32641
-    x.clamp(-32641, 32640)
-}
-
 /// Widen `f32` to `f64`. Used by [`def_walk_helpers!`] to give the
 /// `F064F032` Conn a uniform `widen` shape with the half-precision
-/// Conns (which use `f16::to_f64` / `bf16::to_f32` etc. as fn pointers).
+/// Conns (which use `f16::to_f64` etc. as fn pointers).
 pub(crate) fn widen_f32_f64(x: f32) -> f64 {
     x as f64
 }
@@ -336,16 +312,16 @@ pub(crate) fn widen_f32_f64(x: f32) -> f64 {
 /// - `$mod_name` — the private submodule wrapping this Conn's
 ///   helpers, e.g. `f064_f016_walks`.
 /// - `$src` — the wider float type (`f32`, `f64`).
-/// - `$dst` — the narrower float type (`f32`, `half::f16`, `half::bf16`).
+/// - `$dst` — the narrower float type (`f32`, `half::f16`).
 /// - `$shift` — a `fn(i32, $dst) -> $dst` that shifts `n` ULPs in
 ///   sign-magnitude total order. Already in scope via the parent
-///   module's `use super::{shift32, shift16_f16, shift16_bf16, …};`.
+///   module's `use super::{shift32, shift16_f16, …};`.
 /// - `$widen` — a `fn($dst) -> $src` that widens losslessly. For
 ///   `f32 → f64` use [`widen_f32_f64`] (a free fn wrapper around
 ///   `as f64` because `as` casts can't be passed as fn pointers);
-///   for half types use `half::f16::to_f64` / `half::f16::to_f32` /
-///   `half::bf16::to_f64` / `half::bf16::to_f32` (value-receiver
-///   methods that coerce to the right fn pointer shape).
+///   for `half::f16` use `half::f16::to_f64` / `half::f16::to_f32`
+///   (value-receiver methods that coerce to the right fn pointer
+///   shape).
 ///
 /// The generated module's helpers are `pub(super)` — visible to the
 /// owning Conn's `ceil`/`floor` functions and to `#[cfg(test)]` code
@@ -449,19 +425,6 @@ pub(crate) fn shift16_f16(n: i32, x: half::f16) -> half::f16 {
     half::f16::from_bits(unsigned16(clamp16_f16(i.saturating_add(n))))
 }
 
-/// Shift a [`half::bf16`] by `n` ULPs in the sign-magnitude total order.
-pub(crate) fn shift16_bf16(n: i32, x: half::bf16) -> half::bf16 {
-    if x.is_nan() {
-        return match n.signum() {
-            -1 => half::bf16::NEG_INFINITY,
-            1 => half::bf16::INFINITY,
-            _ => half::bf16::NAN,
-        };
-    }
-    let i = signed16(x.to_bits());
-    half::bf16::from_bits(unsigned16(clamp16_bf16(i.saturating_add(n))))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -549,34 +512,9 @@ mod tests {
     }
 
     #[test]
-    fn shift16_bf16_from_zero() {
-        let z = shift16_bf16(1, half::bf16::ZERO);
-        assert!(z > half::bf16::ZERO);
-        assert_eq!(z, half::bf16::from_bits(1));
-    }
-
-    #[test]
-    fn shift16_bf16_nan_to_inf() {
-        assert_eq!(shift16_bf16(1, half::bf16::NAN), half::bf16::INFINITY);
-        assert_eq!(shift16_bf16(-1, half::bf16::NAN), half::bf16::NEG_INFINITY);
-        assert!(shift16_bf16(0, half::bf16::NAN).is_nan());
-    }
-
-    #[test]
-    fn shift16_bf16_inf_clamped() {
-        assert_eq!(shift16_bf16(1, half::bf16::INFINITY), half::bf16::INFINITY);
-        assert_eq!(
-            shift16_bf16(-1, half::bf16::NEG_INFINITY),
-            half::bf16::NEG_INFINITY
-        );
-    }
-
-    #[test]
     fn clamp16_constants_match_inf_bits() {
         assert_eq!(signed16(half::f16::INFINITY.to_bits()), 31744);
         assert_eq!(signed16(half::f16::NEG_INFINITY.to_bits()), -31745);
-        assert_eq!(signed16(half::bf16::INFINITY.to_bits()), 32640);
-        assert_eq!(signed16(half::bf16::NEG_INFINITY.to_bits()), -32641);
     }
 
     // ── ExtendedFloat tests (folded in from former src/float_ext.rs) ────
@@ -645,18 +583,6 @@ mod tests {
         assert!(n < ExtendedFloat::<half::f16>::Top);
         assert!(
             n.partial_cmp(&ExtendedFloat::Extend(half::f16::ONE))
-                .is_none()
-        );
-    }
-
-    #[test]
-    fn bf16_same_shape() {
-        let n: ExtendedFloat<half::bf16> = ExtendedFloat::Extend(half::bf16::NAN);
-        assert_eq!(n, ExtendedFloat::Extend(half::bf16::NAN));
-        assert!(ExtendedFloat::<half::bf16>::Bot < n);
-        assert!(n < ExtendedFloat::<half::bf16>::Top);
-        assert!(
-            n.partial_cmp(&ExtendedFloat::Extend(half::bf16::ONE))
                 .is_none()
         );
     }

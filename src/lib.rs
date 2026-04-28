@@ -22,7 +22,6 @@
 //! | code     | type                                                | meaning                |
 //! |----------|-----------------------------------------------------|------------------------|
 //! | `F016`   | [`F016`](conn::float::F016)                         | IEEE binary16 (sw via `half`) |
-//! | `B016`   | [`B016`](conn::float::B016)                         | Google bfloat16 (sw via `half`) |
 //! | `F032`   | [`F032`](conn::float::F032)                         | IEEE binary32          |
 //! | `F064`   | [`F064`](conn::float::F064)                         | IEEE binary64          |
 //! | `F128`   | (deferred — `f128` unstable)                        | IEEE binary128         |
@@ -73,9 +72,7 @@
 //!
 //! - [`conn::float::f64::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
 //! - [`conn::float::f64::F064F016`] — `F064 → F016` (direct f64 → IEEE binary16).
-//! - [`conn::float::f64::F064B016`] — `F064 → B016` (direct f64 → bfloat16).
 //! - [`conn::float::f32::F032F016`] — `F032 → F016` (f32 → IEEE binary16).
-//! - [`conn::float::f32::F032B016`] — `F032 → B016` (f32 → bfloat16).
 //! - [`conn::std::u16::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
 //! - [`conn::std::i16::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
 //! - [`conn::std::i16::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).

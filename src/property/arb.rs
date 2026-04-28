@@ -117,41 +117,6 @@ pub fn arb_f16() -> impl Strategy<Value = half::f16> {
     ]
 }
 
-/// Arbitrary [`half::bf16`] with edge-case-heavy boundary set.
-///
-/// Same 8:2 shape as [`arb_f16`]. The uniform slot uses a smaller
-/// bounded f32 range (`±1e6`) than bf16's true ±3.4e38 dynamic range
-/// — the boundary slot still includes `bf16::MAX` / `bf16::MIN` so
-/// extreme magnitudes are covered. Tight uniform range keeps shrink
-/// time bounded.
-///
-/// **Note on the gap:** values in `(1e6, bf16::MAX)` (≈ `(10⁶, 3.4×10³⁸)`)
-/// are not reachable from the uniform slot. The boundary slot covers
-/// the extreme endpoints (`MAX`, `MIN`), so saturation paths are
-/// exercised — but a Conn that mishandled values in the *middle* of
-/// the high-magnitude range would not be caught by this strategy
-/// alone. Acceptable because the f32→bf16 / f64→bf16 narrowing logic
-/// is bit-pattern-uniform across magnitudes; structural bugs surface
-/// at the boundary or in the uniform slot. If a future Conn
-/// introduces magnitude-dependent behavior, widen this range.
-pub fn arb_bf16() -> impl Strategy<Value = half::bf16> {
-    prop_oneof![
-        1 => Just(half::bf16::NAN),
-        1 => Just(half::bf16::INFINITY),
-        1 => Just(half::bf16::NEG_INFINITY),
-        1 => Just(half::bf16::ZERO),
-        1 => Just(half::bf16::NEG_ZERO),
-        1 => Just(half::bf16::MIN_POSITIVE),
-        1 => Just(half::bf16::MIN_POSITIVE_SUBNORMAL),
-        1 => Just(half::bf16::MAX),
-        1 => Just(half::bf16::MIN),
-        // Bounded to ±1e6 (not bf16's full ±3.4e38 range) for shrink
-        // performance. MAX/MIN endpoints are covered by the boundary
-        // slot above; see fn-level rustdoc for the full rationale.
-        2 => (-1.0e6_f32..=1.0e6_f32).prop_map(half::bf16::from_f32),
-    ]
-}
-
 // ── ExtendedFloat<f??> / Extended<Rung> strategies ───────────────
 //
 // `any::<f64>()` shrinks bit-by-bit through the mantissa and
@@ -299,16 +264,6 @@ pub fn extended_float_f16() -> impl Strategy<Value = ExtendedFloat<half::f16>> {
         1 => Just(ExtendedFloat::Bot),
         1 => Just(ExtendedFloat::Top),
         8 => arb_f16().prop_map(ExtendedFloat::Extend),
-    ]
-}
-
-/// `ExtendedFloat<half::bf16>` over `Bot`, `Top`, and `Finite` from
-/// [`arb_bf16`] (1:1:8 weighting).
-pub fn extended_float_bf16() -> impl Strategy<Value = ExtendedFloat<half::bf16>> {
-    prop_oneof![
-        1 => Just(ExtendedFloat::Bot),
-        1 => Just(ExtendedFloat::Top),
-        8 => arb_bf16().prop_map(ExtendedFloat::Extend),
     ]
 }
 
