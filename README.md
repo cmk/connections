@@ -102,12 +102,27 @@ heap-free, and the crate is `#![forbid(unsafe_code)]`.
 
 **Connection Families:**
 
+The crate's only top-level domain split is **`float/` vs `fixed/`**:
+every IEEE-binary type lives in `float/`; everything finite-precision
+with integer storage — `fixed`-crate Q-format wrappers, std-int
+primitives (interpreted as Q*N*.0), and `core::num::NonZero<T>`
+(punctured Q*N*.0) — lives in `fixed/`.
+
 | Family | Module |
 |--------|--------|
-| Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `fixed::{i8,i16,i32,i64,i128}` |
-| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `int::{i8,i16,i32,i64,i128,u8,u16,u32,u64,u128}` |
+| Q-format binary fixed-point (`Q###Q###`, i8/u8 … i128/u128 backing) | `fixed::{i8,…,i128, u8,…,u128}` |
+| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `fixed::{i8,…,i128, u8,…,u128}` (alongside the Q-format ladder for the same destination) |
+| `NonZero<*>` ↔ `Extended<*>` (`N###I###`, `N###U###`) | `fixed::{i8,…,i128, u8,…,u128}` |
+| Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) | `fixed::{i8,…,i128, u8,…,u128}` |
 | Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `time` |
+
+Constant-name prefixes are letter-disambiguated: `Q` for Q-format
+wrappers (sign and host bit-width come from the module path), `I`/`U`
+for std primitives (digits = bit-width), `N` for `NonZero<*>`, `F` for
+IEEE floats. Cross-module name collisions are allowed and resolved by
+qualified import (e.g. `fixed::i8::Q008Q000` and
+`fixed::i64::Q008Q000` co-exist).
 
 **Conn API**
 
@@ -258,7 +273,7 @@ range have somewhere to land — `floor` saturates to the target bounds,
 `ceil` lands on a synthetic point one past the source range):
 
 ```rust
-use connections::int::i16::U008I016;
+use connections::fixed::i16::U008I016;
 use connections::extended::Extended;
 
 // Finite passes through.
@@ -281,7 +296,7 @@ assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 
 ```rust
 use connections::{ceiling, upper1};
-use connections::int::i16::U008I016;
+use connections::fixed::i16::U008I016;
 use connections::extended::Extended;
 
 // `ceiling` is the named alias of `c.ceil` under the L-side reading.
