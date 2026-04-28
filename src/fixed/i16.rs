@@ -27,9 +27,10 @@
 //! = Coarse::MIN` and `floor(Fine::MAX) = Coarse::MAX`, ensuring the
 //! Galois laws hold at the extremes.
 
-use super::{ext_int, int_int_narrow, uint_int_sat};
+use super::{ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
 use crate::conn::Conn;
 use crate::extended::Extended;
+use core::num::NonZeroI16;
 use ::fixed::FixedI16;
 use ::fixed::types::extra::{U0, U2, U4, U8, U12, U16, Unsigned};
 
@@ -46,6 +47,10 @@ uint_int_sat!(U016I016, u16, i16);
 uint_int_sat!(U032I016, u32, i16);
 uint_int_sat!(U064I016, u64, i16);
 uint_int_sat!(U128I016, u128, i16);
+
+// ── §3 NonZeroI16 ↔ Extended<i16> ──────────────────────────────────
+
+nz_int_ext!(N016I016, i16, NonZeroI16);
 
 // ── §2 Q-format ladder over `FixedI16<Frac>` ────────────────────────
 

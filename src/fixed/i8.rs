@@ -30,8 +30,10 @@
 //! );
 //! ```
 
-use super::{int_int_narrow, uint_int_sat};
+use super::{int_int_narrow, nz_int_ext, uint_int_sat};
 use crate::conn::Conn;
+use crate::extended::Extended;
+use core::num::NonZeroI8;
 use ::fixed::FixedI8;
 use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U8, Unsigned};
 
@@ -51,6 +53,10 @@ uint_int_sat!(U016I008, u16, i8);
 uint_int_sat!(U032I008, u32, i8);
 uint_int_sat!(U064I008, u64, i8);
 uint_int_sat!(U128I008, u128, i8);
+
+// ── §3 NonZeroI8 ↔ Extended<i8> ────────────────────────────────────
+
+nz_int_ext!(N008I008, i8, NonZeroI8);
 
 // ── §2 Q-format ladder over `FixedI8<Frac>` ─────────────────────────
 
@@ -219,6 +225,51 @@ mod tests {
     fn u_to_i_ceil_eq_floor() {
         for &a in &[0_u8, 50, i8::MAX as u8, u8::MAX] {
             assert_eq!(U008I008.ceil(a), U008I008.floor(a));
+        }
+    }
+
+    // ── §3 NonZeroI8 ↔ Extended<i8> spot checks ────────────────────
+
+    #[test]
+    fn n008i008_inner_zero_collapses_to_neg_one() {
+        // The signed asymmetric-adjoint case: inner(Finite(0)) picks
+        // the largest NonZero ≤ 0 (i.e., -1).
+        assert_eq!(
+            N008I008.inner(Extended::Finite(0)),
+            NonZeroI8::new(-1).unwrap()
+        );
+    }
+
+    #[test]
+    fn n008i008_inner_finites_round_trip() {
+        for &v in &[-128, -50, -1, 1, 50, 127] {
+            assert_eq!(
+                N008I008.inner(Extended::Finite(v)),
+                NonZeroI8::new(v).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn n008i008_inner_infinities_saturate() {
+        assert_eq!(
+            N008I008.inner(Extended::NegInf),
+            NonZeroI8::new(i8::MIN).unwrap()
+        );
+        assert_eq!(
+            N008I008.inner(Extended::PosInf),
+            NonZeroI8::new(i8::MAX).unwrap()
+        );
+    }
+
+    #[test]
+    fn n008i008_ceil_is_total_embedding() {
+        // ceil = floor on the NonZero side: forward map is just the
+        // total embedding into Extended::Finite.
+        for &v in &[-128, -1, 1, 127] {
+            let nz = NonZeroI8::new(v).unwrap();
+            assert_eq!(N008I008.ceil(nz), Extended::Finite(v));
+            assert_eq!(N008I008.floor(nz), Extended::Finite(v));
         }
     }
 

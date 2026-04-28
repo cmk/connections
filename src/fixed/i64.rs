@@ -4,9 +4,10 @@
 //! `(Fine, Coarse)` with `Fine > Coarse`. See [`super::i16`] for the
 //! design (this module mirrors it with `i64` inner / `i128` widening).
 
-use super::{ext_int, int_int_narrow, uint_int_sat};
+use super::{ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
 use crate::conn::Conn;
 use crate::extended::Extended;
+use core::num::NonZeroI64;
 use ::fixed::FixedI64;
 use ::fixed::types::extra::{U0, U8, U16, U32, U48, U64, Unsigned};
 
@@ -23,6 +24,10 @@ int_int_narrow!(I128I064, i128, i64);
 
 uint_int_sat!(U064I064, u64, i64);
 uint_int_sat!(U128I064, u128, i64);
+
+// ── §3 NonZeroI64 ↔ Extended<i64> ──────────────────────────────────
+
+nz_int_ext!(N064I064, i64, NonZeroI64);
 
 // ── §2 Q-format ladder over `FixedI64<Frac>` ────────────────────────
 

@@ -4,8 +4,10 @@
 //! pairs. Mirrors [`super::i32`] with `FixedU32` backing and adds
 //! `U31` (Q1.31), the canonical 32-bit normalised-amplitude format.
 
-use super::{int_uint, int_uint_narrow, uint_uint, uint_uint_narrow};
+use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
 use crate::conn::Conn;
+use crate::extended::Extended;
+use core::num::NonZeroU32;
 use ::fixed::FixedU32;
 use ::fixed::types::extra::{U0, U4, U8, U16, U24, U31, U32, Unsigned};
 
@@ -22,6 +24,10 @@ uint_uint_narrow!(U128U032, u128, u32);
 
 int_uint_narrow!(I064U032, i64, u32);
 int_uint_narrow!(I128U032, i128, u32);
+
+// ── §3 NonZeroU32 ↔ Extended<u32> ──────────────────────────────────
+
+nz_uint_ext!(N032U032, u32, NonZeroU32);
 
 // ── §2 Q-format ladder over `FixedU32<Frac>` ────────────────────────
 

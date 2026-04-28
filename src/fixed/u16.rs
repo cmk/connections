@@ -20,8 +20,10 @@
 //! the saturation plateau must return `Coarse::MAX` to keep the
 //! lower adjoint lawful.
 
-use super::{int_uint, int_uint_narrow, uint_uint, uint_uint_narrow};
+use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
 use crate::conn::Conn;
+use crate::extended::Extended;
+use core::num::NonZeroU16;
 use ::fixed::FixedU16;
 use ::fixed::types::extra::{U0, U2, U4, U8, U12, U14, U15, U16, Unsigned};
 
@@ -38,6 +40,10 @@ uint_uint_narrow!(U128U016, u128, u16);
 int_uint_narrow!(I032U016, i32, u16);
 int_uint_narrow!(I064U016, i64, u16);
 int_uint_narrow!(I128U016, i128, u16);
+
+// ── §3 NonZeroU16 ↔ Extended<u16> ──────────────────────────────────
+
+nz_uint_ext!(N016U016, u16, NonZeroU16);
 
 // ── §2 Q-format ladder over `FixedU16<Frac>` ────────────────────────
 

@@ -28,9 +28,10 @@
 //! encoding (`Some(x*y) iff fits, else None`). Galois laws hold by the
 //! same construction as the smaller modules.
 
-use super::{ext_int, uint_int_sat};
+use super::{ext_int, nz_int_ext, uint_int_sat};
 use crate::conn::Conn;
 use crate::extended::Extended;
+use core::num::NonZeroI128;
 use ::fixed::FixedI128;
 use ::fixed::types::extra::{U0, U16, U32, U64, U96, U128, Unsigned};
 
@@ -45,6 +46,10 @@ ext_int!(U016I128, u16, i128);
 ext_int!(U032I128, u32, i128);
 ext_int!(U064I128, u64, i128);
 uint_int_sat!(U128I128, u128, i128);
+
+// ── §3 NonZeroI128 ↔ Extended<i128> ────────────────────────────────
+
+nz_int_ext!(N128I128, i128, NonZeroI128);
 
 // ── §2 Q-format ladder over `FixedI128<Frac>` ──────────────────────
 

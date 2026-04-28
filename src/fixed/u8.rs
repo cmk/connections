@@ -16,8 +16,10 @@
 //! `U7` (= Q1.7) is the canonical 7-bit MIDI velocity / 7-bit DSP
 //! amplitude format, included alongside the mirror-of-signed levels.
 
-use super::{int_uint, int_uint_narrow, uint_uint_narrow};
+use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint_narrow};
 use crate::conn::Conn;
+use crate::extended::Extended;
+use core::num::NonZeroU8;
 use ::fixed::FixedU8;
 use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U7, U8, Unsigned};
 
@@ -38,6 +40,10 @@ int_uint_narrow!(I016U008, i16, u8);
 int_uint_narrow!(I032U008, i32, u8);
 int_uint_narrow!(I064U008, i64, u8);
 int_uint_narrow!(I128U008, i128, u8);
+
+// ── §3 NonZeroU8 ↔ Extended<u8> ────────────────────────────────────
+
+nz_uint_ext!(N008U008, u8, NonZeroU8);
 
 // ── §2 Q-format ladder over `FixedU8<Frac>` ─────────────────────────
 
@@ -201,6 +207,49 @@ mod tests {
         assert_eq!(I128U008.inner(u8::MAX), i128::MAX);
         assert_eq!(I016U008.inner(0), 0_i16);
         assert_eq!(I016U008.inner(100), 100_i16);
+    }
+
+    // ── §3 NonZeroU8 ↔ Extended<u8> spot checks ────────────────────
+
+    #[test]
+    fn n008u008_inner_zero_collapses_to_one() {
+        // Unsigned: there is no NonZero ≤ 0; both Finite(0) and NegInf
+        // saturate to NonZero(1) (the smallest representable NonZero).
+        assert_eq!(
+            N008U008.inner(Extended::Finite(0)),
+            NonZeroU8::new(1).unwrap()
+        );
+        assert_eq!(
+            N008U008.inner(Extended::NegInf),
+            NonZeroU8::new(1).unwrap()
+        );
+    }
+
+    #[test]
+    fn n008u008_inner_finites_round_trip() {
+        for &v in &[1, 50, u8::MAX] {
+            assert_eq!(
+                N008U008.inner(Extended::Finite(v)),
+                NonZeroU8::new(v).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn n008u008_inner_pos_inf_saturates_to_max() {
+        assert_eq!(
+            N008U008.inner(Extended::PosInf),
+            NonZeroU8::new(u8::MAX).unwrap()
+        );
+    }
+
+    #[test]
+    fn n008u008_ceil_is_total_embedding() {
+        for &v in &[1, 50, u8::MAX] {
+            let nz = NonZeroU8::new(v).unwrap();
+            assert_eq!(N008U008.ceil(nz), Extended::Finite(v));
+            assert_eq!(N008U008.floor(nz), Extended::Finite(v));
+        }
     }
 
     // ── §2 Q-format spot checks ────────────────────────────────────

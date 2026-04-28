@@ -4,8 +4,10 @@
 //! pairs. Mirrors [`super::i64`] with `FixedU64` backing and adds
 //! `U63` (Q1.63), the canonical 64-bit normalised-amplitude format.
 
-use super::{int_uint, int_uint_narrow, uint_uint, uint_uint_narrow};
+use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
 use crate::conn::Conn;
+use crate::extended::Extended;
+use core::num::NonZeroU64;
 use ::fixed::FixedU64;
 use ::fixed::types::extra::{U0, U8, U16, U32, U48, U63, U64, Unsigned};
 
@@ -22,6 +24,10 @@ int_uint!(I064U064, i64, u64);
 uint_uint_narrow!(U128U064, u128, u64);
 
 int_uint_narrow!(I128U064, i128, u64);
+
+// ── §3 NonZeroU64 ↔ Extended<u64> ──────────────────────────────────
+
+nz_uint_ext!(N064U064, u64, NonZeroU64);
 
 // ── §2 Q-format ladder over `FixedU64<Frac>` ────────────────────────
 

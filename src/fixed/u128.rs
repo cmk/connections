@@ -10,8 +10,10 @@
 //! detect the `SHIFT == 128` degenerate case (`Q128Q000`, where
 //! `RATIO = 2^128` doesn't fit in `u128` at all).
 
-use super::{int_uint, uint_uint};
+use super::{int_uint, nz_uint_ext, uint_uint};
 use crate::conn::Conn;
+use crate::extended::Extended;
+use core::num::NonZeroU128;
 use ::fixed::FixedU128;
 use ::fixed::types::extra::{U0, U16, U32, U64, U96, U127, U128, Unsigned};
 
@@ -26,6 +28,10 @@ int_uint!(I016U128, i16, u128);
 int_uint!(I032U128, i32, u128);
 int_uint!(I064U128, i64, u128);
 int_uint!(I128U128, i128, u128);
+
+// ── §3 NonZeroU128 ↔ Extended<u128> ────────────────────────────────
+
+nz_uint_ext!(N128U128, u128, NonZeroU128);
 
 // ── §2 Q-format ladder over `FixedU128<Frac>` ───────────────────────
 
