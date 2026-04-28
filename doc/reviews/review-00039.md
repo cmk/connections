@@ -294,3 +294,60 @@ No new dependencies.
    explaining the deliberate out-of-order placement. Minor, but
    will confuse the next contributor who expects sections to be
    in order.
+
+<!-- glab-id: 3296858458 -->
+<!-- glab-discussion: 052c9405d40c82fda11e051c9b95427c74b27918 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/fixed/i8.rs:56` (2026-04-28 23:09 UTC) [open]
+
+**[follow-up]** The local review (review-00039.md line ~230) explicitly flagged that `// ── §3 NonZeroI8 ↔ Extended<i8>` is stale — the final shipped type is `Conn<i8, NonZeroI8>`, not `Conn<NonZeroI8, Extended<i8>>`. The section comment was listed as a must-fix before push but appears unchanged in this diff. A reader following the section header will misunderstand the Conn's orientation.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3296858475 -->
+<!-- glab-discussion: b6374be414e87656d7c78d8123febc4d86c871bd -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `README.md:115` (2026-04-28 23:09 UTC) [open]
+
+**[must-fix]** The README table row reads `NonZero<*> ↔ Extended<*> (N###I###, N###U###)` but no such constants exist: the actual constants are `I008N008` / `U008N008` (bare primitive source, `N` on the right). A user who searches for `N008I008` will get a compile error. The local review called this a must-fix before push.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3296858488 -->
+<!-- glab-discussion: bc7c1c8b2d78112d21f6bbd0abad8816bcfb598a -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `doc/reviews/review-00039.md:200` (2026-04-28 23:09 UTC) [open]
+
+**[follow-up]** The plan's Verification table requires property tests for all 10 NonZero widths and all 10 iso widths, but only i8 and u8 representatives are exercised. The review acknowledges this gap and defers it; recording here so the follow-up is traceable in the MR audit trail.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3296863856 -->
+<!-- glab-discussion: 052c9405d40c82fda11e051c9b95427c74b27918 -->
+#### ↳ cmk (2026-04-28 23:12 UTC) [open]
+
+Already addressed in `55b71e4` ("fix: Address Tier 1 sprint-review feedback on MR !39"): the stale §3 section comments in all 10 `fixed/X.rs` files were rewritten — `// ── §3 NonZeroI8 ↔ Extended<i8>` is now `// ── §2 i8 ↔ NonZeroI8` (and the equivalents per file). Sections were also renumbered §1 → §2 → §3 → §4 to match physical reading order, and `i128.rs`'s file-level docstring gained matching §2/§3 subsections.
+
+The bot reviewed `8efb364` (sprint-review skeleton commit, pre-fix). The fix landed at HEAD.
+
+<!-- glab-id: 3296864376 -->
+<!-- glab-discussion: b6374be414e87656d7c78d8123febc4d86c871bd -->
+#### ↳ cmk (2026-04-28 23:12 UTC) [open]
+
+Fixed in `55b71e4` — `README.md:115` now reads:
+
+`| iN/uN ↔ NonZero<{i,u}N> (I###N###, U###N###) | fixed::{i8,…,i128, u8,…,u128} |`
+
+Both the type signature (`X ↔ NonZero<X>`, bare primitive source) and the constant naming (`I###N###` / `U###N###` with `N` on the right) now match the shipped code. The bot reviewed the pre-fix `8efb364` commit; the correction is at HEAD.
+
+<!-- glab-id: 3296865302 -->
+<!-- glab-discussion: bc7c1c8b2d78112d21f6bbd0abad8816bcfb598a -->
+#### ↳ cmk (2026-04-28 23:13 UTC) [open]
+
+Closed in `55b71e4` — added `tests/fixed_nz_iso_galois.rs` covering all 8 previously-untested widths (i16, i32, i64, i128, u16, u32, u64, u128). 44 generated proptests:
+
+- **Signed NonZero**: `galois_l` + `galois_r` + `inner_then_ceil_recovers` per width (4 widths × 3 = 12).
+- **Unsigned NonZero**: `galois_l` + `inner_then_ceil_recovers` per width (4 × 2 = 8). `galois_r` is correctly *not* asserted — it fails at the unsigned bottom plateau by type-theoretic necessity (no NonZero strictly below `NonZero(1)`).
+- **Cross-crate iso (signed + unsigned)**: `galois_l` + `galois_r` + `round_trip_both_directions` per width (8 × 3 = 24).
+
+i8/u8 inline coverage in `src/fixed/{i8,u8}.rs` stays. The plan's Verification table requirement for "all 10 widths" is now actually met, not just by macro-uniformity argument.
