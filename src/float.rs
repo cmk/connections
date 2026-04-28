@@ -136,12 +136,16 @@ impl_float_ext!(f64);
 // |  % | NaN       | NaN       | NaN       | NaN       | NaN                                  | NaN                                  | Extend(v) — passes NaN through (finite mod ∞=v) | Extend(v) — passes NaN through (finite mod ∞=v) | Extend(a % b)          |
 // | -x | Top       | Bot       | —         | —         | —                                    | —                                    | —                                               | —                                               | Extend(-a)             |
 //
-// NaN propagation rationale: `Extend(NaN)` is bounded between Bot
-// and Top in our N5 lattice (so Top + NaN *could* lattice-absorb
-// to Top), but IEEE 754 requires `NaN op anything = NaN` regardless
-// of operand magnitude, and arithmetic semantics override the
-// lattice's bounded-NaN reading. The `is_nan()` guard on each
-// `Extend(v)` arm enforces that.
+// NaN propagation: IEEE 754 requires `NaN op anything = NaN`
+// regardless of operand magnitude. The N5 lattice's order-theoretic
+// fact that `Extend(NaN)` sits between Bot and Top (via the
+// synthetic-endpoint rule) governs `partial_cmp` / lub / glb only;
+// it has nothing to say about arithmetic. So IEEE is the sole
+// guide here, and each `Extend(v)` arm in Add and Sub inspects
+// `v.is_nan()` first — if true, the result is `Extend(NaN)`; if
+// not, the endpoint absorption rule fires (Bot + finite = Bot,
+// etc.). No "lattice vs IEEE" tradeoff — they apply to different
+// operations.
 //
 // `From<u8>(n)` always returns `Extend(T::from(n))`.
 //
