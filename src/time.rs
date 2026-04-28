@@ -50,13 +50,13 @@
 //! | [`OFDTSECS`] | `Conn<Extended<OffsetDateTime>, i64>` | unix whole seconds since epoch; sub-second rounding. |
 //!
 //! Each constant ships with a runnable `# Examples` doctest and a
-//! `proptest!` block driving the laws in [`crate::property::laws`].
+//! `proptest!` block driving the laws in [`crate::prop::laws`].
 //!
 //! # Verification
 //!
 //! Every `Conn` constant is exercised in its sub-module's
 //! `#[cfg(test)] mod tests` by the full Galois law battery from
-//! [`crate::property::laws`]. The four time-crate types used here
+//! [`crate::prop::laws`]. The four time-crate types used here
 //! (`Date`, `Time`, `Duration`, `PrimitiveDateTime`) all derive
 //! `Eq + PartialOrd` upstream — total order, no NaN sentinel — so
 //! the law machinery accepts them directly without any per-crate

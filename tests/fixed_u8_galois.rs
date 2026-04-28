@@ -12,7 +12,7 @@
 //! `src/conn/fixed/u8.rs` — they're cheap to compile.
 
 use connections::fixed::u8::*;
-use connections::property::laws;
+use connections::prop::laws;
 use fixed::FixedU8;
 use fixed::types::extra::{U0, U1, U2, U3, U4, U6, U7, U8};
 use proptest::prelude::*;

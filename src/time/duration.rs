@@ -157,8 +157,8 @@ pub const DURNSECS: Conn<Duration, Extended<i64>> = {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::{arb_duration, arb_extended_i64};
-    use crate::property::laws;
+    use crate::prop::arb::{arb_duration, arb_extended_i64};
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     // ── Preorder laws on `Duration` ─────────────────────────────
@@ -437,7 +437,7 @@ pub const F064DURN: Conn<F064, Extended<Duration>> = {
 /// (range of Durations mapping to the same `f32`) is much wider than
 /// f64's: at magnitude ~1 s it is ~120 ns; at magnitude ~10³ s it is
 /// ~10⁵ ns. Proptest strategies bound the float-side finite slot to
-/// `|x| ≤ 10` (see [`crate::property::arb::arb_f32_bounded`]) so the
+/// `|x| ≤ 10` (see [`crate::prop::arb::arb_f32_bounded`]) so the
 /// per-call ULP-walk budget stays small.
 ///
 /// # Examples
@@ -542,11 +542,11 @@ pub const F032DURN: Conn<F032, Extended<Duration>> = {
 #[cfg(test)]
 mod float_durn_tests {
     use super::*;
-    use crate::property::arb::{
+    use crate::prop::arb::{
         arb_extended_duration_bounded_f32, arb_extended_duration_bounded_f64, extended_float_f32,
         extended_float_f64,
     };
-    use crate::property::laws;
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     // ── F064DURN spot checks ────────────────────────────────────

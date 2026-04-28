@@ -142,7 +142,7 @@ fix_fix_i128!(I128I096, U128, U96);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::laws;
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     /// Regression for the SHIFT=128 endpoint: RATIO doesn't fit i128;

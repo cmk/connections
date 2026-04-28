@@ -169,10 +169,10 @@ pub use conn::{
     midpoint, round, round1, round2, truncate, truncate1, truncate2, upper, upper1, upper2,
 };
 
-// Property predicates (`property::laws`) and proptest strategies
-// (`property::arb`) for downstream crates that want to drive their
-// own tests against this crate's algebras. `laws` is always public
-// — its predicates are pure `bool`-returning fns over this crate's
-// types. `arb` is gated on the `testing` feature, which flips
-// `proptest` from a dev-dep to an optional regular dep.
-pub mod property;
+// Property predicates (`prop::conn`, `prop::lattice`) and proptest
+// strategies (`prop::arb`) for downstream crates that want to drive
+// their own tests against this crate's algebras. The predicate
+// modules are always public — they're pure `bool`-returning fns
+// over this crate's types. `arb` is gated on the `testing` feature,
+// which flips `proptest` from a dev-dep to an optional regular dep.
+pub mod prop;

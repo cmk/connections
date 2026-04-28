@@ -186,8 +186,8 @@ pub const TIMESECS: Conn<Extended<Time>, i64> = {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::{arb_extended_time, arb_ns_in_range, arb_secs_in_range, arb_time};
-    use crate::property::laws;
+    use crate::prop::arb::{arb_extended_time, arb_ns_in_range, arb_secs_in_range, arb_time};
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     // ── Preorder laws on `Time` ─────────────────────────────────

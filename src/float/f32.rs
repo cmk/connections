@@ -89,13 +89,13 @@ fn floor_f64_f32(x: f64) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::{arb_f32, arb_f64};
-    use crate::property::laws;
+    use crate::prop::arb::{arb_f32, arb_f64};
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     /// Local strategy: `ExtendedFloat<f64>` over `Bot`, `Top`, and full-
     /// range `Extend(_)` (8:1:1 weighting toward the extension slot).
-    /// Unlike [`crate::property::arb::extended_float_f64`] which uses
+    /// Unlike [`crate::prop::arb::extended_float_f64`] which uses
     /// the bounded f64 generator (for connections whose target is a
     /// bounded integer rung), `F064F032`'s target is full-range f32 —
     /// we want unbounded coverage.

@@ -312,10 +312,10 @@ pub const OFDTSECS: Conn<Extended<OffsetDateTime>, i64> = {
 #[cfg(test)]
 mod ofdt_tests {
     use super::*;
-    use crate::property::arb::{
+    use crate::prop::arb::{
         arb_extended_offset_dt, arb_offset_dt, arb_unix_nanos_in_range, arb_unix_secs_in_range,
     };
-    use crate::property::laws;
+    use crate::prop::laws;
     use proptest::prelude::*;
     use time::Duration;
 

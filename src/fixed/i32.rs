@@ -86,7 +86,7 @@ fix_fix_i32!(I032I024, U32, U24);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::laws;
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     #[test]

@@ -5,7 +5,7 @@
 //! blocks without depending on this crate's strategy module:
 //!
 //! ```ignore
-//! use connections::property::laws::heyting_adjunction;
+//! use connections::prop::laws::heyting_adjunction;
 //! use proptest::prelude::*;
 //!
 //! proptest! {

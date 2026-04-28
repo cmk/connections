@@ -118,7 +118,7 @@ fix_fix_i16!(I016I012, U16, U12);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::laws;
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     // Spot checks: hand-computed rounding at exact, off-grid, and
@@ -188,7 +188,7 @@ mod tests {
     }
 
     // Generator macro: nine universally-quantified Galois predicates per
-    // Conn, delegating to `crate::property::laws`. All inputs span the
+    // Conn, delegating to `crate::prop::laws`. All inputs span the
     // full i16 range — the connection is total and lawful for every
     // value, so no bounded strategies are needed.
     //

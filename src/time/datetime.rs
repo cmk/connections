@@ -80,8 +80,8 @@ pub const PDTMDATE: Conn<PrimitiveDateTime, Extended<Date>> = {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::{arb_date, arb_extended_date, arb_primitive_dt};
-    use crate::property::laws;
+    use crate::prop::arb::{arb_date, arb_extended_date, arb_primitive_dt};
+    use crate::prop::laws;
     use proptest::prelude::*;
     use time::Month;
 

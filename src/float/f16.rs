@@ -262,8 +262,8 @@ fn floor_f64_f16(x: f64) -> f16 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::{arb_f32, arb_f64, extended_float_f16 as ef16};
-    use crate::property::laws;
+    use crate::prop::arb::{arb_f32, arb_f64, extended_float_f16 as ef16};
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     fn ef32() -> impl Strategy<Value = F032> {

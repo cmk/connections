@@ -97,7 +97,7 @@ fix_fix_i8!(I008I006, U8, U6);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::laws;
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     #[test]

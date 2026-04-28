@@ -340,8 +340,8 @@ pub trait Boolean: Symmetric {}
 #[cfg(test)]
 mod tests {
     use crate::float::ExtendedFloat;
-    use crate::property::arb::{arb_f32, arb_f64};
-    use crate::property::laws;
+    use crate::prop::arb::{arb_f32, arb_f64};
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     // ── Spot checks (ExtendedFloat — the lawful float wrapper) ─────

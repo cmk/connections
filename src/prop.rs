@@ -4,7 +4,7 @@
 //! - [`laws`] — pure `bool`-returning predicate functions, one per
 //!   algebraic law. Always public, no proptest dependency. Downstream
 //!   crates wrap them in their own `proptest!` blocks via
-//!   `prop_assert!(connections::property::laws::heyting_adjunction(&x, &y, &z))`.
+//!   `prop_assert!(connections::prop::laws::heyting_adjunction(&x, &y, &z))`.
 //! - [`arb`] — proptest strategies (`arb_f64`, `arb_f32`,
 //!   `arb_f64_bounded`, `arb_f16`, the `extended_float_*` and
 //!   time-crate generators). Gated on the
@@ -20,7 +20,7 @@
 //! ```rust,no_run
 //! use connections::float::f32::F064F032;
 //! use connections::float::ExtendedFloat;
-//! use connections::property::laws;
+//! use connections::prop::laws;
 //!
 //! // Spot check: F064F032 satisfies the Galois adjoint law over a
 //! // representative pair.
@@ -33,7 +33,7 @@
 //! can drive the predicates over arbitrary inputs:
 //!
 //! ```ignore
-//! use connections::property::{arb, laws};
+//! use connections::prop::{arb, laws};
 //! use connections::float::f32::F064F032;
 //! use connections::float::ExtendedFloat;
 //! use proptest::prelude::*;

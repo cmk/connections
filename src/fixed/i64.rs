@@ -86,7 +86,7 @@ fix_fix_i64!(I064I048, U64, U48);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::laws;
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     #[test]

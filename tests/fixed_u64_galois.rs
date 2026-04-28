@@ -2,7 +2,7 @@
 //! test — see `tests/conn_fixed_u08_galois.rs` for rationale.
 
 use connections::fixed::u64::*;
-use connections::property::laws;
+use connections::prop::laws;
 use fixed::FixedU64;
 use fixed::types::extra::{U0, U8, U16, U32, U48, U63, U64};
 use proptest::prelude::*;

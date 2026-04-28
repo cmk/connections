@@ -6,7 +6,7 @@
 //! under CI's container memory budget.
 
 use connections::fixed::u16::*;
-use connections::property::laws;
+use connections::prop::laws;
 use fixed::FixedU16;
 use fixed::types::extra::{U0, U2, U4, U8, U12, U14, U15, U16};
 use proptest::prelude::*;

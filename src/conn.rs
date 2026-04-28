@@ -463,7 +463,7 @@ where
 /// satisfy this trivially. On a saturating conn where the
 /// inner-bracket can flip (`hi < lo`), `hi - lo` underflows silently
 /// on signed-integer sources and produces a meaningless value; the
-/// companion predicate [`crate::property::laws::cast_midpoint_between`]
+/// companion predicate [`crate::prop::laws::cast_midpoint_between`]
 /// gates on `lo ≤ hi` for exactly this reason.
 ///
 /// The offset form sidesteps the intermediate-sum overflow that
@@ -696,8 +696,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::arb_f64;
-    use crate::property::laws;
+    use crate::prop::arb::arb_f64;
+    use crate::prop::laws;
     use proptest::prelude::*;
 
     #[test]

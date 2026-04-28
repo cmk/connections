@@ -83,8 +83,8 @@ pub const DATEJDAY: Conn<Extended<Date>, i32> = {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::property::arb::{arb_date, arb_extended_date, arb_jd_in_range};
-    use crate::property::laws;
+    use crate::prop::arb::{arb_date, arb_extended_date, arb_jd_in_range};
+    use crate::prop::laws;
     use proptest::prelude::*;
     use time::Month;
 
