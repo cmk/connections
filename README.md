@@ -514,6 +514,8 @@ publicly behind the `testing` feature for downstream test suites.
 
 - [API docs on docs.rs](https://docs.rs/connections) — published
   releases, rendered from the crate metadata.
+- [Latest docs on GitLab Pages](https://cmk.gitlab.io/connections/) —
+  always tracks `main`; useful between releases.
 - [`doc/design.md`](doc/design.md) — full design rationale, including
   the math, the N5 lattice, and the per-axis trade-offs.
 - [`LICENSE-MIT`](LICENSE-MIT) — MIT license text.
