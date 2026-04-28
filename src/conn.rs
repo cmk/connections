@@ -90,6 +90,25 @@
 //!    arm, which dispatches on `x >= 0` (false for NaN, so the
 //!    `c.ceil(x)` branch fires).
 //!
+//! ### Numeric surface for `ExtendedFloat<f32 | f64>` closures
+//!
+//! The user-supplied closures in [`round1`] / [`round2`] /
+//! [`truncate1`] / [`truncate2`] / [`floor1`] / [`floor2`] /
+//! [`ceiling1`] / [`ceiling2`] / [`upper1`] / [`upper2`] / [`lower1`] /
+//! [`lower2`] run in *source-side* arithmetic. For
+//! `Conn<ExtendedFloat<f64>, _>` (e.g. [`crate::float::f32::F064F032`])
+//! that means the closure body sees `ExtendedFloat<f64>` and can
+//! invoke the full numeric API: `+`, `-`, `*`, `/`, `%`, unary `-`,
+//! the `*Assign` siblings, plus the inherent transcendentals
+//! (`sin` / `cos` / `tan` / their inverses, `sqrt` / `cbrt`, `exp` /
+//! `exp2` / `ln` / `log2` / `log10`, `abs` / `signum` / `recip`,
+//! `powi` / `powf` / `mul_add`, `atan2`) and constants
+//! (`PI` / `TAU` / `E` / `FRAC_PI_2` / `NAN` / `INFINITY` /
+//! `NEG_INFINITY` / `ZERO` / `ONE`). User closures don't need to
+//! unwrap to the inner `T` — Bot/Top/NaN dispatch happens inside
+//! the inherent methods. See [`crate::float`] for the full table
+//! and Bot/Top semantics.
+//!
 //! ### What's *not* here
 //!
 //! - **`swapL` / `swapR`**: identity in our representation — the same
