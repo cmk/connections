@@ -617,6 +617,25 @@ mod float_durn_tests {
         assert_eq!(F064DURN.inner(Extended::PosInf), ExtendedFloat::Top);
     }
 
+    // Regression guard for the v == min_secs fast-path in ceil. The
+    // f64 representation of Duration::MIN.as_seconds_f64() — call it
+    // v_min — is what `inner(ceil(NEG_INFINITY))` produces. Without
+    // the `<=` boundary check, the second `ceil` on this value walks
+    // ~10²¹ nanoseconds (the f64 plateau is ~2049 s wide at this
+    // magnitude), taking ~70 seconds in debug. With the fix this
+    // finishes in nanoseconds.
+    #[test]
+    fn f64_ceil_min_secs_fast_path() {
+        let v_min = ExtendedFloat::Extend(Duration::MIN.as_seconds_f64());
+        assert_eq!(F064DURN.ceil(v_min), Extended::Finite(Duration::MIN));
+    }
+
+    #[test]
+    fn f64_floor_max_secs_fast_path() {
+        let v_max = ExtendedFloat::Extend(Duration::MAX.as_seconds_f64());
+        assert_eq!(F064DURN.floor(v_max), Extended::Finite(Duration::MAX));
+    }
+
     // ── F032DURN spot checks ────────────────────────────────────
 
     #[test]
@@ -663,6 +682,21 @@ mod float_durn_tests {
         let neg_inf = ExtendedFloat::Extend(f32::NEG_INFINITY);
         assert_eq!(F032DURN.ceil(neg_inf), Extended::Finite(Duration::MIN));
         assert_eq!(F032DURN.floor(neg_inf), Extended::NegInf);
+    }
+
+    // F032DURN twin of the F064DURN regression guards. f32 plateau at
+    // |v| ≈ 9.2e18 is even wider than f64's, so a missing fast-path
+    // here would walk billions of nanoseconds.
+    #[test]
+    fn f32_ceil_min_secs_fast_path() {
+        let v_min = ExtendedFloat::Extend(Duration::MIN.as_seconds_f32());
+        assert_eq!(F032DURN.ceil(v_min), Extended::Finite(Duration::MIN));
+    }
+
+    #[test]
+    fn f32_floor_max_secs_fast_path() {
+        let v_max = ExtendedFloat::Extend(Duration::MAX.as_seconds_f32());
+        assert_eq!(F032DURN.floor(v_max), Extended::Finite(Duration::MAX));
     }
 
     #[test]

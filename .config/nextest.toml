@@ -5,12 +5,13 @@
 # `cargo test` only parallelizes test binaries), surfaces per-test
 # wall-time, and keeps the suite usable as it grows.
 #
-# `slow-timeout.period = "180s"` is a *warning* threshold — slow tests
-# are flagged in the report but not killed. Once T5's case-cap on
-# `f32_idempotent` / `f64_idempotent` lands, we can lower this and add
-# `terminate-after = 3` to make slow-test creep self-policing.
+# `slow-timeout.period = "60s"` is a *warning* threshold — slow tests
+# are flagged in the report but not killed. With the post-T5b walk-
+# perf fix the full suite runs in ~8s on M1; 60s gives ~7× headroom
+# for slower GitLab shared runners. Tighten and add `terminate-after
+# = 3` once we have a few CI runs of timing data.
 
 [profile.ci]
 fail-fast = false
-slow-timeout = { period = "180s" }
+slow-timeout = { period = "60s" }
 final-status-level = "all"
