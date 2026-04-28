@@ -123,16 +123,25 @@ impl_float_ext!(f64);
 // to `Extend(NaN)`. Returning NaN from two non-NaN inputs when the
 // answer is unambiguous would be lossy; we don't.
 //
-// Operation table under `Bot = -∞, Top = +∞`:
+// Operation table under `Bot = -∞, Top = +∞`. NaN inputs in any
+// `Extend(v)` arm propagate to `Extend(NaN)` per IEEE (the cells
+// below describe the *non-NaN* case for the finite operand).
 //
 // | Op | (Bot, Bot) | (Top, Top) | (Bot, Top) | (Top, Bot) | (Bot, Extend(v))                     | (Top, Extend(v))                     | (Extend(v), Bot)                                | (Extend(v), Top)                                | (Extend(a), Extend(b)) |
 // |----|-----------|-----------|-----------|-----------|--------------------------------------|--------------------------------------|-------------------------------------------------|-------------------------------------------------|------------------------|
-// |  + | Bot       | Top       | NaN       | NaN       | Bot                                  | Top                                  | Bot                                             | Top                                             | Extend(a + b)          |
-// |  - | NaN       | NaN       | Bot       | Top       | Bot                                  | Top                                  | Top                                             | Bot                                             | Extend(a - b)          |
-// |  * | Top       | Top       | Bot       | Bot       | sign-of-v: Bot/Top/NaN at +/-/0      | sign-of-v: Top/Bot/NaN at +/-/0      | sign-of-v: Bot/Top/NaN at +/-/0                 | sign-of-v: Top/Bot/NaN at +/-/0                 | Extend(a * b)          |
-// |  / | NaN       | NaN       | NaN       | NaN       | sign-of-v: Bot/Top/NaN at +/-/0      | sign-of-v: Top/Bot/NaN at +/-/0      | finite / ∞ = ±0 (IEEE signed zero)              | finite / ∞ = ±0 (IEEE signed zero)              | Extend(a / b)          |
-// |  % | NaN       | NaN       | NaN       | NaN       | NaN                                  | NaN                                  | Extend(v) (finite mod ∞ = finite per IEEE)      | Extend(v) (finite mod ∞ = finite per IEEE)      | Extend(a % b)          |
+// |  + | Bot       | Top       | NaN       | NaN       | Bot (NaN if v is NaN)                | Top (NaN if v is NaN)                | Bot (NaN if v is NaN)                           | Top (NaN if v is NaN)                           | Extend(a + b)          |
+// |  - | NaN       | NaN       | Bot       | Top       | Bot (NaN if v is NaN)                | Top (NaN if v is NaN)                | Top (NaN if v is NaN)                           | Bot (NaN if v is NaN)                           | Extend(a - b)          |
+// |  * | Top       | Top       | Bot       | Bot       | sign-of-v: Bot/Top/NaN at +/-/0/NaN  | sign-of-v: Top/Bot/NaN at +/-/0/NaN  | sign-of-v: Bot/Top/NaN at +/-/0/NaN             | sign-of-v: Top/Bot/NaN at +/-/0/NaN             | Extend(a * b)          |
+// |  / | NaN       | NaN       | NaN       | NaN       | sign-of-v: Bot/Top/NaN at +/-/0/NaN  | sign-of-v: Top/Bot/NaN at +/-/0/NaN  | finite / ∞ = ±0 (IEEE signed zero); NaN→NaN     | finite / ∞ = ±0 (IEEE signed zero); NaN→NaN     | Extend(a / b)          |
+// |  % | NaN       | NaN       | NaN       | NaN       | NaN                                  | NaN                                  | Extend(v) — passes NaN through (finite mod ∞=v) | Extend(v) — passes NaN through (finite mod ∞=v) | Extend(a % b)          |
 // | -x | Top       | Bot       | —         | —         | —                                    | —                                    | —                                               | —                                               | Extend(-a)             |
+//
+// NaN propagation rationale: `Extend(NaN)` is bounded between Bot
+// and Top in our N5 lattice (so Top + NaN *could* lattice-absorb
+// to Top), but IEEE 754 requires `NaN op anything = NaN` regardless
+// of operand magnitude, and arithmetic semantics override the
+// lattice's bounded-NaN reading. The `is_nan()` guard on each
+// `Extend(v)` arm enforces that.
 //
 // `From<u8>(n)` always returns `Extend(T::from(n))`.
 //
@@ -150,8 +159,13 @@ macro_rules! impl_float_arith {
                     (Bot, Bot) => Bot,
                     (Top, Top) => Top,
                     (Bot, Top) | (Top, Bot) => Extend(<$T>::NAN),
-                    (Bot, Extend(_)) | (Extend(_), Bot) => Bot,
-                    (Top, Extend(_)) | (Extend(_), Top) => Top,
+                    // NaN propagates through endpoint absorption (IEEE).
+                    (Bot, Extend(v)) | (Extend(v), Bot) => {
+                        if v.is_nan() { Extend(<$T>::NAN) } else { Bot }
+                    }
+                    (Top, Extend(v)) | (Extend(v), Top) => {
+                        if v.is_nan() { Extend(<$T>::NAN) } else { Top }
+                    }
                     (Extend(a), Extend(b)) => Extend(a + b),
                 }
             }
@@ -165,10 +179,19 @@ macro_rules! impl_float_arith {
                     (Bot, Bot) | (Top, Top) => Extend(<$T>::NAN),
                     (Bot, Top) => Bot,
                     (Top, Bot) => Top,
-                    (Bot, Extend(_)) => Bot,
-                    (Top, Extend(_)) => Top,
-                    (Extend(_), Bot) => Top,
-                    (Extend(_), Top) => Bot,
+                    // NaN propagates (IEEE), else endpoint absorbs.
+                    (Bot, Extend(v)) => {
+                        if v.is_nan() { Extend(<$T>::NAN) } else { Bot }
+                    }
+                    (Top, Extend(v)) => {
+                        if v.is_nan() { Extend(<$T>::NAN) } else { Top }
+                    }
+                    (Extend(v), Bot) => {
+                        if v.is_nan() { Extend(<$T>::NAN) } else { Top }
+                    }
+                    (Extend(v), Top) => {
+                        if v.is_nan() { Extend(<$T>::NAN) } else { Bot }
+                    }
                     (Extend(a), Extend(b)) => Extend(a - b),
                 }
             }
@@ -865,6 +888,27 @@ mod tests {
         let a: ExtendedFloat<f64> = ExtendedFloat::Extend(5.5);
         let b: ExtendedFloat<f64> = ExtendedFloat::Extend(1.25);
         assert_eq!(a - b, ExtendedFloat::Extend(4.25));
+    }
+
+    #[test]
+    fn add_endpoint_propagates_nan_f64() {
+        // IEEE: NaN op anything = NaN. The endpoint absorption rule
+        // (Bot + finite = Bot, etc.) defers to NaN-propagation when
+        // the finite operand is NaN.
+        let nan: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::NAN);
+        assert!((ExtendedFloat::<f64>::Bot + nan).is_nan());
+        assert!((nan + ExtendedFloat::<f64>::Bot).is_nan());
+        assert!((ExtendedFloat::<f64>::Top + nan).is_nan());
+        assert!((nan + ExtendedFloat::<f64>::Top).is_nan());
+    }
+
+    #[test]
+    fn sub_endpoint_propagates_nan_f64() {
+        let nan: ExtendedFloat<f64> = ExtendedFloat::Extend(f64::NAN);
+        assert!((ExtendedFloat::<f64>::Bot - nan).is_nan());
+        assert!((ExtendedFloat::<f64>::Top - nan).is_nan());
+        assert!((nan - ExtendedFloat::<f64>::Bot).is_nan());
+        assert!((nan - ExtendedFloat::<f64>::Top).is_nan());
     }
 
     // ── T1: Mul / Neg / Rem + *Assign ─────────────────────────────
