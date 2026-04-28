@@ -1,4 +1,4 @@
-# MR !35 — `property` → `prop` cleanup
+# MR !36 — `property` → `prop` cleanup
 
 ## Summary
 
