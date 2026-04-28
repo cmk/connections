@@ -308,7 +308,7 @@ pub fn upper<A, B>(c: &Conn<A, B>, b: B) -> A {
 /// # Laws
 ///
 /// > `a ≤ upper1(c, id, a)` (unit law; property
-/// > [`crate::property::laws::cast_upper1_id_unit`])
+/// > [`crate::prop::conn::conn_upper1_id_unit`])
 #[inline]
 #[must_use]
 pub fn upper1<A, B, F>(c: &Conn<A, B>, f: F, a: A) -> A
@@ -367,7 +367,7 @@ pub fn ceiling<A, B>(c: &Conn<A, B>, a: A) -> B {
 ///
 /// > `ceiling1(identity, id, b) == b`<br>
 /// > `b ≥ ceiling1(c, id, b)` (kernel/inflation; property
-/// > [`crate::property::laws::cast_ceiling1_id_kernel`])
+/// > [`crate::prop::conn::conn_ceiling1_id_kernel`])
 ///
 /// ```rust
 /// use connections::conn::ceiling1;
@@ -423,7 +423,7 @@ pub fn lower<A, B>(c: &Conn<A, B>, b: B) -> A {
 /// # Laws
 ///
 /// > `lower1(c, id, a) ≤ a` (counit law; property
-/// > [`crate::property::laws::cast_lower1_id_counit`])
+/// > [`crate::prop::conn::conn_lower1_id_counit`])
 #[inline]
 #[must_use]
 pub fn lower1<A, B, F>(c: &Conn<A, B>, f: F, a: A) -> A
@@ -465,7 +465,7 @@ pub fn floor<A, B>(c: &Conn<A, B>, a: A) -> B {
 ///
 /// > `floor1(identity, id, b) == b`<br>
 /// > `b ≤ floor1(c, id, b)` (kernel/deflation; property
-/// > [`crate::property::laws::cast_floor1_id_kernel`])
+/// > [`crate::prop::conn::conn_floor1_id_kernel`])
 ///
 /// ```rust
 /// use connections::conn::floor1;
@@ -629,7 +629,7 @@ where
 /// # Laws
 ///
 /// > `truncate1(identity, id, b) == b` (property
-/// > [`crate::property::laws::cast_truncate1_id_unit`])
+/// > [`crate::prop::conn::conn_truncate1_id_unit`])
 ///
 /// ```rust
 /// use connections::conn::truncate1;
@@ -740,7 +740,7 @@ where
 /// # Laws
 ///
 /// > `round1(identity, id, b) == b` (property
-/// > [`crate::property::laws::cast_round1_id_unit`])
+/// > [`crate::prop::conn::conn_round1_id_unit`])
 ///
 /// ```rust
 /// use connections::conn::round1;
@@ -817,13 +817,13 @@ where
 /// # Laws
 ///
 /// > `median(c, x, x, y) == x` (idempotence; property
-/// > [`crate::property::laws::cast_median_idempotent`])<br>
+/// > [`crate::prop::conn::conn_median_idempotent`])<br>
 /// > `median(c, x, y, z) == median(c, z, x, y)` (rotation; property
-/// > [`crate::property::laws::cast_median_rotate`])<br>
+/// > [`crate::prop::conn::conn_median_rotate`])<br>
 /// > `median(c, x, y, z) == median(c, x, z, y)` (swap last two; property
-/// > [`crate::property::laws::cast_median_swap_yz`])<br>
+/// > [`crate::prop::conn::conn_median_swap_yz`])<br>
 /// > `median(median(c, x, w, y), w, z) == median(c, x, w, median(y, w, z))` (associativity; property
-/// > [`crate::property::laws::cast_median_associative`])
+/// > [`crate::prop::conn::conn_median_associative`])
 ///
 /// ```rust
 /// use connections::conn::{Conn, median};
@@ -1537,7 +1537,7 @@ mod tests {
 
         #[test]
         fn median_associative_ordered(w: i32, x: i32, y: i32, z: i32) {
-            prop_assert!(laws::cast_median_associative(&ORDERED_PAIR, w, x, y, z));
+            prop_assert!(conn_laws::conn_median_associative(&ORDERED_PAIR, w, x, y, z));
         }
     }
 }
