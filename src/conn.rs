@@ -264,10 +264,18 @@ impl<T> Conn<T, T> {
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::float::f32::F064F032;
 ///
-/// // Widen the f32 ceiling of π back to f64 — sits above the f64 π.
-/// let pi = Extend(std::f64::consts::PI);
-/// let pi_up = F064F032.ceil(pi);
-/// assert!(upper(&F064F032, pi_up) >= pi);
+/// let pi64 = Extend(std::f64::consts::PI);
+/// // f32's nearest representation of π widened losslessly to f64.
+/// // Lossless ≠ precise: the value is still the f32 approximation.
+/// let pi32 = Extend(std::f32::consts::PI as f64);
+/// // f32's rounding error for π — about +8.74e-8 (f32 rounds π up).
+/// // The same constant carries through every π-widening doctest below.
+/// let pi32_err = pi32 - pi64;
+///
+/// // upper just widens; for F064F032 that's the f32 → f64 cast.
+/// assert_eq!(upper(&F064F032, Extend(std::f32::consts::PI)), pi32);
+/// // Equivalently, "f64 π plus f32's rounding error":
+/// assert_eq!(upper(&F064F032, Extend(std::f32::consts::PI)) - pi64, pi32_err);
 /// ```
 #[inline]
 #[must_use]
@@ -308,10 +316,16 @@ where
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::float::f32::F064F032;
 ///
-/// // Smallest f32 whose f64 widening is ≥ π.
-/// let pi = Extend(std::f64::consts::PI);
-/// let pi_up = ceiling(&F064F032, pi);
-/// assert!(F064F032.inner(pi_up) >= pi);
+/// let pi64 = Extend(std::f64::consts::PI);
+/// let pi32 = Extend(std::f32::consts::PI as f64);
+/// let pi32_err = pi32 - pi64;
+///
+/// // The f32 ceiling of π is std::f32::consts::PI itself —
+/// // π's nearest f32 representation rounds up.
+/// assert_eq!(ceiling(&F064F032, pi64), Extend(std::f32::consts::PI));
+/// // Widening the result back to f64 lands at pi32, which sits
+/// // exactly pi32_err above true π:
+/// assert_eq!(F064F032.inner(ceiling(&F064F032, pi64)) - pi64, pi32_err);
 /// ```
 #[inline]
 #[must_use]
@@ -321,6 +335,22 @@ pub fn ceiling<A, B>(c: &Conn<A, B>, a: A) -> B {
 
 /// Lift a unary endofunction over `A` into one over `B` through the
 /// L-pair: `b ↦ ceil(f(inner(b)))`.
+///
+/// ```rust
+/// use connections::conn::ceiling1;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // Same shared probe as truncate1 / floor1: `2π − x` in f64
+/// // lands strictly between two f32 grid points. ceiling1
+/// // unconditionally narrows up — to std::f32::consts::PI.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
+/// assert_eq!(
+///     ceiling1(&F064F032, probe, pi32),
+///     Extend(std::f32::consts::PI),
+/// );
+/// ```
 #[inline]
 #[must_use]
 pub fn ceiling1<A, B, F>(c: &Conn<A, B>, f: F, b: B) -> B
@@ -389,6 +419,20 @@ pub fn floor<A, B>(c: &Conn<A, B>, a: A) -> B {
 
 /// Lift a unary endofunction over `A` into one over `B` through the
 /// R-pair: `b ↦ floor(f(inner(b)))`.
+///
+/// ```rust
+/// use connections::conn::floor1;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // Same shared probe as truncate1 / ceiling1: `2π − x` in f64
+/// // lands strictly between two f32 grid points. floor1
+/// // unconditionally narrows down — to one f32 ULP below
+/// // std::f32::consts::PI.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
+/// assert_eq!(floor1(&F064F032, probe, pi32), Extend(3.1415925_f32));
+/// ```
 #[inline]
 #[must_use]
 pub fn floor1<A, B, F>(c: &Conn<A, B>, f: F, b: B) -> B
@@ -432,13 +476,17 @@ where
 ///
 /// ```rust
 /// use core::cmp::Ordering;
-/// use connections::conn::interval;
+/// use connections::conn::{interval, midpoint};
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::float::f32::F064F032;
 ///
-/// // π sits closer to its f32 ceiling than its f32 floor.
+/// // The bracket midpoint is, by construction, the equipoise: at
+/// // that point neither f32 endpoint is closer.
 /// let pi = Extend(std::f64::consts::PI);
-/// assert_eq!(interval(&F064F032, pi), Some(Ordering::Greater));
+/// assert_eq!(
+///     interval(&F064F032, midpoint(&F064F032, pi)),
+///     Some(Ordering::Equal),
+/// );
 /// ```
 #[inline]
 #[must_use]
@@ -477,12 +525,10 @@ where
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::float::f32::F064F032;
 ///
-/// // Midpoint of the f32 bracket around π, lifted back to f64.
+/// // π's distance from the centre of its f32 bracket — equivalently,
+/// // the asymmetry of round-to-nearest f32 at π.
 /// let pi = Extend(std::f64::consts::PI);
-/// let mid = midpoint(&F064F032, pi);
-/// let lo = F064F032.inner(F064F032.floor(pi));
-/// let hi = F064F032.inner(F064F032.ceil(pi));
-/// assert!(lo <= mid && mid <= hi);
+/// assert_eq!(pi - midpoint(&F064F032, pi), Extend(3.1786509424591713e-8));
 /// ```
 #[inline]
 #[must_use]
@@ -507,9 +553,10 @@ where
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::float::f32::F064F032;
 ///
-/// // π > 0, so truncate routes through `c.floor`.
+/// // π > 0 → truncate-toward-zero takes the f32 floor; one f32 ULP
+/// // below std::f32::consts::PI.
 /// let pi = Extend(std::f64::consts::PI);
-/// assert_eq!(truncate(&F064F032, pi), F064F032.floor(pi));
+/// assert_eq!(truncate(&F064F032, pi), Extend(3.1415925_f32));
 /// ```
 #[inline]
 #[must_use]
@@ -533,9 +580,14 @@ where
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::float::f32::F064F032;
 ///
-/// // Identity-lift of the f32-bracketed π.
+/// // truncate1 / floor1 / ceiling1 share this closure shape: `2π − x`
+/// // in f64-precision lands strictly between the f32 floor of π
+/// // (3.1415925_f32) and the f32 ceiling (std::f32::consts::PI), so
+/// // the three lifters narrow it to two distinct f32 values.
+/// // truncate-toward-zero of a positive result == floor:
 /// let pi32 = Extend(std::f32::consts::PI);
-/// assert_eq!(truncate1(&F064F032, |a| a, pi32), F064F032.floor(F064F032.inner(pi32)));
+/// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
+/// assert_eq!(truncate1(&F064F032, probe, pi32), Extend(3.1415925_f32));
 /// ```
 #[inline]
 #[must_use]
@@ -556,12 +608,13 @@ where
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::float::f32::F064F032;
 ///
-/// // Sum two f32 brackets in f64 space, then truncate back to f32.
-/// // 2π32 > 0, so the truncate routes through `c.floor`.
+/// // 2 · std::f32::consts::PI in f64 space, narrowed back to f32.
+/// // 2π32 > 0, so truncate-toward-zero takes the f32 floor.
 /// let pi32 = Extend(std::f32::consts::PI);
-/// let two_pi = truncate2(&F064F032, |a, b| a + b, pi32, pi32);
-/// let expected = F064F032.floor(Extend(2.0 * std::f32::consts::PI as f64));
-/// assert_eq!(two_pi, expected);
+/// assert_eq!(
+///     truncate2(&F064F032, |a, b| a + b, pi32, pi32),
+///     Extend(6.2831855_f32),
+/// );
 /// ```
 #[inline]
 #[must_use]
@@ -593,9 +646,15 @@ where
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::float::f32::F064F032;
 ///
-/// // π is closer to its f32 ceiling than its f32 floor.
-/// let pi = Extend(std::f64::consts::PI);
-/// assert_eq!(round(&F064F032, pi), F064F032.ceil(pi));
+/// let pi64 = Extend(std::f64::consts::PI);
+/// let pi32 = Extend(std::f32::consts::PI as f64);
+/// let pi32_err = pi32 - pi64;
+///
+/// // Round-to-nearest f32 of π is std::f32::consts::PI — the f32
+/// // value `(pi as f32)` would also produce.
+/// assert_eq!(round(&F064F032, pi64), Extend(std::f32::consts::PI));
+/// // Widening the result back to f64 lands pi32_err above true π:
+/// assert_eq!(F064F032.inner(round(&F064F032, pi64)) - pi64, pi32_err);
 /// ```
 #[inline]
 #[must_use]
@@ -619,12 +678,15 @@ where
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::float::f32::F064F032;
 ///
-/// // Identity-lift of the f32-bracketed π, rounded to nearest f32.
+/// // One Newton step on sin's zero near π. std::f32::consts::PI is
+/// // ~8.7e-8 above true π; a Newton step `x − tan(x)` in
+/// // f64-precision converges to true π_f64. round1 then picks the
+/// // closer f32 endpoint — std::f32::consts::PI itself.
 /// let pi32 = Extend(std::f32::consts::PI);
-/// let r = round1(&F064F032, |a| a, pi32);
-/// // The widened result brackets the original f32 π in f64 space.
-/// let r_back = F064F032.inner(r);
-/// assert!(r_back == F064F032.inner(pi32) || r_back == F064F032.inner(F064F032.ceil(F064F032.inner(pi32))));
+/// assert_eq!(
+///     round1(&F064F032, |a| a - a.tan(), pi32),
+///     Extend(std::f32::consts::PI),
+/// );
 /// ```
 #[inline]
 #[must_use]
@@ -644,12 +706,17 @@ where
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::float::f32::F064F032;
 ///
-/// // Sum two f32-bracketed π values in f64 space, then round back to f32.
-/// // The result must land in the f32 bracket around 2π.
-/// let pi32 = Extend(std::f32::consts::PI);
-/// let two_pi64 = Extend(2.0 * std::f32::consts::PI as f64);
-/// let two_pi = round2(&F064F032, |a, b| a + b, pi32, pi32);
-/// assert!(two_pi == F064F032.floor(two_pi64) || two_pi == F064F032.ceil(two_pi64));
+/// // Catastrophic cancellation example: `(x + y) − x` should be y, but
+/// // at the largest odd-integer f32 (2^24 - 1) the sum already rounds
+/// // away the small operand, and the answer collapses to 1.0 instead
+/// // of 2.0. round2 lifts to f64, computes exactly, narrows once.
+/// let max_odd = Extend(16777215.0_f32);   // = 2^24 - 1
+/// let two = Extend(2.0_f32);
+/// assert_eq!((16777215.0_f32 + 2.0_f32) - 16777215.0_f32, 1.0);  // raw f32
+/// assert_eq!(
+///     round2(&F064F032, |a, b| (a + b) - a, max_odd, two),
+///     Extend(2.0_f32),
+/// );
 /// ```
 #[inline]
 #[must_use]
