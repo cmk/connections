@@ -5,7 +5,7 @@
 //! Galois single-sided narrowing (`I??I008`, T3) and right-Galois
 //! single-sided non-widening (`U??I008`, T5).
 
-use connections::int::i8::*;
+use connections::fixed::i8::*;
 use proptest::prelude::*;
 
 // `galois_lower` intentionally omitted; see

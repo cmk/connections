@@ -6,7 +6,7 @@
 //! append additional invocations to this file.
 
 use connections::extended::Extended;
-use connections::int::i16::*;
+use connections::fixed::i16::*;
 use proptest::prelude::*;
 
 // Strategies for `Extended<T>` — bias toward boundary values.

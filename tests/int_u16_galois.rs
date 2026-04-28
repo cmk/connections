@@ -1,7 +1,7 @@
 //! Galois-law proptest battery for `conn::std::u16`. Integration
 //! test — see `tests/conn_std_u8_galois.rs` for rationale.
 
-use connections::int::u16::*;
+use connections::fixed::u16::*;
 use proptest::prelude::*;
 
 // Tests `galois_upper` only; `galois_lower` is intentionally

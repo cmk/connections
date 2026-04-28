@@ -45,12 +45,15 @@ cumulative in-development state.
   family below; available for any future iso Conn (e.g. `Ipv4Addr ↔
   u32`).
 - **NonZero family** — 10 new Conns, one per primitive width:
-  `fixed::iN::N{NN}I{NN}` and `fixed::uN::N{NN}U{NN}`, with type
-  `Conn<NonZero<{i,u}N>, Extended<{i,u}N>>`. Signed variants are the
-  asymmetric-adjoint-at-zero showcase: `inner(Finite(0)) =
-  NonZero(-1)` (largest NonZero ≤ 0). Unsigned variants saturate
-  both `Finite(0)` and `NegInf` to `NonZero(1)`. Single-sided
-  left-Galois.
+  `fixed::iN::I{NN}N{NN}` and `fixed::uN::U{NN}N{NN}`, with type
+  `Conn<Extended<{i,u}N>, NonZero<{i,u}N>>`. Signed variants are the
+  **asymmetric-adjoint-at-zero showcase**: `floor(Finite(0)) =
+  NonZero(-1)` (largest NonZero ≤ 0), `ceil(Finite(0)) = NonZero(+1)`
+  (smallest NonZero ≥ 0); both Galois laws hold because the
+  asymmetric forward map sandwiches the punctured zero. Unsigned
+  variants have `floor = ceil` and saturate both `Finite(0)` and
+  `NegInf` to `NonZero(1)`; single-sided left-Galois (right-Galois
+  fails at the unsigned bottom plateau).
 - **Cross-crate iso family** — 10 new Conns
   `fixed::iN::Q000I{NN}` (and unsigned analogues) bridging
   `Fixed{I,U}{NN}<U0>` and the corresponding std-int primitive.

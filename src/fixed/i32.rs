@@ -27,7 +27,7 @@ uint_int_sat!(U128I032, u128, i32);
 
 // ── §3 NonZeroI32 ↔ Extended<i32> ──────────────────────────────────
 
-nz_int_ext!(N032I032, i32, NonZeroI32);
+nz_int_ext!(I032N032, i32, NonZeroI32);
 
 // ── §4 cross-crate iso: FixedI32<U0> ↔ i32 ─────────────────────────
 

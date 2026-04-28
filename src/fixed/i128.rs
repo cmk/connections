@@ -49,7 +49,7 @@ uint_int_sat!(U128I128, u128, i128);
 
 // ── §3 NonZeroI128 ↔ Extended<i128> ────────────────────────────────
 
-nz_int_ext!(N128I128, i128, NonZeroI128);
+nz_int_ext!(I128N128, i128, NonZeroI128);
 
 // ── §4 cross-crate iso: FixedI128<U0> ↔ i128 ───────────────────────
 

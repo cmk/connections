@@ -102,7 +102,7 @@ Canonical examples:
 | `A123X456`           | `F064F032`    | `ExtendedFloat<f64>` → `ExtendedFloat<f32>` (lossy IEEE narrowing) |
 | `A123X456`           | `Q008Q004`    | `FixedI8<U8>` → `FixedI8<U4>` in `fixed::i8` (Q0.8 → Q4.4)  |
 | `A123X456`           | `Q000I008`    | `FixedI8<U0>` → `i8` in `fixed::i8` (cross-crate iso)       |
-| `A123X456`           | `N008I008`    | `NonZeroI8` → `Extended<i8>` in `fixed::i8`                 |
+| `A123X456`           | `I008N008`    | `Extended<i8>` → `NonZeroI8` in `fixed::i8`                 |
 | `ABCDXYZW` (4L+0D both) | `DURNSECS` | `Duration` → `Extended<i64>` (whole seconds)                |
 
 Hard rules:
@@ -203,7 +203,7 @@ Worked examples:
 | `I008U016`    | `i8` / `u16`                       | tie → right wins              | `fixed::u16`                    |
 | `Q008Q004`    | `FixedI8<U8>` / `FixedI8<U4>`      | tie → right wins              | `fixed::i8`                     |
 | `Q000I008`    | `FixedI8<U0>` / `i8`               | (1) FixedI8 more specific     | `fixed::i8`                     |
-| `N008I008`    | `NonZeroI8` / `Extended<i8>`       | (1) NonZero more specific     | `fixed::i8`                     |
+| `I008N008`    | `Extended<i8>` / `NonZeroI8`       | (1) NonZero more specific     | `fixed::i8`                     |
 | `DATEJDAY`    | `Extended<Date>` / `i32`           | (1) `Date` more specific      | `time::date`                    |
 | `OFDTNANO`    | `Extended<OffsetDateTime>` / `i128`| (1) `OffsetDateTime` wins     | `time::offset`                  |
 | `PDTMDATE`    | `PrimitiveDateTime` / `Extended<Date>` | (1) `PDT` more semantic   | `time::datetime`                |

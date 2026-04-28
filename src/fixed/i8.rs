@@ -56,7 +56,7 @@ uint_int_sat!(U128I008, u128, i8);
 
 // ── §3 NonZeroI8 ↔ Extended<i8> ────────────────────────────────────
 
-nz_int_ext!(N008I008, i8, NonZeroI8);
+nz_int_ext!(I008N008, i8, NonZeroI8);
 
 // ── §4 cross-crate iso: FixedI8<U0> ↔ i8 ───────────────────────────
 
@@ -243,48 +243,48 @@ mod tests {
         }
     }
 
-    // ── §3 NonZeroI8 ↔ Extended<i8> spot checks ────────────────────
+    // ── §3 Extended<i8> ↔ NonZeroI8 spot checks ────────────────────
 
     #[test]
-    fn n008i008_inner_zero_collapses_to_neg_one() {
-        // The signed asymmetric-adjoint case: inner(Finite(0)) picks
-        // the largest NonZero ≤ 0 (i.e., -1).
+    fn i008n008_floor_ceil_split_at_zero() {
+        // Asymmetric-adjoint at zero: floor lands on the largest
+        // NonZero ≤ 0 (-1); ceil lands on the smallest NonZero ≥ 0 (+1).
         assert_eq!(
-            N008I008.inner(Extended::Finite(0)),
+            I008N008.floor(Extended::Finite(0)),
             NonZeroI8::new(-1).unwrap()
+        );
+        assert_eq!(
+            I008N008.ceil(Extended::Finite(0)),
+            NonZeroI8::new(1).unwrap()
         );
     }
 
     #[test]
-    fn n008i008_inner_finites_round_trip() {
+    fn i008n008_finite_nonzero_round_trip() {
         for &v in &[-128, -50, -1, 1, 50, 127] {
-            assert_eq!(
-                N008I008.inner(Extended::Finite(v)),
-                NonZeroI8::new(v).unwrap()
-            );
+            let nz = NonZeroI8::new(v).unwrap();
+            assert_eq!(I008N008.ceil(Extended::Finite(v)), nz);
+            assert_eq!(I008N008.floor(Extended::Finite(v)), nz);
         }
     }
 
     #[test]
-    fn n008i008_inner_infinities_saturate() {
-        assert_eq!(
-            N008I008.inner(Extended::NegInf),
-            NonZeroI8::new(i8::MIN).unwrap()
-        );
-        assert_eq!(
-            N008I008.inner(Extended::PosInf),
-            NonZeroI8::new(i8::MAX).unwrap()
-        );
+    fn i008n008_infinities_saturate() {
+        // Both adjoints saturate identically at the extremes.
+        let min_nz = NonZeroI8::new(i8::MIN).unwrap();
+        let max_nz = NonZeroI8::new(i8::MAX).unwrap();
+        assert_eq!(I008N008.ceil(Extended::NegInf), min_nz);
+        assert_eq!(I008N008.floor(Extended::NegInf), min_nz);
+        assert_eq!(I008N008.ceil(Extended::PosInf), max_nz);
+        assert_eq!(I008N008.floor(Extended::PosInf), max_nz);
     }
 
     #[test]
-    fn n008i008_ceil_is_total_embedding() {
-        // ceil = floor on the NonZero side: forward map is just the
-        // total embedding into Extended::Finite.
+    fn i008n008_inner_is_total_embedding() {
+        // inner: NonZero → Extended<i8> is the trivial Finite(.get()).
         for &v in &[-128, -1, 1, 127] {
             let nz = NonZeroI8::new(v).unwrap();
-            assert_eq!(N008I008.ceil(nz), Extended::Finite(v));
-            assert_eq!(N008I008.floor(nz), Extended::Finite(v));
+            assert_eq!(I008N008.inner(nz), Extended::Finite(v));
         }
     }
 
@@ -300,6 +300,65 @@ mod tests {
             // Iso: ceil ∘ inner = identity, inner ∘ ceil = identity.
             assert_eq!(Q000I008.ceil(Q000I008.inner(v)), v);
             assert_eq!(Q000I008.inner(Q000I008.ceil(q)), q);
+        }
+    }
+
+    // ── Property tests covering I008N008 (NonZero) and Q000I008 (iso)
+
+    fn arb_nz_i8() -> impl Strategy<Value = NonZeroI8> {
+        any::<i8>().prop_filter_map("non-zero i8", NonZeroI8::new)
+    }
+
+    fn arb_extended_i8() -> impl Strategy<Value = Extended<i8>> {
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            8 => any::<i8>().prop_map(Extended::Finite),
+        ]
+    }
+
+    proptest! {
+        // I008N008: source is Extended<i8>, target is NonZeroI8. Both
+        // Galois laws hold (the asymmetric floor/ceil at Finite(0)
+        // exists precisely so that inner(NonZero(-1)) ≤ Finite(0) ⟺
+        // NonZero(-1) ≤ floor(Finite(0)) = NonZero(-1)).
+        #[test]
+        fn i008n008_galois_l(a in arb_extended_i8(), b in arb_nz_i8()) {
+            prop_assert!(conn_laws::conn_galois_l(&I008N008, a, b));
+        }
+
+        #[test]
+        fn i008n008_galois_r(a in arb_extended_i8(), b in arb_nz_i8()) {
+            prop_assert!(conn_laws::conn_galois_r(&I008N008, a, b));
+        }
+
+        #[test]
+        fn i008n008_inner_then_ceil_recovers_nonzero(nz in arb_nz_i8()) {
+            // ceil(inner(nz)) lands back on nz — inner is the trivial
+            // embedding into Finite, then ceil on Finite(v != 0) is
+            // lossless.
+            prop_assert_eq!(I008N008.ceil(I008N008.inner(nz)), nz);
+            prop_assert_eq!(I008N008.floor(I008N008.inner(nz)), nz);
+        }
+
+        // Q000I008 is an iso — both Galois laws must hold.
+        #[test]
+        fn q000i008_galois_l(a_bits in any::<i8>(), b in any::<i8>()) {
+            let a = FixedI8::<U0>::from_bits(a_bits);
+            prop_assert!(conn_laws::conn_galois_l(&Q000I008, a, b));
+        }
+
+        #[test]
+        fn q000i008_galois_r(a_bits in any::<i8>(), b in any::<i8>()) {
+            let a = FixedI8::<U0>::from_bits(a_bits);
+            prop_assert!(conn_laws::conn_galois_r(&Q000I008, a, b));
+        }
+
+        #[test]
+        fn q000i008_round_trip_both_directions(v in any::<i8>()) {
+            let q = FixedI8::<U0>::from_bits(v);
+            prop_assert_eq!(Q000I008.ceil(Q000I008.inner(v)), v);
+            prop_assert_eq!(Q000I008.inner(Q000I008.ceil(q)), q);
         }
     }
 

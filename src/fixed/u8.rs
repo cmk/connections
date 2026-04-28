@@ -43,7 +43,7 @@ int_uint_narrow!(I128U008, i128, u8);
 
 // ── §3 NonZeroU8 ↔ Extended<u8> ────────────────────────────────────
 
-nz_uint_ext!(N008U008, u8, NonZeroU8);
+nz_uint_ext!(U008N008, u8, NonZeroU8);
 
 // ── §4 cross-crate iso: FixedU8<U0> ↔ u8 ───────────────────────────
 
@@ -160,6 +160,8 @@ fix_fix_u8!(Q008Q007, U8, U7);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prop::conn as conn_laws;
+    use proptest::prelude::*;
 
     // ── §1 std-int spot checks (merged from former int/u8.rs) ──────
 
@@ -222,46 +224,42 @@ mod tests {
         assert_eq!(I016U008.inner(100), 100_i16);
     }
 
-    // ── §3 NonZeroU8 ↔ Extended<u8> spot checks ────────────────────
+    // ── §3 Extended<u8> ↔ NonZeroU8 spot checks ────────────────────
 
     #[test]
-    fn n008u008_inner_zero_collapses_to_one() {
+    fn u008n008_zero_and_neginf_saturate_to_one() {
         // Unsigned: there is no NonZero ≤ 0; both Finite(0) and NegInf
         // saturate to NonZero(1) (the smallest representable NonZero).
-        assert_eq!(
-            N008U008.inner(Extended::Finite(0)),
-            NonZeroU8::new(1).unwrap()
-        );
-        assert_eq!(
-            N008U008.inner(Extended::NegInf),
-            NonZeroU8::new(1).unwrap()
-        );
+        // floor = ceil here because the source-side bottom plateau
+        // collapses identically.
+        let one = NonZeroU8::new(1).unwrap();
+        assert_eq!(U008N008.ceil(Extended::Finite(0)), one);
+        assert_eq!(U008N008.floor(Extended::Finite(0)), one);
+        assert_eq!(U008N008.ceil(Extended::NegInf), one);
+        assert_eq!(U008N008.floor(Extended::NegInf), one);
     }
 
     #[test]
-    fn n008u008_inner_finites_round_trip() {
+    fn u008n008_finite_nonzero_round_trip() {
         for &v in &[1, 50, u8::MAX] {
-            assert_eq!(
-                N008U008.inner(Extended::Finite(v)),
-                NonZeroU8::new(v).unwrap()
-            );
+            let nz = NonZeroU8::new(v).unwrap();
+            assert_eq!(U008N008.ceil(Extended::Finite(v)), nz);
+            assert_eq!(U008N008.floor(Extended::Finite(v)), nz);
         }
     }
 
     #[test]
-    fn n008u008_inner_pos_inf_saturates_to_max() {
-        assert_eq!(
-            N008U008.inner(Extended::PosInf),
-            NonZeroU8::new(u8::MAX).unwrap()
-        );
+    fn u008n008_pos_inf_saturates_to_max() {
+        let max_nz = NonZeroU8::new(u8::MAX).unwrap();
+        assert_eq!(U008N008.ceil(Extended::PosInf), max_nz);
+        assert_eq!(U008N008.floor(Extended::PosInf), max_nz);
     }
 
     #[test]
-    fn n008u008_ceil_is_total_embedding() {
+    fn u008n008_inner_is_total_embedding() {
         for &v in &[1, 50, u8::MAX] {
             let nz = NonZeroU8::new(v).unwrap();
-            assert_eq!(N008U008.ceil(nz), Extended::Finite(v));
-            assert_eq!(N008U008.floor(nz), Extended::Finite(v));
+            assert_eq!(U008N008.inner(nz), Extended::Finite(v));
         }
     }
 
@@ -276,6 +274,60 @@ mod tests {
             assert_eq!(Q000U008.inner(v), q);
             assert_eq!(Q000U008.ceil(Q000U008.inner(v)), v);
             assert_eq!(Q000U008.inner(Q000U008.ceil(q)), q);
+        }
+    }
+
+    // ── Property tests covering U008N008 (NonZero) and Q000U008 (iso)
+
+    fn arb_nz_u8() -> impl Strategy<Value = NonZeroU8> {
+        any::<u8>().prop_filter_map("non-zero u8", NonZeroU8::new)
+    }
+
+    fn arb_extended_u8() -> impl Strategy<Value = Extended<u8>> {
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            8 => any::<u8>().prop_map(Extended::Finite),
+        ]
+    }
+
+    proptest! {
+        // U008N008: source is Extended<u8>, target is NonZeroU8.
+        // Left-Galois holds. Right-Galois fails at the unsigned bottom
+        // plateau because there is no NonZero strictly below 1 to act
+        // as the "previous" rounding target — floor and ceil both
+        // saturate to NonZero(1), so `inner(NonZero(1)) ≤ a ⟺ NonZero(1)
+        // ≤ floor(a)` breaks for a in {NegInf, Finite(0)}. We assert
+        // only galois_l.
+        #[test]
+        fn u008n008_galois_l(a in arb_extended_u8(), b in arb_nz_u8()) {
+            prop_assert!(conn_laws::conn_galois_l(&U008N008, a, b));
+        }
+
+        #[test]
+        fn u008n008_inner_then_ceil_recovers_nonzero(nz in arb_nz_u8()) {
+            prop_assert_eq!(U008N008.ceil(U008N008.inner(nz)), nz);
+            prop_assert_eq!(U008N008.floor(U008N008.inner(nz)), nz);
+        }
+
+        // Q000U008 iso — both Galois laws hold.
+        #[test]
+        fn q000u008_galois_l(a_bits in any::<u8>(), b in any::<u8>()) {
+            let a = FixedU8::<U0>::from_bits(a_bits);
+            prop_assert!(conn_laws::conn_galois_l(&Q000U008, a, b));
+        }
+
+        #[test]
+        fn q000u008_galois_r(a_bits in any::<u8>(), b in any::<u8>()) {
+            let a = FixedU8::<U0>::from_bits(a_bits);
+            prop_assert!(conn_laws::conn_galois_r(&Q000U008, a, b));
+        }
+
+        #[test]
+        fn q000u008_round_trip_both_directions(v in any::<u8>()) {
+            let q = FixedU8::<U0>::from_bits(v);
+            prop_assert_eq!(Q000U008.ceil(Q000U008.inner(v)), v);
+            prop_assert_eq!(Q000U008.inner(Q000U008.ceil(q)), q);
         }
     }
 

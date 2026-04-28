@@ -27,7 +27,7 @@ uint_int_sat!(U128I064, u128, i64);
 
 // ── §3 NonZeroI64 ↔ Extended<i64> ──────────────────────────────────
 
-nz_int_ext!(N064I064, i64, NonZeroI64);
+nz_int_ext!(I064N064, i64, NonZeroI64);
 
 // ── §4 cross-crate iso: FixedI64<U0> ↔ i64 ─────────────────────────
 

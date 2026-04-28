@@ -43,7 +43,7 @@ int_uint_narrow!(I128U016, i128, u16);
 
 // ── §3 NonZeroU16 ↔ Extended<u16> ──────────────────────────────────
 
-nz_uint_ext!(N016U016, u16, NonZeroU16);
+nz_uint_ext!(U016N016, u16, NonZeroU16);
 
 // ── §4 cross-crate iso: FixedU16<U0> ↔ u16 ─────────────────────────
 

@@ -313,34 +313,47 @@ macro_rules! uint_int_sat {
 }
 pub(crate) use uint_int_sat;
 
-/// `Conn<NonZeroI<N>, Extended<i<N>>>` — embed a `NonZero<iN>` into
-/// `Extended<iN>`, with `inner` saturating zero (and the infinities)
-/// to a fixed NonZero. Single-sided left-Galois ([`Conn::new_left`]).
+/// `Conn<Extended<i<N>>, NonZero<i<N>>>` — saturate `Extended<iN>` onto
+/// `NonZero<iN>`, with `floor` and `ceil` differing at `Finite(0)`
+/// (the asymmetric-adjoint showcase: there is no NonZero `= 0`, so
+/// `floor` rounds to `-1` and `ceil` rounds to `+1`).
 ///
-/// Forward (`ceil = floor`): `NonZero<iN> → Extended<iN>` is the total
-/// embedding `Finite(nz.get())`.
+/// Forward (`ceil` / `floor`): `Extended<iN> → NonZero<iN>`.
 ///
-/// Back (`inner`): `Extended<iN> → NonZero<iN>` saturates:
-///
-/// - `NegInf  → NonZero(<iN>::MIN)`
+/// - `NegInf  → NonZero(<iN>::MIN)`  (both ceil and floor saturate)
 /// - `PosInf  → NonZero(<iN>::MAX)`
-/// - `Finite(0) → NonZero(-1)` — largest `NonZero ≤ 0` (the
-///   asymmetric-adjoint-at-zero showcase: a single inner picks `-1`,
-///   making the right-Galois law fail at `(NonZero(-1), Finite(0))`).
-/// - `Finite(v != 0) → NonZero(v)` lossless.
+/// - `Finite(v != 0) → NonZero(v)` (lossless on both adjoints)
+/// - `floor(Finite(0)) → NonZero(-1)` (largest NonZero ≤ 0)
+/// - `ceil(Finite(0))  → NonZero(+1)` (smallest NonZero ≥ 0)
 ///
-/// [`Conn::new_left`]: crate::conn::Conn::new_left
+/// Back (`inner`): trivial total embedding
+/// `NonZero<iN> → Extended<iN>::Finite(.get())`.
+///
+/// Both Galois laws (`conn_galois_l` and `conn_galois_r`) hold,
+/// because the asymmetric `floor`/`ceil` lift the punctured target's
+/// "missing zero" to a sandwich [-1, +1] at the source-side zero.
 macro_rules! nz_int_ext {
     ($NAME:ident, $A:ty, $NZ:ty) => {
         #[doc = concat!(
-            "`", stringify!($NZ), " ↔ Extended<", stringify!($A),
-            ">` (signed; `inner` saturates `Finite(0) → -1`)."
+            "`Extended<", stringify!($A), "> ↔ ", stringify!($NZ),
+            "` (signed; floor/ceil split `Finite(0)` between -1 and +1)."
         )]
-        pub const $NAME: Conn<$NZ, Extended<$A>> = {
-            fn ceil(nz: $NZ) -> Extended<$A> {
-                Extended::Finite(nz.get())
+        pub const $NAME: Conn<Extended<$A>, $NZ> = {
+            fn ceil(x: Extended<$A>) -> $NZ {
+                let r: $A = match x {
+                    Extended::NegInf => <$A>::MIN,
+                    Extended::PosInf => <$A>::MAX,
+                    Extended::Finite(v) => {
+                        if v == 0 {
+                            1
+                        } else {
+                            v
+                        }
+                    }
+                };
+                <$NZ>::new(r).expect("nz_int_ext::ceil produced zero")
             }
-            fn inner(x: Extended<$A>) -> $NZ {
+            fn floor(x: Extended<$A>) -> $NZ {
                 let r: $A = match x {
                     Extended::NegInf => <$A>::MIN,
                     Extended::PosInf => <$A>::MAX,
@@ -352,30 +365,32 @@ macro_rules! nz_int_ext {
                         }
                     }
                 };
-                <$NZ>::new(r).expect("nz_int_ext constructed a zero")
+                <$NZ>::new(r).expect("nz_int_ext::floor produced zero")
             }
-            Conn::new_left(ceil, inner)
+            fn inner(nz: $NZ) -> Extended<$A> {
+                Extended::Finite(nz.get())
+            }
+            Conn::new(ceil, inner, floor)
         };
     };
 }
 pub(crate) use nz_int_ext;
 
-/// `Conn<NonZeroU<N>, Extended<u<N>>>` — unsigned counterpart of
-/// [`nz_int_ext!`]. `inner` saturates the bottom (both `NegInf` and
-/// `Finite(0)`) to `NonZero(1)` — there is no NonZero ≤ 0 to round to
-/// on the unsigned side, so both arms collapse to the smallest
-/// representable `NonZero`. Single-sided left-Galois.
+/// `Conn<Extended<u<N>>, NonZero<u<N>>>` — unsigned counterpart of
+/// [`nz_int_ext!`]. `floor` and `ceil` saturate uniformly because
+/// there is no NonZero `≤ 0` on the unsigned side: both `Finite(0)`
+/// and `NegInf` collapse to `NonZero(1)`. Single-sided left-Galois
+/// ([`Conn::new_left`]) — `floor = ceil`.
+///
+/// [`Conn::new_left`]: crate::conn::Conn::new_left
 macro_rules! nz_uint_ext {
     ($NAME:ident, $A:ty, $NZ:ty) => {
         #[doc = concat!(
-            "`", stringify!($NZ), " ↔ Extended<", stringify!($A),
-            ">` (unsigned; `inner` saturates 0 / `NegInf → 1`)."
+            "`Extended<", stringify!($A), "> ↔ ", stringify!($NZ),
+            "` (unsigned; `Finite(0)` and `NegInf` saturate to NonZero(1))."
         )]
-        pub const $NAME: Conn<$NZ, Extended<$A>> = {
-            fn ceil(nz: $NZ) -> Extended<$A> {
-                Extended::Finite(nz.get())
-            }
-            fn inner(x: Extended<$A>) -> $NZ {
+        pub const $NAME: Conn<Extended<$A>, $NZ> = {
+            fn ceil(x: Extended<$A>) -> $NZ {
                 let r: $A = match x {
                     Extended::NegInf => 1,
                     Extended::PosInf => <$A>::MAX,
@@ -387,7 +402,10 @@ macro_rules! nz_uint_ext {
                         }
                     }
                 };
-                <$NZ>::new(r).expect("nz_uint_ext constructed a zero")
+                <$NZ>::new(r).expect("nz_uint_ext::ceil produced zero")
+            }
+            fn inner(nz: $NZ) -> Extended<$A> {
+                Extended::Finite(nz.get())
             }
             Conn::new_left(ceil, inner)
         };

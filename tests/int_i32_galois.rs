@@ -2,7 +2,7 @@
 //! test — see `tests/conn_std_u8_galois.rs` for rationale.
 
 use connections::extended::Extended;
-use connections::int::i32::*;
+use connections::fixed::i32::*;
 use proptest::prelude::*;
 
 macro_rules! arb_ext {
