@@ -1,22 +1,35 @@
 //! Shared proptest strategies.
 //!
 //! Centralizes the `arb_f32` / `arb_f64` generators that `conn/*`,
-//! `lattice`, and test modules used to reinvent separately. Two
-//! variants are provided:
+//! `lattice`, and test modules used to reinvent separately.
 //!
-//! - [`arb_f32`] / [`arb_f64`] — 4:1 uniform-to-boundary bias over
-//!   the full float domain. Boundary slot includes NaN, ±∞, ±0,
-//!   MIN_POSITIVE, MAX, MIN with equal weight. Use for connections
-//!   whose source and target are both float-shaped (`f64 ↔ f32`,
-//!   identity on floats, preorder tests).
-//! - [`arb_f64_bounded`] — 6:1 uniform-to-boundary bias restricted
-//!   to `|x| ≤ 1e9` plus the same explicit boundary set. Use for
-//!   connections that feed into a bounded integer rung (FD06,
-//!   FD12, …); unbounded `any::<f64>()` shrinks bit-by-bit through
-//!   the mantissa on saturation failures, exploring the
-//!   `i64::MAX × PREC` corner of the input space for minutes while
-//!   teaching nothing about the adjoint law. See
-//!   `doc/plans/plan-2026-04-23-05.md` for the discussion.
+//! All float strategies use **1:2 uniform-to-boundary** bias —
+//! Galois-connection bugs cluster at the co/domain extremes, so the
+//! boundary slot is sampled twice as often as the uniform slot. The
+//! bounded variants pin `|x|` to a smaller range to keep
+//! plateau-walk costs tractable for connections feeding into a
+//! Duration / decimal rung.
+//!
+//! Variants:
+//!
+//! - [`arb_f32`] / [`arb_f64`] — full float domain. Boundary slot
+//!   covers NaN, ±∞, ±0, MIN_POSITIVE, MAX, MIN, EPSILON, the
+//!   smallest positive subnormal, and the integer-precision boundary
+//!   `2^N ± 1` (N=24 for f32, N=53 for f64). Use for connections
+//!   whose source and target are both float-shaped.
+//! - [`arb_f32_bounded`] / [`arb_f64_bounded`] — restricted uniform
+//!   range plus a slimmer boundary set. Use for connections feeding
+//!   bounded-resolution rungs (`F032DURN`, `F064DURN`, FD06, FD09,
+//!   FD12, …). Unbounded `any::<f64>()` shrinks bit-by-bit through
+//!   the mantissa on saturation failures and dominates runtime
+//!   without finding structural bugs; bounded ranges plus explicit
+//!   boundaries give wider adjoint-law coverage. See
+//!   `doc/plans/plan-2026-04-23-05.md` for the original discussion.
+//!
+//! Extended-wrapped variants (`extended_float_f??`, `arb_extended_*`)
+//! use **1:1:2** weighting (or 1:1:3 for floats, 1:1:1 for finite-
+//! variant enums) to give NegInf/PosInf saturation arms enough
+//! sampling rate to hit reliably even at low case counts.
 //!
 //! Tier-specific strategies live here too: `fixed_*` for the
 //! decimal fixed-point ladder, and `extended_*` for `Extended`-
@@ -25,15 +38,26 @@
 
 use proptest::prelude::*;
 
-/// Arbitrary `f64` with elevated-frequency boundary cases.
+/// Arbitrary `f64` with boundary-heavy weighting.
 ///
-/// 4:1 weight — four arbitrary bit patterns for every one boundary
-/// value. The boundary `prop_oneof!` picks uniformly among
-/// `{NaN, ±∞, ±0, MIN_POSITIVE, MAX, MIN}`.
+/// 1:2 uniform-to-boundary — boundary `prop_oneof!` picks uniformly
+/// among 13 named extrema covering every Galois-bug-prone region of
+/// the f64 domain:
+///
+/// - `NaN`, `±∞`, `±0`, `MIN_POSITIVE`, `MAX`, `MIN` — saturation /
+///   sign / NaN-arm coverage (8 values).
+/// - `EPSILON` — smallest representable change at 1.0; useful for
+///   monotonicity probes.
+/// - `f64::from_bits(1)` — smallest positive subnormal; tests
+///   denormalised-input handling.
+/// - `2^53 - 1`, `2^53`, `2^53 + 1` — the integer-precision
+///   boundary; above 2^53 consecutive integers are not exactly
+///   representable, and conn implementations that round-trip through
+///   integer rungs must handle this region without losing identity.
 pub fn arb_f64() -> impl Strategy<Value = f64> {
     prop_oneof![
-        4 => any::<f64>(),
-        1 => prop_oneof![
+        1 => any::<f64>(),
+        2 => prop_oneof![
             Just(f64::NAN),
             Just(f64::INFINITY),
             Just(f64::NEG_INFINITY),
@@ -42,17 +66,23 @@ pub fn arb_f64() -> impl Strategy<Value = f64> {
             Just(f64::MIN_POSITIVE),
             Just(f64::MAX),
             Just(f64::MIN),
+            Just(f64::EPSILON),
+            Just(f64::from_bits(1)),
+            Just(2.0_f64.powi(53) - 1.0),
+            Just(2.0_f64.powi(53)),
+            Just(2.0_f64.powi(53) + 1.0),
         ],
     ]
 }
 
-/// Arbitrary `f32` with elevated-frequency boundary cases.
+/// Arbitrary `f32` with boundary-heavy weighting.
 ///
-/// Same shape as [`arb_f64`]: 4:1 arbitrary-to-boundary ratio.
+/// 1:2 uniform-to-boundary — same shape as [`arb_f64`] but with
+/// f32-scale precision boundaries at `2^24 ± 1`.
 pub fn arb_f32() -> impl Strategy<Value = f32> {
     prop_oneof![
-        4 => any::<f32>(),
-        1 => prop_oneof![
+        1 => any::<f32>(),
+        2 => prop_oneof![
             Just(f32::NAN),
             Just(f32::INFINITY),
             Just(f32::NEG_INFINITY),
@@ -61,6 +91,11 @@ pub fn arb_f32() -> impl Strategy<Value = f32> {
             Just(f32::MIN_POSITIVE),
             Just(f32::MAX),
             Just(f32::MIN),
+            Just(f32::EPSILON),
+            Just(f32::from_bits(1)),
+            Just(2.0_f32.powi(24) - 1.0),
+            Just(2.0_f32.powi(24)),
+            Just(2.0_f32.powi(24) + 1.0),
         ],
     ]
 }
@@ -70,13 +105,19 @@ pub fn arb_f32() -> impl Strategy<Value = f32> {
 /// Use this instead of [`arb_f64`] for connections whose target is a
 /// bounded integer rung (FD06, FD09, FD12, …). The uniform slot is
 /// a finite range rather than `any::<f64>()`, which prevents the
-/// mantissa-bit shrink pathology on saturation failures. 6:1 ratio
-/// keeps the boundary coverage comparable to [`arb_f64`]'s 4:1
-/// despite the narrower uniform distribution.
+/// mantissa-bit shrink pathology on saturation failures.
+///
+/// 1:2 uniform-to-boundary weighting ensures Galois-bug-prone extrema
+/// are sampled at >5% each. The boundary slot includes `EPSILON` and
+/// the smallest positive subnormal alongside the standard
+/// saturation/sign/NaN values. Precision-boundary integers (`2^53 ±
+/// 1`) are intentionally omitted: they lie at \|v\| ≈ 9e15, far
+/// outside the bound, and would re-introduce the very wide-plateau
+/// walk this strategy exists to prevent.
 pub fn arb_f64_bounded() -> impl Strategy<Value = f64> {
     prop_oneof![
-        6 => -1.0e9_f64..1.0e9_f64,
-        1 => prop_oneof![
+        1 => -1.0e9_f64..1.0e9_f64,
+        2 => prop_oneof![
             Just(f64::NAN),
             Just(f64::INFINITY),
             Just(f64::NEG_INFINITY),
@@ -85,13 +126,11 @@ pub fn arb_f64_bounded() -> impl Strategy<Value = f64> {
             Just(f64::MIN_POSITIVE),
             Just(f64::MAX),
             Just(f64::MIN),
+            Just(f64::EPSILON),
+            Just(f64::from_bits(1)),
         ],
     ]
 }
-
-// `arb_f32_bounded` is intentionally omitted: no current connection
-// saturates f32 into a bounded integer rung. Add it (mirroring
-// `arb_f64_bounded` above) when an F32F?? or similar conn appears.
 
 /// Arbitrary `f16` with edge-case-heavy boundary set.
 ///
@@ -132,12 +171,17 @@ use crate::float::ExtendedFloat;
 use crate::extended::Extended;
 
 /// `ExtendedFloat<f64>` over `Bot`, `Top`, and bounded `Finite`
-/// values (8:1:1 weighting toward finite).
+/// values.
+///
+/// 1:1:3 weighting (Bot:Top:Finite) — Bot and Top are each a single
+/// concrete value and the saturation-arm bugs they probe live at
+/// fixed code paths; bumping their share to 20% each (vs the prior
+/// 10%) ensures both arms hit reliably even at low case counts.
 pub fn extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
     prop_oneof![
         1 => Just(ExtendedFloat::Bot),
         1 => Just(ExtendedFloat::Top),
-        8 => arb_f64_bounded().prop_map(ExtendedFloat::Extend),
+        3 => arb_f64_bounded().prop_map(ExtendedFloat::Extend),
     ]
 }
 
@@ -150,10 +194,16 @@ pub fn extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
 /// blow out. The boundary slot still pins MAX/MIN/INF/MIN_POSITIVE so
 /// saturation paths are exercised even though the uniform body is
 /// narrow.
+///
+/// 1:2 uniform-to-boundary weighting ensures Galois-bug-prone extrema
+/// are sampled at >5% each. The boundary slot includes `EPSILON` and
+/// the smallest positive subnormal. Precision-boundary integers
+/// (`2^24 ± 1`) are intentionally omitted: 2^24 ≈ 16.8M, far outside
+/// the |v| ≤ 10 bound this strategy exists to enforce.
 pub fn arb_f32_bounded() -> impl Strategy<Value = f32> {
     prop_oneof![
-        6 => -10.0_f32..10.0_f32,
-        1 => prop_oneof![
+        1 => -10.0_f32..10.0_f32,
+        2 => prop_oneof![
             Just(f32::NAN),
             Just(f32::INFINITY),
             Just(f32::NEG_INFINITY),
@@ -162,28 +212,32 @@ pub fn arb_f32_bounded() -> impl Strategy<Value = f32> {
             Just(f32::MIN_POSITIVE),
             Just(f32::MAX),
             Just(f32::MIN),
+            Just(f32::EPSILON),
+            Just(f32::from_bits(1)),
         ],
     ]
 }
 
 /// `ExtendedFloat<f32>` over `Bot`, `Top`, and bounded `Finite`
-/// values (8:1:1 weighting toward finite). Uses [`arb_f32_bounded`].
+/// values. Mirrors [`extended_float_f64`]'s 1:1:3 weighting.
 pub fn extended_float_f32() -> impl Strategy<Value = ExtendedFloat<f32>> {
     prop_oneof![
         1 => Just(ExtendedFloat::Bot),
         1 => Just(ExtendedFloat::Top),
-        8 => arb_f32_bounded().prop_map(ExtendedFloat::Extend),
+        3 => arb_f32_bounded().prop_map(ExtendedFloat::Extend),
     ]
 }
 
 /// `Extended<Duration>` over `NegInf`, `PosInf`, and `Finite` values
-/// from [`arb_duration`] (1:1:8 weighting). Used by `Extended<Duration>`
-/// generators that don't drive a magnitude-sensitive walk.
+/// from [`arb_duration`] — 1:1:2 weighting. Used by
+/// `Extended<Duration>` generators that don't drive a
+/// magnitude-sensitive walk. NegInf/PosInf each get 25% so the
+/// saturation arms are sampled even at low case counts.
 pub fn arb_extended_duration() -> impl Strategy<Value = Extended<Duration>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
         1 => Just(Extended::PosInf),
-        8 => arb_duration().prop_map(Extended::Finite),
+        2 => arb_duration().prop_map(Extended::Finite),
     ]
 }
 
@@ -239,30 +293,30 @@ pub fn arb_duration_bounded_f32() -> impl Strategy<Value = Duration> {
 }
 
 /// `Extended<Duration>` over `NegInf`, `PosInf`, and bounded `Finite`
-/// values from [`arb_duration_bounded_f64`] (1:1:8 weighting). Used by
-/// the `F064DURN` galois battery.
+/// values from [`arb_duration_bounded_f64`] — 1:1:2 weighting. Used
+/// by the `F064DURN` galois battery.
 pub fn arb_extended_duration_bounded_f64() -> impl Strategy<Value = Extended<Duration>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
         1 => Just(Extended::PosInf),
-        8 => arb_duration_bounded_f64().prop_map(Extended::Finite),
+        2 => arb_duration_bounded_f64().prop_map(Extended::Finite),
     ]
 }
 
 /// `Extended<Duration>` over `NegInf`, `PosInf`, and bounded `Finite`
-/// values from [`arb_duration_bounded_f32`] (1:1:8 weighting). Used by
-/// the `F032DURN` galois battery.
+/// values from [`arb_duration_bounded_f32`] — 1:1:2 weighting. Used
+/// by the `F032DURN` galois battery.
 pub fn arb_extended_duration_bounded_f32() -> impl Strategy<Value = Extended<Duration>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
         1 => Just(Extended::PosInf),
-        8 => arb_duration_bounded_f32().prop_map(Extended::Finite),
+        2 => arb_duration_bounded_f32().prop_map(Extended::Finite),
     ]
 }
 
 /// `ExtendedFloat<f16>` over `Bot`, `Top`, and `Finite` from
-/// [`arb_f16`] (1:1:8 weighting toward finite, matching the existing
-/// extended-float strategies).
+/// [`arb_f16`] — 1:1:3 weighting matching the f64/f32 extended-float
+/// strategies.
 ///
 /// Gated on the `f16` cargo feature (nightly required).
 #[cfg(feature = "f16")]
@@ -270,7 +324,7 @@ pub fn extended_float_f16() -> impl Strategy<Value = ExtendedFloat<f16>> {
     prop_oneof![
         1 => Just(ExtendedFloat::Bot),
         1 => Just(ExtendedFloat::Top),
-        8 => arb_f16().prop_map(ExtendedFloat::Extend),
+        3 => arb_f16().prop_map(ExtendedFloat::Extend),
     ]
 }
 
@@ -356,12 +410,12 @@ pub fn arb_primitive_dt() -> impl Strategy<Value = PrimitiveDateTime> {
 }
 
 /// `Extended<Date>` over `NegInf`, `PosInf`, and `Finite` values from
-/// [`arb_date`] (1:1:8 weighting).
+/// [`arb_date`] — 1:1:2 weighting.
 pub fn arb_extended_date() -> impl Strategy<Value = Extended<Date>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
         1 => Just(Extended::PosInf),
-        8 => arb_date().prop_map(Extended::Finite),
+        2 => arb_date().prop_map(Extended::Finite),
     ]
 }
 
@@ -380,12 +434,12 @@ pub fn arb_jd_in_range() -> impl Strategy<Value = i32> {
 }
 
 /// `Extended<Time>` over `NegInf`, `PosInf`, and `Finite` values
-/// from [`arb_time`] (1:1:8 weighting).
+/// from [`arb_time`] — 1:1:2 weighting.
 pub fn arb_extended_time() -> impl Strategy<Value = Extended<Time>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
         1 => Just(Extended::PosInf),
-        8 => arb_time().prop_map(Extended::Finite),
+        2 => arb_time().prop_map(Extended::Finite),
     ]
 }
 
@@ -453,12 +507,12 @@ pub fn arb_utc_offset() -> impl Strategy<Value = UtcOffset> {
 }
 
 /// `Extended<UtcOffset>` over `NegInf`, `PosInf`, and `Finite`
-/// values from [`arb_utc_offset`] (1:1:8 weighting).
+/// values from [`arb_utc_offset`] — 1:1:2 weighting.
 pub fn arb_extended_utc_offset() -> impl Strategy<Value = Extended<UtcOffset>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
         1 => Just(Extended::PosInf),
-        8 => arb_utc_offset().prop_map(Extended::Finite),
+        2 => arb_utc_offset().prop_map(Extended::Finite),
     ]
 }
 
@@ -493,12 +547,12 @@ pub fn arb_offset_dt() -> impl Strategy<Value = OffsetDateTime> {
 }
 
 /// `Extended<OffsetDateTime>` over `NegInf`, `PosInf`, and `Finite`
-/// values from [`arb_offset_dt`] (1:1:8 weighting).
+/// values from [`arb_offset_dt`] — 1:1:2 weighting.
 pub fn arb_extended_offset_dt() -> impl Strategy<Value = Extended<OffsetDateTime>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
         1 => Just(Extended::PosInf),
-        8 => arb_offset_dt().prop_map(Extended::Finite),
+        2 => arb_offset_dt().prop_map(Extended::Finite),
     ]
 }
 
@@ -516,12 +570,18 @@ pub fn arb_weekday() -> impl Strategy<Value = Weekday> {
 }
 
 /// `Extended<Weekday>` over `NegInf`, `PosInf`, and `Finite` values
-/// from [`arb_weekday`] (1:1:8 weighting).
+/// from [`arb_weekday`] — 1:1:1 weighting.
+///
+/// Equal-leg ratio (vs the 1:1:2 used elsewhere) because `Weekday`
+/// has only 7 finite variants; with 1:1:2 each variant samples at
+/// 2/9 ÷ 7 ≈ 3.2%. At 1:1:1 each variant samples at 1/3 ÷ 7 ≈ 4.8%
+/// while NegInf and PosInf each get 33% — keeps every variant within
+/// striking distance of >5% even at low case counts.
 pub fn arb_extended_weekday() -> impl Strategy<Value = Extended<Weekday>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
         1 => Just(Extended::PosInf),
-        8 => arb_weekday().prop_map(Extended::Finite),
+        1 => arb_weekday().prop_map(Extended::Finite),
     ]
 }
 
@@ -544,12 +604,14 @@ pub fn arb_month() -> impl Strategy<Value = Month> {
 }
 
 /// `Extended<Month>` over `NegInf`, `PosInf`, and `Finite` values
-/// from [`arb_month`] (1:1:8 weighting).
+/// from [`arb_month`] — 1:1:1 weighting (matches
+/// [`arb_extended_weekday`]'s reasoning for equal-leg ratio on
+/// finite-variant enums).
 pub fn arb_extended_month() -> impl Strategy<Value = Extended<Month>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
         1 => Just(Extended::PosInf),
-        8 => arb_month().prop_map(Extended::Finite),
+        1 => arb_month().prop_map(Extended::Finite),
     ]
 }
 
