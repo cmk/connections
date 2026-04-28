@@ -109,32 +109,30 @@ impl_float_ext!(f64);
 
 // ── Numeric impls for `ExtendedFloat<f32 | f64>`.
 //
-// The Extend × Extend arms route through the inner T's arithmetic.
-// The Bot/Top arms follow a conservative simplification rule:
-// `Add`/`Sub`/`Neg` preserve the lattice endpoints when the result
-// is unambiguous (e.g. `Bot + Bot = Bot`, `-Bot = Top`); every other
-// Bot/Top combination collapses to `Extend(NaN)`. Note this is a
-// *choice*: real-line arithmetic gives e.g. `(-∞)·(-∞) = +∞` and
-// `(+∞)/(+∞) = NaN`, so for `Mul`/`Div`/`Rem` even the same-sign
-// endpoint cases (`Bot * Bot`, `Top * Top`) admit no obvious
-// lattice answer without committing to a sign-of-product
-// convention. We don't trust those corner cases enough to commit
-// Bot vs Top, so they collapse to `Extend(NaN)` uniformly. The
-// chain combinators in `crate::conn` (`interval`/`midpoint`/
-// `round`/`truncate`) only ever pass `Extend(_)` brackets to these
-// ops, so the simplification has no effect on in-tree usage;
-// deterministic tests in `mod tests` pin the Bot/Top arms for
-// direct callers.
+// `ExtendedFloat<T>` represents `Maybe R̄` — the extended real line
+// `R̄ = R ∪ {-∞, +∞}` with `Extend(NaN)` standing in for the
+// undefined / "Nothing" case. Concretely:
 //
-// | Op | (Bot, Bot)  | (Top, Top)  | mixed Bot/Top   | endpoint, Extend(_) | (Extend(a), Extend(b)) |
-// |----|-------------|-------------|-----------------|---------------------|------------------------|
-// |  + |  Bot        |  Top        |  Extend(NaN)    |  endpoint absorbs   |  Extend(a + b)         |
-// |  - |  Extend(NaN)|  Extend(NaN)|  endpoint of LHS|  endpoint of LHS;   |  Extend(a - b)         |
-// |    |             |             |                 |  flipped for Extend |                        |
-// |  * |  Extend(NaN)|  Extend(NaN)|  Extend(NaN)    |  Extend(NaN)        |  Extend(a * b)         |
-// |  / |  Extend(NaN)|  Extend(NaN)|  Extend(NaN)    |  Extend(NaN)        |  Extend(a / b)         |
-// |  % |  Extend(NaN)|  Extend(NaN)|  Extend(NaN)    |  Extend(NaN)        |  Extend(a % b)         |
-// | -x | Top (Bot)   | Bot (Top)   | —               | —                   |  Extend(-a)            |
+//   Bot     ↔  -∞
+//   Extend  ↔  any finite real (or IEEE NaN, the undefined case)
+//   Top     ↔  +∞
+//
+// The arithmetic dispatches on this reading: the Extend × Extend
+// arm routes through the inner T's IEEE arithmetic; every Bot/Top
+// arm computes the extended-real-line answer rather than punting
+// to `Extend(NaN)`. Returning NaN from two non-NaN inputs when the
+// answer is unambiguous would be lossy; we don't.
+//
+// Operation table under `Bot = -∞, Top = +∞`:
+//
+// | Op | (Bot, Bot) | (Top, Top) | (Bot, Top) | (Top, Bot) | (Bot, Extend(v))                     | (Top, Extend(v))                     | (Extend(v), Bot)                                | (Extend(v), Top)                                | (Extend(a), Extend(b)) |
+// |----|-----------|-----------|-----------|-----------|--------------------------------------|--------------------------------------|-------------------------------------------------|-------------------------------------------------|------------------------|
+// |  + | Bot       | Top       | NaN       | NaN       | Bot                                  | Top                                  | Bot                                             | Top                                             | Extend(a + b)          |
+// |  - | NaN       | NaN       | Bot       | Top       | Bot                                  | Top                                  | Top                                             | Bot                                             | Extend(a - b)          |
+// |  * | Top       | Top       | Bot       | Bot       | sign-of-v: Bot/Top/NaN at +/-/0      | sign-of-v: Top/Bot/NaN at +/-/0      | sign-of-v: Bot/Top/NaN at +/-/0                 | sign-of-v: Top/Bot/NaN at +/-/0                 | Extend(a * b)          |
+// |  / | NaN       | NaN       | NaN       | NaN       | sign-of-v: Bot/Top/NaN at +/-/0      | sign-of-v: Top/Bot/NaN at +/-/0      | finite / ∞ = ±0 (IEEE signed zero)              | finite / ∞ = ±0 (IEEE signed zero)              | Extend(a / b)          |
+// |  % | NaN       | NaN       | NaN       | NaN       | NaN                                  | NaN                                  | Extend(v) (finite mod ∞ = finite per IEEE)      | Extend(v) (finite mod ∞ = finite per IEEE)      | Extend(a % b)          |
+// | -x | Top       | Bot       | —         | —         | —                                    | —                                    | —                                               | —                                               | Extend(-a)             |
 //
 // `From<u8>(n)` always returns `Extend(T::from(n))`.
 //
@@ -181,8 +179,19 @@ macro_rules! impl_float_arith {
             fn mul(self, other: Self) -> Self {
                 use ExtendedFloat::*;
                 match (self, other) {
+                    // Same-sign endpoints: (-∞)·(-∞) = (+∞)·(+∞) = +∞.
+                    (Bot, Bot) | (Top, Top) => Top,
+                    // Opposite-sign endpoints: (-∞)·(+∞) = -∞.
+                    (Bot, Top) | (Top, Bot) => Bot,
+                    // Endpoint × Extend: dispatch on the finite operand's
+                    // sign. Zero / NaN make the product NaN per IEEE.
+                    (Bot, Extend(v)) | (Extend(v), Bot) => {
+                        if v > 0.0 { Bot } else if v < 0.0 { Top } else { Extend(<$T>::NAN) }
+                    }
+                    (Top, Extend(v)) | (Extend(v), Top) => {
+                        if v > 0.0 { Top } else if v < 0.0 { Bot } else { Extend(<$T>::NAN) }
+                    }
                     (Extend(a), Extend(b)) => Extend(a * b),
-                    _ => Extend(<$T>::NAN),
                 }
             }
         }
@@ -192,8 +201,22 @@ macro_rules! impl_float_arith {
             fn div(self, other: Self) -> Self {
                 use ExtendedFloat::*;
                 match (self, other) {
+                    // ∞/∞ is genuinely indeterminate per IEEE.
+                    (Bot, Bot) | (Top, Top) | (Bot, Top) | (Top, Bot) => Extend(<$T>::NAN),
+                    // Endpoint / Extend: sign of the finite operand picks
+                    // the result endpoint.
+                    (Bot, Extend(v)) => {
+                        if v > 0.0 { Bot } else if v < 0.0 { Top } else { Extend(<$T>::NAN) }
+                    }
+                    (Top, Extend(v)) => {
+                        if v > 0.0 { Top } else if v < 0.0 { Bot } else { Extend(<$T>::NAN) }
+                    }
+                    // finite / ∞ = 0 per IEEE (sign by signed-zero rule);
+                    // route through the inner T's Div with the sign-bearing
+                    // infinity so the IEEE result is preserved.
+                    (Extend(v), Bot) => Extend(v / <$T>::NEG_INFINITY),
+                    (Extend(v), Top) => Extend(v / <$T>::INFINITY),
                     (Extend(a), Extend(b)) => Extend(a / b),
-                    _ => Extend(<$T>::NAN),
                 }
             }
         }
@@ -203,8 +226,13 @@ macro_rules! impl_float_arith {
             fn rem(self, other: Self) -> Self {
                 use ExtendedFloat::*;
                 match (self, other) {
+                    // ∞ % anything is NaN per IEEE.
+                    (Bot, _) | (Top, _) => Extend(<$T>::NAN),
+                    // finite % ∞ = the finite per IEEE — the divisor is
+                    // larger in magnitude than any finite, so the
+                    // remainder is the dividend itself.
+                    (Extend(v), Bot) | (Extend(v), Top) => Extend(v),
                     (Extend(a), Extend(b)) => Extend(a % b),
-                    _ => Extend(<$T>::NAN),
                 }
             }
         }
@@ -876,13 +904,78 @@ mod tests {
     }
 
     #[test]
-    fn rem_endpoint_pin_f64() {
-        // Any Bot/Top arm collapses to Extend(NaN), matching the
-        // documented conservative simplification.
+    fn rem_endpoint_arms_f64() {
+        // ∞ % anything is NaN per IEEE.
+        let one: ExtendedFloat<f64> = ExtendedFloat::Extend(1.0);
+        assert!((ExtendedFloat::<f64>::Bot % one).is_nan());
+        assert!((ExtendedFloat::<f64>::Top % one).is_nan());
+        // finite % ∞ = finite (the divisor is larger in magnitude than
+        // any finite, so the remainder is the dividend itself).
         let a: ExtendedFloat<f64> = ExtendedFloat::Extend(7.5);
-        match a % ExtendedFloat::<f64>::Top {
-            ExtendedFloat::Extend(v) => assert!(v.is_nan()),
-            other => panic!("expected Extend(NaN), got {other:?}"),
+        assert_eq!(a % ExtendedFloat::<f64>::Top, a);
+        assert_eq!(a % ExtendedFloat::<f64>::Bot, a);
+    }
+
+    #[test]
+    fn mul_endpoint_arms_f64() {
+        // (-∞)·(-∞) = (+∞)·(+∞) = +∞ = Top.
+        assert_eq!(
+            ExtendedFloat::<f64>::Bot * ExtendedFloat::<f64>::Bot,
+            ExtendedFloat::<f64>::Top
+        );
+        assert_eq!(
+            ExtendedFloat::<f64>::Top * ExtendedFloat::<f64>::Top,
+            ExtendedFloat::<f64>::Top
+        );
+        // (-∞)·(+∞) = -∞ = Bot.
+        assert_eq!(
+            ExtendedFloat::<f64>::Bot * ExtendedFloat::<f64>::Top,
+            ExtendedFloat::<f64>::Bot
+        );
+        assert_eq!(
+            ExtendedFloat::<f64>::Top * ExtendedFloat::<f64>::Bot,
+            ExtendedFloat::<f64>::Bot
+        );
+        // Endpoint × Extend dispatches on the finite operand's sign.
+        let pos: ExtendedFloat<f64> = ExtendedFloat::Extend(3.5);
+        let neg: ExtendedFloat<f64> = ExtendedFloat::Extend(-3.5);
+        let zero: ExtendedFloat<f64> = ExtendedFloat::Extend(0.0);
+        assert_eq!(ExtendedFloat::<f64>::Bot * pos, ExtendedFloat::<f64>::Bot);
+        assert_eq!(ExtendedFloat::<f64>::Bot * neg, ExtendedFloat::<f64>::Top);
+        assert_eq!(ExtendedFloat::<f64>::Top * pos, ExtendedFloat::<f64>::Top);
+        assert_eq!(ExtendedFloat::<f64>::Top * neg, ExtendedFloat::<f64>::Bot);
+        // Zero × ∞ is the one genuinely indeterminate Mul case.
+        assert!((ExtendedFloat::<f64>::Bot * zero).is_nan());
+        assert!((ExtendedFloat::<f64>::Top * zero).is_nan());
+    }
+
+    #[test]
+    fn div_endpoint_arms_f64() {
+        // ∞ / ∞ is genuinely indeterminate.
+        assert!((ExtendedFloat::<f64>::Bot / ExtendedFloat::<f64>::Bot).is_nan());
+        assert!((ExtendedFloat::<f64>::Bot / ExtendedFloat::<f64>::Top).is_nan());
+        assert!((ExtendedFloat::<f64>::Top / ExtendedFloat::<f64>::Bot).is_nan());
+        assert!((ExtendedFloat::<f64>::Top / ExtendedFloat::<f64>::Top).is_nan());
+        // Endpoint / Extend dispatches on the finite operand's sign.
+        let pos: ExtendedFloat<f64> = ExtendedFloat::Extend(2.0);
+        let neg: ExtendedFloat<f64> = ExtendedFloat::Extend(-2.0);
+        let zero: ExtendedFloat<f64> = ExtendedFloat::Extend(0.0);
+        assert_eq!(ExtendedFloat::<f64>::Bot / pos, ExtendedFloat::<f64>::Bot);
+        assert_eq!(ExtendedFloat::<f64>::Bot / neg, ExtendedFloat::<f64>::Top);
+        assert_eq!(ExtendedFloat::<f64>::Top / pos, ExtendedFloat::<f64>::Top);
+        assert_eq!(ExtendedFloat::<f64>::Top / neg, ExtendedFloat::<f64>::Bot);
+        // ∞ / 0 is indeterminate (sign of zero matters; we let inner
+        // IEEE handle and propagate as NaN here for safety).
+        assert!((ExtendedFloat::<f64>::Bot / zero).is_nan());
+        // Extend / ∞ = signed zero per IEEE.
+        let three: ExtendedFloat<f64> = ExtendedFloat::Extend(3.0);
+        match three / ExtendedFloat::<f64>::Top {
+            ExtendedFloat::Extend(v) => assert_eq!(v, 0.0),
+            other => panic!("expected Extend(±0.0), got {other:?}"),
+        }
+        match three / ExtendedFloat::<f64>::Bot {
+            ExtendedFloat::Extend(v) => assert_eq!(v, 0.0),
+            other => panic!("expected Extend(±0.0), got {other:?}"),
         }
     }
 
