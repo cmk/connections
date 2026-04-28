@@ -17,4 +17,3 @@
 # extensions of an existing family don't need a mirror — only
 # Conns whose example block ships in README.
 
-F064B016|src/conn/float/f64.rs|use connections::conn::float::f64::F064B016;
