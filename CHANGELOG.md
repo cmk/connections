@@ -5,7 +5,74 @@ All notable changes to this crate will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] — 2026-04-27
+The crate has not yet been published to crates.io. The first
+crates.io release will be `0.0.1`. While `Cargo.toml` reads
+`version = "0.0.0"`, this file's pre-publish entries describe the
+cumulative in-development state.
+
+## [Unreleased]
+
+### Changed
+
+- **Folded `connections::int::*` into `connections::fixed::*`.** Every
+  std-int Conn (`I064I128`, `U008I016`, `U128I008`, etc.) is
+  structurally a Q*N*.0 fixed-point conversion, so it now lives
+  alongside the Q-format ladder for the same destination primitive.
+  Std-int constant names (e.g. `I064I128`, `U008I016`) are unchanged;
+  only the module path moves (`int::i64::I064I128` →
+  `fixed::i64::I064I128`). `src/int/` files remain as thin
+  re-export shims pointing at `crate::fixed::*` until the references
+  in tests/doctests are rewritten in T9 and the tree is removed in
+  T10.
+- **Renamed every intra-`fixed` Conn prefix from `I`/`U` to `Q`.**
+  After the merge, the prefix letter alone disambiguates: `Q` =
+  Q-format wrapper from the [`fixed`] crate, `I` = signed std
+  primitive, `U` = unsigned std primitive, `N` = `NonZero<*>`. Sign
+  and host bit-width come from the module path. Examples:
+  `fixed::i8::I008I004` → `fixed::i8::Q008Q004`;
+  `fixed::u8::U008U007` → `fixed::u8::Q008Q007`;
+  `fixed::i64::I064I004` → `fixed::i64::Q064Q004`. ~150 constants
+  renamed; their semantics, doctests, and Galois-law guarantees are
+  unchanged.
+- **Reset `Cargo.toml` `version` from `0.1.0` to `0.0.0`** to reflect
+  the pre-publish state. The first crates.io release will be `0.0.1`.
+
+### Added
+
+- **`Conn::new_iso(forward, back)`** — degenerate-Galois constructor
+  for total order-isomorphisms (where `floor = ceil = forward` and
+  both Galois laws hold trivially). Used by the new cross-crate iso
+  family below; available for any future iso Conn (e.g. `Ipv4Addr ↔
+  u32`).
+- **NonZero family** — 10 new Conns, one per primitive width:
+  `fixed::iN::N{NN}I{NN}` and `fixed::uN::N{NN}U{NN}`, with type
+  `Conn<NonZero<{i,u}N>, Extended<{i,u}N>>`. Signed variants are the
+  asymmetric-adjoint-at-zero showcase: `inner(Finite(0)) =
+  NonZero(-1)` (largest NonZero ≤ 0). Unsigned variants saturate
+  both `Finite(0)` and `NegInf` to `NonZero(1)`. Single-sided
+  left-Galois.
+- **Cross-crate iso family** — 10 new Conns
+  `fixed::iN::Q000I{NN}` (and unsigned analogues) bridging
+  `Fixed{I,U}{NN}<U0>` and the corresponding std-int primitive.
+  Lossless `to_bits` / `from_bits` via `Conn::new_iso`.
+
+### Why
+
+`int/` and `fixed/` had parallel file layouts, and every std-int
+primitive is structurally a Q*N*.0 fixed-point. The crate's only
+real top-level distinction is float vs fixed; merging `int/` into
+`fixed/` makes that visible. Switching the intra-fixed prefix to
+`Q` lets the prefix letter encode "Fixed wrapper vs std primitive"
+directly, so the 8-char Conn names stay self-decodable after the
+merge — no context-dependent digit interpretation needed.
+
+[`fixed`]: https://docs.rs/fixed
+
+## Initial inventory (pre-publish)
+
+The following content was assembled as the initial release inventory
+before the Plan 25 reorg above; it remains accurate for everything
+not touched by [Unreleased].
 
 Initial release. A Rust port of the Haskell
 [`connections`](https://github.com/cmk/connections) library, encoding
@@ -79,5 +146,3 @@ hierarchy of lattice-based numerical conversions on top.
 ### Requirements
 
 - **MSRV**: Rust 1.85.
-
-[0.1.0]: https://gitlab.com/cmk/connections/-/tags/v0.1.0
