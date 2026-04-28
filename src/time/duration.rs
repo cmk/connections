@@ -374,7 +374,13 @@ pub const F064DURN: Conn<F064, Extended<Duration>> = {
         if v > max_secs {
             return Extended::PosInf;
         }
-        if v < min_secs {
+        // Use `<=` not `<`: when `v == min_secs` (e.g., the round-trip
+        // `inner(ceil(NEG_INFINITY))`), Duration::MIN is the smallest d
+        // with d.as_seconds_f64() ≥ v_min, so it IS the correct ceil.
+        // The walk would converge to Duration::MIN anyway but takes
+        // ~10²¹ nanosecond-steps at this magnitude (the f64 plateau at
+        // |v| ≈ 9.2e18 is enormous). Fast-path it.
+        if v <= min_secs {
             return Extended::Finite(Duration::MIN);
         }
         let est = Duration::saturating_seconds_f64(v);
@@ -412,7 +418,12 @@ pub const F064DURN: Conn<F064, Extended<Duration>> = {
         }
         let max_secs = Duration::MAX.as_seconds_f64();
         let min_secs = Duration::MIN.as_seconds_f64();
-        if v > max_secs {
+        // Use `>=` not `>`: when `v == max_secs` (e.g., the round-trip
+        // `inner(floor(INFINITY))`), Duration::MAX is the largest d
+        // with d.as_seconds_f64() ≤ v_max, so it IS the correct floor.
+        // Fast-path it; the walk would otherwise climb ~10²¹ ns of
+        // plateau at this magnitude.
+        if v >= max_secs {
             return Extended::Finite(Duration::MAX);
         }
         if v < min_secs {
@@ -482,7 +493,12 @@ pub const F032DURN: Conn<F032, Extended<Duration>> = {
         if v > max_secs {
             return Extended::PosInf;
         }
-        if v < min_secs {
+        // See F064DURN.ceil for rationale: `<=` so the round-trip
+        // value `inner(ceil(NEG_INFINITY)) = Duration::MIN.as_f32()`
+        // fast-paths to Duration::MIN. The f32 plateau at this
+        // magnitude is ~10²¹ nanoseconds wide; without this fast-path
+        // the walk takes ~70 seconds per call.
+        if v <= min_secs {
             return Extended::Finite(Duration::MIN);
         }
         let est = Duration::saturating_seconds_f32(v);
@@ -520,7 +536,11 @@ pub const F032DURN: Conn<F032, Extended<Duration>> = {
         }
         let max_secs = Duration::MAX.as_seconds_f32();
         let min_secs = Duration::MIN.as_seconds_f32();
-        if v > max_secs {
+        // See F064DURN.floor for rationale: `>=` so the round-trip
+        // value `inner(floor(INFINITY)) = Duration::MAX.as_f32()`
+        // fast-paths to Duration::MAX. Same plateau-walk argument as
+        // ceil's `v <= min_secs` fix.
+        if v >= max_secs {
             return Extended::Finite(Duration::MAX);
         }
         if v < min_secs {
@@ -708,25 +728,6 @@ mod float_durn_tests {
         fn f64_monotone_r(b1 in arb_extended_duration_bounded_f64(), b2 in arb_extended_duration_bounded_f64()) {
             prop_assert!(conn_laws::conn_monotone_r(&F064DURN, b1, b2));
         }
-    }
-
-    // `f64_idempotent` lives in its own block at cases=8 — it dominates
-    // the 9-law battery wall-time (294s of a 297s suite at cases=64).
-    // The other 8 laws complete in noise even at cases=64 because they
-    // do at most one walk-driven `ceil`/`floor` per case, but
-    // `conn_idempotent` calls `ceil(inner(ceil(a)))` — and on F064DURN
-    // the second `ceil` exhibits a per-case cost (~4.6s) that the
-    // plateau-width model doesn't predict. Investigation deferred (see
-    // plan-2026-04-27-11 Deferred section). cases=8 keeps coverage of
-    // the closure-image extremals (Bot/Top/MAX/MIN/etc. via
-    // `extended_float_f64`'s boundary slot) without dominating the
-    // suite.
-    proptest! {
-        #![proptest_config(ProptestConfig {
-            cases: 8,
-            max_shrink_iters: 200,
-            .. ProptestConfig::default()
-        })]
 
         #[test]
         fn f64_idempotent(a in extended_float_f64()) {
@@ -782,18 +783,6 @@ mod float_durn_tests {
         fn f32_monotone_r(b1 in arb_extended_duration_bounded_f32(), b2 in arb_extended_duration_bounded_f32()) {
             prop_assert!(conn_laws::conn_monotone_r(&F032DURN, b1, b2));
         }
-    }
-
-    // `f32_idempotent` mirrors `f64_idempotent`'s perf profile: cases=8
-    // covers the strategy's named extremals without dominating the
-    // suite (~154s of the original 297s at cases=64). Walk-perf
-    // investigation tracked alongside the f64 case in plan-2026-04-27-11.
-    proptest! {
-        #![proptest_config(ProptestConfig {
-            cases: 8,
-            max_shrink_iters: 200,
-            .. ProptestConfig::default()
-        })]
 
         #[test]
         fn f32_idempotent(a in extended_float_f32()) {
