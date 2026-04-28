@@ -69,7 +69,7 @@ letter / digit shapes:
 
 | Shape          | Letters | Digits | Example side | Use                                               |
 |----------------|---------|--------|--------------|---------------------------------------------------|
-| `A123` form    | 1       | 3      | `F064`       | most families: `F`, `I`, `U`, `S`                 |
+| `A123` form    | 1       | 3      | `F064`       | most families: `F`, `I`, `U`, `Q`, `N`, `S`       |
 | `AB12` form    | 2       | 2      | `FD12`       | reserved — last used by the (lifted-out) decimal `FD<dd>` family; available for future 2-letter-prefix families |
 | `ABC1` form    | 3       | 1      | `FDX1`       | reserved — no current uses                        |
 | `ABCD` form    | 4       | 0      | `DURN`       | domain-mnemonic families: `time` (`DURNSECS`, `DATEJDAY`, `TIMENANO`, `OFDTNANO`, `OFDTSECS`, `PDTMDATE`, …) |
@@ -77,14 +77,33 @@ letter / digit shapes:
 The two sides may pick **independently**: a Conn that bridges two
 families with different prefix lengths is allowed and expected.
 
+Single-letter prefix meanings (1L+3D shape, where the digits encode
+either bit-width or frac-bits depending on the prefix):
+
+| Prefix | Side denotes                                                | Digits         |
+|--------|-------------------------------------------------------------|----------------|
+| `F`    | IEEE binary float (`f32`/`f64`/`f16`) or `ExtendedFloat<_>` | bit-width      |
+| `I`    | signed std primitive (`iN`) or `Extended<iN>`               | bit-width      |
+| `U`    | unsigned std primitive (`uN`) or `Extended<uN>`             | bit-width      |
+| `Q`    | `FixedI<N>`/`FixedU<N>` Q-format wrapper (sign by module)   | frac bits      |
+| `N`    | `NonZero<iN>` / `NonZero<uN>` (sign by module)              | bit-width      |
+| `S`    | (legacy / reserved)                                         | —              |
+
+The prefix letter alone disambiguates Fixed-wrapper sides (`Q`)
+from std-primitive sides (`I`/`U`); the host bit-width / sign of a
+`Q*` or `N*` side comes from the **module path** (`fixed::i8` →
+signed 8-bit, `fixed::u8` → unsigned 8-bit, etc.).
+
 Canonical examples:
 
-| Pattern              | Example       | Meaning                                      |
-|----------------------|---------------|----------------------------------------------|
-| `A123X456` (1L+3D both) | `I064I128` | `Extended<i64>` → `i128` (signed widening)   |
+| Pattern              | Example       | Meaning                                                     |
+|----------------------|---------------|-------------------------------------------------------------|
+| `A123X456` (1L+3D both) | `I064I128` | `Extended<i64>` → `i128` (signed widening)                  |
 | `A123X456`           | `F064F032`    | `ExtendedFloat<f64>` → `ExtendedFloat<f32>` (lossy IEEE narrowing) |
-| `A123X456`           | `I008I004`    | `FixedI8<U8>` → `FixedI8<U4>` (Q0.8 → Q4.4)  |
-| `ABCDXYZW` (4L+0D both) | `DURNSECS` | `Duration` → `Extended<i64>` (whole seconds) |
+| `A123X456`           | `Q008Q004`    | `FixedI8<U8>` → `FixedI8<U4>` in `fixed::i8` (Q0.8 → Q4.4)  |
+| `A123X456`           | `Q000I008`    | `FixedI8<U0>` → `i8` in `fixed::i8` (cross-crate iso)       |
+| `A123X456`           | `N008I008`    | `NonZeroI8` → `Extended<i8>` in `fixed::i8`                 |
+| `ABCDXYZW` (4L+0D both) | `DURNSECS` | `Duration` → `Extended<i64>` (whole seconds)                |
 
 Hard rules:
 
@@ -98,8 +117,8 @@ Hard rules:
 - Letters and digits only — no underscores, hyphens, or other
   separators inside the name.
 - Cross-module name collisions are **allowed** and resolved by
-  qualified-import; e.g. `fixed::i8::I008I000` and
-  `fixed::i64::I008I000` co-exist by `use … as alias;`.
+  qualified-import; e.g. `fixed::i8::Q008Q000` and
+  `fixed::i64::Q008Q000` co-exist by `use … as alias;`.
 
 This applies to all `pub const`s of type `Conn<_, _>` exported from
 `connections`. Type wrappers that show up as either side of a Conn
@@ -108,16 +127,29 @@ literal concatenation of its two endpoint type codes.
 
 ### Module organization
 
-The crate's per-domain Conn families are organized **one top-level
-submodule per dependency crate**, sibling to the `conn` core module:
+**The crate's only top-level domain split is `float/` vs `fixed/`**:
+every IEEE-binary type lives in `float/`, and every
+finite-precision-with-integer-storage type — `fixed`-crate Q-format
+wrappers, std-int primitives (interpreted as Q*N*.0), and
+`core::num::NonZero<T>` (punctured Q*N*.0) — lives in `fixed/`.
 
-| Submodule | Host crate   | Files (one per host type)                                  |
-|-----------|--------------|------------------------------------------------------------|
-| `int`     | `std`        | `i8.rs`–`i128.rs`, `u8.rs`–`u128.rs` (per-destination type, named `int` — not `std` — to avoid shadowing the std prelude) |
-| `fixed`   | `fixed`      | `i8.rs`–`i128.rs`, `u8.rs`–`u128.rs`                       |
-| `time`    | `time`       | `clock.rs`, `date.rs`, `datetime.rs`, `duration.rs`, `offset.rs` |
-| `float`   | (this crate) | `ExtendedFloat<T>` + IEEE narrowing Conns; submodules `f32.rs` (target `F032`) and `f16.rs` (target `F016`, gated on `f16` cargo feature → nightly required) |
-| `conn`    | (this crate) | The `Conn<A, B>` type, the `compose!` macro, and free fns operating on a `Conn` (`ceiling`, `floor`, `upper`, `lower`, `maximize`, `minimize`, `median`, `round`, `truncate`, lifters) |
+Per-domain Conn families:
+
+| Submodule | Host crates                                | Files (one per host type)                                  |
+|-----------|--------------------------------------------|------------------------------------------------------------|
+| `fixed`   | `fixed`, `std` (i8…u128), `core::num` (NonZero) | `i8.rs`–`i128.rs`, `u8.rs`–`u128.rs` (per-destination type) |
+| `time`    | `time`                                     | `clock.rs`, `date.rs`, `datetime.rs`, `duration.rs`, `offset.rs` |
+| `float`   | (this crate)                               | `ExtendedFloat<T>` + IEEE narrowing Conns; submodules `f32.rs` (target `F032`) and `f16.rs` (target `F016`, gated on `f16` cargo feature → nightly required) |
+| `conn`    | (this crate)                               | The `Conn<A, B>` type, the `compose!` macro, free fns operating on a `Conn` (`ceiling`, `floor`, `upper`, `lower`, `maximize`, `minimize`, `median`, `round`, `truncate`, lifters), and `Conn::new` / `new_left` / `new_right` / `new_iso` constructors |
+
+Per-host-type files in `fixed/X.rs` are sectioned (§1 std-int /
+§2 Q-format / §3 NonZero / §4 cross-crate iso). Std-int Conns
+(generated by `ext_int!` / `int_int_narrow!` / etc.) keep `I`/`U`
+prefixes on both sides; Q-format Conns (from `fix_fix_iN!` /
+`fix_fix_uN!`) use `Q` on both sides; cross-crate iso Conns
+straddle (`Q000I008`, `Q000U008`, etc.). The legacy `int/` submodule
+exists only as thin re-export shims pointing at `fixed::*` and is
+removed in Plan 25 T10.
 
 Domain-specific numeric ladders live in downstream crates rather
 than here. The custom decimal-SI ladder (`FD<N>` rungs, intra-
@@ -132,7 +164,7 @@ constants for their own domain ladders.
 
 **Filenames follow the host type name verbatim** — `i8.rs`,
 `u128.rs`, `f64.rs`, `f16.rs`, `date.rs`, `duration.rs`. The 8-char
-zero-padded form (`I008I016`) is reserved for Conn const
+zero-padded form (`Q008Q004`, `I064I128`) is reserved for Conn const
 **identifiers** (per §Conn-name format) and is **never** used as a
 module path.
 
@@ -166,16 +198,18 @@ Worked examples:
 | `F064F032`    | `f64` / `f32`                      | tie → right wins              | `float::f32`                    |
 | `F064F016`    | `f64` / `f16`                      | tie → right wins              | `float::f16` (`f16` feature)    |
 | `F032F016`    | `f32` / `f16`                      | tie → right wins              | `float::f16` (`f16` feature)    |
-| `I008I016`    | `Extended<i8>` / `i16`             | tie → right wins              | `int::i16`                      |
-| `U008I016`    | `Extended<u8>` / `i16`             | tie → right wins              | `int::i16`                      |
-| `I008U016`    | `i8` / `u16`                       | tie → right wins              | `int::u16`                      |
-| `I008I004`    | `FixedI8<U8>` / `FixedI8<U7>`      | tie → right wins              | `fixed::i8`                     |
+| `I008I016`    | `Extended<i8>` / `i16`             | tie → right wins              | `fixed::i16`                    |
+| `U008I016`    | `Extended<u8>` / `i16`             | tie → right wins              | `fixed::i16`                    |
+| `I008U016`    | `i8` / `u16`                       | tie → right wins              | `fixed::u16`                    |
+| `Q008Q004`    | `FixedI8<U8>` / `FixedI8<U4>`      | tie → right wins              | `fixed::i8`                     |
+| `Q000I008`    | `FixedI8<U0>` / `i8`               | (1) FixedI8 more specific     | `fixed::i8`                     |
+| `N008I008`    | `NonZeroI8` / `Extended<i8>`       | (1) NonZero more specific     | `fixed::i8`                     |
 | `DATEJDAY`    | `Extended<Date>` / `i32`           | (1) `Date` more specific      | `time::date`                    |
 | `OFDTNANO`    | `Extended<OffsetDateTime>` / `i128`| (1) `OffsetDateTime` wins     | `time::offset`                  |
 | `PDTMDATE`    | `PrimitiveDateTime` / `Extended<Date>` | (1) `PDT` more semantic   | `time::datetime`                |
 
 Cross-module name collisions are allowed (per §Conn-name format) —
-e.g. `fixed::i8::I008I000` and `fixed::i64::I008I000` both exist;
+e.g. `fixed::i8::Q008Q000` and `fixed::i64::Q008Q000` both exist;
 users resolve by qualified import.
 
 ### Session notes
