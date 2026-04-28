@@ -1150,10 +1150,7 @@ mod tests {
 
     #[test]
     fn exp_endpoints_f64() {
-        assert_eq!(
-            ExtendedFloat::<f64>::Bot.exp(),
-            ExtendedFloat::Extend(0.0)
-        );
+        assert_eq!(ExtendedFloat::<f64>::Bot.exp(), ExtendedFloat::Extend(0.0));
         assert_eq!(ExtendedFloat::<f64>::Top.exp(), ExtendedFloat::<f64>::Top);
     }
 
