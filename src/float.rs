@@ -41,6 +41,13 @@ use std::ops::{
 /// Three-element extension of a (possibly partial) order:
 /// `Bot < Extend(_) < Top`.
 ///
+/// `ExtendedFloat<T>` represents `Maybe R̄` — the extended real line
+/// `R̄ = R ∪ {-∞, +∞}` plus an undefined / NaN slot. Concretely
+/// `Bot` ↔ `-∞`, `Top` ↔ `+∞`, and `Extend(v)` wraps any real
+/// (or IEEE NaN). The arithmetic impls below give every Bot/Top
+/// arm its extended-real-line answer; see the table above
+/// `impl_float_arith!` for the full per-op dispatch.
+///
 /// The wrapped variant is named `Extend`, not `Finite`, because for
 /// IEEE floats the wrapped value can be `NaN` or `±∞` — neither of
 /// which is finite. The variant name reflects the lattice-theoretic
