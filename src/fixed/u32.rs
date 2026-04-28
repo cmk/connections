@@ -4,9 +4,26 @@
 //! pairs. Mirrors [`super::i32`] with `FixedU32` backing and adds
 //! `U31` (Q1.31), the canonical 32-bit normalised-amplitude format.
 
+use super::{int_uint, int_uint_narrow, uint_uint, uint_uint_narrow};
 use crate::conn::Conn;
 use ::fixed::FixedU32;
 use ::fixed::types::extra::{U0, U4, U8, U16, U24, U31, U32, Unsigned};
+
+// ── §1 std-int Conns landing on `u32` ───────────────────────────────
+
+uint_uint!(U008U032, u8, u32);
+uint_uint!(U016U032, u16, u32);
+int_uint!(I008U032, i8, u32);
+int_uint!(I016U032, i16, u32);
+int_uint!(I032U032, i32, u32);
+
+uint_uint_narrow!(U064U032, u64, u32);
+uint_uint_narrow!(U128U032, u128, u32);
+
+int_uint_narrow!(I064U032, i64, u32);
+int_uint_narrow!(I128U032, i128, u32);
+
+// ── §2 Q-format ladder over `FixedU32<Frac>` ────────────────────────
 
 /// `U<frac> = FixedU32<U<frac>>` — u32-backed binary fixed-point.
 pub type U000 = FixedU32<U0>;
@@ -97,6 +114,45 @@ fix_fix_u32!(U032U031, U32, U31);
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── §1 std-int spot checks (merged from former int/u32.rs) ─────
+
+    #[test]
+    fn u016u032_inner_saturates_at_source_max() {
+        assert_eq!(U016U032.inner(u32::MAX), u16::MAX);
+        assert_eq!(U016U032.inner(60_000), 60_000);
+    }
+
+    #[test]
+    fn i016u032_clips_negatives() {
+        assert_eq!(I016U032.ceil(-32_768), 0);
+        assert_eq!(I016U032.ceil(32_767), 32_767);
+    }
+
+    #[test]
+    fn i032u032_inner_saturates() {
+        assert_eq!(I032U032.inner(u32::MAX), i32::MAX);
+        assert_eq!(I032U032.inner(20_000), 20_000);
+    }
+
+    #[test]
+    fn u_to_u32_saturate_and_fixup() {
+        assert_eq!(U064U032.ceil(u64::MAX), u32::MAX);
+        assert_eq!(U128U032.ceil(u128::MAX), u32::MAX);
+        assert_eq!(U064U032.inner(u32::MAX), u64::MAX);
+        assert_eq!(U128U032.inner(u32::MAX), u128::MAX);
+    }
+
+    #[test]
+    fn i_to_u32_neg_high_fixup() {
+        assert_eq!(I064U032.ceil(-1), 0);
+        assert_eq!(I064U032.ceil(i64::MAX), u32::MAX);
+        assert_eq!(I128U032.ceil(i128::MIN), 0);
+        assert_eq!(I064U032.inner(u32::MAX), i64::MAX);
+        assert_eq!(I128U032.inner(u32::MAX), i128::MAX);
+    }
+
+    // ── §2 Q-format spot checks ────────────────────────────────────
 
     /// Q1.31 (the canonical 32-bit normalised amplitude) → Q0.32:
     /// the value 1<<30 in Q1.31 (= 0.5) embeds via U032U031.inner

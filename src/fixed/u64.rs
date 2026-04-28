@@ -4,9 +4,26 @@
 //! pairs. Mirrors [`super::i64`] with `FixedU64` backing and adds
 //! `U63` (Q1.63), the canonical 64-bit normalised-amplitude format.
 
+use super::{int_uint, int_uint_narrow, uint_uint, uint_uint_narrow};
 use crate::conn::Conn;
 use ::fixed::FixedU64;
 use ::fixed::types::extra::{U0, U8, U16, U32, U48, U63, U64, Unsigned};
+
+// ── §1 std-int Conns landing on `u64` ───────────────────────────────
+
+uint_uint!(U008U064, u8, u64);
+uint_uint!(U016U064, u16, u64);
+uint_uint!(U032U064, u32, u64);
+int_uint!(I008U064, i8, u64);
+int_uint!(I016U064, i16, u64);
+int_uint!(I032U064, i32, u64);
+int_uint!(I064U064, i64, u64);
+
+uint_uint_narrow!(U128U064, u128, u64);
+
+int_uint_narrow!(I128U064, i128, u64);
+
+// ── §2 Q-format ladder over `FixedU64<Frac>` ────────────────────────
 
 /// `U<frac> = FixedU64<U<frac>>` — u64-backed binary fixed-point.
 pub type U000 = FixedU64<U0>;
@@ -97,6 +114,36 @@ fix_fix_u64!(U064U063, U64, U63);
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── §1 std-int spot checks (merged from former int/u64.rs) ─────
+
+    #[test]
+    fn u032u064_inner_saturates_at_source_max() {
+        assert_eq!(U032U064.inner(u64::MAX), u32::MAX);
+    }
+
+    #[test]
+    fn i064u064_at_extremes() {
+        assert_eq!(I064U064.ceil(i64::MIN), 0);
+        assert_eq!(I064U064.ceil(i64::MAX), i64::MAX as u64);
+        assert_eq!(I064U064.inner(u64::MAX), i64::MAX);
+    }
+
+    #[test]
+    fn u128u064_saturate_and_fixup() {
+        assert_eq!(U128U064.ceil(u128::MAX), u64::MAX);
+        assert_eq!(U128U064.inner(u64::MAX), u128::MAX);
+        assert_eq!(U128U064.inner(0), 0_u128);
+    }
+
+    #[test]
+    fn i128u064_neg_high_fixup() {
+        assert_eq!(I128U064.ceil(i128::MIN), 0);
+        assert_eq!(I128U064.ceil(i128::MAX), u64::MAX);
+        assert_eq!(I128U064.inner(u64::MAX), i128::MAX);
+    }
+
+    // ── §2 Q-format spot checks ────────────────────────────────────
 
     /// Q1.63 (the canonical 64-bit normalised amplitude) → Q0.64:
     /// the value 1<<62 in Q1.63 (= 0.5) embeds via U064U063.inner

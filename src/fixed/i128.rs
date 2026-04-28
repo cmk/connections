@@ -1,4 +1,16 @@
-//! Binary fixed-point ladder over `fixed::FixedI128<Frac>`.
+//! Conns landing on `i128` and `FixedI128<Frac>`. Per the right-side-wins
+//! module rule, this file hosts every Conn whose destination is `i128`
+//! (signed widening from narrower primitives, U→I non-widening from
+//! `u128`) or a `FixedI128<U_M>` Q-format wrapper (intra-fixed
+//! Fine→Coarse).
+//!
+//! ## §1 std-int Conns landing on `i128`
+//!
+//! Signed and unsigned widenings (`I??I128`, `U??I128`) and the
+//! same-width unsigned-to-signed clip (`U128I128`) — see [`super`]
+//! for the macro family.
+//!
+//! ## §2 Q-format ladder over `FixedI128<Frac>`
 //!
 //! Frac level set: `{U0, U16, U32, U64, U96, U128}` → 15 ordered pairs
 //! `(Fine, Coarse)` with `Fine > Coarse`. See [`super::i64`] for the
@@ -16,9 +28,25 @@
 //! encoding (`Some(x*y) iff fits, else None`). Galois laws hold by the
 //! same construction as the smaller modules.
 
+use super::{ext_int, uint_int_sat};
 use crate::conn::Conn;
+use crate::extended::Extended;
 use ::fixed::FixedI128;
 use ::fixed::types::extra::{U0, U16, U32, U64, U96, U128, Unsigned};
+
+// ── §1 std-int Conns landing on `i128` ─────────────────────────────
+
+ext_int!(I008I128, i8, i128);
+ext_int!(I016I128, i16, i128);
+ext_int!(I032I128, i32, i128);
+ext_int!(I064I128, i64, i128);
+ext_int!(U008I128, u8, i128);
+ext_int!(U016I128, u16, i128);
+ext_int!(U032I128, u32, i128);
+ext_int!(U064I128, u64, i128);
+uint_int_sat!(U128I128, u128, i128);
+
+// ── §2 Q-format ladder over `FixedI128<Frac>` ──────────────────────
 
 /// `I<frac> = FixedI128<U<frac>>` — i128-backed binary fixed-point.
 pub type I000 = FixedI128<U0>;
@@ -152,6 +180,31 @@ mod tests {
     use super::*;
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
+
+    // ── §1 std-int spot checks (merged from former int/i128.rs) ────
+
+    #[test]
+    fn i064i128_extends_to_one_below_above() {
+        assert_eq!(I064I128.floor(Extended::NegInf), (i64::MIN as i128) - 1);
+        assert_eq!(I064I128.ceil(Extended::PosInf), (i64::MAX as i128) + 1);
+    }
+
+    #[test]
+    fn u064i128_extends_to_one_above() {
+        assert_eq!(U064I128.ceil(Extended::PosInf), (u64::MAX as i128) + 1);
+        assert_eq!(U064I128.floor(Extended::NegInf), -1);
+    }
+
+    #[test]
+    fn u128i128_neg_and_high() {
+        assert_eq!(U128I128.inner(-1), 0_u128);
+        assert_eq!(U128I128.inner(i128::MIN), 0_u128);
+        assert_eq!(U128I128.floor(u128::MAX), i128::MAX);
+        assert_eq!(U128I128.floor(U128I128.inner(50)), 50);
+        assert_eq!(U128I128.floor(U128I128.inner(i128::MAX)), i128::MAX);
+    }
+
+    // ── §2 Q-format spot checks ────────────────────────────────────
 
     /// Regression for the SHIFT=128 endpoint: RATIO doesn't fit i128;
     /// only Coarse(0) round-trips.

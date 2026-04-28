@@ -30,9 +30,29 @@
 //! );
 //! ```
 
+use super::{int_int_narrow, uint_int_sat};
 use crate::conn::Conn;
 use ::fixed::FixedI8;
 use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U8, Unsigned};
+
+// ── §1 std-int Conns landing on `i8` ───────────────────────────────
+//
+// `i8` is the narrowest signed primitive — nothing widens *into* it.
+// Just I→I narrowing (`int_int_narrow!`) and U→I non-widening
+// (`uint_int_sat!`, right-Galois).
+
+int_int_narrow!(I016I008, i16, i8);
+int_int_narrow!(I032I008, i32, i8);
+int_int_narrow!(I064I008, i64, i8);
+int_int_narrow!(I128I008, i128, i8);
+
+uint_int_sat!(U008I008, u8, i8);
+uint_int_sat!(U016I008, u16, i8);
+uint_int_sat!(U032I008, u32, i8);
+uint_int_sat!(U064I008, u64, i8);
+uint_int_sat!(U128I008, u128, i8);
+
+// ── §2 Q-format ladder over `FixedI8<Frac>` ─────────────────────────
 
 /// `I<frac> = FixedI8<U<frac>>` — i8-backed binary fixed-point with
 /// `<frac>` fractional bits. Frac digits are zero-padded to 3 chars
@@ -131,6 +151,78 @@ mod tests {
     use super::*;
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
+
+    // ── §1 std-int spot checks (merged from former int/i8.rs) ──────
+
+    #[test]
+    fn i_to_i_saturate_high() {
+        assert_eq!(I016I008.ceil(i16::MAX), i8::MAX);
+        assert_eq!(I032I008.ceil(i32::MAX), i8::MAX);
+        assert_eq!(I064I008.ceil(i64::MAX), i8::MAX);
+        assert_eq!(I128I008.ceil(i128::MAX), i8::MAX);
+    }
+
+    #[test]
+    fn i_to_i_saturate_low() {
+        assert_eq!(I016I008.ceil(i16::MIN), i8::MIN);
+        assert_eq!(I032I008.ceil(i32::MIN), i8::MIN);
+        assert_eq!(I064I008.ceil(i64::MIN), i8::MIN);
+        assert_eq!(I128I008.ceil(i128::MIN), i8::MIN);
+    }
+
+    #[test]
+    fn i_to_i_round_trip_finite() {
+        for &b in &[i8::MIN, -1, 0, 1, i8::MAX] {
+            assert_eq!(I016I008.ceil(I016I008.inner(b)), b);
+            assert_eq!(I032I008.ceil(I032I008.inner(b)), b);
+            assert_eq!(I064I008.ceil(I064I008.inner(b)), b);
+            assert_eq!(I128I008.ceil(I128I008.inner(b)), b);
+        }
+    }
+
+    #[test]
+    fn i_to_i_inner_fine_max_fixup() {
+        assert_eq!(I016I008.inner(i8::MAX), i16::MAX);
+        assert_eq!(I032I008.inner(i8::MAX), i32::MAX);
+        assert_eq!(I064I008.inner(i8::MAX), i64::MAX);
+        assert_eq!(I128I008.inner(i8::MAX), i128::MAX);
+        assert_eq!(I016I008.inner(126), 126_i16);
+        assert_eq!(I016I008.inner(i8::MIN), i8::MIN as i16);
+    }
+
+    #[test]
+    fn u_to_i_neg_collapse() {
+        assert_eq!(U008I008.inner(-1), 0_u8);
+        assert_eq!(U008I008.inner(i8::MIN), 0_u8);
+        assert_eq!(U016I008.inner(-1), 0_u16);
+        assert_eq!(U128I008.inner(-50), 0_u128);
+    }
+
+    #[test]
+    fn u_to_i_high_saturate() {
+        assert_eq!(U008I008.floor(u8::MAX), i8::MAX);
+        assert_eq!(U016I008.floor(u16::MAX), i8::MAX);
+        assert_eq!(U064I008.floor(u64::MAX), i8::MAX);
+        assert_eq!(U128I008.floor(u128::MAX), i8::MAX);
+    }
+
+    #[test]
+    fn u_to_i_round_trip_finite_positive() {
+        for &b in &[0_i8, 1, 50, i8::MAX] {
+            assert_eq!(U008I008.floor(U008I008.inner(b)), b);
+            assert_eq!(U016I008.floor(U016I008.inner(b)), b);
+            assert_eq!(U128I008.floor(U128I008.inner(b)), b);
+        }
+    }
+
+    #[test]
+    fn u_to_i_ceil_eq_floor() {
+        for &a in &[0_u8, 50, i8::MAX as u8, u8::MAX] {
+            assert_eq!(U008I008.ceil(a), U008I008.floor(a));
+        }
+    }
+
+    // ── §2 Q-format spot checks ────────────────────────────────────
 
     #[test]
     fn spot_i004i000_on_grid() {

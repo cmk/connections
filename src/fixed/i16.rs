@@ -27,9 +27,27 @@
 //! = Coarse::MIN` and `floor(Fine::MAX) = Coarse::MAX`, ensuring the
 //! Galois laws hold at the extremes.
 
+use super::{ext_int, int_int_narrow, uint_int_sat};
 use crate::conn::Conn;
+use crate::extended::Extended;
 use ::fixed::FixedI16;
 use ::fixed::types::extra::{U0, U2, U4, U8, U12, U16, Unsigned};
+
+// ── §1 std-int Conns landing on `i16` ───────────────────────────────
+
+ext_int!(I008I016, i8, i16);
+ext_int!(U008I016, u8, i16);
+
+int_int_narrow!(I032I016, i32, i16);
+int_int_narrow!(I064I016, i64, i16);
+int_int_narrow!(I128I016, i128, i16);
+
+uint_int_sat!(U016I016, u16, i16);
+uint_int_sat!(U032I016, u32, i16);
+uint_int_sat!(U064I016, u64, i16);
+uint_int_sat!(U128I016, u128, i16);
+
+// ── §2 Q-format ladder over `FixedI16<Frac>` ────────────────────────
 
 /// `I<frac> = FixedI16<U<frac>>` — i16-backed binary fixed-point.
 pub type I000 = FixedI16<U0>;
@@ -128,6 +146,87 @@ mod tests {
     use super::*;
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
+
+    // ── §1 std-int spot checks (merged from former int/i16.rs) ─────
+
+    #[test]
+    fn i008i016_ceil_at_boundaries() {
+        assert_eq!(I008I016.ceil(Extended::NegInf), i16::MIN);
+        assert_eq!(I008I016.ceil(Extended::PosInf), 128);
+        assert_eq!(I008I016.ceil(Extended::Finite(0)), 0);
+        assert_eq!(I008I016.ceil(Extended::Finite(i8::MIN)), -128);
+        assert_eq!(I008I016.ceil(Extended::Finite(i8::MAX)), 127);
+    }
+
+    #[test]
+    fn i008i016_floor_at_boundaries() {
+        assert_eq!(I008I016.floor(Extended::NegInf), -129);
+        assert_eq!(I008I016.floor(Extended::PosInf), i16::MAX);
+    }
+
+    #[test]
+    fn i008i016_inner_partitions_target_range() {
+        assert_eq!(I008I016.inner(-129), Extended::NegInf);
+        assert_eq!(I008I016.inner(i16::MIN), Extended::NegInf);
+        assert_eq!(I008I016.inner(128), Extended::PosInf);
+        assert_eq!(I008I016.inner(i16::MAX), Extended::PosInf);
+        assert_eq!(I008I016.inner(-128), Extended::Finite(i8::MIN));
+        assert_eq!(I008I016.inner(0), Extended::Finite(0));
+        assert_eq!(I008I016.inner(127), Extended::Finite(i8::MAX));
+    }
+
+    #[test]
+    fn u008i016_ceil_at_boundaries() {
+        assert_eq!(U008I016.ceil(Extended::NegInf), i16::MIN);
+        assert_eq!(U008I016.ceil(Extended::PosInf), 256);
+        assert_eq!(U008I016.ceil(Extended::Finite(0)), 0);
+        assert_eq!(U008I016.ceil(Extended::Finite(255)), 255);
+    }
+
+    #[test]
+    fn u008i016_floor_at_boundaries() {
+        assert_eq!(U008I016.floor(Extended::NegInf), -1);
+        assert_eq!(U008I016.floor(Extended::PosInf), i16::MAX);
+        assert_eq!(U008I016.floor(Extended::Finite(255)), 255);
+    }
+
+    #[test]
+    fn u008i016_inner_partitions_target_range() {
+        assert_eq!(U008I016.inner(-1), Extended::NegInf);
+        assert_eq!(U008I016.inner(i16::MIN), Extended::NegInf);
+        assert_eq!(U008I016.inner(256), Extended::PosInf);
+        assert_eq!(U008I016.inner(i16::MAX), Extended::PosInf);
+        assert_eq!(U008I016.inner(0), Extended::Finite(0));
+        assert_eq!(U008I016.inner(50), Extended::Finite(50));
+        assert_eq!(U008I016.inner(255), Extended::Finite(255));
+    }
+
+    #[test]
+    fn i_to_i16_saturate() {
+        assert_eq!(I032I016.ceil(i32::MAX), i16::MAX);
+        assert_eq!(I032I016.ceil(i32::MIN), i16::MIN);
+        assert_eq!(I128I016.ceil(i128::MAX), i16::MAX);
+        assert_eq!(I128I016.ceil(i128::MIN), i16::MIN);
+    }
+
+    #[test]
+    fn i_to_i16_inner_fine_max_fixup() {
+        assert_eq!(I032I016.inner(i16::MAX), i32::MAX);
+        assert_eq!(I064I016.inner(i16::MAX), i64::MAX);
+        assert_eq!(I128I016.inner(i16::MAX), i128::MAX);
+        assert_eq!(I032I016.inner(0), 0_i32);
+        assert_eq!(I032I016.inner(i16::MIN), i16::MIN as i32);
+    }
+
+    #[test]
+    fn u_to_i16_neg_and_high() {
+        assert_eq!(U016I016.inner(-1), 0_u16);
+        assert_eq!(U016I016.inner(i16::MIN), 0_u16);
+        assert_eq!(U016I016.floor(u16::MAX), i16::MAX);
+        assert_eq!(U128I016.floor(u128::MAX), i16::MAX);
+    }
+
+    // ── §2 Q-format spot checks ────────────────────────────────────
 
     // Spot checks: hand-computed rounding at exact, off-grid, and
     // saturation-boundary inputs.

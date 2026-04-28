@@ -10,9 +10,24 @@
 //! detect the `SHIFT == 128` degenerate case (`U128U000`, where
 //! `RATIO = 2^128` doesn't fit in `u128` at all).
 
+use super::{int_uint, uint_uint};
 use crate::conn::Conn;
 use ::fixed::FixedU128;
 use ::fixed::types::extra::{U0, U16, U32, U64, U96, U127, U128, Unsigned};
+
+// ── §1 std-int Conns landing on `u128` ──────────────────────────────
+
+uint_uint!(U008U128, u8, u128);
+uint_uint!(U016U128, u16, u128);
+uint_uint!(U032U128, u32, u128);
+uint_uint!(U064U128, u64, u128);
+int_uint!(I008U128, i8, u128);
+int_uint!(I016U128, i16, u128);
+int_uint!(I032U128, i32, u128);
+int_uint!(I064U128, i64, u128);
+int_uint!(I128U128, i128, u128);
+
+// ── §2 Q-format ladder over `FixedU128<Frac>` ───────────────────────
 
 // No `pub type U<frac>` aliases here: the module's frac levels include
 // `U127` and `U128`, which are also the typenum `extra::U127` /
@@ -131,6 +146,22 @@ fix_fix_u128!(U128U127, U128, U127);
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── §1 std-int spot checks (merged from former int/u128.rs) ────
+
+    #[test]
+    fn u064u128_inner_saturates_at_source_max() {
+        assert_eq!(U064U128.inner(u128::MAX), u64::MAX);
+    }
+
+    #[test]
+    fn i128u128_at_extremes() {
+        assert_eq!(I128U128.ceil(i128::MIN), 0);
+        assert_eq!(I128U128.ceil(i128::MAX), i128::MAX as u128);
+        assert_eq!(I128U128.inner(u128::MAX), i128::MAX);
+    }
+
+    // ── §2 Q-format spot checks ────────────────────────────────────
 
     /// Regression for the SHIFT=128 endpoint: RATIO doesn't fit u128;
     /// only Coarse(0) round-trips.

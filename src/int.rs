@@ -15,14 +15,10 @@
 //! submodule files in `src/int/` import them via re-export shims
 //! below so they keep building until T2 removes them.
 
-// Re-export shims: the macros physically live in `crate::fixed` now,
-// but `src/int/iN.rs` and `src/int/uN.rs` still write
-// `use super::{ext_int, int_int_narrow, …};`. These re-exports make
-// `super::name` (= `crate::int::name`) resolve to the fixed-side
-// definitions for the duration of the transition.
-pub(crate) use crate::fixed::{
-    ext_int, int_int_narrow, int_uint, int_uint_narrow, uint_int_sat, uint_uint, uint_uint_narrow,
-};
+// All per-primitive submodules (`int/iN.rs`, `int/uN.rs`) are now
+// re-export shims pointing at `crate::fixed::iN` / `crate::fixed::uN`,
+// so the macro re-exports added in T1 are no longer needed. The
+// macros live solely in `crate::fixed`.
 
 pub mod i128;
 pub mod i16;
