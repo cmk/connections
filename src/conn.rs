@@ -305,7 +305,10 @@ pub fn upper<A, B>(c: &Conn<A, B>, b: B) -> A {
 /// Lift a unary endofunction over `B` into one over `A` through the
 /// L-pair: `a ↦ inner(f(ceil(a)))`.
 ///
-/// The unit law `a ≤ upper1(c, id, a)` is property-tested.
+/// # Laws
+///
+/// > `a ≤ upper1(c, id, a)` (unit law; property
+/// > [`crate::property::laws::cast_upper1_id_unit`])
 #[inline]
 #[must_use]
 pub fn upper1<A, B, F>(c: &Conn<A, B>, f: F, a: A) -> A
@@ -329,6 +332,11 @@ where
 /// Apply the lower adjoint (ceiling): `a ↦ ceil(a)`.
 ///
 /// Synonymous with [`Conn::ceil`] under the L-side reading.
+///
+/// # Laws
+///
+/// > `ceiling(identity, x) == x`<br>
+/// > `ceiling(c, x ⊔ y) == ceiling(c, x) ⊔ ceiling(c, y)` (distributivity over join)
 ///
 /// ```rust
 /// use connections::conn::ceiling;
@@ -354,6 +362,12 @@ pub fn ceiling<A, B>(c: &Conn<A, B>, a: A) -> B {
 
 /// Lift a unary endofunction over `A` into one over `B` through the
 /// L-pair: `b ↦ ceil(f(inner(b)))`.
+///
+/// # Laws
+///
+/// > `ceiling1(identity, id, b) == b`<br>
+/// > `b ≥ ceiling1(c, id, b)` (kernel/inflation; property
+/// > [`crate::property::laws::cast_ceiling1_id_kernel`])
 ///
 /// ```rust
 /// use connections::conn::ceiling1;
@@ -406,7 +420,10 @@ pub fn lower<A, B>(c: &Conn<A, B>, b: B) -> A {
 /// Lift a unary endofunction over `B` into one over `A` through the
 /// R-pair: `a ↦ inner(f(floor(a)))`.
 ///
-/// The counit law `lower1(c, id, a) ≤ a` is property-tested.
+/// # Laws
+///
+/// > `lower1(c, id, a) ≤ a` (counit law; property
+/// > [`crate::property::laws::cast_lower1_id_counit`])
 #[inline]
 #[must_use]
 pub fn lower1<A, B, F>(c: &Conn<A, B>, f: F, a: A) -> A
@@ -430,6 +447,11 @@ where
 /// Apply the upper adjoint (floor): `a ↦ floor(a)`.
 ///
 /// Synonymous with [`Conn::floor`] under the R-side reading.
+///
+/// # Laws
+///
+/// > `floor(identity, x) == x`<br>
+/// > `floor(c, x ⊓ y) == floor(c, x) ⊓ floor(c, y)` (distributivity over meet)
 #[inline]
 #[must_use]
 pub fn floor<A, B>(c: &Conn<A, B>, a: A) -> B {
@@ -438,6 +460,12 @@ pub fn floor<A, B>(c: &Conn<A, B>, a: A) -> B {
 
 /// Lift a unary endofunction over `A` into one over `B` through the
 /// R-pair: `b ↦ floor(f(inner(b)))`.
+///
+/// # Laws
+///
+/// > `floor1(identity, id, b) == b`<br>
+/// > `b ≤ floor1(c, id, b)` (kernel/deflation; property
+/// > [`crate::property::laws::cast_floor1_id_kernel`])
 ///
 /// ```rust
 /// use connections::conn::floor1;
@@ -567,6 +595,10 @@ where
 /// Faithful port of Haskell `Cast.hs::truncate`:
 /// `truncate c x = if x >~ 0 then floor c x else ceiling c x`.
 ///
+/// # Laws
+///
+/// > `truncate(identity, x) == x`
+///
 /// ```rust
 /// use connections::conn::truncate;
 /// use connections::float::ExtendedFloat::Extend;
@@ -593,6 +625,11 @@ where
 /// Lift a unary function `f: A → A` to operate on `B`-valued inputs
 /// through the connection, with the result truncated toward zero:
 /// `truncate1(c, f, x) = truncate(c, f(c.inner(x)))`.
+///
+/// # Laws
+///
+/// > `truncate1(identity, id, b) == b` (property
+/// > [`crate::property::laws::cast_truncate1_id_unit`])
 ///
 /// ```rust
 /// use connections::conn::truncate1;
@@ -621,6 +658,10 @@ where
 /// Lift a binary function `f: (A, A) → A` over the connection, with
 /// the result truncated toward zero:
 /// `truncate2(c, f, x, y) = truncate(c, f(c.inner(x), c.inner(y)))`.
+///
+/// # Laws
+///
+/// > `truncate2(identity, f, x, y) == f(x, y)` (the identity-conn round-trip)
 ///
 /// ```rust
 /// use connections::conn::truncate2;
@@ -652,6 +693,10 @@ where
 /// Faithful port of Haskell `Cast.hs::round`:
 /// `Some(Greater) → ceil(x)`, `Some(Less) → floor(x)`, otherwise
 /// `truncate(c, x)`.
+///
+/// # Laws
+///
+/// > `round(identity, x) == x`
 ///
 /// `interval(c, x)` returns `Some(Greater)` when `x` is closer to
 /// the upper rung (`d_lo > d_hi`), `Some(Less)` when closer to the
@@ -692,6 +737,11 @@ where
 /// through the connection, rounded to nearest with ties toward zero:
 /// `round1(c, f, x) = round(c, f(c.inner(x)))`.
 ///
+/// # Laws
+///
+/// > `round1(identity, id, b) == b` (property
+/// > [`crate::property::laws::cast_round1_id_unit`])
+///
 /// ```rust
 /// use connections::conn::round1;
 /// use connections::float::ExtendedFloat::Extend;
@@ -719,6 +769,10 @@ where
 
 /// Lift a binary function `f: (A, A) → A` similarly:
 /// `round2(c, f, x, y) = round(c, f(c.inner(x), c.inner(y)))`.
+///
+/// # Laws
+///
+/// > `round2(identity, f, x, y) == f(x, y)` (the identity-conn round-trip)
 ///
 /// ```rust
 /// use connections::conn::round2;
@@ -760,6 +814,16 @@ where
 ///
 /// Faithful port of Haskell `Cast.hs::median`.
 ///
+/// # Laws
+///
+/// > `median(c, x, x, y) == x` (idempotence; property
+/// > [`crate::property::laws::cast_median_idempotent`])<br>
+/// > `median(c, x, y, z) == median(c, z, x, y)` (rotation; property
+/// > [`crate::property::laws::cast_median_rotate`])<br>
+/// > `median(c, x, y, z) == median(c, x, z, y)` (swap last two; property
+/// > [`crate::property::laws::cast_median_swap_yz`])<br>
+/// > `median(median(c, x, w, y), w, z) == median(c, x, w, median(y, w, z))` (associativity)
+///
 /// ```rust
 /// use connections::conn::{Conn, median};
 /// fn ceil(p: (i32, i32)) -> i32 { p.0.max(p.1) }
@@ -767,6 +831,54 @@ where
 /// fn inner(x: i32) -> (i32, i32) { (x, x) }
 /// let c: Conn<(i32, i32), i32> = Conn::new(ceil, inner, floor);
 /// assert_eq!(median(&c, 1, 2, 3), 2);
+/// ```
+///
+/// The median formula reduces to the median of the two finite arguments
+/// when the third is incomparable in the lattice — N5's lub of an
+/// incomparable pair escalates to `Top`, and the formula collapses.
+/// This mirrors the Haskell `median f32f32 1.0 9.0 (0.0/0.0) == 9.0`
+/// doctest faithfully:
+///
+/// ```rust
+/// use connections::conn::{Conn, median};
+/// use connections::float::ExtendedFloat::{self, Bot, Extend, Top};
+/// use core::cmp::Ordering;
+///
+/// // N5 lattice lub: incomparable pair (NaN vs finite) escalates to Top.
+/// fn lub(p: (ExtendedFloat<f32>, ExtendedFloat<f32>)) -> ExtendedFloat<f32> {
+///     match p.0.partial_cmp(&p.1) {
+///         Some(Ordering::Less | Ordering::Equal) => p.1,
+///         Some(Ordering::Greater) => p.0,
+///         None => Top,            // incomparable → lub = Top
+///     }
+/// }
+/// // N5 lattice glb: incomparable pair → Bot.
+/// fn glb(p: (ExtendedFloat<f32>, ExtendedFloat<f32>)) -> ExtendedFloat<f32> {
+///     match p.0.partial_cmp(&p.1) {
+///         Some(Ordering::Less | Ordering::Equal) => p.0,
+///         Some(Ordering::Greater) => p.1,
+///         None => Bot,            // incomparable → glb = Bot
+///     }
+/// }
+/// fn diag(x: ExtendedFloat<f32>) -> (ExtendedFloat<f32>, ExtendedFloat<f32>) {
+///     (x, x)
+/// }
+/// let ord: Conn<_, _> = Conn::new(lub, diag, glb);
+///
+/// // Bind once and reuse; mirrors Haskell's `(0.0 / 0.0)` pattern.
+/// let nan = Extend(0.0_f32 / 0.0_f32);
+///
+/// // All-finite: matches Haskell `median f32f32 1.0 9.0 7.0 == 7.0`.
+/// assert_eq!(
+///     median(&ord, Extend(1.0_f32), Extend(9.0_f32), Extend(7.0_f32)),
+///     Extend(7.0_f32),
+/// );
+///
+/// // NaN: matches Haskell `median f32f32 1.0 9.0 (0.0/0.0) == 9.0`.
+/// assert_eq!(
+///     median(&ord, Extend(1.0_f32), Extend(9.0_f32), nan),
+///     Extend(9.0_f32),
+/// );
 /// ```
 #[inline]
 #[must_use]
