@@ -26,6 +26,7 @@ exclude = [
     "/CODEOWNERS",
     "/deny.toml",
     "/doc",
+    "/img",
     "/proptest.toml",
     "/proptest-regressions",
     "/rust-toolchain.toml",
