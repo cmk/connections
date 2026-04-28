@@ -1,6 +1,7 @@
-//! Galois-connection core: the [`Conn<A, B>`] type, the [`compose!`]
-//! macro, and the operations on a `Conn` (L/R-side accessors,
-//! lifters, two-sided rounding helpers).
+//! Galois-connection core: the [`Conn<A, B>`] type, the
+//! [`crate::compose!`](crate::compose) macro, and the operations
+//! on a `Conn` (L/R-side accessors, lifters, two-sided rounding
+//! helpers).
 //!
 //! Per-domain Conn families live in sibling top-level modules:
 //!

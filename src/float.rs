@@ -24,10 +24,11 @@
 //!
 //! - [`mod@f32`] — Conns whose target is `ExtendedFloat<f32>`
 //!   (`F064F032`).
-//! - [`mod@f16`] — Conns whose target is `ExtendedFloat<f16>`
-//!   (`F032F016`, `F064F016`) along with the [`F016`](f16::F016)
-//!   type alias and 16-bit ULP machinery. Gated on the `f16` cargo
-//!   feature (nightly required).
+//! - `f16` — Conns whose target is `ExtendedFloat<f16>`
+//!   (`F032F016`, `F064F016`) along with the `F016` type alias
+//!   and 16-bit ULP machinery. Gated on the `f16` cargo feature
+//!   (nightly required); the module name resolves only when the
+//!   feature is enabled.
 
 #[cfg(feature = "f16")]
 pub mod f16;

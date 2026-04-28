@@ -21,7 +21,7 @@
 //!
 //! | code     | type                                                | meaning                |
 //! |----------|-----------------------------------------------------|------------------------|
-//! | `F016`   | [`F016`](float::f16::F016)                          | IEEE binary16 (`f16` feature, nightly) |
+//! | `F016`   | `float::f16::F016` (gated)                          | IEEE binary16 (`f16` feature, nightly) |
 //! | `F032`   | [`F032`](float::F032)                               | IEEE binary32          |
 //! | `F064`   | [`F064`](float::F064)                               | IEEE binary64          |
 //! | `F128`   | (deferred — `f128` unstable)                        | IEEE binary128         |
@@ -71,8 +71,8 @@
 //! Examples:
 //!
 //! - [`float::f32::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
-//! - [`float::f16::F064F016`] — `F064 → F016` (direct f64 → IEEE binary16, `f16` feature).
-//! - [`float::f16::F032F016`] — `F032 → F016` (f32 → IEEE binary16, `f16` feature).
+//! - `float::f16::F064F016` — `F064 → F016` (direct f64 → IEEE binary16, `f16` feature).
+//! - `float::f16::F032F016` — `F032 → F016` (f32 → IEEE binary16, `f16` feature).
 //! - [`int::u16::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
 //! - [`int::i16::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
 //! - [`int::i16::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).

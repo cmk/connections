@@ -115,7 +115,7 @@ assert_eq!(
 ```
 
 A sub-second `Duration` bracketed via the `time`-crate ladder (the same
-code block is mirrored verbatim into the `conn::time` module-level
+code block is mirrored verbatim into the `time` module-level
 rustdoc, so `cargo test --doc` keeps the two in sync):
 
 ```rust
@@ -186,9 +186,9 @@ The set of float-narrowing Conns ships as three named constants:
 
 | Constant | Source | Target | Module | Feature |
 |----------|--------|--------|--------|---------|
-| `F064F032` | `ExtendedFloat<f64>` | `ExtendedFloat<f32>` | [`conn::float::f64`] | always |
-| `F064F016` | `ExtendedFloat<f64>` | `ExtendedFloat<f16>` | [`conn::float::f64`] | `f16` |
-| `F032F016` | `ExtendedFloat<f32>` | `ExtendedFloat<f16>` | [`conn::float::f32`] | `f16` |
+| `F064F032` | `ExtendedFloat<f64>` | `ExtendedFloat<f32>` | [`float::f32`] | always |
+| `F064F016` | `ExtendedFloat<f64>` | `ExtendedFloat<f16>` | `float::f16` | `f16` |
+| `F032F016` | `ExtendedFloat<f32>` | `ExtendedFloat<f16>` | `float::f16` | `f16` |
 
 Each goes f64/f32 → narrower with RNE rounding, walks ≤ 2 ULPs on the
 target side to find the exact ceiling/floor, and saturates extreme
@@ -228,10 +228,10 @@ and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 
 | Family | Module | Status |
 |--------|--------|--------|
-| Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `conn::fixed::{i8,i16,i32,i64,i128}` | shipped |
-| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `conn::std::{i8,i16,i32,i64,i128,u8,u16,u32,u64,u128}` | shipped |
-| Float `f64 ↔ f32 ↔ f16` under N5 | `conn::float` | shipped |
-| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `conn::time` | shipped |
+| Binary fixed-point (`I###I###`, i8/i16/i32/i64/i128 backing) | `fixed::{i8,i16,i32,i64,i128}` | shipped |
+| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `int::{i8,i16,i32,i64,i128,u8,u16,u32,u64,u128}` | shipped |
+| Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) | shipped |
+| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `time` | shipped |
 | Domain-specific ladders (decimal time rungs, audio sample rates) | downstream crates ([`agogo`](https://gitlab.com/cmk/agogo) for audio) | moved |
 
 **Cast operations** (Haskell `Data.Connection.Cast`):
@@ -318,7 +318,7 @@ values. Fixed-point generators are biased toward `0`, `±PREC`, and
 Runtime dependencies are the [`fixed`](https://crates.io/crates/fixed)
 crate (binary fixed-point ladder) and the
 [`time`](https://crates.io/crates/time) crate (calendar / clock /
-duration types in `conn::time`). Proptest is a dev-dependency, exposed
+duration types in `time`). Proptest is a dev-dependency, exposed
 publicly behind the `testing` feature for downstream test suites.
 
 ## Links

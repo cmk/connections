@@ -56,11 +56,16 @@ testing = ["dep:proptest"]
 # builds skip the f16 path entirely.
 f16 = []
 
-# docs.rs builds the published crate with default features only by
-# default; opt into `all-features` so `property::arb` (gated on
-# `testing`) renders. The `--cfg docsrs` flag activates the
+# docs.rs builds on stable rustc by default. We can't use
+# `all-features = true` because the `f16` feature activates
+# `#![cfg_attr(feature = "f16", feature(f16))]` — a nightly-only
+# attribute that errors on stable. Opt into `testing` only so
+# `property::arb` renders. The `f16`-gated items (`F016`,
+# `F032F016`, `F064F016`, `arb_f16`, `extended_float_f16`) won't
+# appear in the docs.rs-rendered docs until std `f16` stabilizes.
+# The `--cfg docsrs` flag activates the
 # `#[cfg_attr(docsrs, doc(cfg(feature = "testing")))]` mirrors that
 # surface the gating in the rendered docs.
 [package.metadata.docs.rs]
-all-features = true
+features = ["testing"]
 rustdoc-args = ["--cfg", "docsrs"]
