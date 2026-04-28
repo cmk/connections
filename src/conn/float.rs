@@ -27,6 +27,7 @@ pub mod f32;
 pub mod f64;
 
 use std::cmp::Ordering;
+use std::ops::{Add, Div, Sub};
 
 /// Three-element extension of a (possibly partial) order:
 /// `Bot < Extend(_) < Top`.
@@ -96,6 +97,90 @@ impl_float_ext!(f32);
 impl_float_ext!(f64);
 impl_float_ext!(half::f16);
 impl_float_ext!(half::bf16);
+
+// ── Numeric impls: minimal surface for `crate::conn::cast` chain
+//    combinators (`interval`, `midpoint`, `round`, `truncate`).
+//
+// These exist *solely* to thread `ExtendedFloat<T>` through the
+// arithmetic those helpers do (`hi - lo`, `lo + diff/2`,
+// `x >= A::from(0)`). They are **not** a general-purpose numeric
+// algebra: `Mul`, `Neg`, `Rem`, `AddAssign`, etc. are deliberately
+// omitted. Implemented only for `f32` / `f64` because the chain
+// combinators are exercised on those source types in-tree;
+// `half::f16` / `half::bf16` versions can be added later if a
+// caller needs them (they require routing `From<u8>` through
+// `from_f32`).
+//
+// Edge-case semantics for Bot/Top operands. The chain combinators
+// pass `(c.inner ∘ c.ceil)(x)` and `(c.inner ∘ c.floor)(x)` to the
+// arithmetic, which on a finite `Extend(_)` input always yields
+// `Extend(_)` brackets — so the table below is documentation only;
+// no in-tree caller exercises a Bot or Top operand of `+`/`-`/`/`.
+//
+// | Op | (Bot, Bot)  | (Top, Top)  | mixed Bot/Top   | endpoint, Extend(_) | (Extend(a), Extend(b)) |
+// |----|-------------|-------------|-----------------|---------------------|------------------------|
+// |  + |  Bot        |  Top        |  Extend(NaN)    |  endpoint absorbs   |  Extend(a + b)         |
+// |  - |  Extend(NaN)|  Extend(NaN)|  endpoint of LHS|  endpoint of LHS;   |  Extend(a - b)         |
+// |    |             |             |                 |  flipped for Extend |                        |
+// |  / |  Extend(NaN)|  Extend(NaN)|  Extend(NaN)    |  Extend(NaN)        |  Extend(a / b)         |
+//
+// `From<u8>(n)` always returns `Extend(T::from(n))`.
+
+macro_rules! impl_float_arith {
+    ($T:ty) => {
+        impl Add for ExtendedFloat<$T> {
+            type Output = Self;
+            fn add(self, other: Self) -> Self {
+                use ExtendedFloat::*;
+                match (self, other) {
+                    (Bot, Bot) => Bot,
+                    (Top, Top) => Top,
+                    (Bot, Top) | (Top, Bot) => Extend(<$T>::NAN),
+                    (Bot, Extend(_)) | (Extend(_), Bot) => Bot,
+                    (Top, Extend(_)) | (Extend(_), Top) => Top,
+                    (Extend(a), Extend(b)) => Extend(a + b),
+                }
+            }
+        }
+
+        impl Sub for ExtendedFloat<$T> {
+            type Output = Self;
+            fn sub(self, other: Self) -> Self {
+                use ExtendedFloat::*;
+                match (self, other) {
+                    (Bot, Bot) | (Top, Top) => Extend(<$T>::NAN),
+                    (Bot, Top) => Bot,
+                    (Top, Bot) => Top,
+                    (Bot, Extend(_)) => Bot,
+                    (Top, Extend(_)) => Top,
+                    (Extend(_), Bot) => Top,
+                    (Extend(_), Top) => Bot,
+                    (Extend(a), Extend(b)) => Extend(a - b),
+                }
+            }
+        }
+
+        impl Div for ExtendedFloat<$T> {
+            type Output = Self;
+            fn div(self, other: Self) -> Self {
+                use ExtendedFloat::*;
+                match (self, other) {
+                    (Extend(a), Extend(b)) => Extend(a / b),
+                    _ => Extend(<$T>::NAN),
+                }
+            }
+        }
+
+        impl From<u8> for ExtendedFloat<$T> {
+            fn from(n: u8) -> Self {
+                ExtendedFloat::Extend(<$T>::from(n))
+            }
+        }
+    };
+}
+
+impl_float_arith!(f32);
+impl_float_arith!(f64);
 
 /// IEEE binary16 (half-precision) wrapped under the N5 lattice.
 ///
@@ -572,5 +657,65 @@ mod tests {
             n.partial_cmp(&ExtendedFloat::Extend(half::bf16::ONE))
                 .is_none()
         );
+    }
+
+    // ── Numeric impls for ExtendedFloat<f32 | f64> ────────────────
+
+    #[test]
+    fn add_extends_passes_through_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(1.5);
+        let b: ExtendedFloat<f64> = ExtendedFloat::Extend(2.25);
+        assert_eq!(a + b, ExtendedFloat::Extend(3.75));
+    }
+
+    #[test]
+    fn sub_zero_is_id_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(std::f64::consts::PI);
+        let zero: ExtendedFloat<f64> = ExtendedFloat::from(0u8);
+        assert_eq!(a - zero, a);
+    }
+
+    #[test]
+    fn div_by_two_halves_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(8.0);
+        let two: ExtendedFloat<f64> = ExtendedFloat::from(2u8);
+        assert_eq!(a / two, ExtendedFloat::Extend(4.0));
+    }
+
+    #[test]
+    fn from_u8_round_trips_f32_f64() {
+        for n in [0u8, 1, 2, 7, 42, u8::MAX] {
+            assert_eq!(
+                ExtendedFloat::<f64>::from(n),
+                ExtendedFloat::Extend(n as f64)
+            );
+            assert_eq!(
+                ExtendedFloat::<f32>::from(n),
+                ExtendedFloat::Extend(n as f32)
+            );
+        }
+    }
+
+    #[test]
+    fn add_endpoints_absorb() {
+        let bot: ExtendedFloat<f64> = ExtendedFloat::Bot;
+        let top: ExtendedFloat<f64> = ExtendedFloat::Top;
+        let one: ExtendedFloat<f64> = ExtendedFloat::Extend(1.0);
+        assert_eq!(bot + one, ExtendedFloat::Bot);
+        assert_eq!(top + one, ExtendedFloat::Top);
+        assert_eq!(bot + bot, ExtendedFloat::Bot);
+        assert_eq!(top + top, ExtendedFloat::Top);
+        // Mixed Bot/Top is undefined → NaN payload.
+        match bot + top {
+            ExtendedFloat::Extend(v) => assert!(v.is_nan()),
+            other => panic!("expected Extend(NaN), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn sub_extends_passes_through_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(5.5);
+        let b: ExtendedFloat<f64> = ExtendedFloat::Extend(1.25);
+        assert_eq!(a - b, ExtendedFloat::Extend(4.25));
     }
 }
