@@ -8,21 +8,21 @@
 //!
 //! # Examples
 //!
-//! `Q0.4 → Q4.0` — every Q0.4 value lies in `[-8.0, 7.9375]`. The
-//! Conn brackets that value between adjacent integers in Q4.0:
+//! `Q3.4 → Q7.0` — every `FixedI8<U4>` value lies in `[-8.0, 7.9375]`.
+//! The Conn brackets that value between adjacent integers in Q7.0:
 //!
 //! ```rust
 //! use connections::fixed::i8::I004I000;
 //! use fixed::FixedI8;
 //! use fixed::types::extra::{U0, U4};
 //!
-//! // 1.5 in Q4.4 (raw bits `0b00011000` = 24) brackets to integers
-//! // 1 and 2 in Q8.0:
-//! let q44 = FixedI8::<U4>::from_bits(24);
-//! assert_eq!(I004I000.floor(q44), FixedI8::<U0>::from_bits(1));
-//! assert_eq!(I004I000.ceil(q44),  FixedI8::<U0>::from_bits(2));
+//! // 1.5 in Q3.4 (raw bits `0b00011000` = 24) brackets to integers
+//! // 1 and 2 in Q7.0:
+//! let q34 = FixedI8::<U4>::from_bits(24);
+//! assert_eq!(I004I000.floor(q34), FixedI8::<U0>::from_bits(1));
+//! assert_eq!(I004I000.ceil(q34),  FixedI8::<U0>::from_bits(2));
 //!
-//! // `inner` widens 1 in Q4.0 back to its Q4.4 representation
+//! // `inner` widens 1 in Q7.0 back to its Q3.4 representation
 //! // (raw bits `0b00010000` = 16):
 //! assert_eq!(
 //!     I004I000.inner(FixedI8::<U0>::from_bits(1)),
