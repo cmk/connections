@@ -1,5 +1,5 @@
-//! Operations on a [`Conn`] — the L/R-side accessors, the unary/binary
-//! lifters, and the curried `maximize` / `minimize` helpers.
+//! Operations on a [`Conn`] — the L/R-side accessors and the
+//! unary/binary lifters.
 //!
 //! Port of the public surface of
 //! [`Data.Connection.Cast`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Cast.html)
@@ -11,8 +11,8 @@
 //! In the Haskell library, `Cast 'L a b` and `Cast 'R a b` are *types*
 //! distinguished by a phantom `Side` index, even though they share one
 //! runtime representation. The split lets the compiler enforce that
-//! `floor` / `lower` / `minimize` are only callable on `'R` and
-//! `ceiling` / `upper` / `maximize` only on `'L`.
+//! `floor` / `lower` are only callable on `'R` and `ceiling` / `upper`
+//! only on `'L`.
 //!
 //! Rust's [`Conn<A, B>`](super::Conn) carries the *full adjoint
 //! triple* (`ceil ⊣ inner ⊣ floor`) in three `fn`-pointer fields, so a
@@ -22,9 +22,9 @@
 //! **both naming conventions** as free functions on the same type.
 //!
 //! - L-side names: [`upper`], [`upper1`], [`upper2`], [`ceiling`],
-//!   [`ceiling1`], [`ceiling2`], [`maximize`].
+//!   [`ceiling1`], [`ceiling2`].
 //! - R-side names: [`lower`], [`lower1`], [`lower2`], [`floor`],
-//!   [`floor1`], [`floor2`], [`minimize`].
+//!   [`floor1`], [`floor2`].
 //!
 //! `upper` and `lower` both return `c.inner(b)` — the same field. They
 //! differ in *documented contract*: `upper` names the upper adjoint of
@@ -142,16 +142,6 @@ where
     c.ceil(f(c.inner(b1), c.inner(b2)))
 }
 
-/// Curried form of `ceiling` over a `Conn<(A, B), C>` — the
-/// "generalized maximum".
-///
-/// `maximize(c, a, b) = ceiling(c, (a, b))`.
-#[inline]
-#[must_use]
-pub fn maximize<A, B, C>(c: &Conn<(A, B), C>, a: A, b: B) -> C {
-    c.ceil((a, b))
-}
-
 // ── R-side accessors and lifters (Cast.hs:314–402) ──────────────────
 
 /// Apply the lower adjoint of the R-pair: `b ↦ inner(b)`.
@@ -218,16 +208,6 @@ where
     F: FnOnce(A, A) -> A,
 {
     c.floor(f(c.inner(b1), c.inner(b2)))
-}
-
-/// Curried form of `floor` over a `Conn<(A, B), C>` — the
-/// "generalized minimum".
-///
-/// `minimize(c, a, b) = floor(c, (a, b))`.
-#[inline]
-#[must_use]
-pub fn minimize<A, B, C>(c: &Conn<(A, B), C>, a: A, b: B) -> C {
-    c.floor((a, b))
 }
 
 // ── Two-sided helpers (Haskell `Cast.hs` §interval–median) ──────────
@@ -455,8 +435,8 @@ where
 }
 
 /// Birkhoff's [median](https://en.wikipedia.org/wiki/Median_algebra)
-/// over a `Conn<(A, A), A>`, expressed in terms of the conn's
-/// "join" (`maximize`) and "meet" (`minimize`):
+/// over a `Conn<(A, A), A>`, expressed in terms of the conn's join
+/// (`c.ceil`) and meet (`c.floor`):
 ///
 /// ```text
 /// median c x y z = (x ⊔ y) ⊓ (y ⊔ z) ⊓ (z ⊔ x)
@@ -482,8 +462,8 @@ pub fn median<A>(c: &Conn<(A, A), A>, x: A, y: A, z: A) -> A
 where
     A: Copy,
 {
-    let join = |p: A, q: A| maximize(c, p, q);
-    let meet = |p: A, q: A| minimize(c, p, q);
+    let join = |p: A, q: A| c.ceil((p, q));
+    let meet = |p: A, q: A| c.floor((p, q));
     meet(meet(join(x, y), join(y, z)), join(z, x))
 }
 
@@ -571,13 +551,13 @@ mod tests {
         );
     }
 
-    // ── maximize / minimize on a hand-built `Conn<(i32, i32), i32>` ─
+    // ── ORDERED_PAIR: hand-built `Conn<(i32, i32), i32>` ────────────
     //
     // The connection captures `(a, b) ↦ max(a, b)` for ceil and
     // `(a, b) ↦ min(a, b)` for floor, with `inner` returning the
     // diagonal `(x, x)`. This is the Haskell `ordered` connection,
     // shipped here only as a test fixture (full `ordered!` macro
-    // arrives in Sprint C).
+    // arrives in Sprint C). Used by `median`'s tests below.
 
     const ORDERED_PAIR: Conn<(i32, i32), i32> = {
         fn ceil(p: (i32, i32)) -> i32 {
@@ -591,21 +571,6 @@ mod tests {
         }
         Conn::new(ceil, inner, floor)
     };
-
-    #[test]
-    fn maximize_eq_ceiling_pair() {
-        assert_eq!(
-            maximize(&ORDERED_PAIR, 3, 5),
-            ceiling(&ORDERED_PAIR, (3, 5))
-        );
-        assert_eq!(maximize(&ORDERED_PAIR, 3, 5), 5);
-    }
-
-    #[test]
-    fn minimize_eq_floor_pair() {
-        assert_eq!(minimize(&ORDERED_PAIR, 3, 5), floor(&ORDERED_PAIR, (3, 5)));
-        assert_eq!(minimize(&ORDERED_PAIR, 3, 5), 3);
-    }
 
     // ── Sprint B: two-sided helpers (deterministic spot checks) ──
 
@@ -763,18 +728,6 @@ mod tests {
         #[test]
         fn floor2_diag_id_ef64(b in arb_f64()) {
             prop_assert!(laws::cast_floor2_id_diag(&ID_EF64, ExtendedFloat::Extend(b)));
-        }
-
-        // ── maximize / minimize over `ORDERED_PAIR` (random pairs) ─
-
-        #[test]
-        fn maximize_eq_ceiling_random(a: i32, b: i32) {
-            prop_assert!(laws::cast_maximize_eq_ceiling(&ORDERED_PAIR, a, b));
-        }
-
-        #[test]
-        fn minimize_eq_floor_random(a: i32, b: i32) {
-            prop_assert!(laws::cast_minimize_eq_floor(&ORDERED_PAIR, a, b));
         }
 
         // ── Sprint B: two-sided helpers ────────────────────────────

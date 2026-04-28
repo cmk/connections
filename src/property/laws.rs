@@ -545,30 +545,6 @@ pub fn cast_floor2_id_diag<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool 
     l == r
 }
 
-/// `maximize` is the curried form of `ceiling` over a `Conn<(A, B), C>`:
-/// `maximize(c, a, b) == ceiling(c, (a, b))`.
-pub fn cast_maximize_eq_ceiling<A: Copy, B: Copy, C: Copy + Eq>(
-    c: &Conn<(A, B), C>,
-    a: A,
-    b: B,
-) -> bool {
-    let l = crate::conn::cast::maximize(c, a, b);
-    let r = crate::conn::cast::ceiling(c, (a, b));
-    l == r
-}
-
-/// `minimize` is the curried form of `floor` over a `Conn<(A, B), C>`:
-/// `minimize(c, a, b) == floor(c, (a, b))`.
-pub fn cast_minimize_eq_floor<A: Copy, B: Copy, C: Copy + Eq>(
-    c: &Conn<(A, B), C>,
-    a: A,
-    b: B,
-) -> bool {
-    let l = crate::conn::cast::minimize(c, a, b);
-    let r = crate::conn::cast::floor(c, (a, b));
-    l == r
-}
-
 // ── Two-sided helper laws (for `conn::cast::{interval, midpoint,
 //    round, truncate, median}` and friends) ─────────────────────
 
