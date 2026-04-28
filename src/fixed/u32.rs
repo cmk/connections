@@ -6,9 +6,9 @@
 
 use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
 use crate::conn::Conn;
-use core::num::NonZeroU32;
 use ::fixed::FixedU32;
 use ::fixed::types::extra::{U0, U4, U8, U16, U24, U31, U32, Unsigned};
+use core::num::NonZeroU32;
 
 // ── §1 std-int Conns landing on `u32` ───────────────────────────────
 

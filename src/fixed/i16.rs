@@ -30,9 +30,9 @@
 use super::{ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
 use crate::conn::Conn;
 use crate::extended::Extended;
-use core::num::NonZeroI16;
 use ::fixed::FixedI16;
 use ::fixed::types::extra::{U0, U2, U4, U8, U12, U16, Unsigned};
+use core::num::NonZeroI16;
 
 // ── §1 std-int Conns landing on `i16` ───────────────────────────────
 

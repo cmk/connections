@@ -42,9 +42,9 @@
 use super::{ext_int, nz_int_ext, uint_int_sat};
 use crate::conn::Conn;
 use crate::extended::Extended;
-use core::num::NonZeroI128;
 use ::fixed::FixedI128;
 use ::fixed::types::extra::{U0, U16, U32, U64, U96, U128, Unsigned};
+use core::num::NonZeroI128;
 
 // ── §1 std-int Conns landing on `i128` ─────────────────────────────
 

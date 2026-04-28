@@ -6,9 +6,9 @@
 
 use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
 use crate::conn::Conn;
-use core::num::NonZeroU64;
 use ::fixed::FixedU64;
 use ::fixed::types::extra::{U0, U8, U16, U32, U48, U63, U64, Unsigned};
+use core::num::NonZeroU64;
 
 // ── §1 std-int Conns landing on `u64` ───────────────────────────────
 

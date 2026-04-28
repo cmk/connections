@@ -1109,7 +1109,7 @@ mod tests {
 
     use crate::compose;
     use crate::fixed::i8::{
-        I000, Q002Q000, I004, Q004Q000, Q004Q002, Q006Q004, I008, Q008Q000, Q008Q004, Q008Q006,
+        I000, I004, I008, Q002Q000, Q004Q000, Q004Q002, Q006Q004, Q008Q000, Q008Q004, Q008Q006,
     };
     use ::fixed::FixedI8;
 

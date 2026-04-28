@@ -335,8 +335,12 @@ pub(crate) use uint_int_sat;
 /// missing value.
 macro_rules! nz_int_ext {
     ($NAME:ident, $A:ty, $NZ:ty) => {
+#[rustfmt::skip]
         #[doc = concat!(
-            "`", stringify!($A), " ↔ ", stringify!($NZ),
+            "`",
+            stringify!($A),
+            " ↔ ",
+            stringify!($NZ),
             "` (signed; floor/ceil split 0 between -1 and +1)."
         )]
         pub const $NAME: Conn<$A, $NZ> = {
@@ -368,8 +372,12 @@ pub(crate) use nz_int_ext;
 /// [`Conn::new_left`]: crate::conn::Conn::new_left
 macro_rules! nz_uint_ext {
     ($NAME:ident, $A:ty, $NZ:ty) => {
+#[rustfmt::skip]
         #[doc = concat!(
-            "`", stringify!($A), " ↔ ", stringify!($NZ),
+            "`",
+            stringify!($A),
+            " ↔ ",
+            stringify!($NZ),
             "` (unsigned; 0 saturates to NonZero(1); single-sided left-Galois)."
         )]
         pub const $NAME: Conn<$A, $NZ> = {

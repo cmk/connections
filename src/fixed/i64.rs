@@ -7,9 +7,9 @@
 use super::{ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
 use crate::conn::Conn;
 use crate::extended::Extended;
-use core::num::NonZeroI64;
 use ::fixed::FixedI64;
 use ::fixed::types::extra::{U0, U8, U16, U32, U48, U64, Unsigned};
+use core::num::NonZeroI64;
 
 // ── §1 std-int Conns landing on `i64` ───────────────────────────────
 

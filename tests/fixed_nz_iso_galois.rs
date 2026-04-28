@@ -14,9 +14,7 @@
 //! keeps the lib-test compile time small.
 
 use ::fixed::types::extra::U0;
-use ::fixed::{
-    FixedI16, FixedI32, FixedI64, FixedI128, FixedU16, FixedU32, FixedU64, FixedU128,
-};
+use ::fixed::{FixedI16, FixedI32, FixedI64, FixedI128, FixedU16, FixedU32, FixedU64, FixedU128};
 use connections::fixed;
 use connections::prop::conn as conn_laws;
 use core::num::{
