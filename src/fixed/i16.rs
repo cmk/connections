@@ -188,7 +188,7 @@ mod tests {
     }
 
     // Generator macro: nine universally-quantified Galois predicates per
-    // Conn, delegating to `crate::prop::laws`. All inputs span the
+    // Conn, delegating to `crate::prop::conn`. All inputs span the
     // full i16 range — the connection is total and lawful for every
     // value, so no bounded strategies are needed.
     //
