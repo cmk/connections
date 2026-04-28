@@ -43,10 +43,11 @@
 //! the corresponding Haskell `Data.Connection.Cast` definitions.
 //! These act on **both** sides of an adjoint triple at once: e.g.
 //! `round` dispatches between `ceil` and `floor` based on which side
-//! the input is closer to. The arithmetic helpers (`midpoint`,
-//! `interval`, `round`, `truncate` and friends) carry inline
-//! `Add`/`Sub`/`Div`/`From<u8>` bounds — they are restricted to
-//! source types that form a numeric ring.
+//! the input is closer to. The arithmetic helpers carry inline
+//! numeric bounds on the source type `A`: `Sub` for `interval`;
+//! `Add`/`Sub`/`Div`/`From<u8>` for `midpoint`; `From<u8>` (plus
+//! `Sub` via `interval` for `round`) for `truncate` and `round`. The
+//! source type must form a numeric ring of the requested shape.
 //!
 //! ## Behavior on edge inputs
 //!
@@ -388,9 +389,11 @@ where
 /// use connections::conn::float::f64::F064F032;
 ///
 /// // Sum two f32 brackets in f64 space, then truncate back to f32.
+/// // 2π32 > 0, so the truncate routes through `c.floor`.
 /// let pi32 = Extend(std::f32::consts::PI);
 /// let two_pi = truncate2(&F064F032, |a, b| a + b, pi32, pi32);
-/// assert!(F064F032.inner(two_pi) <= Extend(2.0 * std::f64::consts::PI + 1e-6));
+/// let expected = F064F032.floor(Extend(2.0 * std::f32::consts::PI as f64));
+/// assert_eq!(two_pi, expected);
 /// ```
 #[inline]
 #[must_use]
@@ -474,9 +477,11 @@ where
 /// use connections::conn::float::f64::F064F032;
 ///
 /// // Sum two f32-bracketed π values in f64 space, then round back to f32.
+/// // The result must land in the f32 bracket around 2π.
 /// let pi32 = Extend(std::f32::consts::PI);
+/// let two_pi64 = Extend(2.0 * std::f32::consts::PI as f64);
 /// let two_pi = round2(&F064F032, |a, b| a + b, pi32, pi32);
-/// assert!(F064F032.inner(two_pi) <= Extend(2.0 * std::f64::consts::PI + 1e-6));
+/// assert!(two_pi == F064F032.floor(two_pi64) || two_pi == F064F032.ceil(two_pi64));
 /// ```
 #[inline]
 #[must_use]

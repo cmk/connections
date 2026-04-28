@@ -114,8 +114,10 @@ impl_float_ext!(half::bf16);
 // Edge-case semantics for Bot/Top operands. The chain combinators
 // pass `(c.inner ∘ c.ceil)(x)` and `(c.inner ∘ c.floor)(x)` to the
 // arithmetic, which on a finite `Extend(_)` input always yields
-// `Extend(_)` brackets — so the table below is documentation only;
-// no in-tree caller exercises a Bot or Top operand of `+`/`-`/`/`.
+// `Extend(_)` brackets — so the chain-combinator path never reaches
+// the Bot/Top arms in practice. The deterministic Bot/Top tests in
+// `mod tests` below pin the documented semantics for direct callers
+// who do reach them.
 //
 // | Op | (Bot, Bot)  | (Top, Top)  | mixed Bot/Top   | endpoint, Extend(_) | (Extend(a), Extend(b)) |
 // |----|-------------|-------------|-----------------|---------------------|------------------------|
