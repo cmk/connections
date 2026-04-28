@@ -488,25 +488,25 @@ where
 /// `upper1` unit law: `a ≤ upper1(c, id, a)`. Equivalent to
 /// [`conn_closure_l`] routed through the lifter.
 pub fn cast_upper1_id_unit<A: Copy + PartialOrd, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
-    a <= crate::conn::cast::upper1(c, |x| x, a)
+    a <= crate::conn::upper1(c, |x| x, a)
 }
 
 /// `lower1` counit law: `lower1(c, id, a) ≤ a`. Equivalent to
 /// [`conn_closure_r`] routed through the lifter.
 pub fn cast_lower1_id_counit<A: Copy + PartialOrd, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
-    crate::conn::cast::lower1(c, |x| x, a) <= a
+    crate::conn::lower1(c, |x| x, a) <= a
 }
 
 /// `ceiling1` kernel law: `ceiling1(c, id, b) ≤ b`. Equivalent to
 /// [`conn_kernel_l`] routed through the lifter.
 pub fn cast_ceiling1_id_kernel<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B>, b: B) -> bool {
-    crate::conn::cast::ceiling1(c, |x| x, b) <= b
+    crate::conn::ceiling1(c, |x| x, b) <= b
 }
 
 /// `floor1` kernel law: `b ≤ floor1(c, id, b)`. Equivalent to
 /// [`conn_kernel_r`] routed through the lifter.
 pub fn cast_floor1_id_kernel<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B>, b: B) -> bool {
-    b <= crate::conn::cast::floor1(c, |x| x, b)
+    b <= crate::conn::floor1(c, |x| x, b)
 }
 
 /// `upper2` collapse-on-projection: when called with the
@@ -516,16 +516,16 @@ pub fn cast_floor1_id_kernel<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B>, b: B
 /// the broader `upper2(c, f, a, a) == upper1(c, |b| f(b, b), a)`
 /// would require `f` to be supplied as a parameter.
 pub fn cast_upper2_id_diag<A: Copy + Eq, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
-    let l = crate::conn::cast::upper2(c, |p, _q| p, a, a);
-    let r = crate::conn::cast::upper1(c, |x| x, a);
+    let l = crate::conn::upper2(c, |p, _q| p, a, a);
+    let r = crate::conn::upper1(c, |x| x, a);
     l == r
 }
 
 /// `lower2` collapse-on-projection: dual of [`cast_upper2_id_diag`]
 /// — narrow check that `lower2(c, |p, _| p, a, a) == lower1(c, id, a)`.
 pub fn cast_lower2_id_diag<A: Copy + Eq, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
-    let l = crate::conn::cast::lower2(c, |p, _q| p, a, a);
-    let r = crate::conn::cast::lower1(c, |x| x, a);
+    let l = crate::conn::lower2(c, |p, _q| p, a, a);
+    let r = crate::conn::lower1(c, |x| x, a);
     l == r
 }
 
@@ -533,15 +533,15 @@ pub fn cast_lower2_id_diag<A: Copy + Eq, B: Copy>(c: &Conn<A, B>, a: A) -> bool 
 /// equals `ceiling1` with `id`. Narrow check, see
 /// [`cast_upper2_id_diag`] for why.
 pub fn cast_ceiling2_id_diag<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool {
-    let l = crate::conn::cast::ceiling2(c, |p, _q| p, b, b);
-    let r = crate::conn::cast::ceiling1(c, |x| x, b);
+    let l = crate::conn::ceiling2(c, |p, _q| p, b, b);
+    let r = crate::conn::ceiling1(c, |x| x, b);
     l == r
 }
 
 /// `floor2` collapse-on-projection: dual of [`cast_ceiling2_id_diag`].
 pub fn cast_floor2_id_diag<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool {
-    let l = crate::conn::cast::floor2(c, |p, _q| p, b, b);
-    let r = crate::conn::cast::floor1(c, |x| x, b);
+    let l = crate::conn::floor2(c, |p, _q| p, b, b);
+    let r = crate::conn::floor1(c, |x| x, b);
     l == r
 }
 
@@ -562,8 +562,8 @@ where
         + From<u8>,
 {
     use core::cmp::Ordering;
-    let mid = crate::conn::cast::midpoint(c, x);
-    let result = crate::conn::cast::interval(c, mid);
+    let mid = crate::conn::midpoint(c, x);
+    let result = crate::conn::interval(c, mid);
     matches!(result, None | Some(Ordering::Equal))
 }
 
@@ -583,7 +583,7 @@ where
 {
     let lo = c.inner(c.floor(x));
     let hi = c.inner(c.ceil(x));
-    let mid = crate::conn::cast::midpoint(c, x);
+    let mid = crate::conn::midpoint(c, x);
     if lo <= hi {
         lo <= mid && mid <= hi
     } else {
@@ -592,14 +592,14 @@ where
 }
 
 /// `round(c, x)` is always one of `c.ceil(x)` / `c.floor(x)` (since
-/// every dispatch arm of [`crate::conn::cast::round`] returns one or
+/// every dispatch arm of [`crate::conn::round`] returns one or
 /// the other directly).
 pub fn cast_round_picks_endpoint<A, B>(c: &Conn<A, B>, x: A) -> bool
 where
     A: Copy + PartialOrd + core::ops::Sub<Output = A> + From<u8>,
     B: Copy + Eq,
 {
-    let r = crate::conn::cast::round(c, x);
+    let r = crate::conn::round(c, x);
     r == c.ceil(x) || r == c.floor(x)
 }
 
@@ -609,7 +609,7 @@ where
     A: Copy + PartialOrd + From<u8>,
     B: Copy + Eq,
 {
-    let t = crate::conn::cast::truncate(c, x);
+    let t = crate::conn::truncate(c, x);
     t == c.ceil(x) || t == c.floor(x)
 }
 
@@ -622,7 +622,7 @@ where
     B: Copy + Eq,
 {
     let zero = A::from(0);
-    let t = crate::conn::cast::truncate(c, x);
+    let t = crate::conn::truncate(c, x);
     if x >= zero {
         t == c.floor(x)
     } else {
@@ -648,7 +648,7 @@ where
     A: Copy + PartialOrd + core::ops::Sub<Output = A> + From<u8>,
     B: Copy + Eq,
 {
-    crate::conn::cast::round1(c, |a| a, x) == x
+    crate::conn::round1(c, |a| a, x) == x
 }
 
 /// `truncate1(c, id, x) == x` for an identity Conn (Haskell axiom
@@ -666,7 +666,7 @@ where
     A: Copy + PartialOrd + From<u8>,
     B: Copy + Eq,
 {
-    crate::conn::cast::truncate1(c, |a| a, x) == x
+    crate::conn::truncate1(c, |a| a, x) == x
 }
 
 /// Birkhoff median axiom 1: `median(c, x, x, y) == x`.
@@ -674,7 +674,7 @@ pub fn cast_median_idempotent<A>(c: &Conn<(A, A), A>, x: A, y: A) -> bool
 where
     A: Copy + Eq,
 {
-    crate::conn::cast::median(c, x, x, y) == x
+    crate::conn::median(c, x, x, y) == x
 }
 
 /// Birkhoff median axiom 2 (rotation):
@@ -683,7 +683,7 @@ pub fn cast_median_rotate<A>(c: &Conn<(A, A), A>, x: A, y: A, z: A) -> bool
 where
     A: Copy + Eq,
 {
-    crate::conn::cast::median(c, x, y, z) == crate::conn::cast::median(c, z, x, y)
+    crate::conn::median(c, x, y, z) == crate::conn::median(c, z, x, y)
 }
 
 /// Birkhoff median axiom 3 (last-two swap):
@@ -692,7 +692,7 @@ pub fn cast_median_swap_yz<A>(c: &Conn<(A, A), A>, x: A, y: A, z: A) -> bool
 where
     A: Copy + Eq,
 {
-    crate::conn::cast::median(c, x, y, z) == crate::conn::cast::median(c, x, z, y)
+    crate::conn::median(c, x, y, z) == crate::conn::median(c, x, z, y)
 }
 
 // ── Bare partial-order laws (for any `T: Eq + PartialOrd`) ──────

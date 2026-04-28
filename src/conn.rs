@@ -1,28 +1,103 @@
-//! Galois-connection core: the `Conn<A, B>` type + its submodules.
+//! Galois-connection core: the [`Conn<A, B>`] type, the [`compose!`]
+//! macro, and the operations on a `Conn` (L/R-side accessors,
+//! lifters, two-sided rounding helpers).
 //!
-//! Submodules under `conn/` each implement a family of connections
-//! for a specific domain:
+//! Per-domain Conn families live in sibling top-level modules:
 //!
-//! - `cast` — operations on a [`Conn`] (L/R-side accessors, lifters,
-//!   and — once Sprint B lands — the two-sided rounding helpers).
-//! - `float` — float ↔ float connections; also hosts the
+//! - [`crate::float`] — float ↔ float connections; also hosts the
 //!   `ExtendedFloat` wrapper type used by N5 lattice connections.
-//! - `fixed` — `fixed`-crate-backed binary fixed-point ladders over
-//!   `FixedI<width><Frac>` / `FixedU<width><Frac>` (per-width
-//!   submodules `i8`..`i128`, `u8`..`u128`).
-//! - `std` — connections rooted in `std` integer primitives. Each
-//!   per-type submodule (`i8`/`i16`/`i32`/`i64`/`i128`/`u8`/`u16`/
-//!   `u32`/`u64`/`u128`) hosts the Conn consts whose destination is
-//!   that primitive.
-//! - `time` — connections among the [`time`](https://docs.rs/time)
-//!   crate's calendar / clock / duration types (8-character names —
-//!   see [`crate::conn::time`]).
+//! - [`crate::fixed`] — `fixed`-crate-backed binary fixed-point
+//!   ladders over `FixedI<width><Frac>` / `FixedU<width><Frac>`
+//!   (per-width submodules `i8`..`i128`, `u8`..`u128`).
+//! - [`crate::int`] — connections rooted in `std` integer primitives.
+//!   Each per-type submodule (`i8`/`i16`/`i32`/`i64`/`i128`/`u8`/
+//!   `u16`/`u32`/`u64`/`u128`) hosts the Conn consts whose
+//!   destination is that primitive.
+//! - [`crate::time`] — connections among the
+//!   [`time`](https://docs.rs/time) crate's calendar / clock /
+//!   duration types (8-character names).
+//!
+//! ## Operations on `Conn` (folded in from the former `cast` module)
+//!
+//! Port of the public surface of
+//! [`Data.Connection.Cast`](https://hackage.haskell.org/package/connections/docs/Data-Connection-Cast.html)
+//! from the Haskell `connections` library, **minus** the `Side` data
+//! kind (`'L` / `'R`).
+//!
+//! ### L vs R is a naming axis, not a type axis
+//!
+//! In the Haskell library, `Cast 'L a b` and `Cast 'R a b` are *types*
+//! distinguished by a phantom `Side` index, even though they share one
+//! runtime representation. The split lets the compiler enforce that
+//! `floor` / `lower` are only callable on `'R` and `ceiling` /
+//! `upper` only on `'L`.
+//!
+//! Rust's [`Conn<A, B>`] carries the *full adjoint triple*
+//! (`ceil ⊣ inner ⊣ floor`) in three `fn`-pointer fields, so a
+//! one-sided connection is just a triple where `floor == ceil`. Both
+//! L-style and R-style operations are well-defined for any `Conn`:
+//! they read different fields of the same struct. We therefore expose
+//! **both naming conventions** as free functions on the same type.
+//!
+//! - L-side names: [`upper`], [`upper1`], [`upper2`], [`ceiling`],
+//!   [`ceiling1`], [`ceiling2`].
+//! - R-side names: [`lower`], [`lower1`], [`lower2`], [`floor`],
+//!   [`floor1`], [`floor2`].
+//!
+//! `upper` and `lower` both return `c.inner(b)` — the same field. They
+//! differ in *documented contract*: `upper` names the upper adjoint of
+//! the L-pair `(ceil, inner)`; `lower` names the lower adjoint of the
+//! R-pair `(inner, floor)`. For a length-2 connection (where
+//! `floor == ceil`), the unused side returns the same answer as the
+//! used side. For a length-3 triple, the L and R sides may genuinely
+//! differ in their `ceiling` / `floor` arms.
+//!
+//! See `doc/design.md` § "Core type" for the rationale.
+//!
+//! ### Two-sided helpers
+//!
+//! [`interval`], [`midpoint`], [`round`], [`round1`], [`round2`],
+//! [`truncate`], [`truncate1`], [`truncate2`], [`median`] — port of
+//! the corresponding Haskell `Data.Connection.Cast` definitions.
+//! These act on **both** sides of an adjoint triple at once: e.g.
+//! `round` dispatches between `ceil` and `floor` based on which side
+//! the input is closer to. The arithmetic helpers carry inline
+//! numeric bounds on the source type `A`: `Sub` for `interval`;
+//! `Add`/`Sub`/`Div`/`From<u8>` for `midpoint`; `From<u8>` (plus
+//! `Sub` via `interval` for `round`) for `truncate` and `round`. The
+//! source type must form a numeric ring of the requested shape.
+//!
+//! ### Behavior on edge inputs
+//!
+//! The two-sided helpers (`interval`, `midpoint`, `round`,
+//! `truncate`, and their `1`/`2` lifters) bracket the input by
+//! calling **both** `c.ceil` and `c.floor`. Two cases collapse the
+//! bracket and are stated once here; per-function docs refer back
+//! rather than restating.
+//!
+//! 1. **Length-2 (one-sided) connection** — when `c.ceil == c.floor`
+//!    (the connection is a single adjoint pair, not a triple), the
+//!    bracket is a point: `lo == hi`. [`interval`] returns
+//!    `Some(Equal)`; [`midpoint`], [`round`], and [`truncate`] all
+//!    return that single value. The helpers are well-defined on a
+//!    length-2 conn; they're just not interesting.
+//!
+//! 2. **NaN-bearing source** — for source types that admit NaN
+//!    (e.g. `ExtendedFloat<f64>`), `partial_cmp` between bracket
+//!    endpoints returns `None`. [`interval`] propagates the `None`;
+//!    [`round`] and [`truncate`] fall through to the `truncate`
+//!    arm, which dispatches on `x >= 0` (false for NaN, so the
+//!    `c.ceil(x)` branch fires).
+//!
+//! ### What's *not* here
+//!
+//! - **`swapL` / `swapR`**: identity in our representation — the same
+//!   `Conn` answers both. No conversion function needed.
+//! - **`mapped`**: requires HKT; per `doc/design.md` line 206, omit and
+//!   specialize per container if needed downstream.
 
-pub mod cast;
-pub mod fixed;
-pub mod float;
-pub mod std;
-pub mod time;
+use core::cmp::Ordering;
+use core::ops::{Add, Div, Sub};
 
 /// Compose a chain of `Conn` consts into a single fresh `Conn<Src, Dst>`.
 ///
@@ -175,6 +250,448 @@ impl<T> Conn<T, T> {
     }
 }
 
+// ── L-side accessors and lifters (Cast.hs:217–312) ──────────────────
+
+/// Apply the upper adjoint of the L-pair: `b ↦ inner(b)`.
+///
+/// In an adjoint pair `f ⊣ g` with `f: A → B` and `g: B → A`, this is
+/// `g`. Equivalent to calling [`Conn::inner`] directly; named for the
+/// L-side reading of the connection.
+///
+/// ```rust
+/// use connections::conn::upper;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // Widen the f32 ceiling of π back to f64 — sits above the f64 π.
+/// let pi = Extend(std::f64::consts::PI);
+/// let pi_up = F064F032.ceil(pi);
+/// assert!(upper(&F064F032, pi_up) >= pi);
+/// ```
+#[inline]
+#[must_use]
+pub fn upper<A, B>(c: &Conn<A, B>, b: B) -> A {
+    c.inner(b)
+}
+
+/// Lift a unary endofunction over `B` into one over `A` through the
+/// L-pair: `a ↦ inner(f(ceil(a)))`.
+///
+/// The unit law `a ≤ upper1(c, id, a)` is property-tested.
+#[inline]
+#[must_use]
+pub fn upper1<A, B, F>(c: &Conn<A, B>, f: F, a: A) -> A
+where
+    F: FnOnce(B) -> B,
+{
+    c.inner(f(c.ceil(a)))
+}
+
+/// Lift a binary function over `B` into a binary function over `A`
+/// through the L-pair: `(a1, a2) ↦ inner(f(ceil(a1), ceil(a2)))`.
+#[inline]
+#[must_use]
+pub fn upper2<A, B, F>(c: &Conn<A, B>, f: F, a1: A, a2: A) -> A
+where
+    F: FnOnce(B, B) -> B,
+{
+    c.inner(f(c.ceil(a1), c.ceil(a2)))
+}
+
+/// Apply the lower adjoint (ceiling): `a ↦ ceil(a)`.
+///
+/// Synonymous with [`Conn::ceil`] under the L-side reading.
+///
+/// ```rust
+/// use connections::conn::ceiling;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // Smallest f32 whose f64 widening is ≥ π.
+/// let pi = Extend(std::f64::consts::PI);
+/// let pi_up = ceiling(&F064F032, pi);
+/// assert!(F064F032.inner(pi_up) >= pi);
+/// ```
+#[inline]
+#[must_use]
+pub fn ceiling<A, B>(c: &Conn<A, B>, a: A) -> B {
+    c.ceil(a)
+}
+
+/// Lift a unary endofunction over `A` into one over `B` through the
+/// L-pair: `b ↦ ceil(f(inner(b)))`.
+#[inline]
+#[must_use]
+pub fn ceiling1<A, B, F>(c: &Conn<A, B>, f: F, b: B) -> B
+where
+    F: FnOnce(A) -> A,
+{
+    c.ceil(f(c.inner(b)))
+}
+
+/// Lift a binary function over `A` into a binary function over `B`
+/// through the L-pair: `(b1, b2) ↦ ceil(f(inner(b1), inner(b2)))`.
+#[inline]
+#[must_use]
+pub fn ceiling2<A, B, F>(c: &Conn<A, B>, f: F, b1: B, b2: B) -> B
+where
+    F: FnOnce(A, A) -> A,
+{
+    c.ceil(f(c.inner(b1), c.inner(b2)))
+}
+
+// ── R-side accessors and lifters (Cast.hs:314–402) ──────────────────
+
+/// Apply the lower adjoint of the R-pair: `b ↦ inner(b)`.
+///
+/// In an adjoint pair `g ⊣ h` with `h: A → B` and `g: B → A`, this is
+/// `g`. Equivalent to calling [`Conn::inner`] directly; named for the
+/// R-side reading of the connection.
+#[inline]
+#[must_use]
+pub fn lower<A, B>(c: &Conn<A, B>, b: B) -> A {
+    c.inner(b)
+}
+
+/// Lift a unary endofunction over `B` into one over `A` through the
+/// R-pair: `a ↦ inner(f(floor(a)))`.
+///
+/// The counit law `lower1(c, id, a) ≤ a` is property-tested.
+#[inline]
+#[must_use]
+pub fn lower1<A, B, F>(c: &Conn<A, B>, f: F, a: A) -> A
+where
+    F: FnOnce(B) -> B,
+{
+    c.inner(f(c.floor(a)))
+}
+
+/// Lift a binary function over `B` into a binary function over `A`
+/// through the R-pair: `(a1, a2) ↦ inner(f(floor(a1), floor(a2)))`.
+#[inline]
+#[must_use]
+pub fn lower2<A, B, F>(c: &Conn<A, B>, f: F, a1: A, a2: A) -> A
+where
+    F: FnOnce(B, B) -> B,
+{
+    c.inner(f(c.floor(a1), c.floor(a2)))
+}
+
+/// Apply the upper adjoint (floor): `a ↦ floor(a)`.
+///
+/// Synonymous with [`Conn::floor`] under the R-side reading.
+#[inline]
+#[must_use]
+pub fn floor<A, B>(c: &Conn<A, B>, a: A) -> B {
+    c.floor(a)
+}
+
+/// Lift a unary endofunction over `A` into one over `B` through the
+/// R-pair: `b ↦ floor(f(inner(b)))`.
+#[inline]
+#[must_use]
+pub fn floor1<A, B, F>(c: &Conn<A, B>, f: F, b: B) -> B
+where
+    F: FnOnce(A) -> A,
+{
+    c.floor(f(c.inner(b)))
+}
+
+/// Lift a binary function over `A` into a binary function over `B`
+/// through the R-pair: `(b1, b2) ↦ floor(f(inner(b1), inner(b2)))`.
+#[inline]
+#[must_use]
+pub fn floor2<A, B, F>(c: &Conn<A, B>, f: F, b1: B, b2: B) -> B
+where
+    F: FnOnce(A, A) -> A,
+{
+    c.floor(f(c.inner(b1), c.inner(b2)))
+}
+
+// ── Two-sided helpers (Haskell `Cast.hs` §interval–median) ──────────
+
+/// Compare the two halves of the conn-bracketed interval around `x`.
+///
+/// Returns `Some(Less)` when `x` lies closer to `lower1(c, id, x)`,
+/// `Some(Greater)` when closer to `upper1(c, id, x)`, `Some(Equal)`
+/// when `x` is the exact midpoint, and `None` when the comparison
+/// is undefined (e.g. NaN-bearing source values).
+///
+/// Faithful port of Haskell `Cast.hs::interval`:
+/// `interval c x = pcompare (x - lower1 c id x) (upper1 c id x - x)`.
+///
+/// **Overflow:** the body subtracts `x - lower1(c, id, x)` and
+/// `upper1(c, id, x) - x`. Haskell's `Num` is arbitrary-precision;
+/// Rust's signed integers wrap (release) or panic (debug). On
+/// identity Conns both subtractions reduce to `x - x = 0`, so the
+/// risk is zero. On non-identity Conns where the bracket is far
+/// from `x`, callers driving near the type's `MIN`/`MAX` should
+/// either compose through a wider source type first or stay within
+/// a clamped input range.
+///
+/// ```rust
+/// use core::cmp::Ordering;
+/// use connections::conn::interval;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // π sits closer to its f32 ceiling than its f32 floor.
+/// let pi = Extend(std::f64::consts::PI);
+/// assert_eq!(interval(&F064F032, pi), Some(Ordering::Greater));
+/// ```
+#[inline]
+#[must_use]
+pub fn interval<A, B>(c: &Conn<A, B>, x: A) -> Option<Ordering>
+where
+    A: Copy + PartialOrd + Sub<Output = A>,
+{
+    let d_lo = x - lower1(c, |b| b, x);
+    let d_hi = upper1(c, |b| b, x) - x;
+    d_lo.partial_cmp(&d_hi)
+}
+
+/// Return the midpoint of the conn-bracketed interval around `x`.
+///
+/// Computes `lo + (hi - lo) / 2` where `lo = lower1(c, id, x)` and
+/// `hi = upper1(c, id, x)`. This formulation is exact for both
+/// integer and floating-point sources — Haskell's `lo/2 + hi/2`
+/// loses 1 bit on odd-summed integers; the offset form does not.
+///
+/// **Precondition:** `lo ≤ hi`. The conns this crate ships with
+/// injective `inner` (i.e. those that pass `conn_floor_le_ceil`)
+/// satisfy this trivially. On a saturating conn where the
+/// inner-bracket can flip (`hi < lo`), `hi - lo` underflows silently
+/// on signed-integer sources and produces a meaningless value; the
+/// companion predicate [`crate::property::laws::cast_midpoint_between`]
+/// gates on `lo ≤ hi` for exactly this reason.
+///
+/// The offset form sidesteps the intermediate-sum overflow that
+/// `lo/2 + hi/2` would otherwise hit on near-MAX rungs, but the
+/// inner subtraction `hi - lo` can itself overflow when the bracket
+/// spans the full type range — callers passing such inputs should
+/// route through a wider-source conn (`compose!`) first.
+///
+/// ```rust
+/// use connections::conn::midpoint;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // Midpoint of the f32 bracket around π, lifted back to f64.
+/// let pi = Extend(std::f64::consts::PI);
+/// let mid = midpoint(&F064F032, pi);
+/// let lo = F064F032.inner(F064F032.floor(pi));
+/// let hi = F064F032.inner(F064F032.ceil(pi));
+/// assert!(lo <= mid && mid <= hi);
+/// ```
+#[inline]
+#[must_use]
+pub fn midpoint<A, B>(c: &Conn<A, B>, x: A) -> A
+where
+    A: Copy + Add<Output = A> + Sub<Output = A> + Div<Output = A> + From<u8>,
+{
+    let lo = lower1(c, |b| b, x);
+    let hi = upper1(c, |b| b, x);
+    let two = A::from(2);
+    lo + (hi - lo) / two
+}
+
+/// Truncate `x` toward zero through the connection: returns
+/// `c.floor(x)` when `x ≥ 0`, otherwise `c.ceil(x)`.
+///
+/// Faithful port of Haskell `Cast.hs::truncate`:
+/// `truncate c x = if x >~ 0 then floor c x else ceiling c x`.
+///
+/// ```rust
+/// use connections::conn::truncate;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // π > 0, so truncate routes through `c.floor`.
+/// let pi = Extend(std::f64::consts::PI);
+/// assert_eq!(truncate(&F064F032, pi), F064F032.floor(pi));
+/// ```
+#[inline]
+#[must_use]
+pub fn truncate<A, B>(c: &Conn<A, B>, x: A) -> B
+where
+    A: Copy + PartialOrd + From<u8>,
+{
+    if x >= A::from(0) {
+        c.floor(x)
+    } else {
+        c.ceil(x)
+    }
+}
+
+/// Lift a unary function `f: A → A` to operate on `B`-valued inputs
+/// through the connection, with the result truncated toward zero:
+/// `truncate1(c, f, x) = truncate(c, f(c.inner(x)))`.
+///
+/// ```rust
+/// use connections::conn::truncate1;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // Identity-lift of the f32-bracketed π.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// assert_eq!(truncate1(&F064F032, |a| a, pi32), F064F032.floor(F064F032.inner(pi32)));
+/// ```
+#[inline]
+#[must_use]
+pub fn truncate1<A, B, F>(c: &Conn<A, B>, f: F, x: B) -> B
+where
+    A: Copy + PartialOrd + From<u8>,
+    F: FnOnce(A) -> A,
+{
+    truncate(c, f(c.inner(x)))
+}
+
+/// Lift a binary function `f: (A, A) → A` over the connection, with
+/// the result truncated toward zero:
+/// `truncate2(c, f, x, y) = truncate(c, f(c.inner(x), c.inner(y)))`.
+///
+/// ```rust
+/// use connections::conn::truncate2;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // Sum two f32 brackets in f64 space, then truncate back to f32.
+/// // 2π32 > 0, so the truncate routes through `c.floor`.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// let two_pi = truncate2(&F064F032, |a, b| a + b, pi32, pi32);
+/// let expected = F064F032.floor(Extend(2.0 * std::f32::consts::PI as f64));
+/// assert_eq!(two_pi, expected);
+/// ```
+#[inline]
+#[must_use]
+pub fn truncate2<A, B, F>(c: &Conn<A, B>, f: F, x: B, y: B) -> B
+where
+    A: Copy + PartialOrd + From<u8>,
+    F: FnOnce(A, A) -> A,
+{
+    truncate(c, f(c.inner(x), c.inner(y)))
+}
+
+/// Round `x` to the nearest representable value across the connection,
+/// with ties broken toward zero (i.e. tie cases delegate to
+/// [`truncate`]).
+///
+/// Faithful port of Haskell `Cast.hs::round`:
+/// `Some(Greater) → ceil(x)`, `Some(Less) → floor(x)`, otherwise
+/// `truncate(c, x)`.
+///
+/// `interval(c, x)` returns `Some(Greater)` when `x` is closer to
+/// the upper rung (`d_lo > d_hi`), `Some(Less)` when closer to the
+/// lower rung, and `Some(Equal)` exactly at the midpoint. The
+/// fall-through `_` arm catches both `Some(Equal)` (true tie) and
+/// `None` — see *Behavior on edge inputs* in the module docs for
+/// the length-2-conn and NaN cases.
+///
+/// ```rust
+/// use connections::conn::round;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // π is closer to its f32 ceiling than its f32 floor.
+/// let pi = Extend(std::f64::consts::PI);
+/// assert_eq!(round(&F064F032, pi), F064F032.ceil(pi));
+/// ```
+#[inline]
+#[must_use]
+pub fn round<A, B>(c: &Conn<A, B>, x: A) -> B
+where
+    A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
+{
+    match interval(c, x) {
+        Some(Ordering::Greater) => c.ceil(x),
+        Some(Ordering::Less) => c.floor(x),
+        _ => truncate(c, x),
+    }
+}
+
+/// Lift a unary function `f: A → A` to operate on `B`-valued inputs
+/// through the connection, rounded to nearest with ties toward zero:
+/// `round1(c, f, x) = round(c, f(c.inner(x)))`.
+///
+/// ```rust
+/// use connections::conn::round1;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // Identity-lift of the f32-bracketed π, rounded to nearest f32.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// let r = round1(&F064F032, |a| a, pi32);
+/// // The widened result brackets the original f32 π in f64 space.
+/// let r_back = F064F032.inner(r);
+/// assert!(r_back == F064F032.inner(pi32) || r_back == F064F032.inner(F064F032.ceil(F064F032.inner(pi32))));
+/// ```
+#[inline]
+#[must_use]
+pub fn round1<A, B, F>(c: &Conn<A, B>, f: F, x: B) -> B
+where
+    A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
+    F: FnOnce(A) -> A,
+{
+    round(c, f(c.inner(x)))
+}
+
+/// Lift a binary function `f: (A, A) → A` similarly:
+/// `round2(c, f, x, y) = round(c, f(c.inner(x), c.inner(y)))`.
+///
+/// ```rust
+/// use connections::conn::round2;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // Sum two f32-bracketed π values in f64 space, then round back to f32.
+/// // The result must land in the f32 bracket around 2π.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// let two_pi64 = Extend(2.0 * std::f32::consts::PI as f64);
+/// let two_pi = round2(&F064F032, |a, b| a + b, pi32, pi32);
+/// assert!(two_pi == F064F032.floor(two_pi64) || two_pi == F064F032.ceil(two_pi64));
+/// ```
+#[inline]
+#[must_use]
+pub fn round2<A, B, F>(c: &Conn<A, B>, f: F, x: B, y: B) -> B
+where
+    A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
+    F: FnOnce(A, A) -> A,
+{
+    round(c, f(c.inner(x), c.inner(y)))
+}
+
+/// Birkhoff's [median](https://en.wikipedia.org/wiki/Median_algebra)
+/// over a `Conn<(A, A), A>`, expressed in terms of the conn's join
+/// (`c.ceil`) and meet (`c.floor`):
+///
+/// ```text
+/// median c x y z = (x ⊔ y) ⊓ (y ⊔ z) ⊓ (z ⊔ x)
+/// ```
+///
+/// For the natural `ordered`-style conn (`ceil = max`, `floor = min`,
+/// `inner = (x, x)`), this is the standard 3-element median.
+///
+/// Faithful port of Haskell `Cast.hs::median`.
+///
+/// ```rust
+/// use connections::conn::{Conn, median};
+/// fn ceil(p: (i32, i32)) -> i32 { p.0.max(p.1) }
+/// fn floor(p: (i32, i32)) -> i32 { p.0.min(p.1) }
+/// fn inner(x: i32) -> (i32, i32) { (x, x) }
+/// let c: Conn<(i32, i32), i32> = Conn::new(ceil, inner, floor);
+/// assert_eq!(median(&c, 1, 2, 3), 2);
+/// ```
+#[inline]
+#[must_use]
+pub fn median<A>(c: &Conn<(A, A), A>, x: A, y: A, z: A) -> A
+where
+    A: Copy,
+{
+    let join = |p: A, q: A| c.ceil((p, q));
+    let meet = |p: A, q: A| c.floor((p, q));
+    meet(meet(join(x, y), join(y, z)), join(z, x))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -275,7 +792,7 @@ mod tests {
     // `PartialEq` to be reflexive at NaN and impls `Eq`, which is
     // what the laws require.
 
-    use crate::conn::float::ExtendedFloat;
+    use crate::float::ExtendedFloat;
 
     const ID_EF64: Conn<ExtendedFloat<f64>, ExtendedFloat<f64>> = Conn::identity();
 
@@ -305,7 +822,7 @@ mod tests {
     // Composition is a property of `Conn` itself (not of any one
     // family), so its tests live alongside the macro definition. We
     // drive them against the binary fixed-point ladder in
-    // [`crate::conn::fixed::i8`] — the `I###I###` Q-format Conns —
+    // [`crate::fixed::i8`] — the `I###I###` Q-format Conns —
     // because the i8 ladder admits arbitrary multi-step chains
     // through intermediate frac levels (Q0.8 → Q4.4 → Q8.0, etc.)
     // and we have a hand-coded non-adjacent shortcut (`I008I000`) to
@@ -329,7 +846,7 @@ mod tests {
     // below — failing const evaluation would refuse to compile.
 
     use crate::compose;
-    use crate::conn::fixed::i8::{
+    use crate::fixed::i8::{
         I000, I002I000, I004, I004I000, I004I002, I006I004, I008, I008I000, I008I004, I008I006,
     };
     use ::fixed::FixedI8;
@@ -485,5 +1002,337 @@ mod tests {
     // this test mod; it doesn't pollute the crate namespace.
     mod typenum_alias {
         pub use ::fixed::types::extra::{U0, U4, U8};
+    }
+
+    // ── Cast operation tests (folded in from former `conn::cast` mod) ──
+    //
+    // ID_I32 / ID_EF64 are reused from the proptest blocks above; the
+    // cast tests need an additional `ID_I64` (i64 path coverage for
+    // the two-sided helpers) and an `ORDERED_PAIR` Conn fixture for
+    // `median`.
+
+    const ID_I64: Conn<i64, i64> = Conn::identity();
+
+    // The connection captures `(a, b) ↦ max(a, b)` for ceil and
+    // `(a, b) ↦ min(a, b)` for floor, with `inner` returning the
+    // diagonal `(x, x)`. This is the Haskell `ordered` connection,
+    // shipped here only as a test fixture (full `ordered!` macro
+    // arrives in Sprint C).
+    const ORDERED_PAIR: Conn<(i32, i32), i32> = {
+        fn ceil(p: (i32, i32)) -> i32 {
+            p.0.max(p.1)
+        }
+        fn inner(x: i32) -> (i32, i32) {
+            (x, x)
+        }
+        fn floor(p: (i32, i32)) -> i32 {
+            p.0.min(p.1)
+        }
+        Conn::new(ceil, inner, floor)
+    };
+
+    // ── Deterministic spot checks (delegation correctness) ────────
+
+    #[test]
+    fn upper_eq_inner_id() {
+        assert_eq!(upper(&ID_I32, 7), ID_I32.inner(7));
+    }
+
+    #[test]
+    fn lower_eq_inner_id() {
+        assert_eq!(lower(&ID_I32, 7), ID_I32.inner(7));
+    }
+
+    #[test]
+    fn ceiling_eq_ceil_id() {
+        assert_eq!(ceiling(&ID_I32, 7), ID_I32.ceil(7));
+    }
+
+    #[test]
+    fn floor_eq_floor_id() {
+        assert_eq!(floor(&ID_I32, 7), ID_I32.floor(7));
+    }
+
+    #[test]
+    fn upper1_id_id_is_id() {
+        assert_eq!(upper1(&ID_I32, |x| x, 42), 42);
+    }
+
+    #[test]
+    fn ceiling1_id_id_is_id() {
+        assert_eq!(ceiling1(&ID_I32, |x| x, 42), 42);
+    }
+
+    #[test]
+    fn lower1_id_id_is_id() {
+        assert_eq!(lower1(&ID_I32, |x| x, 42), 42);
+    }
+
+    #[test]
+    fn floor1_id_id_is_id() {
+        assert_eq!(floor1(&ID_I32, |x| x, 42), 42);
+    }
+
+    #[test]
+    fn upper2_id_proj_eq_inner_ceil() {
+        // upper2(c, |p, _| p, a, a) == inner(ceil(a)) for any conn.
+        assert_eq!(
+            upper2(&ID_I32, |p, _q| p, 5, 5),
+            ID_I32.inner(ID_I32.ceil(5))
+        );
+    }
+
+    #[test]
+    fn ceiling2_id_proj_eq_ceil_inner() {
+        assert_eq!(
+            ceiling2(&ID_I32, |p, _q| p, 5, 5),
+            ID_I32.ceil(ID_I32.inner(5))
+        );
+    }
+
+    // ── Two-sided helpers (deterministic spot checks) ──
+
+    #[test]
+    fn interval_id_i32_at_value_is_equal() {
+        assert_eq!(interval(&ID_I32, 7), Some(core::cmp::Ordering::Equal));
+    }
+
+    #[test]
+    fn midpoint_id_i32_eq_a() {
+        assert_eq!(midpoint(&ID_I32, 7), 7);
+        assert_eq!(midpoint(&ID_I32, -42), -42);
+    }
+
+    #[test]
+    fn round_id_i32_eq_a() {
+        assert_eq!(round(&ID_I32, 7), 7);
+        assert_eq!(round(&ID_I32, -42), -42);
+    }
+
+    #[test]
+    fn truncate_id_pos() {
+        assert_eq!(truncate(&ID_I32, 5), 5);
+        assert_eq!(truncate(&ID_I32, 0), 0);
+    }
+
+    #[test]
+    fn truncate_id_neg() {
+        assert_eq!(truncate(&ID_I32, -5), -5);
+    }
+
+    #[test]
+    fn truncate1_id_id_is_id() {
+        assert_eq!(truncate1(&ID_I32, |a| a, 42), 42);
+    }
+
+    #[test]
+    fn round1_id_id_is_id() {
+        assert_eq!(round1(&ID_I32, |a| a, 42), 42);
+    }
+
+    #[test]
+    fn truncate2_id_add_pair() {
+        assert_eq!(truncate2(&ID_I32, |a, b| a + b, 3, 4), 7);
+        assert_eq!(truncate2(&ID_I32, |a, b| a - b, 3, 4), -1);
+    }
+
+    #[test]
+    fn round2_id_add_pair() {
+        assert_eq!(round2(&ID_I32, |a, b| a + b, 3, 4), 7);
+        assert_eq!(round2(&ID_I32, |a, b| a * b, 3, 4), 12);
+    }
+
+    #[test]
+    fn median_three_equal_ordered() {
+        assert_eq!(median(&ORDERED_PAIR, 7, 7, 7), 7);
+    }
+
+    #[test]
+    fn median_two_equal_ordered() {
+        assert_eq!(median(&ORDERED_PAIR, 3, 3, 5), 3);
+        assert_eq!(median(&ORDERED_PAIR, 5, 3, 3), 3);
+    }
+
+    #[test]
+    fn median_distinct_ordered() {
+        assert_eq!(median(&ORDERED_PAIR, 1, 2, 3), 2);
+        assert_eq!(median(&ORDERED_PAIR, 3, 1, 2), 2);
+        assert_eq!(median(&ORDERED_PAIR, 2, 3, 1), 2);
+        assert_eq!(median(&ORDERED_PAIR, 5, 1, 9), 5);
+    }
+
+    proptest! {
+        // ── ID_I32 (Ord path) ─────────────────────────────────────
+
+        #[test]
+        fn upper1_unit_id_i32(a: i32) {
+            prop_assert!(laws::cast_upper1_id_unit(&ID_I32, a));
+        }
+
+        #[test]
+        fn lower1_counit_id_i32(a: i32) {
+            prop_assert!(laws::cast_lower1_id_counit(&ID_I32, a));
+        }
+
+        #[test]
+        fn ceiling1_kernel_id_i32(b: i32) {
+            prop_assert!(laws::cast_ceiling1_id_kernel(&ID_I32, b));
+        }
+
+        #[test]
+        fn floor1_kernel_id_i32(b: i32) {
+            prop_assert!(laws::cast_floor1_id_kernel(&ID_I32, b));
+        }
+
+        #[test]
+        fn upper2_diag_id_i32(a: i32) {
+            prop_assert!(laws::cast_upper2_id_diag(&ID_I32, a));
+        }
+
+        #[test]
+        fn lower2_diag_id_i32(a: i32) {
+            prop_assert!(laws::cast_lower2_id_diag(&ID_I32, a));
+        }
+
+        #[test]
+        fn ceiling2_diag_id_i32(b: i32) {
+            prop_assert!(laws::cast_ceiling2_id_diag(&ID_I32, b));
+        }
+
+        #[test]
+        fn floor2_diag_id_i32(b: i32) {
+            prop_assert!(laws::cast_floor2_id_diag(&ID_I32, b));
+        }
+
+        // ── ID_EF64 (ExtendedFloat<f64>; covers Bot/Top/Extend(NaN)) ──
+
+        #[test]
+        fn upper1_unit_id_ef64(a in arb_f64()) {
+            prop_assert!(laws::cast_upper1_id_unit(&ID_EF64, ExtendedFloat::Extend(a)));
+        }
+
+        #[test]
+        fn lower1_counit_id_ef64(a in arb_f64()) {
+            prop_assert!(laws::cast_lower1_id_counit(&ID_EF64, ExtendedFloat::Extend(a)));
+        }
+
+        #[test]
+        fn ceiling1_kernel_id_ef64(b in arb_f64()) {
+            prop_assert!(laws::cast_ceiling1_id_kernel(&ID_EF64, ExtendedFloat::Extend(b)));
+        }
+
+        #[test]
+        fn floor1_kernel_id_ef64(b in arb_f64()) {
+            prop_assert!(laws::cast_floor1_id_kernel(&ID_EF64, ExtendedFloat::Extend(b)));
+        }
+
+        #[test]
+        fn upper2_diag_id_ef64(a in arb_f64()) {
+            prop_assert!(laws::cast_upper2_id_diag(&ID_EF64, ExtendedFloat::Extend(a)));
+        }
+
+        #[test]
+        fn lower2_diag_id_ef64(a in arb_f64()) {
+            prop_assert!(laws::cast_lower2_id_diag(&ID_EF64, ExtendedFloat::Extend(a)));
+        }
+
+        #[test]
+        fn ceiling2_diag_id_ef64(b in arb_f64()) {
+            prop_assert!(laws::cast_ceiling2_id_diag(&ID_EF64, ExtendedFloat::Extend(b)));
+        }
+
+        #[test]
+        fn floor2_diag_id_ef64(b in arb_f64()) {
+            prop_assert!(laws::cast_floor2_id_diag(&ID_EF64, ExtendedFloat::Extend(b)));
+        }
+
+        // ── Two-sided helpers ──
+        //
+        // Identity Conns have `lower1(c, id, x) == upper1(c, id, x)
+        // == x`, so the inner subtractions in `interval` reduce to
+        // `x - x = 0`, the offset in `midpoint` reduces to `0 / 2 =
+        // 0`, and no arithmetic between distinct values occurs.
+        // Every predicate driven over `ID_I32` / `ID_I64` is
+        // therefore safe over the full primitive range. When
+        // non-identity Conn coverage lands (separate sprint), the
+        // proptests for those bases will need clamps appropriate to
+        // the bracket width.
+
+        #[test]
+        fn interval_at_midpoint_id_i32(a: i32) {
+            prop_assert!(laws::cast_interval_at_midpoint_eq_or_none(&ID_I32, a));
+        }
+
+        #[test]
+        fn interval_at_midpoint_id_i64(a: i64) {
+            prop_assert!(laws::cast_interval_at_midpoint_eq_or_none(&ID_I64, a));
+        }
+
+        #[test]
+        fn midpoint_between_id_i32(a: i32) {
+            prop_assert!(laws::cast_midpoint_between(&ID_I32, a));
+        }
+
+        #[test]
+        fn midpoint_between_id_i64(a: i64) {
+            prop_assert!(laws::cast_midpoint_between(&ID_I64, a));
+        }
+
+        #[test]
+        fn round_picks_endpoint_id_i32(a: i32) {
+            prop_assert!(laws::cast_round_picks_endpoint(&ID_I32, a));
+        }
+
+        #[test]
+        fn round_picks_endpoint_id_i64(a: i64) {
+            prop_assert!(laws::cast_round_picks_endpoint(&ID_I64, a));
+        }
+
+        #[test]
+        fn truncate_picks_endpoint_id_i32(a: i32) {
+            prop_assert!(laws::cast_truncate_picks_endpoint(&ID_I32, a));
+        }
+
+        #[test]
+        fn truncate_picks_endpoint_id_i64(a: i64) {
+            prop_assert!(laws::cast_truncate_picks_endpoint(&ID_I64, a));
+        }
+
+        #[test]
+        fn truncate_toward_zero_id_i32(a: i32) {
+            prop_assert!(laws::cast_truncate_toward_zero(&ID_I32, a));
+        }
+
+        #[test]
+        fn truncate_toward_zero_id_i64(a: i64) {
+            prop_assert!(laws::cast_truncate_toward_zero(&ID_I64, a));
+        }
+
+        #[test]
+        fn round1_id_unit_id_i32(a: i32) {
+            prop_assert!(laws::cast_round1_id_unit(&ID_I32, a));
+        }
+
+        #[test]
+        fn truncate1_id_unit_id_i32(a: i32) {
+            prop_assert!(laws::cast_truncate1_id_unit(&ID_I32, a));
+        }
+
+        // Birkhoff median axioms over ORDERED_PAIR.
+
+        #[test]
+        fn median_idempotent_ordered(x: i32, y: i32) {
+            prop_assert!(laws::cast_median_idempotent(&ORDERED_PAIR, x, y));
+        }
+
+        #[test]
+        fn median_rotate_ordered(x: i32, y: i32, z: i32) {
+            prop_assert!(laws::cast_median_rotate(&ORDERED_PAIR, x, y, z));
+        }
+
+        #[test]
+        fn median_swap_yz_ordered(x: i32, y: i32, z: i32) {
+            prop_assert!(laws::cast_median_swap_yz(&ORDERED_PAIR, x, y, z));
+        }
     }
 }

@@ -1,8 +1,8 @@
-//! Galois-law proptest battery for `conn::std::i128`. Integration
+//! Galois-law proptest battery for `conn::std::i64`. Integration
 //! test — see `tests/conn_std_u8_galois.rs` for rationale.
 
-use connections::conn::std::i128::*;
 use connections::extended::Extended;
+use connections::int::i64::*;
 use proptest::prelude::*;
 
 macro_rules! arb_ext {
@@ -22,11 +22,9 @@ macro_rules! arb_ext {
 arb_ext!(arb_ext_i8, i8);
 arb_ext!(arb_ext_i16, i16);
 arb_ext!(arb_ext_i32, i32);
-arb_ext!(arb_ext_i64, i64);
 arb_ext!(arb_ext_u8, u8);
 arb_ext!(arb_ext_u16, u16);
 arb_ext!(arb_ext_u32, u32);
-arb_ext!(arb_ext_u64, u64);
 
 macro_rules! ext_int_props {
     ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
@@ -76,14 +74,52 @@ macro_rules! ext_int_props {
     };
 }
 
-ext_int_props!(i008i128, I008I128, arb_ext_i8(), any::<i128>());
-ext_int_props!(i016i128, I016I128, arb_ext_i16(), any::<i128>());
-ext_int_props!(i032i128, I032I128, arb_ext_i32(), any::<i128>());
-ext_int_props!(i064i128, I064I128, arb_ext_i64(), any::<i128>());
-ext_int_props!(u008i128, U008I128, arb_ext_u8(), any::<i128>());
-ext_int_props!(u016i128, U016I128, arb_ext_u16(), any::<i128>());
-ext_int_props!(u032i128, U032I128, arb_ext_u32(), any::<i128>());
-ext_int_props!(u064i128, U064I128, arb_ext_u64(), any::<i128>());
+ext_int_props!(i008i064, I008I064, arb_ext_i8(), any::<i64>());
+ext_int_props!(i016i064, I016I064, arb_ext_i16(), any::<i64>());
+ext_int_props!(i032i064, I032I064, arb_ext_i32(), any::<i64>());
+ext_int_props!(u008i064, U008I064, arb_ext_u8(), any::<i64>());
+ext_int_props!(u016i064, U016I064, arb_ext_u16(), any::<i64>());
+ext_int_props!(u032i064, U032I064, arb_ext_u32(), any::<i64>());
+
+// §1 I→I narrowing — single-sided left-Galois.
+// `galois_lower` intentionally omitted; see
+// `tests/conn_std_u8_galois.rs`.
+macro_rules! single_sided_props {
+    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+        mod $mod_name {
+            use super::*;
+
+            proptest! {
+                #[test]
+                fn galois_upper(a in $arb_src, b in $arb_tgt) {
+                    prop_assert_eq!($CONN.ceil(a) <= b, a <= $CONN.inner(b));
+                }
+                #[test]
+                fn ceil_monotone(a1 in $arb_src, a2 in $arb_src) {
+                    let (lo, hi) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
+                    prop_assert!($CONN.ceil(lo) <= $CONN.ceil(hi));
+                }
+                #[test]
+                fn inner_monotone(b1 in $arb_tgt, b2 in $arb_tgt) {
+                    let (lo, hi) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
+                    prop_assert!($CONN.inner(lo) <= $CONN.inner(hi));
+                }
+                #[test]
+                fn kernel(b in $arb_tgt) {
+                    prop_assert!($CONN.ceil($CONN.inner(b)) <= b);
+                }
+                #[test]
+                fn idempotent(a in $arb_src) {
+                    let once = $CONN.inner($CONN.ceil(a));
+                    let twice = $CONN.inner($CONN.ceil(once));
+                    prop_assert_eq!(once, twice);
+                }
+            }
+        }
+    };
+}
+
+single_sided_props!(i128i064, I128I064, any::<i128>(), any::<i64>());
 
 // §3 U→I non-widening — single-sided right-Galois.
 macro_rules! single_sided_right_props {
@@ -121,4 +157,5 @@ macro_rules! single_sided_right_props {
     };
 }
 
-single_sided_right_props!(u128i128, U128I128, any::<u128>(), any::<i128>());
+single_sided_right_props!(u064i064, U064I064, any::<u64>(), any::<i64>());
+single_sided_right_props!(u128i064, U128I064, any::<u128>(), any::<i64>());

@@ -1,8 +1,8 @@
 //! Galois-law proptest battery for `conn::std::i32`. Integration
 //! test — see `tests/conn_std_u8_galois.rs` for rationale.
 
-use connections::conn::std::i32::*;
 use connections::extended::Extended;
+use connections::int::i32::*;
 use proptest::prelude::*;
 
 macro_rules! arb_ext {

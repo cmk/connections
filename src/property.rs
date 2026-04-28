@@ -18,8 +18,8 @@
 //! ## Downstream usage
 //!
 //! ```rust,no_run
-//! use connections::conn::float::f64::F064F032;
-//! use connections::conn::float::ExtendedFloat;
+//! use connections::float::f32::F064F032;
+//! use connections::float::ExtendedFloat;
 //! use connections::property::laws;
 //!
 //! // Spot check: F064F032 satisfies the Galois adjoint law over a
@@ -34,8 +34,8 @@
 //!
 //! ```ignore
 //! use connections::property::{arb, laws};
-//! use connections::conn::float::f64::F064F032;
-//! use connections::conn::float::ExtendedFloat;
+//! use connections::float::f32::F064F032;
+//! use connections::float::ExtendedFloat;
 //! use proptest::prelude::*;
 //!
 //! proptest! {

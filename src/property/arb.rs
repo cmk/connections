@@ -127,7 +127,7 @@ pub fn arb_f16() -> impl Strategy<Value = f16> {
 // dominates runtime without finding structural bugs; bounded ranges
 // plus explicit boundaries give wide enough adjoint-law coverage.
 
-use crate::conn::float::ExtendedFloat;
+use crate::float::ExtendedFloat;
 
 use crate::extended::Extended;
 

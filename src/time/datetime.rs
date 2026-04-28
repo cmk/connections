@@ -25,7 +25,7 @@ use time::{Date, PrimitiveDateTime, Time};
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::time::PDTMDATE;
+/// use connections::time::PDTMDATE;
 /// use connections::extended::Extended;
 /// use time::{Date, Month, PrimitiveDateTime, Time};
 ///

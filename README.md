@@ -75,7 +75,7 @@ range have somewhere to land — `floor` saturates to the target bounds,
 `ceil` lands on a synthetic point one past the source range):
 
 ```rust
-use connections::conn::std::i16::U008I016;
+use connections::int::i16::U008I016;
 use connections::extended::Extended;
 
 // Finite passes through.
@@ -96,7 +96,7 @@ assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 
 ```rust
 use connections::{ceiling, upper1};
-use connections::conn::std::i16::U008I016;
+use connections::int::i16::U008I016;
 use connections::extended::Extended;
 
 // `ceiling` is the named alias of `c.ceil` under the L-side reading.
@@ -119,7 +119,7 @@ code block is mirrored verbatim into the `conn::time` module-level
 rustdoc, so `cargo test --doc` keeps the two in sync):
 
 ```rust
-use connections::conn::time::DURNSECS;
+use connections::time::DURNSECS;
 use connections::extended::Extended;
 use time::Duration;
 
@@ -132,7 +132,7 @@ assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
 Round-tripping a unix-timestamp through `OffsetDateTime`:
 
 ```rust
-use connections::conn::time::OFDTNANO;
+use connections::time::OFDTNANO;
 use connections::extended::Extended;
 use time::OffsetDateTime;
 
@@ -143,8 +143,8 @@ assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
 Bracketing an IEEE-float number of seconds with `Duration`:
 
 ```rust
-use connections::conn::float::ExtendedFloat;
-use connections::conn::time::F064DURN;
+use connections::float::ExtendedFloat;
+use connections::time::F064DURN;
 use connections::extended::Extended;
 use time::Duration;
 
@@ -167,8 +167,8 @@ stable builds skip the f16 path entirely:
 
 ```rust,ignore
 // Build with `--features f16` on nightly to enable F064F016.
-use connections::conn::float::f64::F064F016;
-use connections::conn::float::ExtendedFloat::Extend;
+use connections::float::f16::F064F016;
+use connections::float::ExtendedFloat::Extend;
 
 // π narrows to f16. The two-sided round-trip brackets π.
 let pi = Extend(std::f64::consts::PI);

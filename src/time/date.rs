@@ -27,7 +27,7 @@ use time::Date;
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::time::DATEJDAY;
+/// use connections::time::DATEJDAY;
 /// use connections::extended::Extended;
 /// use time::{Date, Month};
 ///

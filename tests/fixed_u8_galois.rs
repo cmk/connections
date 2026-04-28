@@ -11,7 +11,7 @@
 //! Spot tests stay collocated with the source in
 //! `src/conn/fixed/u8.rs` — they're cheap to compile.
 
-use connections::conn::fixed::u8::*;
+use connections::fixed::u8::*;
 use connections::property::laws;
 use fixed::FixedU8;
 use fixed::types::extra::{U0, U1, U2, U3, U4, U6, U7, U8};

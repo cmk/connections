@@ -4,7 +4,7 @@
 //! u128 generators are expensive; case count capped to 64 (same
 //! precedent as `conn::fixed::i128`).
 
-use connections::conn::fixed::u128::*;
+use connections::fixed::u128::*;
 use connections::property::laws;
 use fixed::FixedU128;
 use fixed::types::extra::{U0, U16, U32, U64, U96, U127, U128};

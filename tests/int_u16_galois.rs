@@ -1,11 +1,13 @@
-//! Galois-law proptest battery for `conn::std::u128`. Integration
+//! Galois-law proptest battery for `conn::std::u16`. Integration
 //! test — see `tests/conn_std_u8_galois.rs` for rationale.
 
-use connections::conn::std::u128::*;
+use connections::int::u16::*;
 use proptest::prelude::*;
 
-// `galois_lower` intentionally omitted; see
-// `tests/conn_std_u8_galois.rs`.
+// Tests `galois_upper` only; `galois_lower` is intentionally
+// omitted (fails by design for `Conn::new_left` at saturation
+// plateaus). See `tests/conn_std_u8_galois.rs` for the worked
+// counter-example.
 macro_rules! single_sided_props {
     ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
@@ -41,12 +43,16 @@ macro_rules! single_sided_props {
     };
 }
 
-single_sided_props!(u008u128, U008U128, any::<u8>(), any::<u128>());
-single_sided_props!(u016u128, U016U128, any::<u16>(), any::<u128>());
-single_sided_props!(u032u128, U032U128, any::<u32>(), any::<u128>());
-single_sided_props!(u064u128, U064U128, any::<u64>(), any::<u128>());
-single_sided_props!(i008u128, I008U128, any::<i8>(), any::<u128>());
-single_sided_props!(i016u128, I016U128, any::<i16>(), any::<u128>());
-single_sided_props!(i032u128, I032U128, any::<i32>(), any::<u128>());
-single_sided_props!(i064u128, I064U128, any::<i64>(), any::<u128>());
-single_sided_props!(i128u128, I128U128, any::<i128>(), any::<u128>());
+single_sided_props!(u008u016, U008U016, any::<u8>(), any::<u16>());
+single_sided_props!(i008u016, I008U016, any::<i8>(), any::<u16>());
+single_sided_props!(i016u016, I016U016, any::<i16>(), any::<u16>());
+
+// §2 U→U narrowing into u16
+single_sided_props!(u032u016, U032U016, any::<u32>(), any::<u16>());
+single_sided_props!(u064u016, U064U016, any::<u64>(), any::<u16>());
+single_sided_props!(u128u016, U128U016, any::<u128>(), any::<u16>());
+
+// §4 I→U narrowing into u16
+single_sided_props!(i032u016, I032U016, any::<i32>(), any::<u16>());
+single_sided_props!(i064u016, I064U016, any::<i64>(), any::<u16>());
+single_sided_props!(i128u016, I128U016, any::<i128>(), any::<u16>());

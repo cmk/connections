@@ -1,7 +1,7 @@
 //! Galois-law proptest battery for `conn::std::u32`. Integration
 //! test — see `tests/conn_std_u8_galois.rs` for rationale.
 
-use connections::conn::std::u32::*;
+use connections::int::u32::*;
 use proptest::prelude::*;
 
 // `galois_lower` intentionally omitted; see

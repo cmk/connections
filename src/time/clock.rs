@@ -27,7 +27,7 @@ use time::Time;
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::time::TIMENANO;
+/// use connections::time::TIMENANO;
 /// use connections::extended::Extended;
 /// use time::Time;
 ///
@@ -119,7 +119,7 @@ pub const TIMENANO: Conn<Extended<Time>, i64> = {
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::time::TIMESECS;
+/// use connections::time::TIMESECS;
 /// use connections::extended::Extended;
 /// use time::Time;
 ///

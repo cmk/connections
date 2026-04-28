@@ -6,7 +6,7 @@
 //!
 //! `Extended` is a pure range-extension wrapper; it does not participate
 //! in float NaN handling — that lives in
-//! [`crate::conn::float::ExtendedFloat`].
+//! [`crate::float::ExtendedFloat`].
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Extended<T> {

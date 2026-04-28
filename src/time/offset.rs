@@ -29,7 +29,7 @@
 //! # Example
 //!
 //! ```rust
-//! use connections::conn::time::OFDTNANO;
+//! use connections::time::OFDTNANO;
 //! use connections::extended::Extended;
 //! use time::OffsetDateTime;
 //!
@@ -133,7 +133,7 @@ fn utc_max_s() -> i64 {
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::time::OFDTNANO;
+/// use connections::time::OFDTNANO;
 /// use connections::extended::Extended;
 /// use time::OffsetDateTime;
 ///
@@ -228,7 +228,7 @@ pub const OFDTNANO: Conn<Extended<OffsetDateTime>, i128> = {
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::time::OFDTSECS;
+/// use connections::time::OFDTSECS;
 /// use connections::extended::Extended;
 /// use time::{Duration, OffsetDateTime};
 ///

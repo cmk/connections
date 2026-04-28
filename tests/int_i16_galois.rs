@@ -1,10 +1,18 @@
-//! Galois-law proptest battery for `conn::std::i64`. Integration
+//! Galois-law proptest battery for `conn::std::i16`. Integration
 //! test — see `tests/conn_std_u8_galois.rs` for rationale.
+//!
+//! Existing widening Conns use the Extended-source full-triple
+//! battery. T3 (I→I narrowing) and T5 (U→I non-widening) commits
+//! append additional invocations to this file.
 
-use connections::conn::std::i64::*;
 use connections::extended::Extended;
+use connections::int::i16::*;
 use proptest::prelude::*;
 
+// Strategies for `Extended<T>` — bias toward boundary values.
+// Each generator: 4 boundary singletons (NegInf, PosInf,
+// Finite::MIN, Finite::MAX) plus uniform Finite values, frequency
+// 1:1:1:1:8.
 macro_rules! arb_ext {
     ($name:ident, $T:ty) => {
         fn $name() -> impl Strategy<Value = Extended<$T>> {
@@ -20,11 +28,7 @@ macro_rules! arb_ext {
 }
 
 arb_ext!(arb_ext_i8, i8);
-arb_ext!(arb_ext_i16, i16);
-arb_ext!(arb_ext_i32, i32);
 arb_ext!(arb_ext_u8, u8);
-arb_ext!(arb_ext_u16, u16);
-arb_ext!(arb_ext_u32, u32);
 
 macro_rules! ext_int_props {
     ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
@@ -74,12 +78,8 @@ macro_rules! ext_int_props {
     };
 }
 
-ext_int_props!(i008i064, I008I064, arb_ext_i8(), any::<i64>());
-ext_int_props!(i016i064, I016I064, arb_ext_i16(), any::<i64>());
-ext_int_props!(i032i064, I032I064, arb_ext_i32(), any::<i64>());
-ext_int_props!(u008i064, U008I064, arb_ext_u8(), any::<i64>());
-ext_int_props!(u016i064, U016I064, arb_ext_u16(), any::<i64>());
-ext_int_props!(u032i064, U032I064, arb_ext_u32(), any::<i64>());
+ext_int_props!(i008i016, I008I016, arb_ext_i8(), any::<i16>());
+ext_int_props!(u008i016, U008I016, arb_ext_u8(), any::<i16>());
 
 // §1 I→I narrowing — single-sided left-Galois.
 // `galois_lower` intentionally omitted; see
@@ -119,7 +119,9 @@ macro_rules! single_sided_props {
     };
 }
 
-single_sided_props!(i128i064, I128I064, any::<i128>(), any::<i64>());
+single_sided_props!(i032i016, I032I016, any::<i32>(), any::<i16>());
+single_sided_props!(i064i016, I064I016, any::<i64>(), any::<i16>());
+single_sided_props!(i128i016, I128I016, any::<i128>(), any::<i16>());
 
 // §3 U→I non-widening — single-sided right-Galois.
 macro_rules! single_sided_right_props {
@@ -157,5 +159,7 @@ macro_rules! single_sided_right_props {
     };
 }
 
-single_sided_right_props!(u064i064, U064I064, any::<u64>(), any::<i64>());
-single_sided_right_props!(u128i064, U128I064, any::<u128>(), any::<i64>());
+single_sided_right_props!(u016i016, U016I016, any::<u16>(), any::<i16>());
+single_sided_right_props!(u032i016, U032I016, any::<u32>(), any::<i16>());
+single_sided_right_props!(u064i016, U064I016, any::<u64>(), any::<i16>());
+single_sided_right_props!(u128i016, U128I016, any::<u128>(), any::<i16>());

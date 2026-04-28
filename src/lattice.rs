@@ -10,7 +10,7 @@
 //!
 //! Ordering laws use the standard library's `Eq + PartialOrd` rather
 //! than a crate-local trait. The fix for IEEE-float NaN's
-//! non-reflexivity lives in [`crate::conn::float::ExtendedFloat`],
+//! non-reflexivity lives in [`crate::float::ExtendedFloat`],
 //! whose patched `PartialEq` makes `Extend(NaN) == Extend(NaN)` and
 //! satisfies `Eq`. Floats flow through the laws by wrapping into
 //! `ExtendedFloat<T>`; raw `f32`/`f64` cannot satisfy `Eq` and are
@@ -339,7 +339,7 @@ pub trait Boolean: Symmetric {}
 
 #[cfg(test)]
 mod tests {
-    use crate::conn::float::ExtendedFloat;
+    use crate::float::ExtendedFloat;
     use crate::property::arb::{arb_f32, arb_f64};
     use crate::property::laws;
     use proptest::prelude::*;

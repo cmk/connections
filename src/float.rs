@@ -18,18 +18,21 @@
 //! incomparability with finites is inherited unchanged from
 //! `PartialOrd` on the wrapped `T`.
 //!
-//! Per-source-tier Conns live in submodules:
+//! Per-destination-tier Conns live in submodules (right-hand side
+//! wins under the placement rule when both endpoints sit at the same
+//! specificity tier — see CLAUDE.md § Conn placement):
 //!
-//! - [`mod@f64`] — Conns originating at [`F064`] (`F064F032`; `F064F016`
-//!   when the `f16` feature is enabled).
-//! - [`mod@f32`] — Conns originating at [`F032`] (`F032F016`; gated on
-//!   the `f16` feature).
+//! - [`mod@f32`] — Conns whose target is `ExtendedFloat<f32>`
+//!   (`F064F032`).
+//! - [`mod@f16`] — Conns whose target is `ExtendedFloat<f16>`
+//!   (`F032F016`, `F064F016`) along with the [`F016`](f16::F016)
+//!   type alias and 16-bit ULP machinery. Gated on the `f16` cargo
+//!   feature (nightly required).
 
 #[cfg(feature = "f16")]
+pub mod f16;
 pub mod f32;
-pub mod f64;
 
-use std::cmp::Ordering;
 use std::ops::{Add, Div, Sub};
 
 /// Three-element extension of a (possibly partial) order:
@@ -50,9 +53,9 @@ pub enum ExtendedFloat<T> {
 
 macro_rules! impl_float_ext {
     ($T:ty) => {
-        impl PartialEq for ExtendedFloat<$T> {
+        impl PartialEq for $crate::float::ExtendedFloat<$T> {
             fn eq(&self, other: &Self) -> bool {
-                use ExtendedFloat::*;
+                use $crate::float::ExtendedFloat::*;
                 match (self, other) {
                     (Bot, Bot) | (Top, Top) => true,
                     (Extend(a), Extend(b)) => {
@@ -67,18 +70,18 @@ macro_rules! impl_float_ext {
             }
         }
 
-        impl PartialOrd for ExtendedFloat<$T> {
-            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-                use ExtendedFloat::*;
+        impl PartialOrd for $crate::float::ExtendedFloat<$T> {
+            fn partial_cmp(&self, other: &Self) -> Option<::core::cmp::Ordering> {
+                use $crate::float::ExtendedFloat::*;
                 match (self, other) {
-                    (Bot, Bot) | (Top, Top) => Some(Ordering::Equal),
-                    (Bot, _) => Some(Ordering::Less),
-                    (_, Bot) => Some(Ordering::Greater),
-                    (_, Top) => Some(Ordering::Less),
-                    (Top, _) => Some(Ordering::Greater),
+                    (Bot, Bot) | (Top, Top) => Some(::core::cmp::Ordering::Equal),
+                    (Bot, _) => Some(::core::cmp::Ordering::Less),
+                    (_, Bot) => Some(::core::cmp::Ordering::Greater),
+                    (_, Top) => Some(::core::cmp::Ordering::Less),
+                    (Top, _) => Some(::core::cmp::Ordering::Greater),
                     (Extend(a), Extend(b)) => {
                         if a.is_nan() && b.is_nan() {
-                            Some(Ordering::Equal)
+                            Some(::core::cmp::Ordering::Equal)
                         } else {
                             a.partial_cmp(b)
                         }
@@ -92,16 +95,16 @@ macro_rules! impl_float_ext {
         // lets `ExtendedFloat<$T>` flow through any `T: Eq + PartialOrd`
         // bound — which is the lawful framework the Galois-connection
         // laws use.
-        impl Eq for ExtendedFloat<$T> {}
+        impl Eq for $crate::float::ExtendedFloat<$T> {}
     };
 }
 
+pub(crate) use impl_float_ext;
+
 impl_float_ext!(f32);
 impl_float_ext!(f64);
-#[cfg(feature = "f16")]
-impl_float_ext!(f16);
 
-// ── Numeric impls: minimal surface for `crate::conn::cast` chain
+// ── Numeric impls: minimal surface for `crate::conn` chain
 //    combinators (`interval`, `midpoint`, `round`, `truncate`).
 //
 // These exist *solely* to thread `ExtendedFloat<T>` through the
@@ -109,9 +112,9 @@ impl_float_ext!(f16);
 // `x >= A::from(0)`). They are **not** a general-purpose numeric
 // algebra: `Mul`, `Neg`, `Rem`, `AddAssign`, etc. are deliberately
 // omitted. Implemented only for `f32` / `f64` because the chain
-// combinators are exercised on those source types in-tree;
+// combinators are exercised on those source types in-tree.
 // A `half::f16` version can be added later if a caller needs it
-// (it requires routing `From<u8>` through `from_f32`).
+// (it requires routing `From<u8>` through `as f16`).
 //
 // Edge-case semantics for Bot/Top operands. The chain combinators
 // pass `(c.inner ∘ c.ceil)(x)` and `(c.inner ∘ c.floor)(x)` to the
@@ -186,21 +189,13 @@ macro_rules! impl_float_arith {
 impl_float_arith!(f32);
 impl_float_arith!(f64);
 
-/// IEEE binary16 (half-precision) wrapped under the N5 lattice.
-///
-/// Available behind the `f16` cargo feature; requires nightly Rust
-/// because std `f16` is currently a nightly-only primitive
-/// (`#![feature(f16)]`, tracking issue #116909).
-#[cfg(feature = "f16")]
-pub type F016 = ExtendedFloat<f16>;
-
 /// IEEE binary32 wrapped under the N5 lattice.
 pub type F032 = ExtendedFloat<f32>;
 
 /// IEEE binary64 wrapped under the N5 lattice.
 pub type F064 = ExtendedFloat<f64>;
 
-// ── ULP machinery ──────────────────────────────────────────────────
+// ── 32-bit ULP machinery ───────────────────────────────────────────
 
 /// Shift a float by `n` ULPs (units of least precision) in the
 /// sign-magnitude total order.
@@ -262,61 +257,10 @@ fn clamp32(x: i32) -> i32 {
     x.clamp(-2139095041, 2139095040)
 }
 
-// ── 16-bit ULP machinery (used by f16; gated on the `f16` feature) ──
-
-/// Word16 (sign-magnitude bit pattern) → sign-magnitude i32.
-///
-/// Maps the 16-bit float bit-space onto integers so that integer
-/// order matches the float total order (excluding NaN):
-///   +0 → 0, +inf-bits → small positive, -0 → -1, -inf-bits → large negative.
-#[cfg(feature = "f16")]
-pub(crate) fn signed16(x: u16) -> i32 {
-    if x < 0x8000 {
-        x as i32
-    } else {
-        // Mirror signed32's Haskell-style mapping at 16-bit width.
-        // u16::MAX - (x - 0x8000) maps the negative half symmetrically;
-        // simpler equivalent: 0x7FFF - x as i32.
-        0x7FFF_i32 - (x as i32)
-    }
-}
-
-/// Sign-magnitude i32 → Word16 (bit pattern).
-#[cfg(feature = "f16")]
-pub(crate) fn unsigned16(i: i32) -> u16 {
-    if i >= 0 {
-        i as u16
-    } else {
-        (0x7FFF_i32 - i) as u16
-    }
-}
-
-/// Clamp between the i32 representations of f16's ±∞.
-#[cfg(feature = "f16")]
-pub(crate) fn clamp16_f16(x: i32) -> i32 {
-    // f16::INFINITY.to_bits() = 0x7C00 → signed16 = 31744
-    // f16::NEG_INFINITY bits  = 0xFC00 → signed16 = -31745
-    x.clamp(-31745, 31744)
-}
-
 /// Widen `f32` to `f64`. Used by [`def_walk_helpers!`] to give the
-/// `F064F032` Conn a uniform `widen` shape with the half-precision
-/// Conns (which use [`widen_f16_f64`] etc. as fn pointers).
+/// `F064F032` Conn a uniform `widen` shape (`as` casts can't be
+/// passed as fn pointers, so we wrap in a free fn).
 pub(crate) fn widen_f32_f64(x: f32) -> f64 {
-    x as f64
-}
-
-/// Widen `f16` to `f32` via an `as` cast. Wrapped as a free fn so it
-/// can be passed as a fn pointer to [`def_walk_helpers!`] (the macro
-/// can't take an `as` cast directly).
-#[cfg(feature = "f16")]
-pub(crate) fn widen_f16_f32(x: f16) -> f32 {
-    x as f32
-}
-
-/// Widen `f16` to `f64` via an `as` cast. See [`widen_f16_f32`].
-#[cfg(feature = "f16")]
-pub(crate) fn widen_f16_f64(x: f16) -> f64 {
     x as f64
 }
 
@@ -337,12 +281,10 @@ pub(crate) fn widen_f16_f64(x: f16) -> f64 {
 /// - `$dst` — the narrower float type (`f32`, or `f16` when the
 ///   `f16` cargo feature is enabled).
 /// - `$shift` — a `fn(i32, $dst) -> $dst` that shifts `n` ULPs in
-///   sign-magnitude total order. Already in scope via the parent
-///   module's `use super::{shift32, shift16_f16, …};`.
+///   sign-magnitude total order.
 /// - `$widen` — a `fn($dst) -> $src` that widens losslessly. Always
 ///   a free fn wrapper around `as` casts (since `as` casts can't be
-///   passed as fn pointers): [`widen_f32_f64`], [`widen_f16_f32`],
-///   or [`widen_f16_f64`].
+///   passed as fn pointers).
 ///
 /// The generated module's helpers are `pub(super)` — visible to the
 /// owning Conn's `ceil`/`floor` functions and to `#[cfg(test)]` code
@@ -430,28 +372,11 @@ macro_rules! def_walk_helpers {
 
 pub(crate) use def_walk_helpers;
 
-/// Shift an `f16` by `n` ULPs in the sign-magnitude total order.
-///
-/// NaN maps to ±∞ for non-zero shifts (matches `shift32`); ±∞ are
-/// clamped (shifting past stays at ±∞).
-#[cfg(feature = "f16")]
-pub(crate) fn shift16_f16(n: i32, x: f16) -> f16 {
-    if x.is_nan() {
-        return match n.signum() {
-            -1 => f16::NEG_INFINITY,
-            1 => f16::INFINITY,
-            _ => f16::NAN,
-        };
-    }
-    let i = signed16(x.to_bits());
-    f16::from_bits(unsigned16(clamp16_f16(i.saturating_add(n))))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // ── ULP sanity ─────────────────────────────────────────────────
+    // ── 32-bit ULP sanity ──────────────────────────────────────────
 
     #[test]
     fn shift32_from_zero() {
@@ -473,76 +398,7 @@ mod tests {
         assert_eq!(shift32(-1, f32::NEG_INFINITY), f32::NEG_INFINITY);
     }
 
-    // ── 16-bit ULP machinery sanity (f16 feature only) ─────────────
-
-    #[cfg(feature = "f16")]
-    #[test]
-    fn signed16_round_trip() {
-        // Sweep every u16 → i32 → u16 must be the identity.
-        for x in 0u16..=u16::MAX {
-            assert_eq!(unsigned16(signed16(x)), x, "round-trip failed at {x:#x}");
-        }
-    }
-
-    #[cfg(feature = "f16")]
-    #[test]
-    fn signed16_total_order_matches_float_order_f16() {
-        // For non-NaN f16 values, signed16(a.to_bits()) <= signed16(b.to_bits())
-        // iff a.total_cmp(&b) is Less or Equal.
-        let samples: [f16; 11] = [
-            f16::NEG_INFINITY,
-            f16::MIN,
-            -1.0_f16,
-            -0.5_f16,
-            -0.0_f16,
-            0.0_f16,
-            f16::MIN_POSITIVE,
-            0.5_f16,
-            1.0_f16,
-            f16::MAX,
-            f16::INFINITY,
-        ];
-        for w in samples.windows(2) {
-            let (a, b) = (w[0], w[1]);
-            let (ia, ib) = (signed16(a.to_bits()), signed16(b.to_bits()));
-            assert!(
-                ia < ib,
-                "signed16 order broken: {a:?} ({ia}) </ {b:?} ({ib})"
-            );
-        }
-    }
-
-    #[cfg(feature = "f16")]
-    #[test]
-    fn shift16_f16_from_zero() {
-        let z = shift16_f16(1, 0.0_f16);
-        assert!(z > 0.0_f16);
-        assert_eq!(z, f16::from_bits(1));
-    }
-
-    #[cfg(feature = "f16")]
-    #[test]
-    fn shift16_f16_nan_to_inf() {
-        assert_eq!(shift16_f16(1, f16::NAN), f16::INFINITY);
-        assert_eq!(shift16_f16(-1, f16::NAN), f16::NEG_INFINITY);
-        assert!(shift16_f16(0, f16::NAN).is_nan());
-    }
-
-    #[cfg(feature = "f16")]
-    #[test]
-    fn shift16_f16_inf_clamped() {
-        assert_eq!(shift16_f16(1, f16::INFINITY), f16::INFINITY);
-        assert_eq!(shift16_f16(-1, f16::NEG_INFINITY), f16::NEG_INFINITY);
-    }
-
-    #[cfg(feature = "f16")]
-    #[test]
-    fn clamp16_constants_match_inf_bits() {
-        assert_eq!(signed16(f16::INFINITY.to_bits()), 31744);
-        assert_eq!(signed16(f16::NEG_INFINITY.to_bits()), -31745);
-    }
-
-    // ── ExtendedFloat tests (folded in from former src/float_ext.rs) ────
+    // ── ExtendedFloat tests ────────────────────────────────────────
 
     #[test]
     fn bot_below_everything_f64() {
@@ -565,7 +421,7 @@ mod tests {
         assert_eq!(n, ExtendedFloat::Extend(f64::NAN));
         assert_eq!(
             n.partial_cmp(&ExtendedFloat::Extend(f64::NAN)),
-            Some(Ordering::Equal)
+            Some(core::cmp::Ordering::Equal)
         );
     }
 
@@ -598,16 +454,6 @@ mod tests {
         assert!(ExtendedFloat::<f32>::Bot < n);
         assert!(n < ExtendedFloat::<f32>::Top);
         assert!(n.partial_cmp(&ExtendedFloat::Extend(1.0_f32)).is_none());
-    }
-
-    #[cfg(feature = "f16")]
-    #[test]
-    fn f16_same_shape() {
-        let n: ExtendedFloat<f16> = ExtendedFloat::Extend(f16::NAN);
-        assert_eq!(n, ExtendedFloat::Extend(f16::NAN));
-        assert!(ExtendedFloat::<f16>::Bot < n);
-        assert!(n < ExtendedFloat::<f16>::Top);
-        assert!(n.partial_cmp(&ExtendedFloat::Extend(1.0_f16)).is_none());
     }
 
     // ── Numeric impls for ExtendedFloat<f32 | f64> ────────────────

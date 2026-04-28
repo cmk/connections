@@ -14,7 +14,7 @@
 //!
 //! Every public `Conn` constant is re-exported from this module's
 //! root, so callers continue to write
-//! `connections::conn::time::DURNSECS` (the family-flat path) without
+//! `connections::time::DURNSECS` (the family-flat path) without
 //! having to know which sub-module hosts the implementation.
 //!
 //! # Naming convention
@@ -70,7 +70,7 @@
 //! compiling.
 //!
 //! ```rust
-//! use connections::conn::time::DURNSECS;
+//! use connections::time::DURNSECS;
 //! use connections::extended::Extended;
 //! use time::Duration;
 //!

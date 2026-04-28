@@ -21,9 +21,9 @@
 //!
 //! | code     | type                                                | meaning                |
 //! |----------|-----------------------------------------------------|------------------------|
-//! | `F016`   | [`F016`](conn::float::F016)                         | IEEE binary16 (`f16` feature, nightly) |
-//! | `F032`   | [`F032`](conn::float::F032)                         | IEEE binary32          |
-//! | `F064`   | [`F064`](conn::float::F064)                         | IEEE binary64          |
+//! | `F016`   | [`F016`](float::f16::F016)                          | IEEE binary16 (`f16` feature, nightly) |
+//! | `F032`   | [`F032`](float::F032)                               | IEEE binary32          |
+//! | `F064`   | [`F064`](float::F064)                               | IEEE binary64          |
 //! | `F128`   | (deferred — `f128` unstable)                        | IEEE binary128         |
 //! | `I008`   | `i8`                                                | signed 8-bit           |
 //! | `I016`   | `i16`                                               | signed 16-bit          |
@@ -40,25 +40,25 @@
 //! the underlying primitive — `I###` for `FixedI<width><U<frac>>` (signed)
 //! and `U###` for `FixedU<width><U<frac>>` (unsigned). The 3-digit
 //! field is the frac level. Backing width lives in the module path:
-//! `conn::fixed::i8::I008I004` is the i8-backed 8-frac → 4-frac Conn,
-//! while `conn::fixed::i64::I008I004` is the i64-backed analogue. Both
+//! `fixed::i8::I008I004` is the i8-backed 8-frac → 4-frac Conn,
+//! while `fixed::i64::I008I004` is the i64-backed analogue. Both
 //! share the constant name `I008I004`; resolution is by qualified
 //! import:
 //!
 //! ```ignore
-//! use connections::conn::fixed::i8 as fi8;
-//! use connections::conn::fixed::i64 as fi64;
+//! use connections::fixed::i8 as fi8;
+//! use connections::fixed::i64 as fi64;
 //! let _ = fi8::I008I000;     // i8-backed  Q0.8 → Q8.0
 //! let _ = fi64::I008I000;    // i64-backed Q56.8 → Q64.0
 //! ```
 //!
-//! Integer-conn families live under `conn::std::{i8,…,u128}` — one
+//! Integer-conn families live under `int::{i8,…,u128}` — one
 //! submodule per primitive, named after the **right side**
 //! (destination) of the cast. So `I008I016` (signed widening
-//! `Extended<i8> → i16`) lives in `conn::std::i16`; `I016I008`
-//! (signed narrowing `i16 → i8`) lives in `conn::std::i8`;
+//! `Extended<i8> → i16`) lives in `int::i16`; `I016I008`
+//! (signed narrowing `i16 → i8`) lives in `int::i8`;
 //! `U008I008` (cross-sign non-widening `u8 → i8`) also lives in
-//! `conn::std::i8`. The signed-widening (`I###I###`) and
+//! `int::i8`. The signed-widening (`I###I###`) and
 //! unsigned-into-signed-widening (`U###I###`) families wrap the
 //! source in [`Extended`](extended::Extended) (full adjoint
 //! triple). The other six families ship as single-sided over plain
@@ -70,21 +70,21 @@
 //!
 //! Examples:
 //!
-//! - [`conn::float::f64::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
-//! - [`conn::float::f64::F064F016`] — `F064 → F016` (direct f64 → IEEE binary16).
-//! - [`conn::float::f32::F032F016`] — `F032 → F016` (f32 → IEEE binary16).
-//! - [`conn::std::u16::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
-//! - [`conn::std::i16::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
-//! - [`conn::std::i16::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
-//! - [`conn::std::i8::I016I008`] — `i16 → i8` signed-narrowing saturating cast.
-//! - [`conn::std::u8::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
-//! - [`conn::std::i8::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
-//! - [`conn::std::u8::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
-//! - [`conn::fixed::u8::U008U007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
+//! - [`float::f32::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
+//! - [`float::f16::F064F016`] — `F064 → F016` (direct f64 → IEEE binary16, `f16` feature).
+//! - [`float::f16::F032F016`] — `F032 → F016` (f32 → IEEE binary16, `f16` feature).
+//! - [`int::u16::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
+//! - [`int::i16::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
+//! - [`int::i16::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
+//! - [`int::i8::I016I008`] — `i16 → i8` signed-narrowing saturating cast.
+//! - [`int::u8::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
+//! - [`int::i8::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
+//! - [`int::u8::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
+//! - [`fixed::u8::U008U007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
 //!   the 7-bit MIDI velocity format).
-//! - [`conn::fixed::u16::U016U015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
+//! - [`fixed::u16::U016U015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
 //!   canonical signed-PCM-equivalent unsigned audio amplitude).
-//! - [`conn::fixed::u32::U032U031`] — `FixedU32<U32> → FixedU32<U31>` (Q0.32 ↔ Q1.31,
+//! - [`fixed::u32::U032U031`] — `FixedU32<U32> → FixedU32<U31>` (Q0.32 ↔ Q1.31,
 //!   the canonical 32-bit normalised-amplitude format).
 //!
 //! `F128` is blocked on `f128` stabilisation in stable Rust.
@@ -114,17 +114,17 @@
 //! ## Cast operations
 //!
 //! Operations on a [`Conn`](conn::Conn) — accessors and lifters —
-//! live in [`conn::cast`] and are re-exported at the crate root for
-//! ergonomic access (`connections::ceiling(&c, x)` rather than
-//! `connections::conn::cast::ceiling(&c, x)`).
+//! are free functions in [`conn`] and re-exported at the crate root
+//! for ergonomic access (`connections::ceiling(&c, x)` rather than
+//! `connections::conn::ceiling(&c, x)`).
 //!
 //! The Haskell `Data.Connection.Cast` module distinguishes L-side
 //! names (`ceiling`/`upper`) from R-side names (`floor`/`lower`) via
 //! a phantom `Side` data kind. This port collapses both sides onto
 //! the unified [`Conn`](conn::Conn) (it always carries the full triple
 //! `ceil ⊣ inner ⊣ floor`), so both naming conventions are
-//! simultaneously available on every value. See [`conn::cast`] for
-//! the rationale.
+//! simultaneously available on every value. See [`conn`] for the
+//! rationale.
 //!
 //! | Haskell | Rust (free fn at crate root) |
 //! |---------|-------------------------------|
@@ -145,9 +145,13 @@
 
 pub mod conn;
 pub mod extended;
+pub mod fixed;
+pub mod float;
+pub mod int;
 pub mod lattice;
+pub mod time;
 
-// Re-exports of [`conn::cast`] free functions at the crate root for
+// Re-exports of [`conn`] free functions at the crate root for
 // ergonomic access (`connections::ceiling(&c, x)` rather than the
 // module path).
 //
@@ -160,7 +164,7 @@ pub mod lattice;
 // rather than silent misbehavior — but prefer named imports
 // (`use connections::{ceiling, floor};`) over globs to make the
 // origin explicit.
-pub use conn::cast::{
+pub use conn::{
     ceiling, ceiling1, ceiling2, floor, floor1, floor2, interval, lower, lower1, lower2, median,
     midpoint, round, round1, round2, truncate, truncate1, truncate2, upper, upper1, upper2,
 };

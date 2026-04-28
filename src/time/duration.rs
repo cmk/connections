@@ -11,8 +11,8 @@
 //!   map to the same f-value.
 
 use crate::conn::Conn;
-use crate::conn::float::{ExtendedFloat, F032, F064, def_walk_helpers};
 use crate::extended::Extended;
+use crate::float::{ExtendedFloat, F032, F064, def_walk_helpers};
 use time::Duration;
 
 // ── Duration ULP shift + float widen helpers ─────────────────────
@@ -91,7 +91,7 @@ def_walk_helpers!(
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::time::DURNSECS;
+/// use connections::time::DURNSECS;
 /// use connections::extended::Extended;
 /// use time::Duration;
 ///
@@ -337,8 +337,8 @@ mod tests {
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::time::F064DURN;
-/// use connections::conn::float::ExtendedFloat;
+/// use connections::time::F064DURN;
+/// use connections::float::ExtendedFloat;
 /// use connections::extended::Extended;
 /// use time::Duration;
 ///
@@ -443,8 +443,8 @@ pub const F064DURN: Conn<F064, Extended<Duration>> = {
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::time::F032DURN;
-/// use connections::conn::float::ExtendedFloat;
+/// use connections::time::F032DURN;
+/// use connections::float::ExtendedFloat;
 /// use connections::extended::Extended;
 /// use time::Duration;
 ///

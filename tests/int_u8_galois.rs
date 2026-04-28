@@ -4,7 +4,7 @@
 //! binary stays small — same precedent as
 //! `tests/conn_fixed_u<width>_galois.rs`.
 
-use connections::conn::std::u8::*;
+use connections::int::u8::*;
 use proptest::prelude::*;
 
 // Left-Galois single-sided battery: `galois_upper`, monotonicity,
