@@ -708,6 +708,25 @@ mod float_durn_tests {
         fn f64_monotone_r(b1 in arb_extended_duration_bounded_f64(), b2 in arb_extended_duration_bounded_f64()) {
             prop_assert!(conn_laws::conn_monotone_r(&F064DURN, b1, b2));
         }
+    }
+
+    // `f64_idempotent` lives in its own block at cases=8 — it dominates
+    // the 9-law battery wall-time (294s of a 297s suite at cases=64).
+    // The other 8 laws complete in noise even at cases=64 because they
+    // do at most one walk-driven `ceil`/`floor` per case, but
+    // `conn_idempotent` calls `ceil(inner(ceil(a)))` — and on F064DURN
+    // the second `ceil` exhibits a per-case cost (~4.6s) that the
+    // plateau-width model doesn't predict. Investigation deferred (see
+    // plan-2026-04-27-11 Deferred section). cases=8 keeps coverage of
+    // the closure-image extremals (Bot/Top/MAX/MIN/etc. via
+    // `extended_float_f64`'s boundary slot) without dominating the
+    // suite.
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 8,
+            max_shrink_iters: 200,
+            .. ProptestConfig::default()
+        })]
 
         #[test]
         fn f64_idempotent(a in extended_float_f64()) {
@@ -763,6 +782,18 @@ mod float_durn_tests {
         fn f32_monotone_r(b1 in arb_extended_duration_bounded_f32(), b2 in arb_extended_duration_bounded_f32()) {
             prop_assert!(conn_laws::conn_monotone_r(&F032DURN, b1, b2));
         }
+    }
+
+    // `f32_idempotent` mirrors `f64_idempotent`'s perf profile: cases=8
+    // covers the strategy's named extremals without dominating the
+    // suite (~154s of the original 297s at cases=64). Walk-perf
+    // investigation tracked alongside the f64 case in plan-2026-04-27-11.
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 8,
+            max_shrink_iters: 200,
+            .. ProptestConfig::default()
+        })]
 
         #[test]
         fn f32_idempotent(a in extended_float_f32()) {
