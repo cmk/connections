@@ -1,0 +1,16 @@
+# nextest CI profile.
+#
+# `cargo nextest run --profile ci` activates this configuration. It
+# parallelizes individual `#[test]` functions across cores (where
+# `cargo test` only parallelizes test binaries), surfaces per-test
+# wall-time, and keeps the suite usable as it grows.
+#
+# `slow-timeout.period = "180s"` is a *warning* threshold — slow tests
+# are flagged in the report but not killed. Once T5's case-cap on
+# `f32_idempotent` / `f64_idempotent` lands, we can lower this and add
+# `terminate-after = 3` to make slow-test creep self-policing.
+
+[profile.ci]
+fail-fast = false
+slow-timeout = { period = "180s" }
+final-status-level = "all"

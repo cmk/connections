@@ -18,17 +18,41 @@ stages:
 
 default:
   image: rust:1.85
+  # Cache only the Cargo registry index + cache + git DB — never
+  # `target/`. `target/` was 2.6 GB locally and was being pulled +
+  # pushed by every job (fmt/clippy/doc/test) under a single shared
+  # `cargo` key, moving ~20 GB of cache traffic per pipeline. The
+  # registry directories total ~50 MB and only invalidate when
+  # `Cargo.lock` changes, so most pipelines hit a warm cache with no
+  # re-upload.
+  #
+  # Default `policy: pull` so most jobs only download. The `test`
+  # job overrides to `pull-push` to actually populate the cache —
+  # it's the heaviest consumer and runs once per pipeline.
   cache:
-    key: cargo
+    key:
+      files:
+        - Cargo.lock
     paths:
-      - target/
-      - .cargo/
+      - .cargo/registry/index/
+      - .cargo/registry/cache/
+      - .cargo/git/db/
+    policy: pull
 
 variables:
   CARGO_TERM_COLOR: always
+  # Force cargo to use a project-relative home so the registry cache
+  # lands inside `$CI_PROJECT_DIR/.cargo/` (the only path GitLab cache
+  # can reach). Default `~/.cargo/` is `/root/.cargo/` in the rust
+  # image and is not cacheable.
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
 
 fmt:
   stage: check
+  # `cargo fmt --check` reads source only; no cargo registry needed.
+  # Skip the cache to avoid pulling ~50 MB of registry tarball for
+  # nothing.
+  cache: []
   before_script:
     - rustup component add rustfmt
   script:
@@ -54,11 +78,50 @@ doc:
     RUSTDOCFLAGS: "-D warnings"
   script:
     - cargo doc --no-deps --features testing --document-private-items
+  # Gate doc to MR pipelines + post-merge main runs. Mid-sprint pushes
+  # to a feature branch with no MR open don't need doc validation
+  # (rustdoc warnings won't have shifted between sibling commits).
+  # MR pipelines still gate the merge; main confirms the rendered
+  # state landed.
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
 
 test:
   stage: test
+  # The test job is the heaviest consumer of the registry cache —
+  # `cargo nextest run --workspace` resolves and downloads every
+  # transitive dependency. Override the default `policy: pull` to
+  # `pull-push` so this job is the one that populates the cache for
+  # the next pipeline. Other jobs (fmt has cache: []; clippy/doc
+  # inherit pull only) consume what the most-recent test job pushed.
+  cache:
+    key:
+      files:
+        - Cargo.lock
+    paths:
+      - .cargo/registry/index/
+      - .cargo/registry/cache/
+      - .cargo/git/db/
+    policy: pull-push
+  before_script:
+    # Use the prebuilt cargo-nextest binary instead of `cargo install
+    # --locked cargo-nextest` (which compiles from source — about
+    # 5 minutes per CI run). Download is ~5MB and unpack is ~5
+    # seconds. Mirrors the cargo-deny pattern in the `deny` job.
+    #
+    # Pin cargo-nextest exactly to 0.9.133. Bump in a single commit
+    # when the upstream `[profile.ci]` schema changes.
+    - 'curl -fsSL "https://get.nexte.st/0.9.133/linux" | tar -xz -C /usr/local/bin cargo-nextest'
   script:
-    - cargo test --workspace
+    # `nextest` parallelizes individual `#[test]` fns (vs `cargo test`
+    # which parallelizes only test binaries). Per-test timings are
+    # printed natively; the `[profile.ci]` block in
+    # `.config/nextest.toml` controls slow-timeout and fail-fast.
+    - cargo nextest run --workspace --profile ci
+    # nextest doesn't run doctests; keep `cargo test --doc` as a
+    # separate, fast pass to maintain doctest coverage.
+    - cargo test --workspace --doc
 
 deny:
   stage: audit
