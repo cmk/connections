@@ -261,6 +261,24 @@ impl<A, B> Conn<A, B> {
         }
     }
 
+    /// Construct an iso connection — `forward` is a bijection on the
+    /// representable range, and `back` is its inverse.
+    ///
+    /// The resulting Conn has `floor = ceil = forward`, so the
+    /// adjoint triple is degenerate: floor and ceil are
+    /// indistinguishable, and **both** Galois laws (`conn_galois_l`
+    /// and `conn_galois_r`) hold trivially. Use this when the source
+    /// and target are order-isomorphic — e.g. `FixedI8<U0>` ↔ `i8`,
+    /// `Ipv4Addr` ↔ `u32` — rather than the asymmetric one-sided
+    /// constructors [`Self::new_left`] / [`Self::new_right`].
+    pub const fn new_iso(forward: fn(A) -> B, back: fn(B) -> A) -> Self {
+        Conn {
+            ceil: forward,
+            inner: back,
+            floor: forward,
+        }
+    }
+
     /// Apply the lower adjoint (ceiling / round-up).
     #[inline]
     #[must_use]
@@ -973,6 +991,23 @@ mod tests {
         // and round-trip through the explicit floor/inner pair.
         assert_eq!(c.floor(5), 10);
         assert_eq!(c.inner(10), 5);
+    }
+
+    #[test]
+    fn new_iso_floor_eq_ceil_and_round_trip() {
+        fn forward(x: i32) -> i64 {
+            x as i64
+        }
+        fn back(x: i64) -> i32 {
+            x as i32
+        }
+        let c = Conn::new_iso(forward, back);
+        // floor and ceil collapse to the same map.
+        assert_eq!(c.ceil(7), c.floor(7));
+        assert_eq!(c.ceil(-12), c.floor(-12));
+        // round-trip both ways (forward is a bijection on the i32 image).
+        assert_eq!(c.inner(c.ceil(42)), 42);
+        assert_eq!(c.ceil(c.inner(42_i64)), 42_i64);
     }
 
     // ── Property tests for identity connection (i32, exercises Ord) ──
