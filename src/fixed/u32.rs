@@ -29,6 +29,19 @@ int_uint_narrow!(I128U032, i128, u32);
 
 nz_uint_ext!(N032U032, u32, NonZeroU32);
 
+// ── §4 cross-crate iso: FixedU32<U0> ↔ u32 ─────────────────────────
+
+/// `FixedU32<U0> ↔ u32` — Q32.0 unsigned lossless iso. Degenerate Galois.
+pub const Q000U032: Conn<FixedU32<U0>, u32> = {
+    fn forward(q: FixedU32<U0>) -> u32 {
+        q.to_bits()
+    }
+    fn back(i: u32) -> FixedU32<U0> {
+        FixedU32::<U0>::from_bits(i)
+    }
+    Conn::new_iso(forward, back)
+};
+
 // ── §2 Q-format ladder over `FixedU32<Frac>` ────────────────────────
 
 /// `U<frac> = FixedU32<U<frac>>` — u32-backed binary fixed-point.

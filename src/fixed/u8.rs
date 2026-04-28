@@ -45,6 +45,19 @@ int_uint_narrow!(I128U008, i128, u8);
 
 nz_uint_ext!(N008U008, u8, NonZeroU8);
 
+// ── §4 cross-crate iso: FixedU8<U0> ↔ u8 ───────────────────────────
+
+/// `FixedU8<U0> ↔ u8` — Q8.0 unsigned lossless iso. Degenerate Galois.
+pub const Q000U008: Conn<FixedU8<U0>, u8> = {
+    fn forward(q: FixedU8<U0>) -> u8 {
+        q.to_bits()
+    }
+    fn back(i: u8) -> FixedU8<U0> {
+        FixedU8::<U0>::from_bits(i)
+    }
+    Conn::new_iso(forward, back)
+};
+
 // ── §2 Q-format ladder over `FixedU8<Frac>` ─────────────────────────
 
 /// `U<frac> = FixedU8<U<frac>>` — u8-backed binary fixed-point with
@@ -249,6 +262,20 @@ mod tests {
             let nz = NonZeroU8::new(v).unwrap();
             assert_eq!(N008U008.ceil(nz), Extended::Finite(v));
             assert_eq!(N008U008.floor(nz), Extended::Finite(v));
+        }
+    }
+
+    // ── §4 cross-crate iso (Q000U008) spot checks ──────────────────
+
+    #[test]
+    fn q000u008_round_trips_both_ways() {
+        for &v in &[0_u8, 1, 42, u8::MAX] {
+            let q = FixedU8::<U0>::from_bits(v);
+            assert_eq!(Q000U008.ceil(q), v);
+            assert_eq!(Q000U008.floor(q), v);
+            assert_eq!(Q000U008.inner(v), q);
+            assert_eq!(Q000U008.ceil(Q000U008.inner(v)), v);
+            assert_eq!(Q000U008.inner(Q000U008.ceil(q)), q);
         }
     }
 

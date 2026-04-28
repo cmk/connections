@@ -52,6 +52,19 @@ uint_int_sat!(U128I016, u128, i16);
 
 nz_int_ext!(N016I016, i16, NonZeroI16);
 
+// ── §4 cross-crate iso: FixedI16<U0> ↔ i16 ─────────────────────────
+
+/// `FixedI16<U0> ↔ i16` — Q16.0 lossless iso. Degenerate Galois.
+pub const Q000I016: Conn<FixedI16<U0>, i16> = {
+    fn forward(q: FixedI16<U0>) -> i16 {
+        q.to_bits()
+    }
+    fn back(i: i16) -> FixedI16<U0> {
+        FixedI16::<U0>::from_bits(i)
+    }
+    Conn::new_iso(forward, back)
+};
+
 // ── §2 Q-format ladder over `FixedI16<Frac>` ────────────────────────
 
 /// `I<frac> = FixedI16<U<frac>>` — i16-backed binary fixed-point.

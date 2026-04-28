@@ -33,6 +33,19 @@ int_uint!(I128U128, i128, u128);
 
 nz_uint_ext!(N128U128, u128, NonZeroU128);
 
+// ── §4 cross-crate iso: FixedU128<U0> ↔ u128 ───────────────────────
+
+/// `FixedU128<U0> ↔ u128` — Q128.0 unsigned lossless iso. Degenerate Galois.
+pub const Q000U128: Conn<FixedU128<U0>, u128> = {
+    fn forward(q: FixedU128<U0>) -> u128 {
+        q.to_bits()
+    }
+    fn back(i: u128) -> FixedU128<U0> {
+        FixedU128::<U0>::from_bits(i)
+    }
+    Conn::new_iso(forward, back)
+};
+
 // ── §2 Q-format ladder over `FixedU128<Frac>` ───────────────────────
 
 // No `pub type U<frac>` aliases here: the module's frac levels include

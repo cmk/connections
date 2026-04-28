@@ -29,6 +29,19 @@ uint_int_sat!(U128I064, u128, i64);
 
 nz_int_ext!(N064I064, i64, NonZeroI64);
 
+// ── §4 cross-crate iso: FixedI64<U0> ↔ i64 ─────────────────────────
+
+/// `FixedI64<U0> ↔ i64` — Q64.0 lossless iso. Degenerate Galois.
+pub const Q000I064: Conn<FixedI64<U0>, i64> = {
+    fn forward(q: FixedI64<U0>) -> i64 {
+        q.to_bits()
+    }
+    fn back(i: i64) -> FixedI64<U0> {
+        FixedI64::<U0>::from_bits(i)
+    }
+    Conn::new_iso(forward, back)
+};
+
 // ── §2 Q-format ladder over `FixedI64<Frac>` ────────────────────────
 
 /// `I<frac> = FixedI64<U<frac>>` — i64-backed binary fixed-point.
