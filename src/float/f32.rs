@@ -90,7 +90,7 @@ fn floor_f64_f32(x: f64) -> f32 {
 mod tests {
     use super::*;
     use crate::prop::arb::{arb_f32, arb_f64};
-    use crate::prop::laws;
+    use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
     /// Local strategy: `ExtendedFloat<f64>` over `Bot`, `Top`, and full-
@@ -185,52 +185,52 @@ mod tests {
 
         #[test]
         fn galois_l(a in ef64(), b in ef32()) {
-            prop_assert!(laws::conn_galois_l(&F064F032, a, b));
+            prop_assert!(conn_laws::conn_galois_l(&F064F032, a, b));
         }
 
         #[test]
         fn galois_r(a in ef64(), b in ef32()) {
-            prop_assert!(laws::conn_galois_r(&F064F032, a, b));
+            prop_assert!(conn_laws::conn_galois_r(&F064F032, a, b));
         }
 
         #[test]
         fn closure_l(a in ef64()) {
-            prop_assert!(laws::conn_closure_l(&F064F032, a));
+            prop_assert!(conn_laws::conn_closure_l(&F064F032, a));
         }
 
         #[test]
         fn closure_r(a in ef64()) {
-            prop_assert!(laws::conn_closure_r(&F064F032, a));
+            prop_assert!(conn_laws::conn_closure_r(&F064F032, a));
         }
 
         #[test]
         fn kernel_l(b in ef32()) {
-            prop_assert!(laws::conn_kernel_l(&F064F032, b));
+            prop_assert!(conn_laws::conn_kernel_l(&F064F032, b));
         }
 
         #[test]
         fn kernel_r(b in ef32()) {
-            prop_assert!(laws::conn_kernel_r(&F064F032, b));
+            prop_assert!(conn_laws::conn_kernel_r(&F064F032, b));
         }
 
         #[test]
         fn monotone_l(a1 in ef64(), a2 in ef64()) {
-            prop_assert!(laws::conn_monotone_l(&F064F032, a1, a2));
+            prop_assert!(conn_laws::conn_monotone_l(&F064F032, a1, a2));
         }
 
         #[test]
         fn monotone_r(b1 in ef32(), b2 in ef32()) {
-            prop_assert!(laws::conn_monotone_r(&F064F032, b1, b2));
+            prop_assert!(conn_laws::conn_monotone_r(&F064F032, b1, b2));
         }
 
         #[test]
         fn idempotent(a in ef64()) {
-            prop_assert!(laws::conn_idempotent(&F064F032, a));
+            prop_assert!(conn_laws::conn_idempotent(&F064F032, a));
         }
 
         #[test]
         fn floor_le_ceil(a in ef64()) {
-            prop_assert!(laws::conn_floor_le_ceil(&F064F032, a));
+            prop_assert!(conn_laws::conn_floor_le_ceil(&F064F032, a));
         }
 
         // The four walk helpers should converge in ≤ 2 ULP corrections

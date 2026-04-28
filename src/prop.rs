@@ -1,39 +1,40 @@
 //! Property predicates and proptest strategies for testing
 //! consumers of this crate's algebras.
 //!
-//! - [`laws`] — pure `bool`-returning predicate functions, one per
-//!   algebraic law. Always public, no proptest dependency. Downstream
-//!   crates wrap them in their own `proptest!` blocks via
-//!   `prop_assert!(connections::prop::laws::heyting_adjunction(&x, &y, &z))`.
+//! - [`conn`] — Galois-connection law predicates (adjoint laws,
+//!   cast lifter laws, two-sided helper laws).
+//! - [`lattice`] — Heyting / Coheyting / Bi-Heyting / Boolean /
+//!   bare partial-order law predicates.
 //! - [`arb`] — proptest strategies (`arb_f64`, `arb_f32`,
 //!   `arb_f64_bounded`, `arb_f16`, the `extended_float_*` and
-//!   time-crate generators). Gated on the
-//!   `testing` feature, which flips `proptest` from this crate's
-//!   dev-dep to an optional regular dep so downstream callers can
-//!   pull it in.
+//!   time-crate generators). Gated on the `testing` feature, which
+//!   flips `proptest` from this crate's dev-dep to an optional
+//!   regular dep so downstream callers can pull it in.
 //!
-//! In-crate tests use both modules through `cfg(any(test,
-//! feature = "testing"))`.
+//! Each predicate is a pure `bool`-returning fn over this crate's
+//! types; downstream wraps them in their own `proptest!` blocks.
+//! In-crate tests use the predicate modules through
+//! `cfg(any(test, feature = "testing"))`.
 //!
 //! ## Downstream usage
 //!
 //! ```rust,no_run
 //! use connections::float::f32::F064F032;
 //! use connections::float::ExtendedFloat;
-//! use connections::prop::laws;
+//! use connections::prop::conn;
 //!
 //! // Spot check: F064F032 satisfies the Galois adjoint law over a
 //! // representative pair.
 //! let a = ExtendedFloat::Extend(1.5_f64);
 //! let b = ExtendedFloat::Extend(1.5_f32);
-//! assert!(laws::conn_galois_l(&F064F032, a, b));
+//! assert!(conn::conn_galois_l(&F064F032, a, b));
 //! ```
 //!
 //! With the `testing` feature enabled, downstream proptest blocks
 //! can drive the predicates over arbitrary inputs:
 //!
 //! ```ignore
-//! use connections::prop::{arb, laws};
+//! use connections::prop::{arb, conn};
 //! use connections::float::f32::F064F032;
 //! use connections::float::ExtendedFloat;
 //! use proptest::prelude::*;
@@ -44,7 +45,7 @@
 //!         a in arb::arb_f64(),
 //!         b in arb::arb_f32(),
 //!     ) {
-//!         prop_assert!(laws::conn_galois_l(
+//!         prop_assert!(conn::conn_galois_l(
 //!             &F064F032,
 //!             ExtendedFloat::Extend(a),
 //!             ExtendedFloat::Extend(b),
@@ -53,7 +54,8 @@
 //! }
 //! ```
 
-pub mod laws;
+pub mod conn;
+pub mod lattice;
 
 #[cfg(any(test, feature = "testing"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "testing")))]

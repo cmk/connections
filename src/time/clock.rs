@@ -187,7 +187,7 @@ pub const TIMESECS: Conn<Extended<Time>, i64> = {
 mod tests {
     use super::*;
     use crate::prop::arb::{arb_extended_time, arb_ns_in_range, arb_secs_in_range, arb_time};
-    use crate::prop::laws;
+    use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
 
     // ── Preorder laws on `Time` ─────────────────────────────────
@@ -198,29 +198,29 @@ mod tests {
         proptest! {
             #[test]
             fn reflexive(x in arb_time()) {
-                prop_assert!(laws::lattice_reflexive(&x));
+                prop_assert!(lattice_laws::lattice_reflexive(&x));
             }
 
             #[test]
             fn transitive(x in arb_time(), y in arb_time(), z in arb_time()) {
-                prop_assert!(laws::lattice_transitive(&x, &y, &z));
+                prop_assert!(lattice_laws::lattice_transitive(&x, &y, &z));
             }
 
             #[test]
             fn antisymmetric(x in arb_time(), y in arb_time()) {
-                prop_assert!(laws::lattice_antisymmetric(&x, &y));
+                prop_assert!(lattice_laws::lattice_antisymmetric(&x, &y));
             }
 
             #[test]
             fn bot(x in arb_time()) {
-                prop_assert!(laws::lattice_bot(&Time::MIDNIGHT, &x));
+                prop_assert!(lattice_laws::lattice_bot(&Time::MIDNIGHT, &x));
             }
 
             #[test]
             fn top(x in arb_time()) {
                 // 23:59:59.999_999_999 is the supremum of representable Time.
                 let top = Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap();
-                prop_assert!(laws::lattice_top(&top, &x));
+                prop_assert!(lattice_laws::lattice_top(&top, &x));
             }
         }
     }
@@ -274,42 +274,42 @@ mod tests {
         proptest! {
             #[test]
             fn galois_l(t in arb_extended_time(), b in any::<i64>()) {
-                prop_assert!(laws::conn_galois_l(&TIMENANO, t, b));
+                prop_assert!(conn_laws::conn_galois_l(&TIMENANO, t, b));
             }
 
             #[test]
             fn galois_r(t in arb_extended_time(), b in any::<i64>()) {
-                prop_assert!(laws::conn_galois_r(&TIMENANO, t, b));
+                prop_assert!(conn_laws::conn_galois_r(&TIMENANO, t, b));
             }
 
             #[test]
             fn closure_l(t in arb_extended_time()) {
-                prop_assert!(laws::conn_closure_l(&TIMENANO, t));
+                prop_assert!(conn_laws::conn_closure_l(&TIMENANO, t));
             }
 
             #[test]
             fn closure_r(t in arb_extended_time()) {
-                prop_assert!(laws::conn_closure_r(&TIMENANO, t));
+                prop_assert!(conn_laws::conn_closure_r(&TIMENANO, t));
             }
 
             #[test]
             fn kernel_l(b in any::<i64>()) {
-                prop_assert!(laws::conn_kernel_l(&TIMENANO, b));
+                prop_assert!(conn_laws::conn_kernel_l(&TIMENANO, b));
             }
 
             #[test]
             fn kernel_r(b in any::<i64>()) {
-                prop_assert!(laws::conn_kernel_r(&TIMENANO, b));
+                prop_assert!(conn_laws::conn_kernel_r(&TIMENANO, b));
             }
 
             #[test]
             fn monotone_l(a in arb_extended_time(), b in arb_extended_time()) {
-                prop_assert!(laws::conn_monotone_l(&TIMENANO, a, b));
+                prop_assert!(conn_laws::conn_monotone_l(&TIMENANO, a, b));
             }
 
             #[test]
             fn monotone_r(a in any::<i64>(), b in any::<i64>()) {
-                prop_assert!(laws::conn_monotone_r(&TIMENANO, a, b));
+                prop_assert!(conn_laws::conn_monotone_r(&TIMENANO, a, b));
             }
 
             // `floor_le_ceil` not driven — same Extended-source
@@ -317,17 +317,17 @@ mod tests {
 
             #[test]
             fn idempotent(t in arb_extended_time()) {
-                prop_assert!(laws::conn_idempotent(&TIMENANO, t));
+                prop_assert!(conn_laws::conn_idempotent(&TIMENANO, t));
             }
 
             #[test]
             fn roundtrip_ceil(b in arb_ns_in_range()) {
-                prop_assert!(laws::conn_roundtrip_ceil(&TIMENANO, b));
+                prop_assert!(conn_laws::conn_roundtrip_ceil(&TIMENANO, b));
             }
 
             #[test]
             fn roundtrip_floor(b in arb_ns_in_range()) {
-                prop_assert!(laws::conn_roundtrip_floor(&TIMENANO, b));
+                prop_assert!(conn_laws::conn_roundtrip_floor(&TIMENANO, b));
             }
         }
     }
@@ -382,47 +382,47 @@ mod tests {
         proptest! {
             #[test]
             fn galois_l(t in arb_extended_time(), b in any::<i64>()) {
-                prop_assert!(laws::conn_galois_l(&TIMESECS, t, b));
+                prop_assert!(conn_laws::conn_galois_l(&TIMESECS, t, b));
             }
 
             #[test]
             fn galois_r(t in arb_extended_time(), b in any::<i64>()) {
-                prop_assert!(laws::conn_galois_r(&TIMESECS, t, b));
+                prop_assert!(conn_laws::conn_galois_r(&TIMESECS, t, b));
             }
 
             #[test]
             fn closure_l(t in arb_extended_time()) {
-                prop_assert!(laws::conn_closure_l(&TIMESECS, t));
+                prop_assert!(conn_laws::conn_closure_l(&TIMESECS, t));
             }
 
             #[test]
             fn closure_r(t in arb_extended_time()) {
-                prop_assert!(laws::conn_closure_r(&TIMESECS, t));
+                prop_assert!(conn_laws::conn_closure_r(&TIMESECS, t));
             }
 
             #[test]
             fn kernel_l(b in any::<i64>()) {
-                prop_assert!(laws::conn_kernel_l(&TIMESECS, b));
+                prop_assert!(conn_laws::conn_kernel_l(&TIMESECS, b));
             }
 
             #[test]
             fn kernel_r(b in any::<i64>()) {
-                prop_assert!(laws::conn_kernel_r(&TIMESECS, b));
+                prop_assert!(conn_laws::conn_kernel_r(&TIMESECS, b));
             }
 
             #[test]
             fn monotone_l(a in arb_extended_time(), b in arb_extended_time()) {
-                prop_assert!(laws::conn_monotone_l(&TIMESECS, a, b));
+                prop_assert!(conn_laws::conn_monotone_l(&TIMESECS, a, b));
             }
 
             #[test]
             fn monotone_r(a in any::<i64>(), b in any::<i64>()) {
-                prop_assert!(laws::conn_monotone_r(&TIMESECS, a, b));
+                prop_assert!(conn_laws::conn_monotone_r(&TIMESECS, a, b));
             }
 
             #[test]
             fn idempotent(t in arb_extended_time()) {
-                prop_assert!(laws::conn_idempotent(&TIMESECS, t));
+                prop_assert!(conn_laws::conn_idempotent(&TIMESECS, t));
             }
 
             // ulp_bound is meaningful only on the Finite portion —
@@ -430,7 +430,7 @@ mod tests {
             // i64 extremes, which are not "1 ULP" apart.
             #[test]
             fn ulp_bound_finite(t in arb_time()) {
-                prop_assert!(laws::conn_ulp_bound(
+                prop_assert!(conn_laws::conn_ulp_bound(
                     &TIMESECS,
                     Extended::Finite(t),
                     |s| s,
@@ -439,12 +439,12 @@ mod tests {
 
             #[test]
             fn roundtrip_ceil(b in arb_secs_in_range()) {
-                prop_assert!(laws::conn_roundtrip_ceil(&TIMESECS, b));
+                prop_assert!(conn_laws::conn_roundtrip_ceil(&TIMESECS, b));
             }
 
             #[test]
             fn roundtrip_floor(b in arb_secs_in_range()) {
-                prop_assert!(laws::conn_roundtrip_floor(&TIMESECS, b));
+                prop_assert!(conn_laws::conn_roundtrip_floor(&TIMESECS, b));
             }
         }
     }

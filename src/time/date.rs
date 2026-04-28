@@ -84,7 +84,7 @@ pub const DATEJDAY: Conn<Extended<Date>, i32> = {
 mod tests {
     use super::*;
     use crate::prop::arb::{arb_date, arb_extended_date, arb_jd_in_range};
-    use crate::prop::laws;
+    use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
     use time::Month;
 
@@ -103,27 +103,27 @@ mod tests {
         proptest! {
             #[test]
             fn reflexive(x in arb_date()) {
-                prop_assert!(laws::lattice_reflexive(&x));
+                prop_assert!(lattice_laws::lattice_reflexive(&x));
             }
 
             #[test]
             fn transitive(x in arb_date(), y in arb_date(), z in arb_date()) {
-                prop_assert!(laws::lattice_transitive(&x, &y, &z));
+                prop_assert!(lattice_laws::lattice_transitive(&x, &y, &z));
             }
 
             #[test]
             fn antisymmetric(x in arb_date(), y in arb_date()) {
-                prop_assert!(laws::lattice_antisymmetric(&x, &y));
+                prop_assert!(lattice_laws::lattice_antisymmetric(&x, &y));
             }
 
             #[test]
             fn bot(x in arb_date()) {
-                prop_assert!(laws::lattice_bot(&Date::MIN, &x));
+                prop_assert!(lattice_laws::lattice_bot(&Date::MIN, &x));
             }
 
             #[test]
             fn top(x in arb_date()) {
-                prop_assert!(laws::lattice_top(&Date::MAX, &x));
+                prop_assert!(lattice_laws::lattice_top(&Date::MAX, &x));
             }
         }
     }
@@ -172,42 +172,42 @@ mod tests {
     proptest! {
         #[test]
         fn galois_l(d in arb_extended_date(), b in any::<i32>()) {
-            prop_assert!(laws::conn_galois_l(&DATEJDAY, d, b));
+            prop_assert!(conn_laws::conn_galois_l(&DATEJDAY, d, b));
         }
 
         #[test]
         fn galois_r(d in arb_extended_date(), b in any::<i32>()) {
-            prop_assert!(laws::conn_galois_r(&DATEJDAY, d, b));
+            prop_assert!(conn_laws::conn_galois_r(&DATEJDAY, d, b));
         }
 
         #[test]
         fn closure_l(d in arb_extended_date()) {
-            prop_assert!(laws::conn_closure_l(&DATEJDAY, d));
+            prop_assert!(conn_laws::conn_closure_l(&DATEJDAY, d));
         }
 
         #[test]
         fn closure_r(d in arb_extended_date()) {
-            prop_assert!(laws::conn_closure_r(&DATEJDAY, d));
+            prop_assert!(conn_laws::conn_closure_r(&DATEJDAY, d));
         }
 
         #[test]
         fn kernel_l(b in any::<i32>()) {
-            prop_assert!(laws::conn_kernel_l(&DATEJDAY, b));
+            prop_assert!(conn_laws::conn_kernel_l(&DATEJDAY, b));
         }
 
         #[test]
         fn kernel_r(b in any::<i32>()) {
-            prop_assert!(laws::conn_kernel_r(&DATEJDAY, b));
+            prop_assert!(conn_laws::conn_kernel_r(&DATEJDAY, b));
         }
 
         #[test]
         fn monotone_l(a in arb_extended_date(), b in arb_extended_date()) {
-            prop_assert!(laws::conn_monotone_l(&DATEJDAY, a, b));
+            prop_assert!(conn_laws::conn_monotone_l(&DATEJDAY, a, b));
         }
 
         #[test]
         fn monotone_r(a in any::<i32>(), b in any::<i32>()) {
-            prop_assert!(laws::conn_monotone_r(&DATEJDAY, a, b));
+            prop_assert!(conn_laws::conn_monotone_r(&DATEJDAY, a, b));
         }
 
         // `conn_floor_le_ceil` does **not** hold in general for
@@ -219,7 +219,7 @@ mod tests {
 
         #[test]
         fn idempotent(d in arb_extended_date()) {
-            prop_assert!(laws::conn_idempotent(&DATEJDAY, d));
+            prop_assert!(conn_laws::conn_idempotent(&DATEJDAY, d));
         }
 
         // Round-trip laws hold only on the finite portion of the
@@ -227,12 +227,12 @@ mod tests {
         // so ceil(inner(b)) ≠ b for those.
         #[test]
         fn roundtrip_ceil(b in arb_jd_in_range()) {
-            prop_assert!(laws::conn_roundtrip_ceil(&DATEJDAY, b));
+            prop_assert!(conn_laws::conn_roundtrip_ceil(&DATEJDAY, b));
         }
 
         #[test]
         fn roundtrip_floor(b in arb_jd_in_range()) {
-            prop_assert!(laws::conn_roundtrip_floor(&DATEJDAY, b));
+            prop_assert!(conn_laws::conn_roundtrip_floor(&DATEJDAY, b));
         }
     }
 }

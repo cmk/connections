@@ -5,7 +5,7 @@
 //! precedent as `conn::fixed::i128`).
 
 use connections::fixed::u128::*;
-use connections::prop::laws;
+use connections::prop::conn as conn_laws;
 use fixed::FixedU128;
 use fixed::types::extra::{U0, U16, U32, U64, U96, U127, U128};
 use proptest::prelude::*;
@@ -22,50 +22,50 @@ macro_rules! props_for_pair {
                 fn galois_l(f in any::<u128>(), b in any::<u128>()) {
                     let fine = FixedU128::<$FineFrac>::from_bits(f);
                     let coarse = FixedU128::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(laws::conn_galois_l(&$conn, fine, coarse));
+                    prop_assert!(conn_laws::conn_galois_l(&$conn, fine, coarse));
                 }
                 #[test]
                 fn galois_r(f in any::<u128>(), b in any::<u128>()) {
                     let fine = FixedU128::<$FineFrac>::from_bits(f);
                     let coarse = FixedU128::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(laws::conn_galois_r(&$conn, fine, coarse));
+                    prop_assert!(conn_laws::conn_galois_r(&$conn, fine, coarse));
                 }
                 #[test]
                 fn monotone_l(f1 in any::<u128>(), f2 in any::<u128>()) {
                     let f1 = FixedU128::<$FineFrac>::from_bits(f1);
                     let f2 = FixedU128::<$FineFrac>::from_bits(f2);
-                    prop_assert!(laws::conn_monotone_l(&$conn, f1, f2));
+                    prop_assert!(conn_laws::conn_monotone_l(&$conn, f1, f2));
                 }
                 #[test]
                 fn monotone_r(b1 in any::<u128>(), b2 in any::<u128>()) {
                     let b1 = FixedU128::<$CoarseFrac>::from_bits(b1);
                     let b2 = FixedU128::<$CoarseFrac>::from_bits(b2);
-                    prop_assert!(laws::conn_monotone_r(&$conn, b1, b2));
+                    prop_assert!(conn_laws::conn_monotone_r(&$conn, b1, b2));
                 }
                 #[test]
                 fn closure_l(f in any::<u128>()) {
                     let fine = FixedU128::<$FineFrac>::from_bits(f);
-                    prop_assert!(laws::conn_closure_l(&$conn, fine));
+                    prop_assert!(conn_laws::conn_closure_l(&$conn, fine));
                 }
                 #[test]
                 fn closure_r(f in any::<u128>()) {
                     let fine = FixedU128::<$FineFrac>::from_bits(f);
-                    prop_assert!(laws::conn_closure_r(&$conn, fine));
+                    prop_assert!(conn_laws::conn_closure_r(&$conn, fine));
                 }
                 #[test]
                 fn kernel_l(b in any::<u128>()) {
                     let c = FixedU128::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(laws::conn_kernel_l(&$conn, c));
+                    prop_assert!(conn_laws::conn_kernel_l(&$conn, c));
                 }
                 #[test]
                 fn kernel_r(b in any::<u128>()) {
                     let c = FixedU128::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(laws::conn_kernel_r(&$conn, c));
+                    prop_assert!(conn_laws::conn_kernel_r(&$conn, c));
                 }
                 #[test]
                 fn idempotent(f in any::<u128>()) {
                     let fine = FixedU128::<$FineFrac>::from_bits(f);
-                    prop_assert!(laws::conn_idempotent(&$conn, fine));
+                    prop_assert!(conn_laws::conn_idempotent(&$conn, fine));
                 }
             }
         }

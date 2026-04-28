@@ -2,7 +2,7 @@
 //! test — see `tests/conn_fixed_u08_galois.rs` for rationale.
 
 use connections::fixed::u64::*;
-use connections::prop::laws;
+use connections::prop::conn as conn_laws;
 use fixed::FixedU64;
 use fixed::types::extra::{U0, U8, U16, U32, U48, U63, U64};
 use proptest::prelude::*;
@@ -17,50 +17,50 @@ macro_rules! props_for_pair {
                 fn galois_l(f in any::<u64>(), b in any::<u64>()) {
                     let fine = FixedU64::<$FineFrac>::from_bits(f);
                     let coarse = FixedU64::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(laws::conn_galois_l(&$conn, fine, coarse));
+                    prop_assert!(conn_laws::conn_galois_l(&$conn, fine, coarse));
                 }
                 #[test]
                 fn galois_r(f in any::<u64>(), b in any::<u64>()) {
                     let fine = FixedU64::<$FineFrac>::from_bits(f);
                     let coarse = FixedU64::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(laws::conn_galois_r(&$conn, fine, coarse));
+                    prop_assert!(conn_laws::conn_galois_r(&$conn, fine, coarse));
                 }
                 #[test]
                 fn monotone_l(f1 in any::<u64>(), f2 in any::<u64>()) {
                     let f1 = FixedU64::<$FineFrac>::from_bits(f1);
                     let f2 = FixedU64::<$FineFrac>::from_bits(f2);
-                    prop_assert!(laws::conn_monotone_l(&$conn, f1, f2));
+                    prop_assert!(conn_laws::conn_monotone_l(&$conn, f1, f2));
                 }
                 #[test]
                 fn monotone_r(b1 in any::<u64>(), b2 in any::<u64>()) {
                     let b1 = FixedU64::<$CoarseFrac>::from_bits(b1);
                     let b2 = FixedU64::<$CoarseFrac>::from_bits(b2);
-                    prop_assert!(laws::conn_monotone_r(&$conn, b1, b2));
+                    prop_assert!(conn_laws::conn_monotone_r(&$conn, b1, b2));
                 }
                 #[test]
                 fn closure_l(f in any::<u64>()) {
                     let fine = FixedU64::<$FineFrac>::from_bits(f);
-                    prop_assert!(laws::conn_closure_l(&$conn, fine));
+                    prop_assert!(conn_laws::conn_closure_l(&$conn, fine));
                 }
                 #[test]
                 fn closure_r(f in any::<u64>()) {
                     let fine = FixedU64::<$FineFrac>::from_bits(f);
-                    prop_assert!(laws::conn_closure_r(&$conn, fine));
+                    prop_assert!(conn_laws::conn_closure_r(&$conn, fine));
                 }
                 #[test]
                 fn kernel_l(b in any::<u64>()) {
                     let c = FixedU64::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(laws::conn_kernel_l(&$conn, c));
+                    prop_assert!(conn_laws::conn_kernel_l(&$conn, c));
                 }
                 #[test]
                 fn kernel_r(b in any::<u64>()) {
                     let c = FixedU64::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(laws::conn_kernel_r(&$conn, c));
+                    prop_assert!(conn_laws::conn_kernel_r(&$conn, c));
                 }
                 #[test]
                 fn idempotent(f in any::<u64>()) {
                     let fine = FixedU64::<$FineFrac>::from_bits(f);
-                    prop_assert!(laws::conn_idempotent(&$conn, fine));
+                    prop_assert!(conn_laws::conn_idempotent(&$conn, fine));
                 }
             }
         }

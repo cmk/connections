@@ -86,7 +86,7 @@ fix_fix_i32!(I032I024, U32, U24);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::prop::laws;
+    use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
     #[test]
@@ -135,50 +135,50 @@ mod tests {
                     fn galois_l(f in any::<i32>(), b in any::<i32>()) {
                         let fine = FixedI32::<$FineFrac>::from_bits(f);
                         let coarse = FixedI32::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(laws::conn_galois_l(&$conn, fine, coarse));
+                        prop_assert!(conn_laws::conn_galois_l(&$conn, fine, coarse));
                     }
                     #[test]
                     fn galois_r(f in any::<i32>(), b in any::<i32>()) {
                         let fine = FixedI32::<$FineFrac>::from_bits(f);
                         let coarse = FixedI32::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(laws::conn_galois_r(&$conn, fine, coarse));
+                        prop_assert!(conn_laws::conn_galois_r(&$conn, fine, coarse));
                     }
                     #[test]
                     fn monotone_l(f1 in any::<i32>(), f2 in any::<i32>()) {
                         let f1 = FixedI32::<$FineFrac>::from_bits(f1);
                         let f2 = FixedI32::<$FineFrac>::from_bits(f2);
-                        prop_assert!(laws::conn_monotone_l(&$conn, f1, f2));
+                        prop_assert!(conn_laws::conn_monotone_l(&$conn, f1, f2));
                     }
                     #[test]
                     fn monotone_r(b1 in any::<i32>(), b2 in any::<i32>()) {
                         let b1 = FixedI32::<$CoarseFrac>::from_bits(b1);
                         let b2 = FixedI32::<$CoarseFrac>::from_bits(b2);
-                        prop_assert!(laws::conn_monotone_r(&$conn, b1, b2));
+                        prop_assert!(conn_laws::conn_monotone_r(&$conn, b1, b2));
                     }
                     #[test]
                     fn closure_l(f in any::<i32>()) {
                         let fine = FixedI32::<$FineFrac>::from_bits(f);
-                        prop_assert!(laws::conn_closure_l(&$conn, fine));
+                        prop_assert!(conn_laws::conn_closure_l(&$conn, fine));
                     }
                     #[test]
                     fn closure_r(f in any::<i32>()) {
                         let fine = FixedI32::<$FineFrac>::from_bits(f);
-                        prop_assert!(laws::conn_closure_r(&$conn, fine));
+                        prop_assert!(conn_laws::conn_closure_r(&$conn, fine));
                     }
                     #[test]
                     fn kernel_l(b in any::<i32>()) {
                         let c = FixedI32::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(laws::conn_kernel_l(&$conn, c));
+                        prop_assert!(conn_laws::conn_kernel_l(&$conn, c));
                     }
                     #[test]
                     fn kernel_r(b in any::<i32>()) {
                         let c = FixedI32::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(laws::conn_kernel_r(&$conn, c));
+                        prop_assert!(conn_laws::conn_kernel_r(&$conn, c));
                     }
                     #[test]
                     fn idempotent(f in any::<i32>()) {
                         let fine = FixedI32::<$FineFrac>::from_bits(f);
-                        prop_assert!(laws::conn_idempotent(&$conn, fine));
+                        prop_assert!(conn_laws::conn_idempotent(&$conn, fine));
                     }
                 }
             }

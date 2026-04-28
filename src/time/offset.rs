@@ -315,7 +315,7 @@ mod ofdt_tests {
     use crate::prop::arb::{
         arb_extended_offset_dt, arb_offset_dt, arb_unix_nanos_in_range, arb_unix_secs_in_range,
     };
-    use crate::prop::laws;
+    use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
     use time::Duration;
 
@@ -327,27 +327,27 @@ mod ofdt_tests {
         proptest! {
             #[test]
             fn reflexive(x in arb_offset_dt()) {
-                prop_assert!(laws::lattice_reflexive(&x));
+                prop_assert!(lattice_laws::lattice_reflexive(&x));
             }
 
             #[test]
             fn transitive(x in arb_offset_dt(), y in arb_offset_dt(), z in arb_offset_dt()) {
-                prop_assert!(laws::lattice_transitive(&x, &y, &z));
+                prop_assert!(lattice_laws::lattice_transitive(&x, &y, &z));
             }
 
             #[test]
             fn antisymmetric(x in arb_offset_dt(), y in arb_offset_dt()) {
-                prop_assert!(laws::lattice_antisymmetric(&x, &y));
+                prop_assert!(lattice_laws::lattice_antisymmetric(&x, &y));
             }
 
             #[test]
             fn bot(x in arb_offset_dt()) {
-                prop_assert!(laws::lattice_bot(&ofdt_min_instant(), &x));
+                prop_assert!(lattice_laws::lattice_bot(&ofdt_min_instant(), &x));
             }
 
             #[test]
             fn top(x in arb_offset_dt()) {
-                prop_assert!(laws::lattice_top(&ofdt_max_instant(), &x));
+                prop_assert!(lattice_laws::lattice_top(&ofdt_max_instant(), &x));
             }
         }
     }
@@ -480,57 +480,57 @@ mod ofdt_tests {
     proptest! {
         #[test]
         fn ofdtnano_galois_l(o in arb_extended_offset_dt(), b in any::<i128>()) {
-            prop_assert!(laws::conn_galois_l(&OFDTNANO, o, b));
+            prop_assert!(conn_laws::conn_galois_l(&OFDTNANO, o, b));
         }
 
         #[test]
         fn ofdtnano_galois_r(o in arb_extended_offset_dt(), b in any::<i128>()) {
-            prop_assert!(laws::conn_galois_r(&OFDTNANO, o, b));
+            prop_assert!(conn_laws::conn_galois_r(&OFDTNANO, o, b));
         }
 
         #[test]
         fn ofdtnano_closure_l(o in arb_extended_offset_dt()) {
-            prop_assert!(laws::conn_closure_l(&OFDTNANO, o));
+            prop_assert!(conn_laws::conn_closure_l(&OFDTNANO, o));
         }
 
         #[test]
         fn ofdtnano_closure_r(o in arb_extended_offset_dt()) {
-            prop_assert!(laws::conn_closure_r(&OFDTNANO, o));
+            prop_assert!(conn_laws::conn_closure_r(&OFDTNANO, o));
         }
 
         #[test]
         fn ofdtnano_kernel_l(b in any::<i128>()) {
-            prop_assert!(laws::conn_kernel_l(&OFDTNANO, b));
+            prop_assert!(conn_laws::conn_kernel_l(&OFDTNANO, b));
         }
 
         #[test]
         fn ofdtnano_kernel_r(b in any::<i128>()) {
-            prop_assert!(laws::conn_kernel_r(&OFDTNANO, b));
+            prop_assert!(conn_laws::conn_kernel_r(&OFDTNANO, b));
         }
 
         #[test]
         fn ofdtnano_monotone_l(a in arb_extended_offset_dt(), b in arb_extended_offset_dt()) {
-            prop_assert!(laws::conn_monotone_l(&OFDTNANO, a, b));
+            prop_assert!(conn_laws::conn_monotone_l(&OFDTNANO, a, b));
         }
 
         #[test]
         fn ofdtnano_monotone_r(a in any::<i128>(), b in any::<i128>()) {
-            prop_assert!(laws::conn_monotone_r(&OFDTNANO, a, b));
+            prop_assert!(conn_laws::conn_monotone_r(&OFDTNANO, a, b));
         }
 
         #[test]
         fn ofdtnano_idempotent(o in arb_extended_offset_dt()) {
-            prop_assert!(laws::conn_idempotent(&OFDTNANO, o));
+            prop_assert!(conn_laws::conn_idempotent(&OFDTNANO, o));
         }
 
         #[test]
         fn ofdtnano_roundtrip_ceil(b in arb_unix_nanos_in_range()) {
-            prop_assert!(laws::conn_roundtrip_ceil(&OFDTNANO, b));
+            prop_assert!(conn_laws::conn_roundtrip_ceil(&OFDTNANO, b));
         }
 
         #[test]
         fn ofdtnano_roundtrip_floor(b in arb_unix_nanos_in_range()) {
-            prop_assert!(laws::conn_roundtrip_floor(&OFDTNANO, b));
+            prop_assert!(conn_laws::conn_roundtrip_floor(&OFDTNANO, b));
         }
     }
 
@@ -539,47 +539,47 @@ mod ofdt_tests {
     proptest! {
         #[test]
         fn ofdtsecs_galois_l(o in arb_extended_offset_dt(), b in any::<i64>()) {
-            prop_assert!(laws::conn_galois_l(&OFDTSECS, o, b));
+            prop_assert!(conn_laws::conn_galois_l(&OFDTSECS, o, b));
         }
 
         #[test]
         fn ofdtsecs_galois_r(o in arb_extended_offset_dt(), b in any::<i64>()) {
-            prop_assert!(laws::conn_galois_r(&OFDTSECS, o, b));
+            prop_assert!(conn_laws::conn_galois_r(&OFDTSECS, o, b));
         }
 
         #[test]
         fn ofdtsecs_closure_l(o in arb_extended_offset_dt()) {
-            prop_assert!(laws::conn_closure_l(&OFDTSECS, o));
+            prop_assert!(conn_laws::conn_closure_l(&OFDTSECS, o));
         }
 
         #[test]
         fn ofdtsecs_closure_r(o in arb_extended_offset_dt()) {
-            prop_assert!(laws::conn_closure_r(&OFDTSECS, o));
+            prop_assert!(conn_laws::conn_closure_r(&OFDTSECS, o));
         }
 
         #[test]
         fn ofdtsecs_kernel_l(b in any::<i64>()) {
-            prop_assert!(laws::conn_kernel_l(&OFDTSECS, b));
+            prop_assert!(conn_laws::conn_kernel_l(&OFDTSECS, b));
         }
 
         #[test]
         fn ofdtsecs_kernel_r(b in any::<i64>()) {
-            prop_assert!(laws::conn_kernel_r(&OFDTSECS, b));
+            prop_assert!(conn_laws::conn_kernel_r(&OFDTSECS, b));
         }
 
         #[test]
         fn ofdtsecs_monotone_l(a in arb_extended_offset_dt(), b in arb_extended_offset_dt()) {
-            prop_assert!(laws::conn_monotone_l(&OFDTSECS, a, b));
+            prop_assert!(conn_laws::conn_monotone_l(&OFDTSECS, a, b));
         }
 
         #[test]
         fn ofdtsecs_monotone_r(a in any::<i64>(), b in any::<i64>()) {
-            prop_assert!(laws::conn_monotone_r(&OFDTSECS, a, b));
+            prop_assert!(conn_laws::conn_monotone_r(&OFDTSECS, a, b));
         }
 
         #[test]
         fn ofdtsecs_idempotent(o in arb_extended_offset_dt()) {
-            prop_assert!(laws::conn_idempotent(&OFDTSECS, o));
+            prop_assert!(conn_laws::conn_idempotent(&OFDTSECS, o));
         }
 
         // `ulp_bound` not driven on Extended-source: at NegInf the
@@ -595,12 +595,12 @@ mod ofdt_tests {
 
         #[test]
         fn ofdtsecs_roundtrip_ceil(b in arb_unix_secs_in_range()) {
-            prop_assert!(laws::conn_roundtrip_ceil(&OFDTSECS, b));
+            prop_assert!(conn_laws::conn_roundtrip_ceil(&OFDTSECS, b));
         }
 
         #[test]
         fn ofdtsecs_roundtrip_floor(b in arb_unix_secs_in_range()) {
-            prop_assert!(laws::conn_roundtrip_floor(&OFDTSECS, b));
+            prop_assert!(conn_laws::conn_roundtrip_floor(&OFDTSECS, b));
         }
     }
 }

@@ -263,7 +263,7 @@ fn floor_f64_f16(x: f64) -> f16 {
 mod tests {
     use super::*;
     use crate::prop::arb::{arb_f32, arb_f64, extended_float_f16 as ef16};
-    use crate::prop::laws;
+    use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
 
     fn ef32() -> impl Strategy<Value = F032> {
@@ -472,52 +472,52 @@ mod tests {
 
         #[test]
         fn f032_galois_l(a in ef32(), b in ef16()) {
-            prop_assert!(laws::conn_galois_l(&F032F016, a, b));
+            prop_assert!(conn_laws::conn_galois_l(&F032F016, a, b));
         }
 
         #[test]
         fn f032_galois_r(a in ef32(), b in ef16()) {
-            prop_assert!(laws::conn_galois_r(&F032F016, a, b));
+            prop_assert!(conn_laws::conn_galois_r(&F032F016, a, b));
         }
 
         #[test]
         fn f032_closure_l(a in ef32()) {
-            prop_assert!(laws::conn_closure_l(&F032F016, a));
+            prop_assert!(conn_laws::conn_closure_l(&F032F016, a));
         }
 
         #[test]
         fn f032_closure_r(a in ef32()) {
-            prop_assert!(laws::conn_closure_r(&F032F016, a));
+            prop_assert!(conn_laws::conn_closure_r(&F032F016, a));
         }
 
         #[test]
         fn f032_kernel_l(b in ef16()) {
-            prop_assert!(laws::conn_kernel_l(&F032F016, b));
+            prop_assert!(conn_laws::conn_kernel_l(&F032F016, b));
         }
 
         #[test]
         fn f032_kernel_r(b in ef16()) {
-            prop_assert!(laws::conn_kernel_r(&F032F016, b));
+            prop_assert!(conn_laws::conn_kernel_r(&F032F016, b));
         }
 
         #[test]
         fn f032_monotone_l(a1 in ef32(), a2 in ef32()) {
-            prop_assert!(laws::conn_monotone_l(&F032F016, a1, a2));
+            prop_assert!(conn_laws::conn_monotone_l(&F032F016, a1, a2));
         }
 
         #[test]
         fn f032_monotone_r(b1 in ef16(), b2 in ef16()) {
-            prop_assert!(laws::conn_monotone_r(&F032F016, b1, b2));
+            prop_assert!(conn_laws::conn_monotone_r(&F032F016, b1, b2));
         }
 
         #[test]
         fn f032_idempotent(a in ef32()) {
-            prop_assert!(laws::conn_idempotent(&F032F016, a));
+            prop_assert!(conn_laws::conn_idempotent(&F032F016, a));
         }
 
         #[test]
         fn f032_floor_le_ceil(a in ef32()) {
-            prop_assert!(laws::conn_floor_le_ceil(&F032F016, a));
+            prop_assert!(conn_laws::conn_floor_le_ceil(&F032F016, a));
         }
 
         // The four walk helpers must converge in ≤ 2 ULP corrections
@@ -553,52 +553,52 @@ mod tests {
 
         #[test]
         fn f064_galois_l(a in ef64(), b in ef16()) {
-            prop_assert!(laws::conn_galois_l(&F064F016, a, b));
+            prop_assert!(conn_laws::conn_galois_l(&F064F016, a, b));
         }
 
         #[test]
         fn f064_galois_r(a in ef64(), b in ef16()) {
-            prop_assert!(laws::conn_galois_r(&F064F016, a, b));
+            prop_assert!(conn_laws::conn_galois_r(&F064F016, a, b));
         }
 
         #[test]
         fn f064_closure_l(a in ef64()) {
-            prop_assert!(laws::conn_closure_l(&F064F016, a));
+            prop_assert!(conn_laws::conn_closure_l(&F064F016, a));
         }
 
         #[test]
         fn f064_closure_r(a in ef64()) {
-            prop_assert!(laws::conn_closure_r(&F064F016, a));
+            prop_assert!(conn_laws::conn_closure_r(&F064F016, a));
         }
 
         #[test]
         fn f064_kernel_l(b in ef16()) {
-            prop_assert!(laws::conn_kernel_l(&F064F016, b));
+            prop_assert!(conn_laws::conn_kernel_l(&F064F016, b));
         }
 
         #[test]
         fn f064_kernel_r(b in ef16()) {
-            prop_assert!(laws::conn_kernel_r(&F064F016, b));
+            prop_assert!(conn_laws::conn_kernel_r(&F064F016, b));
         }
 
         #[test]
         fn f064_monotone_l(a1 in ef64(), a2 in ef64()) {
-            prop_assert!(laws::conn_monotone_l(&F064F016, a1, a2));
+            prop_assert!(conn_laws::conn_monotone_l(&F064F016, a1, a2));
         }
 
         #[test]
         fn f064_monotone_r(b1 in ef16(), b2 in ef16()) {
-            prop_assert!(laws::conn_monotone_r(&F064F016, b1, b2));
+            prop_assert!(conn_laws::conn_monotone_r(&F064F016, b1, b2));
         }
 
         #[test]
         fn f064_idempotent(a in ef64()) {
-            prop_assert!(laws::conn_idempotent(&F064F016, a));
+            prop_assert!(conn_laws::conn_idempotent(&F064F016, a));
         }
 
         #[test]
         fn f064_floor_le_ceil(a in ef64()) {
-            prop_assert!(laws::conn_floor_le_ceil(&F064F016, a));
+            prop_assert!(conn_laws::conn_floor_le_ceil(&F064F016, a));
         }
 
         #[test]

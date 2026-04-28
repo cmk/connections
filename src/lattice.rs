@@ -341,7 +341,7 @@ pub trait Boolean: Symmetric {}
 mod tests {
     use crate::float::ExtendedFloat;
     use crate::prop::arb::{arb_f32, arb_f64};
-    use crate::prop::laws;
+    use crate::prop::lattice as lattice_laws;
     use proptest::prelude::*;
 
     // ── Spot checks (ExtendedFloat — the lawful float wrapper) ─────
@@ -400,47 +400,47 @@ mod tests {
     proptest! {
         #[test]
         fn reflexive_ef64(x in ef64()) {
-            prop_assert!(laws::lattice_reflexive(&x));
+            prop_assert!(lattice_laws::lattice_reflexive(&x));
         }
 
         #[test]
         fn reflexive_ef32(x in ef32()) {
-            prop_assert!(laws::lattice_reflexive(&x));
+            prop_assert!(lattice_laws::lattice_reflexive(&x));
         }
 
         #[test]
         fn transitive_ef64(x in ef64(), y in ef64(), z in ef64()) {
-            prop_assert!(laws::lattice_transitive(&x, &y, &z));
+            prop_assert!(lattice_laws::lattice_transitive(&x, &y, &z));
         }
 
         #[test]
         fn transitive_ef32(x in ef32(), y in ef32(), z in ef32()) {
-            prop_assert!(laws::lattice_transitive(&x, &y, &z));
+            prop_assert!(lattice_laws::lattice_transitive(&x, &y, &z));
         }
 
         #[test]
         fn antisymmetric_ef64(x in ef64(), y in ef64()) {
-            prop_assert!(laws::lattice_antisymmetric(&x, &y));
+            prop_assert!(lattice_laws::lattice_antisymmetric(&x, &y));
         }
 
         #[test]
         fn bot_ef64(x in ef64()) {
-            prop_assert!(laws::lattice_bot(&ExtendedFloat::<f64>::Bot, &x));
+            prop_assert!(lattice_laws::lattice_bot(&ExtendedFloat::<f64>::Bot, &x));
         }
 
         #[test]
         fn top_ef64(x in ef64()) {
-            prop_assert!(laws::lattice_top(&ExtendedFloat::<f64>::Top, &x));
+            prop_assert!(lattice_laws::lattice_top(&ExtendedFloat::<f64>::Top, &x));
         }
 
         #[test]
         fn bot_ef32(x in ef32()) {
-            prop_assert!(laws::lattice_bot(&ExtendedFloat::<f32>::Bot, &x));
+            prop_assert!(lattice_laws::lattice_bot(&ExtendedFloat::<f32>::Bot, &x));
         }
 
         #[test]
         fn top_ef32(x in ef32()) {
-            prop_assert!(laws::lattice_top(&ExtendedFloat::<f32>::Top, &x));
+            prop_assert!(lattice_laws::lattice_top(&ExtendedFloat::<f32>::Top, &x));
         }
     }
 }

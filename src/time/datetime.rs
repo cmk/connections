@@ -81,7 +81,7 @@ pub const PDTMDATE: Conn<PrimitiveDateTime, Extended<Date>> = {
 mod tests {
     use super::*;
     use crate::prop::arb::{arb_date, arb_extended_date, arb_primitive_dt};
-    use crate::prop::laws;
+    use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
     use time::Month;
 
@@ -93,7 +93,7 @@ mod tests {
         proptest! {
             #[test]
             fn reflexive(x in arb_primitive_dt()) {
-                prop_assert!(laws::lattice_reflexive(&x));
+                prop_assert!(lattice_laws::lattice_reflexive(&x));
             }
 
             #[test]
@@ -102,22 +102,22 @@ mod tests {
                 y in arb_primitive_dt(),
                 z in arb_primitive_dt(),
             ) {
-                prop_assert!(laws::lattice_transitive(&x, &y, &z));
+                prop_assert!(lattice_laws::lattice_transitive(&x, &y, &z));
             }
 
             #[test]
             fn antisymmetric(x in arb_primitive_dt(), y in arb_primitive_dt()) {
-                prop_assert!(laws::lattice_antisymmetric(&x, &y));
+                prop_assert!(lattice_laws::lattice_antisymmetric(&x, &y));
             }
 
             #[test]
             fn bot(x in arb_primitive_dt()) {
-                prop_assert!(laws::lattice_bot(&PrimitiveDateTime::MIN, &x));
+                prop_assert!(lattice_laws::lattice_bot(&PrimitiveDateTime::MIN, &x));
             }
 
             #[test]
             fn top(x in arb_primitive_dt()) {
-                prop_assert!(laws::lattice_top(&PrimitiveDateTime::MAX, &x));
+                prop_assert!(lattice_laws::lattice_top(&PrimitiveDateTime::MAX, &x));
             }
         }
     }
@@ -167,47 +167,47 @@ mod tests {
     proptest! {
         #[test]
         fn galois_l(p in arb_primitive_dt(), b in arb_extended_date()) {
-            prop_assert!(laws::conn_galois_l(&PDTMDATE, p, b));
+            prop_assert!(conn_laws::conn_galois_l(&PDTMDATE, p, b));
         }
 
         #[test]
         fn galois_r(p in arb_primitive_dt(), b in arb_extended_date()) {
-            prop_assert!(laws::conn_galois_r(&PDTMDATE, p, b));
+            prop_assert!(conn_laws::conn_galois_r(&PDTMDATE, p, b));
         }
 
         #[test]
         fn closure_l(p in arb_primitive_dt()) {
-            prop_assert!(laws::conn_closure_l(&PDTMDATE, p));
+            prop_assert!(conn_laws::conn_closure_l(&PDTMDATE, p));
         }
 
         #[test]
         fn closure_r(p in arb_primitive_dt()) {
-            prop_assert!(laws::conn_closure_r(&PDTMDATE, p));
+            prop_assert!(conn_laws::conn_closure_r(&PDTMDATE, p));
         }
 
         #[test]
         fn kernel_l(b in arb_extended_date()) {
-            prop_assert!(laws::conn_kernel_l(&PDTMDATE, b));
+            prop_assert!(conn_laws::conn_kernel_l(&PDTMDATE, b));
         }
 
         #[test]
         fn kernel_r(b in arb_extended_date()) {
-            prop_assert!(laws::conn_kernel_r(&PDTMDATE, b));
+            prop_assert!(conn_laws::conn_kernel_r(&PDTMDATE, b));
         }
 
         #[test]
         fn monotone_l(a in arb_primitive_dt(), b in arb_primitive_dt()) {
-            prop_assert!(laws::conn_monotone_l(&PDTMDATE, a, b));
+            prop_assert!(conn_laws::conn_monotone_l(&PDTMDATE, a, b));
         }
 
         #[test]
         fn monotone_r(a in arb_extended_date(), b in arb_extended_date()) {
-            prop_assert!(laws::conn_monotone_r(&PDTMDATE, a, b));
+            prop_assert!(conn_laws::conn_monotone_r(&PDTMDATE, a, b));
         }
 
         #[test]
         fn idempotent(p in arb_primitive_dt()) {
-            prop_assert!(laws::conn_idempotent(&PDTMDATE, p));
+            prop_assert!(conn_laws::conn_idempotent(&PDTMDATE, p));
         }
 
         // ulp_bound: extractor collapses NegInf into the same
@@ -226,7 +226,7 @@ mod tests {
                     Extended::PosInf => max_jd + 1,
                 }
             };
-            prop_assert!(laws::conn_ulp_bound(&PDTMDATE, p, extractor));
+            prop_assert!(conn_laws::conn_ulp_bound(&PDTMDATE, p, extractor));
         }
 
         // Roundtrip on Finite Date with d > Date::MIN. At
@@ -239,12 +239,12 @@ mod tests {
         // `Finite(MIN)` directly.
         #[test]
         fn roundtrip_ceil(d in arb_date().prop_filter("excludes Date::MIN", |d| *d != Date::MIN)) {
-            prop_assert!(laws::conn_roundtrip_ceil(&PDTMDATE, Extended::Finite(d)));
+            prop_assert!(conn_laws::conn_roundtrip_ceil(&PDTMDATE, Extended::Finite(d)));
         }
 
         #[test]
         fn roundtrip_floor(d in arb_date()) {
-            prop_assert!(laws::conn_roundtrip_floor(&PDTMDATE, Extended::Finite(d)));
+            prop_assert!(conn_laws::conn_roundtrip_floor(&PDTMDATE, Extended::Finite(d)));
         }
     }
 }
