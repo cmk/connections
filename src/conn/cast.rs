@@ -48,6 +48,28 @@
 //! `Add`/`Sub`/`Div`/`From<u8>` bounds — they are restricted to
 //! source types that form a numeric ring.
 //!
+//! ## Behavior on edge inputs
+//!
+//! The two-sided helpers (`interval`, `midpoint`, `round`,
+//! `truncate`, and their `1`/`2` lifters) bracket the input by
+//! calling **both** `c.ceil` and `c.floor`. Two cases collapse the
+//! bracket and are stated once here; per-function docs refer back
+//! rather than restating.
+//!
+//! 1. **Length-2 (one-sided) connection** — when `c.ceil == c.floor`
+//!    (the connection is a single adjoint pair, not a triple), the
+//!    bracket is a point: `lo == hi`. [`interval`] returns
+//!    `Some(Equal)`; [`midpoint`], [`round`], and [`truncate`] all
+//!    return that single value. The helpers are well-defined on a
+//!    length-2 conn; they're just not interesting.
+//!
+//! 2. **NaN-bearing source** — for source types that admit NaN
+//!    (e.g. `ExtendedFloat<f64>`), `partial_cmp` between bracket
+//!    endpoints returns `None`. [`interval`] propagates the `None`;
+//!    [`round`] and [`truncate`] fall through to the `truncate`
+//!    arm, which dispatches on `x >= 0` (false for NaN, so the
+//!    `c.ceil(x)` branch fires).
+//!
 //! ## What's *not* here
 //!
 //! - **`swapL` / `swapR`**: identity in our representation — the same
@@ -392,15 +414,8 @@ where
 /// the upper rung (`d_lo > d_hi`), `Some(Less)` when closer to the
 /// lower rung, and `Some(Equal)` exactly at the midpoint. The
 /// fall-through `_` arm catches both `Some(Equal)` (true tie) and
-/// `None`.
-///
-/// **NaN behavior.** When `x` is a NaN-bearing source value
-/// (e.g. `ExtendedFloat::Extend(f64::NAN)`), `partial_cmp` returns
-/// `None` and the result is `truncate(c, x)`, which then dispatches
-/// on `x >= A::from(0)`. For NaN that comparison is `false`, so
-/// `round(c, NaN) = c.ceil(NaN)` — typically `Extend(NaN)`
-/// preserved through `ceil` for the ExtendedFloat conns. Callers
-/// that need different NaN handling should branch upstream.
+/// `None` — see *Behavior on edge inputs* in the module docs for
+/// the length-2-conn and NaN cases.
 ///
 /// ```rust
 /// use connections::conn::cast::round;

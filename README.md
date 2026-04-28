@@ -95,8 +95,7 @@ assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 `Cast` API — accessors and lifters operating on any `Conn`:
 
 ```rust
-use connections::{ceiling, upper1, maximize};
-use connections::conn::Conn;
+use connections::{ceiling, upper1};
 use connections::conn::std::i16::U008I016;
 use connections::extended::Extended;
 
@@ -113,13 +112,6 @@ assert_eq!(
     bumped,
     U008I016.inner(U008I016.ceil(Extended::Finite(200_u8))),
 );
-
-// `maximize` is the curried form of `ceiling` over a `Conn<(A, B), C>`.
-fn pair_max(p: (i32, i32)) -> i32 { p.0.max(p.1) }
-fn diag(x: i32) -> (i32, i32) { (x, x) }
-fn pair_min(p: (i32, i32)) -> i32 { p.0.min(p.1) }
-let ord: Conn<(i32, i32), i32> = Conn::new(pair_max, diag, pair_min);
-assert_eq!(maximize(&ord, 3, 5), 5);
 ```
 
 A sub-second `Duration` bracketed via the `time`-crate ladder (the same
@@ -247,8 +239,8 @@ and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 
 | API | Status |
 |-----|--------|
-| L-side accessors + lifters: `upper`, `upper1`, `upper2`, `ceiling`, `ceiling1`, `ceiling2`, `maximize` | shipped (Sprint A) |
-| R-side accessors + lifters: `lower`, `lower1`, `lower2`, `floor`, `floor1`, `floor2`, `minimize` | shipped (Sprint A) |
+| L-side accessors + lifters: `upper`, `upper1`, `upper2`, `ceiling`, `ceiling1`, `ceiling2` | shipped (Sprint A) |
+| R-side accessors + lifters: `lower`, `lower1`, `lower2`, `floor`, `floor1`, `floor2` | shipped (Sprint A) |
 | Two-sided helpers: `interval`, `midpoint`, `round`/`round1`/`round2`, `truncate`/`truncate1`/`truncate2`, `median` | shipped (Sprint B) |
 | Combinators: `bounded`, `ordered` (as macros) | planned (Sprint C) |
 | `Down<T>` newtype + `filterL`/`filterR` | planned (Sprint D) |
