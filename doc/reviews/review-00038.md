@@ -188,3 +188,82 @@ downstream breakage risk.
   guard.
 - Add `terminate-after = 3` to `nextest.toml` once the threshold is
   tightened.
+
+<!-- glab-id: 3293163864 -->
+<!-- glab-discussion: 0b52ba332d8711afd698082aaa25b980ee35bfb2 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `.config/nextest.toml:15` (2026-04-28 07:47 UTC) [open]
+
+**[follow-up]** The local review (`doc/reviews/review-00037.md`, line ~162) listed this stale comment as a **must-fix before push**, but the comment text in the diff still reads as if T5's case-cap is a future event rather than a reverted workaround. The local review's own recommendation was not acted on before the MR was opened.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3293163920 -->
+<!-- glab-discussion: a4323e1a0f48242341956471ff0a025440f06d31 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/time/duration.rs:617` (2026-04-28 07:47 UTC) [open]
+
+**[follow-up]** The regression-guard comment at line 617 says the f64 plateau is "~2049 s wide at this magnitude", but the plan and notes consistently describe it as "~10²¹ nanoseconds wide"; 10²¹ ns ≈ 10¹² s, not 2049 s. The discrepancy is in the comment only and doesn't affect correctness, but it will mislead future readers trying to reason about the plateau width.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3293163948 -->
+<!-- glab-discussion: 6e44c96f93d2359768c9c396e3db72940ba71bf7 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 — (2026-04-28 07:47 UTC) [open]
+
+**[follow-up]** `src/time/duration.rs:617` — The regression-guard comment at line 617 says the f64 plateau is "~2049 s wide at this magnitude", but the plan and notes consistently describe it as "~10²¹ nanoseconds wide"; 10²¹ ns ≈ 10¹² s, not 2049 s. The discrepancy is in the comment only and doesn't affect correctness, but it will mislead future readers trying to reason about the plateau width.
+
+*(inline anchor rejected by GitLab: 500)*
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3293169077 -->
+<!-- glab-discussion: 66ddd15c7dc7508cf68698d4a4f298267d072811 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `.config/nextest.toml:15` (2026-04-28 07:48 UTC) [open]
+
+**[must-fix]** The local-review doc (`doc/reviews/review-00038.md`, Recommendation #2) explicitly flags this as a must-fix: the comment on lines 15–17 still references T5's `cases=8` cap as the reason the 60s (or 180s per the plan) threshold is provisional, but that cap was reverted in the same branch. The comment implies the threshold is still waiting on future work that has already been done, misleading future readers. Update the comment to reflect the post-T5b reality (suite runs in ~8s) and either tighten the threshold now or remove the forward-reference to the cap.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3293169237 -->
+<!-- glab-discussion: 1d92e8e1c3d54744af6b30962321dd8ba2f5654c -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 — (2026-04-28 07:48 UTC) [open]
+
+**[follow-up]** `src/time/duration.rs:536` — The local-review doc notes the intentional `<`/`<=` asymmetry between `ceil`'s `min_secs` guard (`<=`) and `floor`'s `min_secs` guard (still strict `<`) is correct but undocumented. The floor's `if v < min_secs { return Extended::NegInf }` at this line is deliberately asymmetric with the ceil fix — `floor` of a value below the range should return `NegInf`, not `Finite(MIN)` — but without a comment cross-referencing the intent, future readers may mistake this surviving strict `<` for an unreverted oversight. Add a brief comment mirroring the style of the ceil/floor `>=`/`<=` rationale comments already present.
+
+*(inline anchor rejected by GitLab: 400)*
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3293195385 -->
+<!-- glab-discussion: 0b52ba332d8711afd698082aaa25b980ee35bfb2 -->
+#### ↳ cmk (2026-04-28 07:54 UTC) [open]
+
+The comment was updated in commit 38d6711 (before this MR was opened) — current text doesn't reference T5's case-cap. Looks like claude-review ran against a pre-38d6711 snapshot of the diff.
+
+<!-- glab-id: 3293195983 -->
+<!-- glab-discussion: a4323e1a0f48242341956471ff0a025440f06d31 -->
+#### ↳ cmk (2026-04-28 07:54 UTC) [open]
+
+Fixed in 801f127 — the math was mixing f32 (~10²¹ ns) and f64 (~2 × 10¹² ns ≈ 2049 s) numbers. Updated three comments (lines 381, 424, 624) to consistently cite the f64 plateau width.
+
+<!-- glab-id: 3293196272 -->
+<!-- glab-discussion: 6e44c96f93d2359768c9c396e3db72940ba71bf7 -->
+#### ↳ cmk (2026-04-28 07:54 UTC) [open]
+
+Same finding as the inline thread above (posted twice due to GitLab inline-anchor 500). Fixed in 801f127.
+
+<!-- glab-id: 3293196687 -->
+<!-- glab-discussion: 66ddd15c7dc7508cf68698d4a4f298267d072811 -->
+#### ↳ cmk (2026-04-28 07:54 UTC) [open]
+
+This finding is stale — the nextest.toml comment was updated in commit 38d6711 (before this MR was opened) per the local-review must-fix. Current text doesn't reference T5's cap; threshold tightened from 180s to 60s in the same commit.
+
+<!-- glab-id: 3293196993 -->
+<!-- glab-discussion: 1d92e8e1c3d54744af6b30962321dd8ba2f5654c -->
+#### ↳ cmk (2026-04-28 07:54 UTC) [open]
+
+Comments added in 801f127 at both F064DURN.floor and F032DURN.floor's strict-`<` guards, cross-referencing the asymmetric intent: floor of v < min_secs saturates to NegInf, while v == min_secs falls through to the walk path (which converges to Duration::MIN — top of the v_min plateau in floor's direction).

@@ -378,8 +378,8 @@ pub const F064DURN: Conn<F064, Extended<Duration>> = {
         // `inner(ceil(NEG_INFINITY))`), Duration::MIN is the smallest d
         // with d.as_seconds_f64() ≥ v_min, so it IS the correct ceil.
         // The walk would converge to Duration::MIN anyway but takes
-        // ~10²¹ nanosecond-steps at this magnitude (the f64 plateau at
-        // |v| ≈ 9.2e18 is enormous). Fast-path it.
+        // ~2 × 10¹² nanosecond-steps at this magnitude (the f64
+        // plateau at |v| ≈ 9.2e18 is ~2049 s wide). Fast-path it.
         if v <= min_secs {
             return Extended::Finite(Duration::MIN);
         }
@@ -421,11 +421,16 @@ pub const F064DURN: Conn<F064, Extended<Duration>> = {
         // Use `>=` not `>`: when `v == max_secs` (e.g., the round-trip
         // `inner(floor(INFINITY))`), Duration::MAX is the largest d
         // with d.as_seconds_f64() ≤ v_max, so it IS the correct floor.
-        // Fast-path it; the walk would otherwise climb ~10²¹ ns of
-        // plateau at this magnitude.
+        // Fast-path it; the walk would otherwise climb ~2 × 10¹² ns
+        // (the f64 plateau is ~2049 s wide at this magnitude).
         if v >= max_secs {
             return Extended::Finite(Duration::MAX);
         }
+        // Asymmetric with the `>=` check above: `<` is intentional.
+        // floor of a value below the range saturates to NegInf, not
+        // Finite(Duration::MIN). At v == min_secs the walk converges
+        // to Duration::MIN (top of the v_min plateau in floor's
+        // direction); only v < min_secs is "off the bottom".
         if v < min_secs {
             return Extended::NegInf;
         }
@@ -543,6 +548,11 @@ pub const F032DURN: Conn<F032, Extended<Duration>> = {
         if v >= max_secs {
             return Extended::Finite(Duration::MAX);
         }
+        // Asymmetric with the `>=` check above: `<` is intentional.
+        // See F064DURN.floor for the rationale (floor of a value
+        // strictly below v_min saturates to NegInf; v == min_secs
+        // would walk to Duration::MIN, but that's covered by the
+        // walk path, not this guard).
         if v < min_secs {
             return Extended::NegInf;
         }
@@ -621,9 +631,9 @@ mod float_durn_tests {
     // f64 representation of Duration::MIN.as_seconds_f64() — call it
     // v_min — is what `inner(ceil(NEG_INFINITY))` produces. Without
     // the `<=` boundary check, the second `ceil` on this value walks
-    // ~10²¹ nanoseconds (the f64 plateau is ~2049 s wide at this
-    // magnitude), taking ~70 seconds in debug. With the fix this
-    // finishes in nanoseconds.
+    // the f64 plateau at this magnitude (~2049 s ≈ 2 × 10¹² ns) one
+    // nanosecond at a time, taking ~70 seconds in debug. With the
+    // fix this finishes in nanoseconds.
     #[test]
     fn f64_ceil_min_secs_fast_path() {
         let v_min = ExtendedFloat::Extend(Duration::MIN.as_seconds_f64());
