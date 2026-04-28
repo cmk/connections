@@ -34,7 +34,9 @@
 pub mod f16;
 pub mod f32;
 
-use std::ops::{Add, Div, Sub};
+use std::ops::{
+    Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign,
+};
 
 /// Three-element extension of a (possibly partial) order:
 /// `Bot < Extend(_) < Top`.
@@ -105,37 +107,36 @@ pub(crate) use impl_float_ext;
 impl_float_ext!(f32);
 impl_float_ext!(f64);
 
-// ── Numeric impls: minimal surface for `crate::conn` chain
-//    combinators (`interval`, `midpoint`, `round`, `truncate`).
+// ── Numeric impls for `ExtendedFloat<f32 | f64>`.
 //
-// These exist *solely* to thread `ExtendedFloat<T>` through the
-// arithmetic those helpers do (`hi - lo`, `lo + diff/2`,
-// `x >= A::from(0)`). They are **not** a general-purpose numeric
-// algebra: `Mul`, `Neg`, `Rem`, `AddAssign`, etc. are deliberately
-// omitted. Implemented only for `f32` / `f64` because the chain
-// combinators are exercised on those source types in-tree.
-// A `half::f16` version can be added later if a caller needs it
-// (it requires routing `From<u8>` through `as f16`).
-//
-// Edge-case semantics for Bot/Top operands. The chain combinators
-// pass `(c.inner ∘ c.ceil)(x)` and `(c.inner ∘ c.floor)(x)` to the
-// arithmetic, which on a finite `Extend(_)` input always yields
-// `Extend(_)` brackets — so the chain-combinator path never reaches
-// the Bot/Top arms in practice. The deterministic Bot/Top tests in
-// `mod tests` below pin the documented semantics for direct callers
-// who do reach them.
+// The Extend × Extend arms route through the inner T's arithmetic.
+// The Bot/Top arms follow a conservative simplification rule:
+// `Add`/`Sub`/`Neg` preserve the lattice endpoints when the result
+// is unambiguous (e.g. `Bot + Bot = Bot`, `-Bot = Top`); every other
+// Bot/Top combination collapses to `Extend(NaN)`. The chain
+// combinators in `crate::conn` (`interval`/`midpoint`/`round`/
+// `truncate`) only ever pass `Extend(_)` brackets to these ops, so
+// the simplification has no effect on in-tree usage; deterministic
+// tests in `mod tests` pin the Bot/Top arms for direct callers.
 //
 // | Op | (Bot, Bot)  | (Top, Top)  | mixed Bot/Top   | endpoint, Extend(_) | (Extend(a), Extend(b)) |
 // |----|-------------|-------------|-----------------|---------------------|------------------------|
 // |  + |  Bot        |  Top        |  Extend(NaN)    |  endpoint absorbs   |  Extend(a + b)         |
 // |  - |  Extend(NaN)|  Extend(NaN)|  endpoint of LHS|  endpoint of LHS;   |  Extend(a - b)         |
 // |    |             |             |                 |  flipped for Extend |                        |
+// |  * |  Extend(NaN)|  Extend(NaN)|  Extend(NaN)    |  Extend(NaN)        |  Extend(a * b)         |
 // |  / |  Extend(NaN)|  Extend(NaN)|  Extend(NaN)    |  Extend(NaN)        |  Extend(a / b)         |
+// |  % |  Extend(NaN)|  Extend(NaN)|  Extend(NaN)    |  Extend(NaN)        |  Extend(a % b)         |
+// | -x | Top (Bot)   | Bot (Top)   | —               | —                   |  Extend(-a)            |
 //
 // `From<u8>(n)` always returns `Extend(T::from(n))`.
+//
+// `*Assign` impls all delegate to the by-value op (`*self = (*self) op other`).
+// User-facing transcendentals (`sin`, `cos`, `sqrt`, etc.) are inherent
+// methods on `ExtendedFloat<f32 | f64>` further below.
 
 macro_rules! impl_float_arith {
-    ($T:ty) => {
+    ($T:ident) => {
         impl Add for ExtendedFloat<$T> {
             type Output = Self;
             fn add(self, other: Self) -> Self {
@@ -168,6 +169,17 @@ macro_rules! impl_float_arith {
             }
         }
 
+        impl Mul for ExtendedFloat<$T> {
+            type Output = Self;
+            fn mul(self, other: Self) -> Self {
+                use ExtendedFloat::*;
+                match (self, other) {
+                    (Extend(a), Extend(b)) => Extend(a * b),
+                    _ => Extend(<$T>::NAN),
+                }
+            }
+        }
+
         impl Div for ExtendedFloat<$T> {
             type Output = Self;
             fn div(self, other: Self) -> Self {
@@ -179,9 +191,299 @@ macro_rules! impl_float_arith {
             }
         }
 
+        impl Rem for ExtendedFloat<$T> {
+            type Output = Self;
+            fn rem(self, other: Self) -> Self {
+                use ExtendedFloat::*;
+                match (self, other) {
+                    (Extend(a), Extend(b)) => Extend(a % b),
+                    _ => Extend(<$T>::NAN),
+                }
+            }
+        }
+
+        impl Neg for ExtendedFloat<$T> {
+            type Output = Self;
+            fn neg(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot => Top,
+                    Top => Bot,
+                    Extend(a) => Extend(-a),
+                }
+            }
+        }
+
+        impl AddAssign for ExtendedFloat<$T> {
+            fn add_assign(&mut self, other: Self) { *self = *self + other; }
+        }
+        impl SubAssign for ExtendedFloat<$T> {
+            fn sub_assign(&mut self, other: Self) { *self = *self - other; }
+        }
+        impl MulAssign for ExtendedFloat<$T> {
+            fn mul_assign(&mut self, other: Self) { *self = *self * other; }
+        }
+        impl DivAssign for ExtendedFloat<$T> {
+            fn div_assign(&mut self, other: Self) { *self = *self / other; }
+        }
+        impl RemAssign for ExtendedFloat<$T> {
+            fn rem_assign(&mut self, other: Self) { *self = *self % other; }
+        }
+
         impl From<u8> for ExtendedFloat<$T> {
             fn from(n: u8) -> Self {
                 ExtendedFloat::Extend(<$T>::from(n))
+            }
+        }
+
+        impl From<i8> for ExtendedFloat<$T> {
+            fn from(n: i8) -> Self {
+                ExtendedFloat::Extend(<$T>::from(n))
+            }
+        }
+
+        impl From<i16> for ExtendedFloat<$T> {
+            fn from(n: i16) -> Self {
+                ExtendedFloat::Extend(<$T>::from(n))
+            }
+        }
+
+        impl From<u16> for ExtendedFloat<$T> {
+            fn from(n: u16) -> Self {
+                ExtendedFloat::Extend(<$T>::from(n))
+            }
+        }
+
+        impl From<$T> for ExtendedFloat<$T> {
+            fn from(v: $T) -> Self {
+                ExtendedFloat::Extend(v)
+            }
+        }
+
+        impl ExtendedFloat<$T> {
+            pub const PI: Self = ExtendedFloat::Extend(::core::$T::consts::PI);
+            pub const TAU: Self = ExtendedFloat::Extend(::core::$T::consts::TAU);
+            pub const E: Self = ExtendedFloat::Extend(::core::$T::consts::E);
+            pub const FRAC_PI_2: Self = ExtendedFloat::Extend(::core::$T::consts::FRAC_PI_2);
+            pub const NAN: Self = ExtendedFloat::Extend(<$T>::NAN);
+            pub const INFINITY: Self = ExtendedFloat::Top;
+            pub const NEG_INFINITY: Self = ExtendedFloat::Bot;
+            pub const ZERO: Self = ExtendedFloat::Extend(0.0);
+            pub const ONE: Self = ExtendedFloat::Extend(1.0);
+
+            /// `true` iff `self` is `Extend(v)` with `v.is_nan()`.
+            /// `Bot` and `Top` are the lattice's synthetic endpoints
+            /// and report `false`.
+            pub fn is_nan(self) -> bool {
+                matches!(self, ExtendedFloat::Extend(v) if v.is_nan())
+            }
+
+            /// `true` iff `self` is `Extend(v)` with `v.is_finite()`.
+            /// `Bot` / `Top` and `Extend(±∞)` / `Extend(NaN)` report
+            /// `false`.
+            pub fn is_finite(self) -> bool {
+                matches!(self, ExtendedFloat::Extend(v) if v.is_finite())
+            }
+
+            /// `true` iff `self` is `Bot`, `Top`, or `Extend(±∞)`. The
+            /// lattice has *two* infinity-like elements per side
+            /// (synthetic and IEEE); both report infinite.
+            pub fn is_infinite(self) -> bool {
+                use ExtendedFloat::*;
+                match self {
+                    Bot | Top => true,
+                    Extend(v) => v.is_infinite(),
+                }
+            }
+
+            // ── Transcendentals + utilities ───────────────────────────
+            //
+            // Each method dispatches on the lattice variant: Extend(v)
+            // routes through the inner T's method; Bot/Top arms apply
+            // the function's limit at ±∞ where it's well-defined and
+            // collapse to `Extend(NaN)` where it isn't (sin/cos/tan
+            // oscillate at infinity; sqrt(-∞) is undefined).
+
+            pub fn abs(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot | Top => Top,
+                    Extend(v) => Extend(v.abs()),
+                }
+            }
+
+            pub fn signum(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot => Extend(-1.0),
+                    Top => Extend(1.0),
+                    Extend(v) => Extend(v.signum()),
+                }
+            }
+
+            pub fn recip(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot | Top => Extend(0.0),
+                    Extend(v) => Extend(v.recip()),
+                }
+            }
+
+            pub fn sqrt(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot => Extend(<$T>::NAN),
+                    Top => Top,
+                    Extend(v) => Extend(v.sqrt()),
+                }
+            }
+
+            pub fn cbrt(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot => Bot,
+                    Top => Top,
+                    Extend(v) => Extend(v.cbrt()),
+                }
+            }
+
+            pub fn sin(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot | Top => Extend(<$T>::NAN),
+                    Extend(v) => Extend(v.sin()),
+                }
+            }
+
+            pub fn cos(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot | Top => Extend(<$T>::NAN),
+                    Extend(v) => Extend(v.cos()),
+                }
+            }
+
+            pub fn tan(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot | Top => Extend(<$T>::NAN),
+                    Extend(v) => Extend(v.tan()),
+                }
+            }
+
+            pub fn asin(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot | Top => Extend(<$T>::NAN),
+                    Extend(v) => Extend(v.asin()),
+                }
+            }
+
+            pub fn acos(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot | Top => Extend(<$T>::NAN),
+                    Extend(v) => Extend(v.acos()),
+                }
+            }
+
+            pub fn atan(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot => Extend(-::core::$T::consts::FRAC_PI_2),
+                    Top => Extend(::core::$T::consts::FRAC_PI_2),
+                    Extend(v) => Extend(v.atan()),
+                }
+            }
+
+            /// `atan2(y, x)`. Routes through the inner T when both
+            /// operands are `Extend(_)`; any `Bot`/`Top` argument
+            /// collapses the result to `Extend(NaN)` (atan2's two-argument
+            /// limit at infinity is direction-dependent and not the
+            /// kind of corner case in-tree callers want to lean on).
+            pub fn atan2(self, other: Self) -> Self {
+                use ExtendedFloat::*;
+                match (self, other) {
+                    (Extend(y), Extend(x)) => Extend(y.atan2(x)),
+                    _ => Extend(<$T>::NAN),
+                }
+            }
+
+            pub fn exp(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot => Extend(0.0),
+                    Top => Top,
+                    Extend(v) => Extend(v.exp()),
+                }
+            }
+
+            pub fn exp2(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot => Extend(0.0),
+                    Top => Top,
+                    Extend(v) => Extend(v.exp2()),
+                }
+            }
+
+            pub fn ln(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot => Extend(<$T>::NAN),
+                    Top => Top,
+                    Extend(v) => Extend(v.ln()),
+                }
+            }
+
+            pub fn log2(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot => Extend(<$T>::NAN),
+                    Top => Top,
+                    Extend(v) => Extend(v.log2()),
+                }
+            }
+
+            pub fn log10(self) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Bot => Extend(<$T>::NAN),
+                    Top => Top,
+                    Extend(v) => Extend(v.log10()),
+                }
+            }
+
+            /// Integer power. Only defined for `Extend(_)` operands;
+            /// `Bot`/`Top` collapse to `Extend(NaN)` since `powi` is
+            /// sign-and-parity-sensitive at infinity in ways most
+            /// callers don't want as a default.
+            pub fn powi(self, n: i32) -> Self {
+                use ExtendedFloat::*;
+                match self {
+                    Extend(v) => Extend(v.powi(n)),
+                    _ => Extend(<$T>::NAN),
+                }
+            }
+
+            /// Float power. Only defined for `(Extend, Extend)`;
+            /// any endpoint operand collapses to `Extend(NaN)`.
+            pub fn powf(self, p: Self) -> Self {
+                use ExtendedFloat::*;
+                match (self, p) {
+                    (Extend(v), Extend(q)) => Extend(v.powf(q)),
+                    _ => Extend(<$T>::NAN),
+                }
+            }
+
+            /// Fused multiply-add. Only defined for all-`Extend`;
+            /// any endpoint operand collapses to `Extend(NaN)`.
+            pub fn mul_add(self, a: Self, b: Self) -> Self {
+                use ExtendedFloat::*;
+                match (self, a, b) {
+                    (Extend(s), Extend(x), Extend(y)) => Extend(s.mul_add(x, y)),
+                    _ => Extend(<$T>::NAN),
+                }
             }
         }
     };
@@ -189,6 +491,19 @@ macro_rules! impl_float_arith {
 
 impl_float_arith!(f32);
 impl_float_arith!(f64);
+
+// f64-only `From<i32>` / `From<u32>` (lossless casts; i32/u32 don't
+// fit in f32's 24-bit mantissa).
+impl From<i32> for ExtendedFloat<f64> {
+    fn from(n: i32) -> Self {
+        ExtendedFloat::Extend(f64::from(n))
+    }
+}
+impl From<u32> for ExtendedFloat<f64> {
+    fn from(n: u32) -> Self {
+        ExtendedFloat::Extend(f64::from(n))
+    }
+}
 
 /// IEEE binary32 wrapped under the N5 lattice.
 pub type F032 = ExtendedFloat<f32>;
@@ -515,5 +830,223 @@ mod tests {
         let a: ExtendedFloat<f64> = ExtendedFloat::Extend(5.5);
         let b: ExtendedFloat<f64> = ExtendedFloat::Extend(1.25);
         assert_eq!(a - b, ExtendedFloat::Extend(4.25));
+    }
+
+    // ── T1: Mul / Neg / Rem + *Assign ─────────────────────────────
+
+    #[test]
+    fn mul_extends_passes_through_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(2.5);
+        let b: ExtendedFloat<f64> = ExtendedFloat::Extend(4.0);
+        assert_eq!(a * b, ExtendedFloat::Extend(10.0));
+    }
+
+    #[test]
+    fn neg_double_is_id_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(std::f64::consts::PI);
+        assert_eq!(-(-a), a);
+    }
+
+    #[test]
+    fn neg_endpoints_flip() {
+        assert_eq!(-ExtendedFloat::<f64>::Bot, ExtendedFloat::Top);
+        assert_eq!(-ExtendedFloat::<f64>::Top, ExtendedFloat::Bot);
+        let one: ExtendedFloat<f64> = ExtendedFloat::Extend(1.0);
+        assert_eq!(-one, ExtendedFloat::Extend(-1.0));
+    }
+
+    #[test]
+    fn rem_zero_pin_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(7.5);
+        let zero: ExtendedFloat<f64> = ExtendedFloat::Extend(0.0);
+        // f64 7.5 % 0.0 produces NaN; the lattice impl mirrors that.
+        match a % zero {
+            ExtendedFloat::Extend(v) => assert!(v.is_nan()),
+            other => panic!("expected Extend(NaN), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rem_endpoint_pin_f64() {
+        // Any Bot/Top arm collapses to Extend(NaN), matching the
+        // documented conservative simplification.
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(7.5);
+        match a % ExtendedFloat::<f64>::Top {
+            ExtendedFloat::Extend(v) => assert!(v.is_nan()),
+            other => panic!("expected Extend(NaN), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn add_assign_matches_add_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(3.5);
+        let b: ExtendedFloat<f64> = ExtendedFloat::Extend(1.25);
+        let by_value = a + b;
+        let mut by_assign = a;
+        by_assign += b;
+        assert_eq!(by_assign, by_value);
+    }
+
+    #[test]
+    fn sub_assign_matches_sub_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(3.5);
+        let b: ExtendedFloat<f64> = ExtendedFloat::Extend(1.25);
+        let by_value = a - b;
+        let mut by_assign = a;
+        by_assign -= b;
+        assert_eq!(by_assign, by_value);
+    }
+
+    #[test]
+    fn mul_assign_matches_mul_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(3.0);
+        let b: ExtendedFloat<f64> = ExtendedFloat::Extend(4.0);
+        let by_value = a * b;
+        let mut by_assign = a;
+        by_assign *= b;
+        assert_eq!(by_assign, by_value);
+    }
+
+    #[test]
+    fn div_assign_matches_div_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(8.0);
+        let b: ExtendedFloat<f64> = ExtendedFloat::Extend(2.0);
+        let by_value = a / b;
+        let mut by_assign = a;
+        by_assign /= b;
+        assert_eq!(by_assign, by_value);
+    }
+
+    #[test]
+    fn rem_assign_matches_rem_f64() {
+        let a: ExtendedFloat<f64> = ExtendedFloat::Extend(7.5);
+        let b: ExtendedFloat<f64> = ExtendedFloat::Extend(2.0);
+        let by_value = a % b;
+        let mut by_assign = a;
+        by_assign %= b;
+        assert_eq!(by_assign, by_value);
+    }
+
+    // ── T2: Inherent transcendentals + constants + predicates ─────
+
+    #[test]
+    fn pi_constant_round_trips_f32_f64() {
+        assert_eq!(
+            ExtendedFloat::<f32>::PI,
+            ExtendedFloat::Extend(std::f32::consts::PI)
+        );
+        assert_eq!(
+            ExtendedFloat::<f64>::PI,
+            ExtendedFloat::Extend(std::f64::consts::PI)
+        );
+    }
+
+    #[test]
+    fn nan_infinity_constants_f64() {
+        assert!(ExtendedFloat::<f64>::NAN.is_nan());
+        assert_eq!(ExtendedFloat::<f64>::INFINITY, ExtendedFloat::<f64>::Top);
+        assert_eq!(
+            ExtendedFloat::<f64>::NEG_INFINITY,
+            ExtendedFloat::<f64>::Bot
+        );
+        assert_eq!(ExtendedFloat::<f64>::ZERO, ExtendedFloat::Extend(0.0));
+        assert_eq!(ExtendedFloat::<f64>::ONE, ExtendedFloat::Extend(1.0));
+    }
+
+    #[test]
+    fn predicates_classify_correctly_f64() {
+        let bot = ExtendedFloat::<f64>::Bot;
+        let top = ExtendedFloat::<f64>::Top;
+        let nan = ExtendedFloat::<f64>::NAN;
+        let pi = ExtendedFloat::<f64>::PI;
+        let inf = ExtendedFloat::Extend(f64::INFINITY);
+
+        assert!(!bot.is_nan() && !top.is_nan() && nan.is_nan() && !pi.is_nan());
+        assert!(!bot.is_finite() && !top.is_finite() && !nan.is_finite() && pi.is_finite());
+        assert!(bot.is_infinite() && top.is_infinite() && !pi.is_infinite() && inf.is_infinite());
+    }
+
+    #[test]
+    fn sin_extends_passes_through_f64() {
+        // sin(0) is exactly 0 in the inner f64.
+        assert_eq!(
+            ExtendedFloat::Extend(0.0_f64).sin(),
+            ExtendedFloat::Extend(0.0)
+        );
+        // sin's value at endpoints isn't well-defined; it should NaN.
+        assert!(ExtendedFloat::<f64>::Bot.sin().is_nan());
+        assert!(ExtendedFloat::<f64>::Top.sin().is_nan());
+    }
+
+    #[test]
+    fn atan_endpoints_are_finite() {
+        // atan has finite limits at ±∞: atan(-∞) = -π/2, atan(+∞) = π/2.
+        assert_eq!(
+            ExtendedFloat::<f64>::Bot.atan(),
+            ExtendedFloat::Extend(-std::f64::consts::FRAC_PI_2)
+        );
+        assert_eq!(
+            ExtendedFloat::<f64>::Top.atan(),
+            ExtendedFloat::Extend(std::f64::consts::FRAC_PI_2)
+        );
+    }
+
+    #[test]
+    fn exp_endpoints_f64() {
+        assert_eq!(
+            ExtendedFloat::<f64>::Bot.exp(),
+            ExtendedFloat::Extend(0.0)
+        );
+        assert_eq!(ExtendedFloat::<f64>::Top.exp(), ExtendedFloat::<f64>::Top);
+    }
+
+    #[test]
+    fn sqrt_endpoints_f64() {
+        assert_eq!(ExtendedFloat::<f64>::Top.sqrt(), ExtendedFloat::<f64>::Top);
+        assert!(ExtendedFloat::<f64>::Bot.sqrt().is_nan());
+    }
+
+    #[test]
+    fn ln_endpoints_f64() {
+        assert!(ExtendedFloat::<f64>::Bot.ln().is_nan());
+        assert_eq!(ExtendedFloat::<f64>::Top.ln(), ExtendedFloat::<f64>::Top);
+    }
+
+    #[test]
+    fn abs_endpoints_to_top_f64() {
+        assert_eq!(ExtendedFloat::<f64>::Bot.abs(), ExtendedFloat::<f64>::Top);
+        assert_eq!(ExtendedFloat::<f64>::Top.abs(), ExtendedFloat::<f64>::Top);
+    }
+
+    // ── T3: Additional From<integer> conversions ────────────────────
+
+    #[test]
+    fn from_i8_round_trips_f64() {
+        let a: ExtendedFloat<f64> = (-3i8).into();
+        assert_eq!(a, ExtendedFloat::Extend(-3.0));
+    }
+
+    #[test]
+    fn from_i16_u16_round_trips_f64() {
+        let a: ExtendedFloat<f64> = (-12345i16).into();
+        assert_eq!(a, ExtendedFloat::Extend(-12345.0));
+        let b: ExtendedFloat<f64> = 65535u16.into();
+        assert_eq!(b, ExtendedFloat::Extend(65535.0));
+    }
+
+    #[test]
+    fn from_i32_u32_round_trips_f64_only() {
+        let a: ExtendedFloat<f64> = i32::MIN.into();
+        assert_eq!(a, ExtendedFloat::Extend(i32::MIN as f64));
+        let b: ExtendedFloat<f64> = u32::MAX.into();
+        assert_eq!(b, ExtendedFloat::Extend(u32::MAX as f64));
+    }
+
+    #[test]
+    fn from_inner_t_wraps_extend() {
+        let a: ExtendedFloat<f32> = std::f32::consts::PI.into();
+        assert_eq!(a, ExtendedFloat::Extend(std::f32::consts::PI));
+        let b: ExtendedFloat<f64> = std::f64::consts::E.into();
+        assert_eq!(b, ExtendedFloat::Extend(std::f64::consts::E));
     }
 }
