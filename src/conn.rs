@@ -822,7 +822,8 @@ where
 /// > [`crate::property::laws::cast_median_rotate`])<br>
 /// > `median(c, x, y, z) == median(c, x, z, y)` (swap last two; property
 /// > [`crate::property::laws::cast_median_swap_yz`])<br>
-/// > `median(median(c, x, w, y), w, z) == median(c, x, w, median(y, w, z))` (associativity)
+/// > `median(median(c, x, w, y), w, z) == median(c, x, w, median(y, w, z))` (associativity; property
+/// > [`crate::property::laws::cast_median_associative`])
 ///
 /// ```rust
 /// use connections::conn::{Conn, median};

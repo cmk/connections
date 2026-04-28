@@ -53,3 +53,53 @@
       9.0 result) confirmed via a one-shot probe binary deleted
       before commit. The asserted constants match real impl output
       exactly.
+
+## Local review (2026-04-27)
+
+### Verdict
+PASS. Implementation matches Plan 21 §T1–T8 cleanly; tests + clippy
++ doc all green; doctests are tight; the `pi32_err` /
+shared-probe binding patterns are consistent.
+
+### Must-fix (block push)
+- None.
+
+### Should-fix
+- `src/float.rs` Mul/Rem in-file caveat — the table marks
+  `(Bot, Bot)` / `(Top, Top)` as `Extend(NaN)`, but real-line
+  arithmetic gives e.g. `(−∞)·(−∞) = +∞`. The simplification is a
+  choice, not forced. **Addressed:** the comment now spells out the
+  rationale ("we don't trust those corner cases enough to commit
+  Bot vs Top, so they collapse to `Extend(NaN)` uniformly").
+- `rem_zero_pin_f64` test name — the body exercises Extend × Extend
+  forwarding to inner `f64::rem`, not the Bot/Top arm.
+  **Addressed:** renamed to `rem_zero_inner_passes_through_f64`
+  with a body comment pointing readers at `rem_endpoint_pin_f64`
+  for the Bot/Top arm coverage.
+
+### Nits
+- `src/conn.rs` median `# Laws` — associativity row lacked the
+  property-predicate cross-link the other three median laws have.
+  **Addressed:** added `(property: cast_median_associative)`
+  citation now that the predicate exists.
+- `src/conn.rs` "in f64-precision lands" phrasing in two doctest
+  bodies — acceptable as-is; not a precision-confusion violation,
+  just style. Left alone.
+- `src/conn.rs` `new_right_ceil_eq_floor` test — reviewer flagged
+  a comment opportunity, but `git diff origin/main...HEAD` confirms
+  this test is *not* in the sprint diff. Outside scope; left alone.
+
+### Verification check
+The plan's verification table (lines 196–207 of plan-2026-04-27-09.md)
+lists 12 property/test groups. All present and green: `mul_extends_
+passes_through_f64`, `neg_double_is_id_f64` / `neg_endpoints_flip`,
+the renamed `rem_zero_inner_passes_through_f64` + `rem_endpoint_
+pin_f64`, the five `*_assign_matches_*` proptests, the transcendental
+endpoint deterministic spot checks, the four `from_*_round_trips`,
+and the `cast_median_associative` predicate plus its proptest. The
+four T4/T6 numeric literals (Newton-step `Extend(std::f32::consts::
+PI)`, the shared probe's `Extend(3.1415925_f32)` floor + `Extend(std
+::f32::consts::PI)` ceiling, median NaN `Extend(9.0_f32)`) all
+asserted with `assert_eq!` against concrete literals confirmed by a
+one-shot probe. Doctest-tightness audit: `grep -nE
+"assert!.*[<>]=|assert!.*\|\|"` returns zero hits across `src/conn.rs`.

@@ -113,11 +113,18 @@ impl_float_ext!(f64);
 // The Bot/Top arms follow a conservative simplification rule:
 // `Add`/`Sub`/`Neg` preserve the lattice endpoints when the result
 // is unambiguous (e.g. `Bot + Bot = Bot`, `-Bot = Top`); every other
-// Bot/Top combination collapses to `Extend(NaN)`. The chain
-// combinators in `crate::conn` (`interval`/`midpoint`/`round`/
-// `truncate`) only ever pass `Extend(_)` brackets to these ops, so
-// the simplification has no effect on in-tree usage; deterministic
-// tests in `mod tests` pin the Bot/Top arms for direct callers.
+// Bot/Top combination collapses to `Extend(NaN)`. Note this is a
+// *choice*: real-line arithmetic gives e.g. `(-∞)·(-∞) = +∞` and
+// `(+∞)/(+∞) = NaN`, so for `Mul`/`Div`/`Rem` even the same-sign
+// endpoint cases (`Bot * Bot`, `Top * Top`) admit no obvious
+// lattice answer without committing to a sign-of-product
+// convention. We don't trust those corner cases enough to commit
+// Bot vs Top, so they collapse to `Extend(NaN)` uniformly. The
+// chain combinators in `crate::conn` (`interval`/`midpoint`/
+// `round`/`truncate`) only ever pass `Extend(_)` brackets to these
+// ops, so the simplification has no effect on in-tree usage;
+// deterministic tests in `mod tests` pin the Bot/Top arms for
+// direct callers.
 //
 // | Op | (Bot, Bot)  | (Top, Top)  | mixed Bot/Top   | endpoint, Extend(_) | (Extend(a), Extend(b)) |
 // |----|-------------|-------------|-----------------|---------------------|------------------------|
@@ -856,10 +863,12 @@ mod tests {
     }
 
     #[test]
-    fn rem_zero_pin_f64() {
+    fn rem_zero_inner_passes_through_f64() {
+        // Extend × Extend forwards to inner f64 % f64, which is NaN
+        // for divisor 0.0 — IEEE 754 semantics, no lattice arm
+        // involved. (See `rem_endpoint_pin_f64` for the Bot/Top arm.)
         let a: ExtendedFloat<f64> = ExtendedFloat::Extend(7.5);
         let zero: ExtendedFloat<f64> = ExtendedFloat::Extend(0.0);
-        // f64 7.5 % 0.0 produces NaN; the lattice impl mirrors that.
         match a % zero {
             ExtendedFloat::Extend(v) => assert!(v.is_nan()),
             other => panic!("expected Extend(NaN), got {other:?}"),
