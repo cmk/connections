@@ -463,7 +463,7 @@ where
 /// satisfy this trivially. On a saturating conn where the
 /// inner-bracket can flip (`hi < lo`), `hi - lo` underflows silently
 /// on signed-integer sources and produces a meaningless value; the
-/// companion predicate [`crate::prop::conn::cast_midpoint_between`]
+/// companion predicate [`crate::prop::conn::conn_midpoint_between`]
 /// gates on `lo ≤ hi` for exactly this reason.
 ///
 /// The offset form sidesteps the intermediate-sum overflow that
@@ -1167,84 +1167,84 @@ mod tests {
 
         #[test]
         fn upper1_unit_id_i32(a: i32) {
-            prop_assert!(conn_laws::cast_upper1_id_unit(&ID_I32, a));
+            prop_assert!(conn_laws::conn_upper1_id_unit(&ID_I32, a));
         }
 
         #[test]
         fn lower1_counit_id_i32(a: i32) {
-            prop_assert!(conn_laws::cast_lower1_id_counit(&ID_I32, a));
+            prop_assert!(conn_laws::conn_lower1_id_counit(&ID_I32, a));
         }
 
         #[test]
         fn ceiling1_kernel_id_i32(b: i32) {
-            prop_assert!(conn_laws::cast_ceiling1_id_kernel(&ID_I32, b));
+            prop_assert!(conn_laws::conn_ceiling1_id_kernel(&ID_I32, b));
         }
 
         #[test]
         fn floor1_kernel_id_i32(b: i32) {
-            prop_assert!(conn_laws::cast_floor1_id_kernel(&ID_I32, b));
+            prop_assert!(conn_laws::conn_floor1_id_kernel(&ID_I32, b));
         }
 
         #[test]
         fn upper2_diag_id_i32(a: i32) {
-            prop_assert!(conn_laws::cast_upper2_id_diag(&ID_I32, a));
+            prop_assert!(conn_laws::conn_upper2_id_diag(&ID_I32, a));
         }
 
         #[test]
         fn lower2_diag_id_i32(a: i32) {
-            prop_assert!(conn_laws::cast_lower2_id_diag(&ID_I32, a));
+            prop_assert!(conn_laws::conn_lower2_id_diag(&ID_I32, a));
         }
 
         #[test]
         fn ceiling2_diag_id_i32(b: i32) {
-            prop_assert!(conn_laws::cast_ceiling2_id_diag(&ID_I32, b));
+            prop_assert!(conn_laws::conn_ceiling2_id_diag(&ID_I32, b));
         }
 
         #[test]
         fn floor2_diag_id_i32(b: i32) {
-            prop_assert!(conn_laws::cast_floor2_id_diag(&ID_I32, b));
+            prop_assert!(conn_laws::conn_floor2_id_diag(&ID_I32, b));
         }
 
         // ── ID_EF64 (ExtendedFloat<f64>; covers Bot/Top/Extend(NaN)) ──
 
         #[test]
         fn upper1_unit_id_ef64(a in arb_f64()) {
-            prop_assert!(conn_laws::cast_upper1_id_unit(&ID_EF64, ExtendedFloat::Extend(a)));
+            prop_assert!(conn_laws::conn_upper1_id_unit(&ID_EF64, ExtendedFloat::Extend(a)));
         }
 
         #[test]
         fn lower1_counit_id_ef64(a in arb_f64()) {
-            prop_assert!(conn_laws::cast_lower1_id_counit(&ID_EF64, ExtendedFloat::Extend(a)));
+            prop_assert!(conn_laws::conn_lower1_id_counit(&ID_EF64, ExtendedFloat::Extend(a)));
         }
 
         #[test]
         fn ceiling1_kernel_id_ef64(b in arb_f64()) {
-            prop_assert!(conn_laws::cast_ceiling1_id_kernel(&ID_EF64, ExtendedFloat::Extend(b)));
+            prop_assert!(conn_laws::conn_ceiling1_id_kernel(&ID_EF64, ExtendedFloat::Extend(b)));
         }
 
         #[test]
         fn floor1_kernel_id_ef64(b in arb_f64()) {
-            prop_assert!(conn_laws::cast_floor1_id_kernel(&ID_EF64, ExtendedFloat::Extend(b)));
+            prop_assert!(conn_laws::conn_floor1_id_kernel(&ID_EF64, ExtendedFloat::Extend(b)));
         }
 
         #[test]
         fn upper2_diag_id_ef64(a in arb_f64()) {
-            prop_assert!(conn_laws::cast_upper2_id_diag(&ID_EF64, ExtendedFloat::Extend(a)));
+            prop_assert!(conn_laws::conn_upper2_id_diag(&ID_EF64, ExtendedFloat::Extend(a)));
         }
 
         #[test]
         fn lower2_diag_id_ef64(a in arb_f64()) {
-            prop_assert!(conn_laws::cast_lower2_id_diag(&ID_EF64, ExtendedFloat::Extend(a)));
+            prop_assert!(conn_laws::conn_lower2_id_diag(&ID_EF64, ExtendedFloat::Extend(a)));
         }
 
         #[test]
         fn ceiling2_diag_id_ef64(b in arb_f64()) {
-            prop_assert!(conn_laws::cast_ceiling2_id_diag(&ID_EF64, ExtendedFloat::Extend(b)));
+            prop_assert!(conn_laws::conn_ceiling2_id_diag(&ID_EF64, ExtendedFloat::Extend(b)));
         }
 
         #[test]
         fn floor2_diag_id_ef64(b in arb_f64()) {
-            prop_assert!(conn_laws::cast_floor2_id_diag(&ID_EF64, ExtendedFloat::Extend(b)));
+            prop_assert!(conn_laws::conn_floor2_id_diag(&ID_EF64, ExtendedFloat::Extend(b)));
         }
 
         // ── Two-sided helpers ──
@@ -1261,79 +1261,79 @@ mod tests {
 
         #[test]
         fn interval_at_midpoint_id_i32(a: i32) {
-            prop_assert!(conn_laws::cast_interval_at_midpoint_eq_or_none(&ID_I32, a));
+            prop_assert!(conn_laws::conn_interval_at_midpoint_eq_or_none(&ID_I32, a));
         }
 
         #[test]
         fn interval_at_midpoint_id_i64(a: i64) {
-            prop_assert!(conn_laws::cast_interval_at_midpoint_eq_or_none(&ID_I64, a));
+            prop_assert!(conn_laws::conn_interval_at_midpoint_eq_or_none(&ID_I64, a));
         }
 
         #[test]
         fn midpoint_between_id_i32(a: i32) {
-            prop_assert!(conn_laws::cast_midpoint_between(&ID_I32, a));
+            prop_assert!(conn_laws::conn_midpoint_between(&ID_I32, a));
         }
 
         #[test]
         fn midpoint_between_id_i64(a: i64) {
-            prop_assert!(conn_laws::cast_midpoint_between(&ID_I64, a));
+            prop_assert!(conn_laws::conn_midpoint_between(&ID_I64, a));
         }
 
         #[test]
         fn round_picks_endpoint_id_i32(a: i32) {
-            prop_assert!(conn_laws::cast_round_picks_endpoint(&ID_I32, a));
+            prop_assert!(conn_laws::conn_round_picks_endpoint(&ID_I32, a));
         }
 
         #[test]
         fn round_picks_endpoint_id_i64(a: i64) {
-            prop_assert!(conn_laws::cast_round_picks_endpoint(&ID_I64, a));
+            prop_assert!(conn_laws::conn_round_picks_endpoint(&ID_I64, a));
         }
 
         #[test]
         fn truncate_picks_endpoint_id_i32(a: i32) {
-            prop_assert!(conn_laws::cast_truncate_picks_endpoint(&ID_I32, a));
+            prop_assert!(conn_laws::conn_truncate_picks_endpoint(&ID_I32, a));
         }
 
         #[test]
         fn truncate_picks_endpoint_id_i64(a: i64) {
-            prop_assert!(conn_laws::cast_truncate_picks_endpoint(&ID_I64, a));
+            prop_assert!(conn_laws::conn_truncate_picks_endpoint(&ID_I64, a));
         }
 
         #[test]
         fn truncate_toward_zero_id_i32(a: i32) {
-            prop_assert!(conn_laws::cast_truncate_toward_zero(&ID_I32, a));
+            prop_assert!(conn_laws::conn_truncate_toward_zero(&ID_I32, a));
         }
 
         #[test]
         fn truncate_toward_zero_id_i64(a: i64) {
-            prop_assert!(conn_laws::cast_truncate_toward_zero(&ID_I64, a));
+            prop_assert!(conn_laws::conn_truncate_toward_zero(&ID_I64, a));
         }
 
         #[test]
         fn round1_id_unit_id_i32(a: i32) {
-            prop_assert!(conn_laws::cast_round1_id_unit(&ID_I32, a));
+            prop_assert!(conn_laws::conn_round1_id_unit(&ID_I32, a));
         }
 
         #[test]
         fn truncate1_id_unit_id_i32(a: i32) {
-            prop_assert!(conn_laws::cast_truncate1_id_unit(&ID_I32, a));
+            prop_assert!(conn_laws::conn_truncate1_id_unit(&ID_I32, a));
         }
 
         // Birkhoff median axioms over ORDERED_PAIR.
 
         #[test]
         fn median_idempotent_ordered(x: i32, y: i32) {
-            prop_assert!(conn_laws::cast_median_idempotent(&ORDERED_PAIR, x, y));
+            prop_assert!(conn_laws::conn_median_idempotent(&ORDERED_PAIR, x, y));
         }
 
         #[test]
         fn median_rotate_ordered(x: i32, y: i32, z: i32) {
-            prop_assert!(conn_laws::cast_median_rotate(&ORDERED_PAIR, x, y, z));
+            prop_assert!(conn_laws::conn_median_rotate(&ORDERED_PAIR, x, y, z));
         }
 
         #[test]
         fn median_swap_yz_ordered(x: i32, y: i32, z: i32) {
-            prop_assert!(conn_laws::cast_median_swap_yz(&ORDERED_PAIR, x, y, z));
+            prop_assert!(conn_laws::conn_median_swap_yz(&ORDERED_PAIR, x, y, z));
         }
     }
 }

@@ -168,25 +168,25 @@ where
 
 /// `upper1` unit law: `a ≤ upper1(c, id, a)`. Equivalent to
 /// [`conn_closure_l`] routed through the lifter.
-pub fn cast_upper1_id_unit<A: Copy + PartialOrd, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+pub fn conn_upper1_id_unit<A: Copy + PartialOrd, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
     a <= crate::conn::upper1(c, |x| x, a)
 }
 
 /// `lower1` counit law: `lower1(c, id, a) ≤ a`. Equivalent to
 /// [`conn_closure_r`] routed through the lifter.
-pub fn cast_lower1_id_counit<A: Copy + PartialOrd, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+pub fn conn_lower1_id_counit<A: Copy + PartialOrd, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
     crate::conn::lower1(c, |x| x, a) <= a
 }
 
 /// `ceiling1` kernel law: `ceiling1(c, id, b) ≤ b`. Equivalent to
 /// [`conn_kernel_l`] routed through the lifter.
-pub fn cast_ceiling1_id_kernel<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B>, b: B) -> bool {
+pub fn conn_ceiling1_id_kernel<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B>, b: B) -> bool {
     crate::conn::ceiling1(c, |x| x, b) <= b
 }
 
 /// `floor1` kernel law: `b ≤ floor1(c, id, b)`. Equivalent to
 /// [`conn_kernel_r`] routed through the lifter.
-pub fn cast_floor1_id_kernel<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B>, b: B) -> bool {
+pub fn conn_floor1_id_kernel<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B>, b: B) -> bool {
     b <= crate::conn::floor1(c, |x| x, b)
 }
 
@@ -196,15 +196,15 @@ pub fn cast_floor1_id_kernel<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B>, b: B
 /// the lifter, **not** a general diagonal law; for arbitrary `f`,
 /// the broader `upper2(c, f, a, a) == upper1(c, |b| f(b, b), a)`
 /// would require `f` to be supplied as a parameter.
-pub fn cast_upper2_id_diag<A: Copy + Eq, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+pub fn conn_upper2_id_diag<A: Copy + Eq, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
     let l = crate::conn::upper2(c, |p, _q| p, a, a);
     let r = crate::conn::upper1(c, |x| x, a);
     l == r
 }
 
-/// `lower2` collapse-on-projection: dual of [`cast_upper2_id_diag`]
+/// `lower2` collapse-on-projection: dual of [`conn_upper2_id_diag`]
 /// — narrow check that `lower2(c, |p, _| p, a, a) == lower1(c, id, a)`.
-pub fn cast_lower2_id_diag<A: Copy + Eq, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
+pub fn conn_lower2_id_diag<A: Copy + Eq, B: Copy>(c: &Conn<A, B>, a: A) -> bool {
     let l = crate::conn::lower2(c, |p, _q| p, a, a);
     let r = crate::conn::lower1(c, |x| x, a);
     l == r
@@ -212,15 +212,15 @@ pub fn cast_lower2_id_diag<A: Copy + Eq, B: Copy>(c: &Conn<A, B>, a: A) -> bool 
 
 /// `ceiling2` collapse-on-projection: with `|p, _| p` on `(b, b)`,
 /// equals `ceiling1` with `id`. Narrow check, see
-/// [`cast_upper2_id_diag`] for why.
-pub fn cast_ceiling2_id_diag<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool {
+/// [`conn_upper2_id_diag`] for why.
+pub fn conn_ceiling2_id_diag<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool {
     let l = crate::conn::ceiling2(c, |p, _q| p, b, b);
     let r = crate::conn::ceiling1(c, |x| x, b);
     l == r
 }
 
-/// `floor2` collapse-on-projection: dual of [`cast_ceiling2_id_diag`].
-pub fn cast_floor2_id_diag<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool {
+/// `floor2` collapse-on-projection: dual of [`conn_ceiling2_id_diag`].
+pub fn conn_floor2_id_diag<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool {
     let l = crate::conn::floor2(c, |p, _q| p, b, b);
     let r = crate::conn::floor1(c, |x| x, b);
     l == r
@@ -233,7 +233,7 @@ pub fn cast_floor2_id_diag<A: Copy, B: Copy + Eq>(c: &Conn<A, B>, b: B) -> bool 
 /// `Some(Equal)` (or `None` if the source values are NaN-bearing).
 /// Mirrors Haskell `Cast.hs` doctest:
 /// `interval c (midpoint c x) == Just EQ`.
-pub fn cast_interval_at_midpoint_eq_or_none<A, B>(c: &Conn<A, B>, x: A) -> bool
+pub fn conn_interval_at_midpoint_eq_or_none<A, B>(c: &Conn<A, B>, x: A) -> bool
 where
     A: Copy
         + PartialOrd
@@ -253,7 +253,7 @@ where
 /// On saturating Conns the bracket can flip; the predicate returns
 /// `true` vacuously when `lo > hi` (consistent with the
 /// `conn_floor_le_ceil` precedent for injective-`inner` checks).
-pub fn cast_midpoint_between<A, B>(c: &Conn<A, B>, x: A) -> bool
+pub fn conn_midpoint_between<A, B>(c: &Conn<A, B>, x: A) -> bool
 where
     A: Copy
         + PartialOrd
@@ -275,7 +275,7 @@ where
 /// `round(c, x)` is always one of `c.ceil(x)` / `c.floor(x)` (since
 /// every dispatch arm of [`crate::conn::round`] returns one or
 /// the other directly).
-pub fn cast_round_picks_endpoint<A, B>(c: &Conn<A, B>, x: A) -> bool
+pub fn conn_round_picks_endpoint<A, B>(c: &Conn<A, B>, x: A) -> bool
 where
     A: Copy + PartialOrd + core::ops::Sub<Output = A> + From<u8>,
     B: Copy + Eq,
@@ -285,7 +285,7 @@ where
 }
 
 /// `truncate(c, x)` is always one of `c.ceil(x)` / `c.floor(x)`.
-pub fn cast_truncate_picks_endpoint<A, B>(c: &Conn<A, B>, x: A) -> bool
+pub fn conn_truncate_picks_endpoint<A, B>(c: &Conn<A, B>, x: A) -> bool
 where
     A: Copy + PartialOrd + From<u8>,
     B: Copy + Eq,
@@ -297,7 +297,7 @@ where
 /// Toward-zero contract: `x ≥ 0 ⟹ truncate = floor`,
 /// otherwise (including the NaN-bearing case where `x ≥ 0` is false)
 /// `truncate = ceil`.
-pub fn cast_truncate_toward_zero<A, B>(c: &Conn<A, B>, x: A) -> bool
+pub fn conn_truncate_toward_zero<A, B>(c: &Conn<A, B>, x: A) -> bool
 where
     A: Copy + PartialOrd + From<u8>,
     B: Copy + Eq,
@@ -323,8 +323,8 @@ where
 /// over a non-identity triple (e.g. `I016I008`) produces spurious
 /// failures whenever `x` does not already lie on a representable
 /// rung — those are not law violations. For non-identity Conns,
-/// use [`cast_round_picks_endpoint`] instead.
-pub fn cast_round1_id_unit<A, B>(c: &Conn<A, B>, x: B) -> bool
+/// use [`conn_round_picks_endpoint`] instead.
+pub fn conn_round1_id_unit<A, B>(c: &Conn<A, B>, x: B) -> bool
 where
     A: Copy + PartialOrd + core::ops::Sub<Output = A> + From<u8>,
     B: Copy + Eq,
@@ -334,15 +334,15 @@ where
 
 /// `truncate1(c, id, x) == x` for an identity Conn (Haskell axiom
 /// `truncate1 identity = id`). Same caveats as
-/// [`cast_round1_id_unit`].
+/// [`conn_round1_id_unit`].
 ///
 /// # Warning
 ///
 /// Only reliable as a law predicate for **identity Conns**. For
-/// non-identity Conns, use [`cast_truncate_picks_endpoint`] —
+/// non-identity Conns, use [`conn_truncate_picks_endpoint`] —
 /// driving this predicate elsewhere produces spurious failures
 /// that are not law violations.
-pub fn cast_truncate1_id_unit<A, B>(c: &Conn<A, B>, x: B) -> bool
+pub fn conn_truncate1_id_unit<A, B>(c: &Conn<A, B>, x: B) -> bool
 where
     A: Copy + PartialOrd + From<u8>,
     B: Copy + Eq,
@@ -351,7 +351,7 @@ where
 }
 
 /// Birkhoff median axiom 1: `median(c, x, x, y) == x`.
-pub fn cast_median_idempotent<A>(c: &Conn<(A, A), A>, x: A, y: A) -> bool
+pub fn conn_median_idempotent<A>(c: &Conn<(A, A), A>, x: A, y: A) -> bool
 where
     A: Copy + Eq,
 {
@@ -360,7 +360,7 @@ where
 
 /// Birkhoff median axiom 2 (rotation):
 /// `median(c, x, y, z) == median(c, z, x, y)`.
-pub fn cast_median_rotate<A>(c: &Conn<(A, A), A>, x: A, y: A, z: A) -> bool
+pub fn conn_median_rotate<A>(c: &Conn<(A, A), A>, x: A, y: A, z: A) -> bool
 where
     A: Copy + Eq,
 {
@@ -369,7 +369,7 @@ where
 
 /// Birkhoff median axiom 3 (last-two swap):
 /// `median(c, x, y, z) == median(c, x, z, y)`.
-pub fn cast_median_swap_yz<A>(c: &Conn<(A, A), A>, x: A, y: A, z: A) -> bool
+pub fn conn_median_swap_yz<A>(c: &Conn<(A, A), A>, x: A, y: A, z: A) -> bool
 where
     A: Copy + Eq,
 {

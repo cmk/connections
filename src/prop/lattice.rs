@@ -248,70 +248,70 @@ pub fn biheyting_neg_le_coneg<T: Heyting + Coheyting>(x: &T) -> bool {
     x.neg() <= x.coneg()
 }
 
-// ── Symmetric (symmetric1–symmetric13) ───────────────────────────
+// ── Bi-Heyting from `Symmetric` (biheyting1–biheyting13) ───────────────────────────
 
-/// symmetric1: `not(not(x)) == x` (involution)
-pub fn symmetric_involution<T: Symmetric + Eq>(x: &T) -> bool {
+/// biheyting1: `not(not(x)) == x` (involution)
+pub fn biheyting_involution<T: Symmetric + Eq>(x: &T) -> bool {
     x.not().not() == *x
 }
 
-/// symmetric2: `neg(neg(x)) == convr(convl(x))`
-pub fn symmetric_double_neg_eq_convrl<T: Symmetric + Eq>(x: &T) -> bool {
+/// biheyting2: `neg(neg(x)) == convr(convl(x))`
+pub fn biheyting_double_neg_eq_convrl<T: Symmetric + Eq>(x: &T) -> bool {
     x.neg().neg() == convr(&convl(x))
 }
 
-/// symmetric3: `coneg(coneg(x)) == convl(convr(x))`
-pub fn symmetric_double_coneg_eq_convlr<T: Symmetric + Eq>(x: &T) -> bool {
+/// biheyting3: `coneg(coneg(x)) == convl(convr(x))`
+pub fn biheyting_double_coneg_eq_convlr<T: Symmetric + Eq>(x: &T) -> bool {
     x.coneg().coneg() == convl(&convr(x))
 }
 
-/// symmetric4: `coneg(x) == convl(not(x))` and `neg(x) == not(convl(x))`
-pub fn symmetric_coneg_neg_convl<T: Symmetric + Eq>(x: &T) -> bool {
+/// biheyting4: `coneg(x) == convl(not(x))` and `neg(x) == not(convl(x))`
+pub fn biheyting_coneg_neg_convl<T: Symmetric + Eq>(x: &T) -> bool {
     x.coneg() == convl(&x.not()) && x.neg() == convl(x).not()
 }
 
-/// symmetric5: `coneg(x) == not(convr(x))` and `neg(x) == convr(not(x))`
-pub fn symmetric_coneg_neg_convr<T: Symmetric + Eq>(x: &T) -> bool {
+/// biheyting5: `coneg(x) == not(convr(x))` and `neg(x) == convr(not(x))`
+pub fn biheyting_coneg_neg_convr<T: Symmetric + Eq>(x: &T) -> bool {
     x.coneg() == convr(x).not() && x.neg() == convr(&x.not())
 }
 
-/// symmetric6: `neg(x).join(neg(neg(x))) == top` (Heyting only)
-pub fn symmetric_neg_excluded_middle<T: Heyting + Eq>(x: &T) -> bool {
+/// biheyting6: `neg(x).join(neg(neg(x))) == top` (Heyting only)
+pub fn biheyting_neg_excluded_middle<T: Heyting + Eq>(x: &T) -> bool {
     x.neg().join(&x.neg().neg()) == T::top()
 }
 
-/// symmetric7: de Morgan — `not(x.meet(y)) == not(x).join(not(y))`
-pub fn symmetric_not_de_morgan_meet<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
+/// biheyting7: de Morgan — `not(x.meet(y)) == not(x).join(not(y))`
+pub fn biheyting_not_de_morgan_meet<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
     x.meet(y).not() == x.not().join(&y.not())
 }
 
-/// symmetric8: `not(not(x.join(y))) == not(not(x)).join(not(not(y)))`
-pub fn symmetric_double_not_join<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
+/// biheyting8: `not(not(x.join(y))) == not(not(x)).join(not(not(y)))`
+pub fn biheyting_double_not_join<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
     x.join(y).not().not() == x.not().not().join(&y.not().not())
 }
 
-/// symmetric9: de Morgan — `not(x.join(y)) == not(x).meet(not(y))`
-pub fn symmetric_not_de_morgan_join<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
+/// biheyting9: de Morgan — `not(x.join(y)) == not(x).meet(not(y))`
+pub fn biheyting_not_de_morgan_join<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
     x.join(y).not() == x.not().meet(&y.not())
 }
 
-/// symmetric10: `convl(x.join(y)) == convl(x).join(convl(y))`
-pub fn symmetric_convl_join<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
+/// biheyting10: `convl(x.join(y)) == convl(x).join(convl(y))`
+pub fn biheyting_convl_join<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
     convl(&x.join(y)) == convl(x).join(&convl(y))
 }
 
-/// symmetric11: `convr(x.meet(y)) == convr(x).meet(convr(y))`
-pub fn symmetric_convr_meet<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
+/// biheyting11: `convr(x.meet(y)) == convr(x).meet(convr(y))`
+pub fn biheyting_convr_meet<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
     convr(&x.meet(y)) == convr(x).meet(&convr(y))
 }
 
-/// symmetric12: `convl(x.meet(y)) == coneg(coneg(convl(x).meet(convl(y))))`
-pub fn symmetric_convl_meet<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
+/// biheyting12: `convl(x.meet(y)) == coneg(coneg(convl(x).meet(convl(y))))`
+pub fn biheyting_convl_meet<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
     convl(&x.meet(y)) == convl(x).meet(&convl(y)).coneg().coneg()
 }
 
-/// symmetric13: `convr(x.join(y)) == neg(neg(convr(x).join(convr(y))))`
-pub fn symmetric_convr_join<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
+/// biheyting13: `convr(x.join(y)) == neg(neg(convr(x).join(convr(y))))`
+pub fn biheyting_convr_join<T: Symmetric + Eq>(x: &T, y: &T) -> bool {
     convr(&x.join(y)) == convr(x).join(&convr(y)).neg().neg()
 }
 
