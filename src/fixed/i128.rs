@@ -30,6 +30,14 @@ pub type I128 = FixedI128<U128>;
 
 macro_rules! fix_fix_i128 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {
+#[rustfmt::skip]
+        #[doc = concat!(
+            "`FixedI128<",
+            stringify!($FineFrac),
+            "> → FixedI128<",
+            stringify!($CoarseFrac),
+            ">` frac-level convert (i128-backed)."
+        )]
         pub const $const_name: Conn<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
             // For SHIFT < 128, RATIO = 2^SHIFT fits in i128 as a positive

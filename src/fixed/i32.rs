@@ -18,6 +18,14 @@ pub type I032 = FixedI32<U32>;
 
 macro_rules! fix_fix_i32 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {
+#[rustfmt::skip]
+        #[doc = concat!(
+            "`FixedI32<",
+            stringify!($FineFrac),
+            "> → FixedI32<",
+            stringify!($CoarseFrac),
+            ">` frac-level convert (i32-backed)."
+        )]
         pub const $const_name: Conn<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
             // i64 covers SHIFT ∈ [1, 32]: 1 << 32 fits, and

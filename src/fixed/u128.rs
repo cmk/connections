@@ -23,6 +23,14 @@ use ::fixed::types::extra::{U0, U16, U32, U64, U96, U127, U128, Unsigned};
 
 macro_rules! fix_fix_u128 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {
+#[rustfmt::skip]
+        #[doc = concat!(
+            "`FixedU128<",
+            stringify!($FineFrac),
+            "> → FixedU128<",
+            stringify!($CoarseFrac),
+            ">` frac-level convert (u128-backed)."
+        )]
         pub const $const_name: Conn<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
             // For SHIFT < 128, RATIO = 2^SHIFT fits in u128. For
