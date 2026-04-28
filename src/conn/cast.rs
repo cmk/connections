@@ -69,10 +69,14 @@ use super::Conn;
 /// L-side reading of the connection.
 ///
 /// ```rust
-/// use connections::conn::Conn;
 /// use connections::conn::cast::upper;
-/// let c: Conn<i32, i32> = Conn::identity();
-/// assert_eq!(upper(&c, 7), 7);
+/// use connections::conn::float::ExtendedFloat::Extend;
+/// use connections::conn::float::f64::F064F032;
+///
+/// // Widen the f32 ceiling of π back to f64 — sits above the f64 π.
+/// let pi = Extend(std::f64::consts::PI);
+/// let pi_up = F064F032.ceil(pi);
+/// assert!(upper(&F064F032, pi_up) >= pi);
 /// ```
 #[inline]
 #[must_use]
@@ -109,10 +113,14 @@ where
 /// Synonymous with [`Conn::ceil`] under the L-side reading.
 ///
 /// ```rust
-/// use connections::conn::Conn;
 /// use connections::conn::cast::ceiling;
-/// let c: Conn<i32, i32> = Conn::identity();
-/// assert_eq!(ceiling(&c, 7), 7);
+/// use connections::conn::float::ExtendedFloat::Extend;
+/// use connections::conn::float::f64::F064F032;
+///
+/// // Smallest f32 whose f64 widening is ≥ π.
+/// let pi = Extend(std::f64::consts::PI);
+/// let pi_up = ceiling(&F064F032, pi);
+/// assert!(F064F032.inner(pi_up) >= pi);
 /// ```
 #[inline]
 #[must_use]
@@ -233,10 +241,13 @@ where
 ///
 /// ```rust
 /// use core::cmp::Ordering;
-/// use connections::conn::Conn;
 /// use connections::conn::cast::interval;
-/// let c: Conn<i32, i32> = Conn::identity();
-/// assert_eq!(interval(&c, 7), Some(Ordering::Equal));
+/// use connections::conn::float::ExtendedFloat::Extend;
+/// use connections::conn::float::f64::F064F032;
+///
+/// // π sits closer to its f32 ceiling than its f32 floor.
+/// let pi = Extend(std::f64::consts::PI);
+/// assert_eq!(interval(&F064F032, pi), Some(Ordering::Greater));
 /// ```
 #[inline]
 #[must_use]
@@ -271,10 +282,16 @@ where
 /// route through a wider-source conn (`compose!`) first.
 ///
 /// ```rust
-/// use connections::conn::Conn;
 /// use connections::conn::cast::midpoint;
-/// let c: Conn<i32, i32> = Conn::identity();
-/// assert_eq!(midpoint(&c, 7), 7);
+/// use connections::conn::float::ExtendedFloat::Extend;
+/// use connections::conn::float::f64::F064F032;
+///
+/// // Midpoint of the f32 bracket around π, lifted back to f64.
+/// let pi = Extend(std::f64::consts::PI);
+/// let mid = midpoint(&F064F032, pi);
+/// let lo = F064F032.inner(F064F032.floor(pi));
+/// let hi = F064F032.inner(F064F032.ceil(pi));
+/// assert!(lo <= mid && mid <= hi);
 /// ```
 #[inline]
 #[must_use]
@@ -295,11 +312,13 @@ where
 /// `truncate c x = if x >~ 0 then floor c x else ceiling c x`.
 ///
 /// ```rust
-/// use connections::conn::Conn;
 /// use connections::conn::cast::truncate;
-/// let c: Conn<i32, i32> = Conn::identity();
-/// assert_eq!(truncate(&c, 5), 5);
-/// assert_eq!(truncate(&c, -5), -5);
+/// use connections::conn::float::ExtendedFloat::Extend;
+/// use connections::conn::float::f64::F064F032;
+///
+/// // π > 0, so truncate routes through `c.floor`.
+/// let pi = Extend(std::f64::consts::PI);
+/// assert_eq!(truncate(&F064F032, pi), F064F032.floor(pi));
 /// ```
 #[inline]
 #[must_use]
@@ -319,10 +338,13 @@ where
 /// `truncate1(c, f, x) = truncate(c, f(c.inner(x)))`.
 ///
 /// ```rust
-/// use connections::conn::Conn;
 /// use connections::conn::cast::truncate1;
-/// let c: Conn<i32, i32> = Conn::identity();
-/// assert_eq!(truncate1(&c, |a| a + 1, 5), 6);
+/// use connections::conn::float::ExtendedFloat::Extend;
+/// use connections::conn::float::f64::F064F032;
+///
+/// // Identity-lift of the f32-bracketed π.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// assert_eq!(truncate1(&F064F032, |a| a, pi32), F064F032.floor(F064F032.inner(pi32)));
 /// ```
 #[inline]
 #[must_use]
@@ -339,10 +361,14 @@ where
 /// `truncate2(c, f, x, y) = truncate(c, f(c.inner(x), c.inner(y)))`.
 ///
 /// ```rust
-/// use connections::conn::Conn;
 /// use connections::conn::cast::truncate2;
-/// let c: Conn<i32, i32> = Conn::identity();
-/// assert_eq!(truncate2(&c, |a, b| a + b, 3, 4), 7);
+/// use connections::conn::float::ExtendedFloat::Extend;
+/// use connections::conn::float::f64::F064F032;
+///
+/// // Sum two f32 brackets in f64 space, then truncate back to f32.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// let two_pi = truncate2(&F064F032, |a, b| a + b, pi32, pi32);
+/// assert!(F064F032.inner(two_pi) <= Extend(2.0 * std::f64::consts::PI + 1e-6));
 /// ```
 #[inline]
 #[must_use]
@@ -377,10 +403,13 @@ where
 /// that need different NaN handling should branch upstream.
 ///
 /// ```rust
-/// use connections::conn::Conn;
 /// use connections::conn::cast::round;
-/// let c: Conn<i32, i32> = Conn::identity();
-/// assert_eq!(round(&c, 7), 7);
+/// use connections::conn::float::ExtendedFloat::Extend;
+/// use connections::conn::float::f64::F064F032;
+///
+/// // π is closer to its f32 ceiling than its f32 floor.
+/// let pi = Extend(std::f64::consts::PI);
+/// assert_eq!(round(&F064F032, pi), F064F032.ceil(pi));
 /// ```
 #[inline]
 #[must_use]
@@ -400,10 +429,16 @@ where
 /// `round1(c, f, x) = round(c, f(c.inner(x)))`.
 ///
 /// ```rust
-/// use connections::conn::Conn;
 /// use connections::conn::cast::round1;
-/// let c: Conn<i32, i32> = Conn::identity();
-/// assert_eq!(round1(&c, |a| a * 2, 5), 10);
+/// use connections::conn::float::ExtendedFloat::Extend;
+/// use connections::conn::float::f64::F064F032;
+///
+/// // Identity-lift of the f32-bracketed π, rounded to nearest f32.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// let r = round1(&F064F032, |a| a, pi32);
+/// // The widened result brackets the original f32 π in f64 space.
+/// let r_back = F064F032.inner(r);
+/// assert!(r_back == F064F032.inner(pi32) || r_back == F064F032.inner(F064F032.ceil(F064F032.inner(pi32))));
 /// ```
 #[inline]
 #[must_use]
@@ -419,10 +454,14 @@ where
 /// `round2(c, f, x, y) = round(c, f(c.inner(x), c.inner(y)))`.
 ///
 /// ```rust
-/// use connections::conn::Conn;
 /// use connections::conn::cast::round2;
-/// let c: Conn<i32, i32> = Conn::identity();
-/// assert_eq!(round2(&c, |a, b| a + b, 3, 4), 7);
+/// use connections::conn::float::ExtendedFloat::Extend;
+/// use connections::conn::float::f64::F064F032;
+///
+/// // Sum two f32-bracketed π values in f64 space, then round back to f32.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// let two_pi = round2(&F064F032, |a, b| a + b, pi32, pi32);
+/// assert!(F064F032.inner(two_pi) <= Extend(2.0 * std::f64::consts::PI + 1e-6));
 /// ```
 #[inline]
 #[must_use]
