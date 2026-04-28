@@ -15,6 +15,7 @@ stages:
   - check
   - test
   - audit
+  - deploy
 
 default:
   image: rust:1.85
@@ -217,3 +218,31 @@ claude-review:
     # them into the local clone. CI_COMMIT_SHA (main's tip or whatever
     # branch was chosen) is ignored on this path.
     - if: $CLAUDE_REVIEW_MR && $ANTHROPIC_API_KEY && $GITLAB_TOKEN
+
+# Build rustdoc and publish to GitLab Pages. Runs only on main, after
+# `check` / `test` / `audit` have passed — so a doc warning that
+# slipped past the local pre-commit hook still blocks the deploy via
+# the existing `doc` check job (RUSTDOCFLAGS=-D warnings).
+#
+# `cargo doc` writes the rendered crate to `target/doc/connections/`,
+# but Pages serves whatever is at the root of `public/`. We move the
+# whole tree and write a one-line redirect at `public/index.html` so
+# that the Pages root URL lands on the crate index. Resulting URL:
+# `https://<group>.gitlab.io/<project>/connections/`.
+#
+# `--features testing` matches the docs.rs config in Cargo.toml so the
+# Pages build renders the same surface as the published docs (in
+# particular `connections::prop::arb`). The `f16` feature stays off
+# because it requires nightly; users wanting that path build locally.
+pages:
+  stage: deploy
+  script:
+    - cargo doc --no-deps --features testing
+    - rm -rf public
+    - mv target/doc public
+    - echo '<meta http-equiv="refresh" content="0; url=connections/">' > public/index.html
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
