@@ -1,5 +1,20 @@
 //! Conns landing on `i64`. Per the right-side-wins module rule,
 //! this file hosts every Conn whose destination type is `i64`.
+//!
+//! # Examples
+//!
+//! `i128 → i64` saturating narrowing — values outside `i64`'s range
+//! collapse onto the saturation plateau, and `inner` round-trips
+//! `i64::MAX` back to `i128::MAX` via the FINE_MAX boundary fixup:
+//!
+//! ```rust
+//! use connections::int::i64::I128I064;
+//!
+//! assert_eq!(I128I064.ceil(i128::MAX), i64::MAX);
+//! assert_eq!(I128I064.ceil(i128::MIN), i64::MIN);
+//! assert_eq!(I128I064.inner(i64::MAX), i128::MAX);  // FINE_MAX fixup
+//! assert_eq!(I128I064.inner(0_i64),    0_i128);
+//! ```
 
 use super::{ext_int, int_int_narrow, uint_int_sat};
 use crate::conn::Conn;

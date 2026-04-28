@@ -1,5 +1,32 @@
 //! Conns landing on `i16`. Per the right-side-wins module rule,
 //! this file hosts every Conn whose destination type is `i16`.
+//!
+//! # Examples
+//!
+//! `Extended<u8> → i16` widening — the source's range fits inside
+//! `i16`, so finite values pass through untouched. The synthetic
+//! markers `NegInf` / `PosInf` land at distinct boundary integers
+//! so `inner` can round-trip them, while `floor`/`ceil` saturate to
+//! the target's `MIN`/`MAX` for downstream consumers that don't
+//! know about `Extended`:
+//!
+//! ```rust
+//! use connections::int::i16::U008I016;
+//! use connections::extended::Extended;
+//!
+//! // Finite passes through:
+//! assert_eq!(U008I016.ceil(Extended::Finite(200_u8)), 200_i16);
+//!
+//! // The synthetic markers land one past the source bounds — distinct
+//! // from the i16 saturation, so `inner` can recover them:
+//! assert_eq!(U008I016.ceil(Extended::PosInf),   256_i16);  // u8::MAX + 1
+//! assert_eq!(U008I016.floor(Extended::NegInf),   -1_i16);  // u8::MIN - 1
+//!
+//! // Outer `floor` / `ceil` of the synthetic markers saturate the
+//! // target type instead, for consumers that need a plain i16:
+//! assert_eq!(U008I016.floor(Extended::PosInf), i16::MAX);
+//! assert_eq!(U008I016.ceil(Extended::NegInf),  i16::MIN);
+//! ```
 
 use super::{ext_int, int_int_narrow, uint_int_sat};
 use crate::conn::Conn;

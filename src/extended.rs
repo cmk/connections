@@ -8,10 +8,27 @@
 //! in float NaN handling — that lives in
 //! [`crate::float::ExtendedFloat`].
 
+/// A totally-ordered `T` extended with synthetic `NegInf` (bottom) and
+/// `PosInf` (top) sentinels.
+///
+/// Used as the target of connections whose source type cannot fit
+/// inside the destination — e.g. an `Extended<i8> → i16` widening lifts
+/// the source's `MIN`/`MAX` into the open interval `(NegInf, PosInf)`,
+/// leaving the synthetic markers free to record overflow on the way
+/// back through `inner`. The order is `NegInf < every Finite(t) < PosInf`,
+/// making `Extended<T>` a bounded total order whenever `T` is one.
+///
+/// `Extended` is a *pure range-extension* wrapper; it does not encode
+/// float NaN. NaN-bearing types live in
+/// [`crate::float::ExtendedFloat`], which carries an `Extend(t)` arm
+/// instead and threads NaN through the N5 lattice.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Extended<T> {
+    /// Synthetic bottom: less than every `Finite(t)` and less than `PosInf`.
     NegInf,
+    /// A value of the underlying type, with its native order.
     Finite(T),
+    /// Synthetic top: greater than every `Finite(t)` and greater than `NegInf`.
     PosInf,
 }
 

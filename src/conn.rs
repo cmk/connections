@@ -115,6 +115,33 @@
 //!   `Conn` answers both. No conversion function needed.
 //! - **`mapped`**: requires HKT; per `doc/design.md` line 206, omit and
 //!   specialize per container if needed downstream.
+//!
+//! ## Laws
+//!
+//! Every shipped connection satisfies the following nine laws. The
+//! property predicates live in [`crate::prop::conn`] and are
+//! re-runnable by downstream crates against their own connections.
+//! See the README's `## What's lawful` table for the canonical
+//! statement, and `doc/design.md` for the full design rationale.
+//!
+//! | Predicate | Law |
+//! |-----------|-----|
+//! | [`conn_galois_l`](crate::prop::conn::conn_galois_l) | `ceil(a) ≤ b ⟺ a ≤ inner(b)` |
+//! | [`conn_galois_r`](crate::prop::conn::conn_galois_r) | `inner(b) ≤ a ⟺ b ≤ floor(a)` |
+//! | [`conn_closure_l`](crate::prop::conn::conn_closure_l) | `a ≤ inner(ceil(a))` (unit) |
+//! | [`conn_closure_r`](crate::prop::conn::conn_closure_r) | `inner(floor(a)) ≤ a` |
+//! | [`conn_kernel_l`](crate::prop::conn::conn_kernel_l) | `ceil(inner(b)) ≤ b` (counit) |
+//! | [`conn_kernel_r`](crate::prop::conn::conn_kernel_r) | `b ≤ floor(inner(b))` |
+//! | [`conn_monotone_l`](crate::prop::conn::conn_monotone_l) | `a₁ ≤ a₂ ⟹ ceil(a₁) ≤ ceil(a₂) ∧ floor(a₁) ≤ floor(a₂)` |
+//! | [`conn_monotone_r`](crate::prop::conn::conn_monotone_r) | `b₁ ≤ b₂ ⟹ inner(b₁) ≤ inner(b₂)` |
+//! | [`conn_idempotent`](crate::prop::conn::conn_idempotent) | `inner ∘ ceil` is idempotent on its image |
+//!
+//! A tenth law, [`conn_floor_le_ceil`](crate::prop::conn::conn_floor_le_ceil)
+//! (`floor(a) ≤ ceil(a)`), is asserted only on connections whose
+//! `inner` is a documented injective embedding — on saturating
+//! connections it fails at the saturation plateau by design. See
+//! `doc/design.md` § "Triple-only properties and the role of
+//! injectivity".
 
 use core::cmp::Ordering;
 use core::ops::{Add, Div, Sub};
