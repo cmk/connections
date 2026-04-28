@@ -55,40 +55,44 @@
 //!
 //! [`fixed`]: https://docs.rs/fixed
 //!
-//! Integer-conn families live under `int::{i8,…,u128}` — one
-//! submodule per primitive, named after the **right side**
-//! (destination) of the cast. So `I008I016` (signed widening
-//! `Extended<i8> → i16`) lives in `int::i16`; `I016I008`
-//! (signed narrowing `i16 → i8`) lives in `int::i8`;
-//! `U008I008` (cross-sign non-widening `u8 → i8`) also lives in
-//! `int::i8`. The signed-widening (`I###I###`) and
-//! unsigned-into-signed-widening (`U###I###`) families wrap the
-//! source in [`Extended`](extended::Extended) (full adjoint
-//! triple). The other six families ship as single-sided over plain
-//! primitives — left-Galois ([`Conn::new_left`](conn::Conn::new_left))
-//! for the U→U / I→U widening + the I→I / U→U / I→U narrowing
-//! cases, right-Galois ([`Conn::new_right`](conn::Conn::new_right))
-//! for U→I non-widening (where the saturation plateau lives on the
-//! target side).
+//! Std-int-conn families live alongside the Q-format ladder under
+//! `fixed::{i8,…,u128}` — one submodule per destination primitive,
+//! named after the **right side** of the cast. So `I008I016` (signed
+//! widening `Extended<i8> → i16`) lives in `fixed::i16`; `I016I008`
+//! (signed narrowing `i16 → i8`) lives in `fixed::i8`; `U008I008`
+//! (cross-sign non-widening `u8 → i8`) also lives in `fixed::i8`.
+//! The signed-widening (`I###I###`) and unsigned-into-signed-widening
+//! (`U###I###`) families wrap the source in
+//! [`Extended`](extended::Extended) (full adjoint triple). The other
+//! six families ship as single-sided over plain primitives —
+//! left-Galois ([`Conn::new_left`](conn::Conn::new_left)) for the
+//! U→U / I→U widening + the I→I / U→U / I→U narrowing cases,
+//! right-Galois ([`Conn::new_right`](conn::Conn::new_right)) for U→I
+//! non-widening (where the saturation plateau lives on the target
+//! side).
 //!
 //! Examples:
 //!
 //! - [`float::f32::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
 //! - `float::f16::F064F016` — `F064 → F016` (direct f64 → IEEE binary16, `f16` feature).
 //! - `float::f16::F032F016` — `F032 → F016` (f32 → IEEE binary16, `f16` feature).
-//! - [`int::u16::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
-//! - [`int::i16::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
-//! - [`int::i16::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
-//! - [`int::i8::I016I008`] — `i16 → i8` signed-narrowing saturating cast.
-//! - [`int::u8::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
-//! - [`int::i8::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
-//! - [`int::u8::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
+//! - [`fixed::u16::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
+//! - [`fixed::i16::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
+//! - [`fixed::i16::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
+//! - [`fixed::i8::I016I008`] — `i16 → i8` signed-narrowing saturating cast.
+//! - [`fixed::u8::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
+//! - [`fixed::i8::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
+//! - [`fixed::u8::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
 //! - [`fixed::u8::Q008Q007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
 //!   the 7-bit MIDI velocity format).
 //! - [`fixed::u16::Q016Q015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
 //!   canonical signed-PCM-equivalent unsigned audio amplitude).
 //! - [`fixed::u32::Q032Q031`] — `FixedU32<U32> → FixedU32<U31>` (Q0.32 ↔ Q1.31,
 //!   the canonical 32-bit normalised-amplitude format).
+//! - [`fixed::i8::I008N008`] — `i8 → NonZeroI8` (asymmetric adjoint
+//!   at zero: `floor(0) = -1`, `ceil(0) = +1`).
+//! - [`fixed::i8::Q000I008`] — `FixedI8<U0> ↔ i8` cross-crate iso
+//!   (Q8.0 lossless bridge to the std primitive).
 //!
 //! `F128` is blocked on `f128` stabilisation in stable Rust.
 //!

@@ -28,11 +28,11 @@ int_uint!(I032U128, i32, u128);
 int_uint!(I064U128, i64, u128);
 int_uint!(I128U128, i128, u128);
 
-// ── §3 NonZeroU128 ↔ Extended<u128> ────────────────────────────────
+// ── §2 u128 ↔ NonZeroU128 ────────────────────────────────
 
 nz_uint_ext!(U128N128, u128, NonZeroU128);
 
-// ── §4 cross-crate iso: FixedU128<U0> ↔ u128 ───────────────────────
+// ── §3 cross-crate iso: FixedU128<U0> ↔ u128 ───────────────────────
 
 /// `FixedU128<U0> ↔ u128` — Q128.0 unsigned lossless iso. Degenerate Galois.
 pub const Q000U128: Conn<FixedU128<U0>, u128> = {
@@ -45,7 +45,7 @@ pub const Q000U128: Conn<FixedU128<U0>, u128> = {
     Conn::new_iso(forward, back)
 };
 
-// ── §2 Q-format ladder over `FixedU128<Frac>` ───────────────────────
+// ── §4 Q-format ladder over `FixedU128<Frac>` ───────────────────────
 
 // No `pub type U<frac>` aliases here: the module's frac levels include
 // `U127` and `U128`, which are also the typenum `extra::U127` /
@@ -179,7 +179,7 @@ mod tests {
         assert_eq!(I128U128.inner(u128::MAX), i128::MAX);
     }
 
-    // ── §2 Q-format spot checks ────────────────────────────────────
+    // ── §4 Q-format spot checks ────────────────────────────────────
 
     /// Regression for the SHIFT=128 endpoint: RATIO doesn't fit u128;
     /// only Coarse(0) round-trips.

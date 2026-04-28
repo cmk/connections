@@ -25,11 +25,11 @@ int_int_narrow!(I128I064, i128, i64);
 uint_int_sat!(U064I064, u64, i64);
 uint_int_sat!(U128I064, u128, i64);
 
-// ── §3 NonZeroI64 ↔ Extended<i64> ──────────────────────────────────
+// ── §2 i64 ↔ NonZeroI64 ──────────────────────────────────
 
 nz_int_ext!(I064N064, i64, NonZeroI64);
 
-// ── §4 cross-crate iso: FixedI64<U0> ↔ i64 ─────────────────────────
+// ── §3 cross-crate iso: FixedI64<U0> ↔ i64 ─────────────────────────
 
 /// `FixedI64<U0> ↔ i64` — Q64.0 lossless iso. Degenerate Galois.
 pub const Q000I064: Conn<FixedI64<U0>, i64> = {
@@ -42,7 +42,7 @@ pub const Q000I064: Conn<FixedI64<U0>, i64> = {
     Conn::new_iso(forward, back)
 };
 
-// ── §2 Q-format ladder over `FixedI64<Frac>` ────────────────────────
+// ── §4 Q-format ladder over `FixedI64<Frac>` ────────────────────────
 
 /// `I<frac> = FixedI64<U<frac>>` — i64-backed binary fixed-point.
 pub type I000 = FixedI64<U0>;
@@ -163,7 +163,7 @@ mod tests {
         assert_eq!(U128I064.floor(u128::MAX), i64::MAX);
     }
 
-    // ── §2 Q-format spot checks ────────────────────────────────────
+    // ── §4 Q-format spot checks ────────────────────────────────────
 
     #[test]
     fn spot_q032q016_on_grid() {

@@ -48,11 +48,11 @@ uint_int_sat!(U032I016, u32, i16);
 uint_int_sat!(U064I016, u64, i16);
 uint_int_sat!(U128I016, u128, i16);
 
-// ── §3 NonZeroI16 ↔ Extended<i16> ──────────────────────────────────
+// ── §2 i16 ↔ NonZeroI16 ──────────────────────────────────
 
 nz_int_ext!(I016N016, i16, NonZeroI16);
 
-// ── §4 cross-crate iso: FixedI16<U0> ↔ i16 ─────────────────────────
+// ── §3 cross-crate iso: FixedI16<U0> ↔ i16 ─────────────────────────
 
 /// `FixedI16<U0> ↔ i16` — Q16.0 lossless iso. Degenerate Galois.
 pub const Q000I016: Conn<FixedI16<U0>, i16> = {
@@ -65,7 +65,7 @@ pub const Q000I016: Conn<FixedI16<U0>, i16> = {
     Conn::new_iso(forward, back)
 };
 
-// ── §2 Q-format ladder over `FixedI16<Frac>` ────────────────────────
+// ── §4 Q-format ladder over `FixedI16<Frac>` ────────────────────────
 
 /// `I<frac> = FixedI16<U<frac>>` — i16-backed binary fixed-point.
 pub type I000 = FixedI16<U0>;
@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(U128I016.floor(u128::MAX), i16::MAX);
     }
 
-    // ── §2 Q-format spot checks ────────────────────────────────────
+    // ── §4 Q-format spot checks ────────────────────────────────────
 
     // Spot checks: hand-computed rounding at exact, off-grid, and
     // saturation-boundary inputs.

@@ -7,13 +7,13 @@
 //!
 //! - [`crate::float`] — float ↔ float connections; also hosts the
 //!   `ExtendedFloat` wrapper type used by N5 lattice connections.
-//! - [`crate::fixed`] — `fixed`-crate-backed binary fixed-point
-//!   ladders over `FixedI<width><Frac>` / `FixedU<width><Frac>`
-//!   (per-width submodules `i8`..`i128`, `u8`..`u128`).
-//! - [`crate::int`] — connections rooted in `std` integer primitives.
-//!   Each per-type submodule (`i8`/`i16`/`i32`/`i64`/`i128`/`u8`/
-//!   `u16`/`u32`/`u64`/`u128`) hosts the Conn consts whose
-//!   destination is that primitive.
+//! - [`crate::fixed`] — every finite-precision-with-integer-storage
+//!   family: `fixed`-crate Q-format wrappers (`FixedI<width><Frac>` /
+//!   `FixedU<width><Frac>`), std-int primitives (`iN` / `uN`,
+//!   interpreted as Q*N*.0), and `core::num::NonZero<*>` (punctured
+//!   Q*N*.0). Per-width submodules `i8`..`i128`, `u8`..`u128`; each
+//!   hosts the Conn consts whose destination type lives in that
+//!   width.
 //! - [`crate::time`] — connections among the
 //!   [`time`](https://docs.rs/time) crate's calendar / clock /
 //!   duration types (8-character names).

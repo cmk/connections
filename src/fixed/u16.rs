@@ -40,11 +40,11 @@ int_uint_narrow!(I032U016, i32, u16);
 int_uint_narrow!(I064U016, i64, u16);
 int_uint_narrow!(I128U016, i128, u16);
 
-// ── §3 NonZeroU16 ↔ Extended<u16> ──────────────────────────────────
+// ── §2 u16 ↔ NonZeroU16 ──────────────────────────────────
 
 nz_uint_ext!(U016N016, u16, NonZeroU16);
 
-// ── §4 cross-crate iso: FixedU16<U0> ↔ u16 ─────────────────────────
+// ── §3 cross-crate iso: FixedU16<U0> ↔ u16 ─────────────────────────
 
 /// `FixedU16<U0> ↔ u16` — Q16.0 unsigned lossless iso. Degenerate Galois.
 pub const Q000U016: Conn<FixedU16<U0>, u16> = {
@@ -57,7 +57,7 @@ pub const Q000U016: Conn<FixedU16<U0>, u16> = {
     Conn::new_iso(forward, back)
 };
 
-// ── §2 Q-format ladder over `FixedU16<Frac>` ────────────────────────
+// ── §4 Q-format ladder over `FixedU16<Frac>` ────────────────────────
 
 /// `U<frac> = FixedU16<U<frac>>` — u16-backed binary fixed-point.
 pub type U000 = FixedU16<U0>;
@@ -210,7 +210,7 @@ mod tests {
         assert_eq!(I128U016.inner(u16::MAX), i128::MAX);
     }
 
-    // ── §2 Q-format spot checks ────────────────────────────────────
+    // ── §4 Q-format spot checks ────────────────────────────────────
 
     /// Q1.15 audio amplitude → Q0.16 normalised pixel intensity:
     /// the value 16384 in Q1.15 (= 0.5) embeds via `Q016Q015.inner`

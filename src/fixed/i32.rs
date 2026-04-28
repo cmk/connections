@@ -25,11 +25,11 @@ uint_int_sat!(U032I032, u32, i32);
 uint_int_sat!(U064I032, u64, i32);
 uint_int_sat!(U128I032, u128, i32);
 
-// ── §3 NonZeroI32 ↔ Extended<i32> ──────────────────────────────────
+// ── §2 i32 ↔ NonZeroI32 ──────────────────────────────────
 
 nz_int_ext!(I032N032, i32, NonZeroI32);
 
-// ── §4 cross-crate iso: FixedI32<U0> ↔ i32 ─────────────────────────
+// ── §3 cross-crate iso: FixedI32<U0> ↔ i32 ─────────────────────────
 
 /// `FixedI32<U0> ↔ i32` — Q32.0 lossless iso. Degenerate Galois.
 pub const Q000I032: Conn<FixedI32<U0>, i32> = {
@@ -42,7 +42,7 @@ pub const Q000I032: Conn<FixedI32<U0>, i32> = {
     Conn::new_iso(forward, back)
 };
 
-// ── §2 Q-format ladder over `FixedI32<Frac>` ────────────────────────
+// ── §4 Q-format ladder over `FixedI32<Frac>` ────────────────────────
 
 /// `I<frac> = FixedI32<U<frac>>` — i32-backed binary fixed-point.
 pub type I000 = FixedI32<U0>;
@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(U128I032.inner(i32::MIN), 0_u128);
     }
 
-    // ── §2 Q-format spot checks ────────────────────────────────────
+    // ── §4 Q-format spot checks ────────────────────────────────────
 
     #[test]
     fn spot_q016q008_on_grid() {

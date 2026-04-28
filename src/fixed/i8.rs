@@ -53,11 +53,11 @@ uint_int_sat!(U032I008, u32, i8);
 uint_int_sat!(U064I008, u64, i8);
 uint_int_sat!(U128I008, u128, i8);
 
-// ── §3 NonZeroI8 ↔ Extended<i8> ────────────────────────────────────
+// ── §2 i8 ↔ NonZeroI8 ────────────────────────────────────
 
 nz_int_ext!(I008N008, i8, NonZeroI8);
 
-// ── §4 cross-crate iso: FixedI8<U0> ↔ i8 ───────────────────────────
+// ── §3 cross-crate iso: FixedI8<U0> ↔ i8 ───────────────────────────
 
 /// `FixedI8<U0> ↔ i8` — Q8.0 lossless iso, the canonical bridge
 /// between the Q-format and std-int views of the same 8-bit signed
@@ -72,7 +72,7 @@ pub const Q000I008: Conn<FixedI8<U0>, i8> = {
     Conn::new_iso(forward, back)
 };
 
-// ── §2 Q-format ladder over `FixedI8<Frac>` ─────────────────────────
+// ── §4 Q-format ladder over `FixedI8<Frac>` ─────────────────────────
 
 /// `I<frac> = FixedI8<U<frac>>` — i8-backed binary fixed-point with
 /// `<frac>` fractional bits. Frac digits are zero-padded to 3 chars
@@ -242,7 +242,7 @@ mod tests {
         }
     }
 
-    // ── §3 i8 ↔ NonZeroI8 spot checks ──────────────────────────────
+    // ── §2 i8 ↔ NonZeroI8 spot checks ──────────────────────────────
 
     #[test]
     fn i008n008_floor_ceil_split_at_zero() {
@@ -270,7 +270,7 @@ mod tests {
         }
     }
 
-    // ── §4 cross-crate iso (Q000I008) spot checks ──────────────────
+    // ── §3 cross-crate iso (Q000I008) spot checks ──────────────────
 
     #[test]
     fn q000i008_round_trips_both_ways() {
@@ -334,7 +334,7 @@ mod tests {
         }
     }
 
-    // ── §2 Q-format spot checks ────────────────────────────────────
+    // ── §4 Q-format spot checks ────────────────────────────────────
 
     #[test]
     fn spot_q004q000_on_grid() {

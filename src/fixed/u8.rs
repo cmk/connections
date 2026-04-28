@@ -40,11 +40,11 @@ int_uint_narrow!(I032U008, i32, u8);
 int_uint_narrow!(I064U008, i64, u8);
 int_uint_narrow!(I128U008, i128, u8);
 
-// ── §3 NonZeroU8 ↔ Extended<u8> ────────────────────────────────────
+// ── §2 u8 ↔ NonZeroU8 ────────────────────────────────────
 
 nz_uint_ext!(U008N008, u8, NonZeroU8);
 
-// ── §4 cross-crate iso: FixedU8<U0> ↔ u8 ───────────────────────────
+// ── §3 cross-crate iso: FixedU8<U0> ↔ u8 ───────────────────────────
 
 /// `FixedU8<U0> ↔ u8` — Q8.0 unsigned lossless iso. Degenerate Galois.
 pub const Q000U008: Conn<FixedU8<U0>, u8> = {
@@ -57,7 +57,7 @@ pub const Q000U008: Conn<FixedU8<U0>, u8> = {
     Conn::new_iso(forward, back)
 };
 
-// ── §2 Q-format ladder over `FixedU8<Frac>` ─────────────────────────
+// ── §4 Q-format ladder over `FixedU8<Frac>` ─────────────────────────
 
 /// `U<frac> = FixedU8<U<frac>>` — u8-backed binary fixed-point with
 /// `<frac>` fractional bits. Frac digits are zero-padded to 3 chars
@@ -223,7 +223,7 @@ mod tests {
         assert_eq!(I016U008.inner(100), 100_i16);
     }
 
-    // ── §3 u8 ↔ NonZeroU8 spot checks ──────────────────────────────
+    // ── §2 u8 ↔ NonZeroU8 spot checks ──────────────────────────────
 
     #[test]
     fn u008n008_zero_saturates_to_one() {
@@ -251,7 +251,7 @@ mod tests {
         }
     }
 
-    // ── §4 cross-crate iso (Q000U008) spot checks ──────────────────
+    // ── §3 cross-crate iso (Q000U008) spot checks ──────────────────
 
     #[test]
     fn q000u008_round_trips_both_ways() {
@@ -309,7 +309,7 @@ mod tests {
         }
     }
 
-    // ── §2 Q-format spot checks ────────────────────────────────────
+    // ── §4 Q-format spot checks ────────────────────────────────────
 
     /// MIDI velocity 64 — the canonical mid-range velocity, exactly
     /// 0.5 in Q1.7 (`U007`) — embeds via `Q008Q007.inner` to 128

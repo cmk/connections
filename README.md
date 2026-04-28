@@ -112,7 +112,7 @@ primitives (interpreted as Q*N*.0), and `core::num::NonZero<T>`
 |--------|--------|
 | Q-format binary fixed-point (`Q###Q###`, i8/u8 … i128/u128 backing) | `fixed::{i8,…,i128, u8,…,u128}` |
 | Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `fixed::{i8,…,i128, u8,…,u128}` (alongside the Q-format ladder for the same destination) |
-| `NonZero<*>` ↔ `Extended<*>` (`N###I###`, `N###U###`) | `fixed::{i8,…,i128, u8,…,u128}` |
+| `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `fixed::{i8,…,i128, u8,…,u128}` |
 | Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) | `fixed::{i8,…,i128, u8,…,u128}` |
 | Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) | `time` |

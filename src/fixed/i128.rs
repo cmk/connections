@@ -10,7 +10,18 @@
 //! same-width unsigned-to-signed clip (`U128I128`) — see [`super`]
 //! for the macro family.
 //!
-//! ## §2 Q-format ladder over `FixedI128<Frac>`
+//! ## §2 `i128` ↔ `NonZeroI128`
+//!
+//! Asymmetric-adjoint at zero: `floor(0) = NonZero(-1)`,
+//! `ceil(0) = NonZero(+1)`. Both Galois laws hold.
+//!
+//! ## §3 Cross-crate iso `FixedI128<U0>` ↔ `i128`
+//!
+//! Q128.0 lossless bridge between the Q-format and std-int views of
+//! the same 128-bit signed integer storage; `Q000I128` uses
+//! [`Conn::new_iso`](crate::conn::Conn::new_iso).
+//!
+//! ## §4 Q-format ladder over `FixedI128<Frac>`
 //!
 //! Frac level set: `{U0, U16, U32, U64, U96, U128}` → 15 ordered pairs
 //! `(Fine, Coarse)` with `Fine > Coarse`. See [`super::i64`] for the
@@ -47,11 +58,11 @@ ext_int!(U032I128, u32, i128);
 ext_int!(U064I128, u64, i128);
 uint_int_sat!(U128I128, u128, i128);
 
-// ── §3 NonZeroI128 ↔ Extended<i128> ────────────────────────────────
+// ── §2 i128 ↔ NonZeroI128 ────────────────────────────────
 
 nz_int_ext!(I128N128, i128, NonZeroI128);
 
-// ── §4 cross-crate iso: FixedI128<U0> ↔ i128 ───────────────────────
+// ── §3 cross-crate iso: FixedI128<U0> ↔ i128 ───────────────────────
 
 /// `FixedI128<U0> ↔ i128` — Q128.0 lossless iso. Degenerate Galois.
 pub const Q000I128: Conn<FixedI128<U0>, i128> = {
@@ -64,7 +75,7 @@ pub const Q000I128: Conn<FixedI128<U0>, i128> = {
     Conn::new_iso(forward, back)
 };
 
-// ── §2 Q-format ladder over `FixedI128<Frac>` ──────────────────────
+// ── §4 Q-format ladder over `FixedI128<Frac>` ──────────────────────
 
 /// `I<frac> = FixedI128<U<frac>>` — i128-backed binary fixed-point.
 pub type I000 = FixedI128<U0>;
@@ -222,7 +233,7 @@ mod tests {
         assert_eq!(U128I128.floor(U128I128.inner(i128::MAX)), i128::MAX);
     }
 
-    // ── §2 Q-format spot checks ────────────────────────────────────
+    // ── §4 Q-format spot checks ────────────────────────────────────
 
     /// Regression for the SHIFT=128 endpoint: RATIO doesn't fit i128;
     /// only Coarse(0) round-trips.
