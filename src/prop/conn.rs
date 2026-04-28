@@ -29,13 +29,11 @@
 //! adjoint laws (`conn_galois_l`/`r`, `conn_closure_l`/`r`,
 //! `conn_kernel_l`/`r`, `conn_monotone_l`/`r`, `conn_idempotent`,
 //! `conn_floor_le_ceil`, `conn_roundtrip_*`, `conn_ulp_bound`) plus
-//! the cast-lifter laws on `Conn`'s free-fn operations (`upper1`,
+//! the lifter laws on `Conn`'s free-fn operations (`upper1`,
 //! `ceiling1`, `floor1`, `lower1`, the `*2` variants, `interval`,
 //! `midpoint`, `round`, `truncate`, `median`).
 
 use crate::conn::Conn;
-
-// ── Adjoint laws ─────────────────────────────────────────────────
 
 /// `ceiling1` kernel law: `ceiling1(c, id, b) ≤ b`. Equivalent to
 /// [`conn_kernel_l`] routed through the lifter.

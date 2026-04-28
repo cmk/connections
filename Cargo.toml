@@ -43,9 +43,10 @@ proptest = "1"
 
 [features]
 # Expose `connections::prop::arb` (proptest strategies) to
-# downstream crates. The `connections::prop::laws` predicates
-# are always public — they only depend on this crate's own types
-# (Conn, Ple, Heyting, …) and don't need proptest at all.
+# downstream crates. The `connections::prop::conn` and
+# `connections::prop::lattice` predicates are always public — they
+# only depend on this crate's own types (Conn, Ple, Heyting, …) and
+# don't need proptest at all.
 testing = ["dep:proptest"]
 
 # Enable IEEE binary16 (`f16`) support: `F016`, `F032F016`, `F064F016`,

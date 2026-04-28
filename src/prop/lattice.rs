@@ -32,8 +32,6 @@
 
 use crate::lattice::{Coheyting, Heyting, Symmetric, convl, convr};
 
-// ── Heyting (h0–h17) ─────────────────────────────────────────────
-
 /// biheyting4: `coneg(x) == convl(not(x))` and `neg(x) == not(convl(x))`
 pub fn biheyting_coneg_neg_convl<T: Symmetric + Eq>(x: &T) -> bool {
     x.coneg() == convl(&x.not()) && x.neg() == convl(x).not()
