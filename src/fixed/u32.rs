@@ -85,27 +85,27 @@ macro_rules! fix_fix_u32 {
 }
 
 // 21 ordered pairs from {U0, U4, U8, U16, U24, U31, U32}.
-fix_fix_u32!(U004U000, U4, U0);
-fix_fix_u32!(U008U000, U8, U0);
-fix_fix_u32!(U016U000, U16, U0);
-fix_fix_u32!(U024U000, U24, U0);
-fix_fix_u32!(U031U000, U31, U0);
-fix_fix_u32!(U032U000, U32, U0);
-fix_fix_u32!(U008U004, U8, U4);
-fix_fix_u32!(U016U004, U16, U4);
-fix_fix_u32!(U024U004, U24, U4);
-fix_fix_u32!(U031U004, U31, U4);
-fix_fix_u32!(U032U004, U32, U4);
-fix_fix_u32!(U016U008, U16, U8);
-fix_fix_u32!(U024U008, U24, U8);
-fix_fix_u32!(U031U008, U31, U8);
-fix_fix_u32!(U032U008, U32, U8);
-fix_fix_u32!(U024U016, U24, U16);
-fix_fix_u32!(U031U016, U31, U16);
-fix_fix_u32!(U032U016, U32, U16);
-fix_fix_u32!(U031U024, U31, U24);
-fix_fix_u32!(U032U024, U32, U24);
-fix_fix_u32!(U032U031, U32, U31);
+fix_fix_u32!(Q004Q000, U4, U0);
+fix_fix_u32!(Q008Q000, U8, U0);
+fix_fix_u32!(Q016Q000, U16, U0);
+fix_fix_u32!(Q024Q000, U24, U0);
+fix_fix_u32!(Q031Q000, U31, U0);
+fix_fix_u32!(Q032Q000, U32, U0);
+fix_fix_u32!(Q008Q004, U8, U4);
+fix_fix_u32!(Q016Q004, U16, U4);
+fix_fix_u32!(Q024Q004, U24, U4);
+fix_fix_u32!(Q031Q004, U31, U4);
+fix_fix_u32!(Q032Q004, U32, U4);
+fix_fix_u32!(Q016Q008, U16, U8);
+fix_fix_u32!(Q024Q008, U24, U8);
+fix_fix_u32!(Q031Q008, U31, U8);
+fix_fix_u32!(Q032Q008, U32, U8);
+fix_fix_u32!(Q024Q016, U24, U16);
+fix_fix_u32!(Q031Q016, U31, U16);
+fix_fix_u32!(Q032Q016, U32, U16);
+fix_fix_u32!(Q031Q024, U31, U24);
+fix_fix_u32!(Q032Q024, U32, U24);
+fix_fix_u32!(Q032Q031, U32, U31);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -155,35 +155,35 @@ mod tests {
     // ── §2 Q-format spot checks ────────────────────────────────────
 
     /// Q1.31 (the canonical 32-bit normalised amplitude) → Q0.32:
-    /// the value 1<<30 in Q1.31 (= 0.5) embeds via U032U031.inner
+    /// the value 1<<30 in Q1.31 (= 0.5) embeds via Q032Q031.inner
     /// to 1<<31 in Q0.32 (= 0.5).
     #[test]
     fn spot_q31_to_q32() {
         let q31 = FixedU32::<U31>::from_bits(1 << 30);
-        let q32 = U032U031.inner(q31);
+        let q32 = Q032Q031.inner(q31);
         assert_eq!(q32, FixedU32::<U32>::from_bits(1 << 31));
-        assert_eq!(U032U031.ceil(q32), q31);
-        assert_eq!(U032U031.floor(q32), q31);
+        assert_eq!(Q032Q031.ceil(q32), q31);
+        assert_eq!(Q032Q031.floor(q32), q31);
     }
 
     #[test]
-    fn spot_u016u008_on_grid() {
+    fn spot_q016q008_on_grid() {
         // 1.5 in Q16.16 (bits = 1.5 × 2^16 = 98304); same in Q24.8 is bits 384.
         let q1616 = FixedU32::<U16>::from_bits(98304);
-        assert_eq!(U016U008.floor(q1616), FixedU32::<U8>::from_bits(384));
-        assert_eq!(U016U008.ceil(q1616), FixedU32::<U8>::from_bits(384));
-        assert_eq!(U016U008.inner(FixedU32::<U8>::from_bits(384)), q1616);
+        assert_eq!(Q016Q008.floor(q1616), FixedU32::<U8>::from_bits(384));
+        assert_eq!(Q016Q008.ceil(q1616), FixedU32::<U8>::from_bits(384));
+        assert_eq!(Q016Q008.inner(FixedU32::<U8>::from_bits(384)), q1616);
     }
 
     #[test]
-    fn spot_u032u000_degenerate() {
+    fn spot_q032q000_degenerate() {
         // SHIFT = 32. Only Coarse(0) round-trips; bits ≥ 1 saturates inner.
         assert_eq!(
-            U032U000.inner(FixedU32::<U0>::from_bits(0)),
+            Q032Q000.inner(FixedU32::<U0>::from_bits(0)),
             FixedU32::<U32>::from_bits(0),
         );
         assert_eq!(
-            U032U000.inner(FixedU32::<U0>::from_bits(1)),
+            Q032Q000.inner(FixedU32::<U0>::from_bits(1)),
             FixedU32::<U32>::from_bits(u32::MAX),
         );
     }
@@ -191,9 +191,9 @@ mod tests {
     #[test]
     fn spot_boundary_fixups() {
         let fmax = FixedU32::<U16>::from_bits(u32::MAX);
-        assert_eq!(U016U008.floor(fmax), FixedU32::<U8>::from_bits(u32::MAX));
+        assert_eq!(Q016Q008.floor(fmax), FixedU32::<U8>::from_bits(u32::MAX));
         let fmin = FixedU32::<U16>::from_bits(0);
-        assert_eq!(U016U008.ceil(fmin), FixedU32::<U8>::from_bits(0));
+        assert_eq!(Q016Q008.ceil(fmin), FixedU32::<U8>::from_bits(0));
     }
 
     // The Galois proptest battery (189 generated tests across 21

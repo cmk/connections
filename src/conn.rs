@@ -1087,7 +1087,7 @@ mod tests {
     // [`crate::fixed::i8`] — the `I###I###` Q-format Conns —
     // because the i8 ladder admits arbitrary multi-step chains
     // through intermediate frac levels (Q0.8 → Q4.4 → Q8.0, etc.)
-    // and we have a hand-coded non-adjacent shortcut (`I008I000`) to
+    // and we have a hand-coded non-adjacent shortcut (`Q008Q000`) to
     // compare against.
     //
     // Coverage:
@@ -1109,19 +1109,19 @@ mod tests {
 
     use crate::compose;
     use crate::fixed::i8::{
-        I000, I002I000, I004, I004I000, I004I002, I006I004, I008, I008I000, I008I004, I008I006,
+        I000, Q002Q000, I004, Q004Q000, Q004Q002, Q006Q004, I008, Q008Q000, Q008Q004, Q008Q006,
     };
     use ::fixed::FixedI8;
 
-    const COMPOSED_2STEP: Conn<I008, I000> = compose!(I008I004, I004I000);
-    const COMPOSED_3STEP: Conn<I008, I000> = compose!(I008I006, I006I004, I004I000);
-    const COMPOSED_4STEP: Conn<I008, I000> = compose!(I008I006, I006I004, I004I002, I002I000);
+    const COMPOSED_2STEP: Conn<I008, I000> = compose!(Q008Q004, Q004Q000);
+    const COMPOSED_3STEP: Conn<I008, I000> = compose!(Q008Q006, Q006Q004, Q004Q000);
+    const COMPOSED_4STEP: Conn<I008, I000> = compose!(Q008Q006, Q006Q004, Q004Q002, Q002Q000);
 
     // Identity bookends for the left/right identity laws.
     const ID_I008: Conn<I008, I008> = Conn::identity();
     const ID_I004: Conn<I004, I004> = Conn::identity();
-    const LEFT_ID_COMPOSED: Conn<I008, I004> = compose!(ID_I008, I008I004);
-    const RIGHT_ID_COMPOSED: Conn<I008, I004> = compose!(I008I004, ID_I004);
+    const LEFT_ID_COMPOSED: Conn<I008, I004> = compose!(ID_I008, Q008Q004);
+    const RIGHT_ID_COMPOSED: Conn<I008, I004> = compose!(Q008Q004, ID_I004);
 
     /// i8 bit-level boundary samples. Covers the saturation-fixup
     /// endpoints (`bits == ±i8::MAX`) and a spread of interior
@@ -1145,12 +1145,12 @@ mod tests {
     fn compose_two_step_matches_handcoded_at_samples() {
         for &b in I8_SAMPLES {
             let x = FixedI8::<typenum_alias::U8>::from_bits(b);
-            assert_eq!(COMPOSED_2STEP.ceil(x), I008I000.ceil(x), "ceil @ {b}");
-            assert_eq!(COMPOSED_2STEP.floor(x), I008I000.floor(x), "floor @ {b}");
+            assert_eq!(COMPOSED_2STEP.ceil(x), Q008Q000.ceil(x), "ceil @ {b}");
+            assert_eq!(COMPOSED_2STEP.floor(x), Q008Q000.floor(x), "floor @ {b}");
         }
         for &b in I8_SAMPLES {
             let y = FixedI8::<typenum_alias::U0>::from_bits(b);
-            assert_eq!(COMPOSED_2STEP.inner(y), I008I000.inner(y), "inner @ {b}");
+            assert_eq!(COMPOSED_2STEP.inner(y), Q008Q000.inner(y), "inner @ {b}");
         }
     }
 
@@ -1158,12 +1158,12 @@ mod tests {
     fn compose_three_step_matches_handcoded_at_samples() {
         for &b in I8_SAMPLES {
             let x = FixedI8::<typenum_alias::U8>::from_bits(b);
-            assert_eq!(COMPOSED_3STEP.ceil(x), I008I000.ceil(x), "ceil @ {b}");
-            assert_eq!(COMPOSED_3STEP.floor(x), I008I000.floor(x), "floor @ {b}");
+            assert_eq!(COMPOSED_3STEP.ceil(x), Q008Q000.ceil(x), "ceil @ {b}");
+            assert_eq!(COMPOSED_3STEP.floor(x), Q008Q000.floor(x), "floor @ {b}");
         }
         for &b in I8_SAMPLES {
             let y = FixedI8::<typenum_alias::U0>::from_bits(b);
-            assert_eq!(COMPOSED_3STEP.inner(y), I008I000.inner(y), "inner @ {b}");
+            assert_eq!(COMPOSED_3STEP.inner(y), Q008Q000.inner(y), "inner @ {b}");
         }
     }
 
@@ -1171,26 +1171,26 @@ mod tests {
     fn compose_four_step_matches_handcoded_at_samples() {
         for &b in I8_SAMPLES {
             let x = FixedI8::<typenum_alias::U8>::from_bits(b);
-            assert_eq!(COMPOSED_4STEP.ceil(x), I008I000.ceil(x), "ceil @ {b}");
-            assert_eq!(COMPOSED_4STEP.floor(x), I008I000.floor(x), "floor @ {b}");
+            assert_eq!(COMPOSED_4STEP.ceil(x), Q008Q000.ceil(x), "ceil @ {b}");
+            assert_eq!(COMPOSED_4STEP.floor(x), Q008Q000.floor(x), "floor @ {b}");
         }
         for &b in I8_SAMPLES {
             let y = FixedI8::<typenum_alias::U0>::from_bits(b);
-            assert_eq!(COMPOSED_4STEP.inner(y), I008I000.inner(y), "inner @ {b}");
+            assert_eq!(COMPOSED_4STEP.inner(y), Q008Q000.inner(y), "inner @ {b}");
         }
     }
 
     #[test]
     fn compose_left_identity_pointwise_equal() {
-        // id ∘ I008I004 must agree with I008I004 on every i8.
+        // id ∘ Q008Q004 must agree with Q008Q004 on every i8.
         for b in i8::MIN..=i8::MAX {
             let x = FixedI8::<typenum_alias::U8>::from_bits(b);
-            assert_eq!(LEFT_ID_COMPOSED.ceil(x), I008I004.ceil(x));
-            assert_eq!(LEFT_ID_COMPOSED.floor(x), I008I004.floor(x));
+            assert_eq!(LEFT_ID_COMPOSED.ceil(x), Q008Q004.ceil(x));
+            assert_eq!(LEFT_ID_COMPOSED.floor(x), Q008Q004.floor(x));
         }
         for b in i8::MIN..=i8::MAX {
             let y = FixedI8::<typenum_alias::U4>::from_bits(b);
-            assert_eq!(LEFT_ID_COMPOSED.inner(y), I008I004.inner(y));
+            assert_eq!(LEFT_ID_COMPOSED.inner(y), Q008Q004.inner(y));
         }
     }
 
@@ -1198,12 +1198,12 @@ mod tests {
     fn compose_right_identity_pointwise_equal() {
         for b in i8::MIN..=i8::MAX {
             let x = FixedI8::<typenum_alias::U8>::from_bits(b);
-            assert_eq!(RIGHT_ID_COMPOSED.ceil(x), I008I004.ceil(x));
-            assert_eq!(RIGHT_ID_COMPOSED.floor(x), I008I004.floor(x));
+            assert_eq!(RIGHT_ID_COMPOSED.ceil(x), Q008Q004.ceil(x));
+            assert_eq!(RIGHT_ID_COMPOSED.floor(x), Q008Q004.floor(x));
         }
         for b in i8::MIN..=i8::MAX {
             let y = FixedI8::<typenum_alias::U4>::from_bits(b);
-            assert_eq!(RIGHT_ID_COMPOSED.inner(y), I008I004.inner(y));
+            assert_eq!(RIGHT_ID_COMPOSED.inner(y), Q008Q004.inner(y));
         }
     }
 

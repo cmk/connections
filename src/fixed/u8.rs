@@ -105,34 +105,34 @@ macro_rules! fix_fix_u8 {
 }
 
 // 28 ordered pairs from {U0, U1, U2, U3, U4, U6, U7, U8}.
-fix_fix_u8!(U001U000, U1, U0);
-fix_fix_u8!(U002U000, U2, U0);
-fix_fix_u8!(U003U000, U3, U0);
-fix_fix_u8!(U004U000, U4, U0);
-fix_fix_u8!(U006U000, U6, U0);
-fix_fix_u8!(U007U000, U7, U0);
-fix_fix_u8!(U008U000, U8, U0);
-fix_fix_u8!(U002U001, U2, U1);
-fix_fix_u8!(U003U001, U3, U1);
-fix_fix_u8!(U004U001, U4, U1);
-fix_fix_u8!(U006U001, U6, U1);
-fix_fix_u8!(U007U001, U7, U1);
-fix_fix_u8!(U008U001, U8, U1);
-fix_fix_u8!(U003U002, U3, U2);
-fix_fix_u8!(U004U002, U4, U2);
-fix_fix_u8!(U006U002, U6, U2);
-fix_fix_u8!(U007U002, U7, U2);
-fix_fix_u8!(U008U002, U8, U2);
-fix_fix_u8!(U004U003, U4, U3);
-fix_fix_u8!(U006U003, U6, U3);
-fix_fix_u8!(U007U003, U7, U3);
-fix_fix_u8!(U008U003, U8, U3);
-fix_fix_u8!(U006U004, U6, U4);
-fix_fix_u8!(U007U004, U7, U4);
-fix_fix_u8!(U008U004, U8, U4);
-fix_fix_u8!(U007U006, U7, U6);
-fix_fix_u8!(U008U006, U8, U6);
-fix_fix_u8!(U008U007, U8, U7);
+fix_fix_u8!(Q001Q000, U1, U0);
+fix_fix_u8!(Q002Q000, U2, U0);
+fix_fix_u8!(Q003Q000, U3, U0);
+fix_fix_u8!(Q004Q000, U4, U0);
+fix_fix_u8!(Q006Q000, U6, U0);
+fix_fix_u8!(Q007Q000, U7, U0);
+fix_fix_u8!(Q008Q000, U8, U0);
+fix_fix_u8!(Q002Q001, U2, U1);
+fix_fix_u8!(Q003Q001, U3, U1);
+fix_fix_u8!(Q004Q001, U4, U1);
+fix_fix_u8!(Q006Q001, U6, U1);
+fix_fix_u8!(Q007Q001, U7, U1);
+fix_fix_u8!(Q008Q001, U8, U1);
+fix_fix_u8!(Q003Q002, U3, U2);
+fix_fix_u8!(Q004Q002, U4, U2);
+fix_fix_u8!(Q006Q002, U6, U2);
+fix_fix_u8!(Q007Q002, U7, U2);
+fix_fix_u8!(Q008Q002, U8, U2);
+fix_fix_u8!(Q004Q003, U4, U3);
+fix_fix_u8!(Q006Q003, U6, U3);
+fix_fix_u8!(Q007Q003, U7, U3);
+fix_fix_u8!(Q008Q003, U8, U3);
+fix_fix_u8!(Q006Q004, U6, U4);
+fix_fix_u8!(Q007Q004, U7, U4);
+fix_fix_u8!(Q008Q004, U8, U4);
+fix_fix_u8!(Q007Q006, U7, U6);
+fix_fix_u8!(Q008Q006, U8, U6);
+fix_fix_u8!(Q008Q007, U8, U7);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -206,18 +206,18 @@ mod tests {
     // ── §2 Q-format spot checks ────────────────────────────────────
 
     /// MIDI velocity 64 — the canonical mid-range velocity, exactly
-    /// 0.5 in Q1.7 (`U007`) — embeds via `U008U007.inner` to 128
+    /// 0.5 in Q1.7 (`U007`) — embeds via `Q008Q007.inner` to 128
     /// (= 0.5 in Q0.8 / `U008`). `U008` is the Fine side (more
     /// fractional bits) and `U007` is the Coarse side.
     #[test]
     fn spot_midi_velocity_q17_to_q08() {
         let velocity_64 = FixedU8::<U7>::from_bits(64);
-        let pixel = U008U007.inner(velocity_64);
+        let pixel = Q008Q007.inner(velocity_64);
         assert_eq!(pixel, FixedU8::<U8>::from_bits(128));
         // Round-trip Q0.8 → Q1.7 via ceil/floor (RATIO = 2 is exact
         // on multiples of 2, so they agree).
-        assert_eq!(U008U007.ceil(pixel), velocity_64);
-        assert_eq!(U008U007.floor(pixel), velocity_64);
+        assert_eq!(Q008Q007.ceil(pixel), velocity_64);
+        assert_eq!(Q008Q007.floor(pixel), velocity_64);
     }
 
     /// MIDI max velocity 127 (= 127/128 = 0.992... in Q1.7) embeds
@@ -225,52 +225,52 @@ mod tests {
     #[test]
     fn spot_q17_max_velocity_to_q08() {
         let velocity_max = FixedU8::<U7>::from_bits(127);
-        assert_eq!(U008U007.inner(velocity_max), FixedU8::<U8>::from_bits(254));
+        assert_eq!(Q008Q007.inner(velocity_max), FixedU8::<U8>::from_bits(254));
     }
 
     #[test]
-    fn spot_u004u000_on_grid() {
+    fn spot_q004q000_on_grid() {
         // 1.5 in Q4.4 (bits 24) — exactly representable in Q8.0 by 1 or 2.
         let q44 = FixedU8::<U4>::from_bits(24);
-        assert_eq!(U004U000.floor(q44), FixedU8::<U0>::from_bits(1));
-        assert_eq!(U004U000.ceil(q44), FixedU8::<U0>::from_bits(2));
+        assert_eq!(Q004Q000.floor(q44), FixedU8::<U0>::from_bits(1));
+        assert_eq!(Q004Q000.ceil(q44), FixedU8::<U0>::from_bits(2));
         assert_eq!(
-            U004U000.inner(FixedU8::<U0>::from_bits(1)),
+            Q004Q000.inner(FixedU8::<U0>::from_bits(1)),
             FixedU8::<U4>::from_bits(16)
         );
     }
 
     #[test]
-    fn spot_u008u000_degenerate() {
+    fn spot_q008q000_degenerate() {
         // SHIFT = 8, RATIO = 256. Only Coarse(0) round-trips; bits ≥ 1
         // saturates inner at u8::MAX.
         assert_eq!(
-            U008U000.inner(FixedU8::<U0>::from_bits(0)),
+            Q008Q000.inner(FixedU8::<U0>::from_bits(0)),
             FixedU8::<U8>::from_bits(0),
         );
         assert_eq!(
-            U008U000.inner(FixedU8::<U0>::from_bits(1)),
+            Q008Q000.inner(FixedU8::<U0>::from_bits(1)),
             FixedU8::<U8>::from_bits(u8::MAX),
         );
         assert_eq!(
-            U008U000.inner(FixedU8::<U0>::from_bits(255)),
+            Q008Q000.inner(FixedU8::<U0>::from_bits(255)),
             FixedU8::<U8>::from_bits(u8::MAX),
         );
     }
 
     #[test]
     fn spot_boundary_fixups() {
-        // Fine::MAX boundary fixup exercised on U004U000 (RATIO = 16).
+        // Fine::MAX boundary fixup exercised on Q004Q000 (RATIO = 16).
         // floor(u8::MAX) returns Coarse::MAX (= u8::MAX) so the Galois
         // law `inner(b) ≤ a ⟺ b ≤ floor(a)` holds at the saturation
         // plateau (where inner saturates at u8::MAX).
         let fmax = FixedU8::<U4>::from_bits(u8::MAX);
-        assert_eq!(U004U000.floor(fmax), FixedU8::<U0>::from_bits(u8::MAX));
+        assert_eq!(Q004Q000.floor(fmax), FixedU8::<U0>::from_bits(u8::MAX));
         // No FINE_MIN fixup needed: u8::MIN = 0; ceil(0) = 0 falls out of
         // the natural division (0 / 16 = 0, remainder 0).
         let fmin = FixedU8::<U4>::from_bits(0);
-        assert_eq!(U004U000.ceil(fmin), FixedU8::<U0>::from_bits(0));
-        assert_eq!(U004U000.floor(fmin), FixedU8::<U0>::from_bits(0));
+        assert_eq!(Q004Q000.ceil(fmin), FixedU8::<U0>::from_bits(0));
+        assert_eq!(Q004Q000.floor(fmin), FixedU8::<U0>::from_bits(0));
     }
 
     // The Galois proptest battery (252 generated tests across 28

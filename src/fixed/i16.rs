@@ -121,21 +121,21 @@ macro_rules! fix_fix_i16 {
 
 // All ordered (Fine, Coarse) pairs from {U0, U2, U4, U8, U12, U16}
 // with Fine > Coarse. 15 conns total.
-fix_fix_i16!(I002I000, U2, U0);
-fix_fix_i16!(I004I000, U4, U0);
-fix_fix_i16!(I008I000, U8, U0);
-fix_fix_i16!(I012I000, U12, U0);
-fix_fix_i16!(I016I000, U16, U0);
-fix_fix_i16!(I004I002, U4, U2);
-fix_fix_i16!(I008I002, U8, U2);
-fix_fix_i16!(I012I002, U12, U2);
-fix_fix_i16!(I016I002, U16, U2);
-fix_fix_i16!(I008I004, U8, U4);
-fix_fix_i16!(I012I004, U12, U4);
-fix_fix_i16!(I016I004, U16, U4);
-fix_fix_i16!(I012I008, U12, U8);
-fix_fix_i16!(I016I008, U16, U8);
-fix_fix_i16!(I016I012, U16, U12);
+fix_fix_i16!(Q002Q000, U2, U0);
+fix_fix_i16!(Q004Q000, U4, U0);
+fix_fix_i16!(Q008Q000, U8, U0);
+fix_fix_i16!(Q012Q000, U12, U0);
+fix_fix_i16!(Q016Q000, U16, U0);
+fix_fix_i16!(Q004Q002, U4, U2);
+fix_fix_i16!(Q008Q002, U8, U2);
+fix_fix_i16!(Q012Q002, U12, U2);
+fix_fix_i16!(Q016Q002, U16, U2);
+fix_fix_i16!(Q008Q004, U8, U4);
+fix_fix_i16!(Q012Q004, U12, U4);
+fix_fix_i16!(Q016Q004, U16, U4);
+fix_fix_i16!(Q012Q008, U12, U8);
+fix_fix_i16!(Q016Q008, U16, U8);
+fix_fix_i16!(Q016Q012, U16, U12);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -232,64 +232,64 @@ mod tests {
     // saturation-boundary inputs.
 
     #[test]
-    fn spot_i008i004_on_grid() {
+    fn spot_q008q004_on_grid() {
         // 1.5 in Q8.8 (bits 0x0180 = 384) — exactly representable in Q12.4.
         let q88 = FixedI16::<U8>::from_bits(384);
-        assert_eq!(I008I004.floor(q88), FixedI16::<U4>::from_bits(24));
-        assert_eq!(I008I004.ceil(q88), FixedI16::<U4>::from_bits(24));
-        assert_eq!(I008I004.inner(FixedI16::<U4>::from_bits(24)), q88);
+        assert_eq!(Q008Q004.floor(q88), FixedI16::<U4>::from_bits(24));
+        assert_eq!(Q008Q004.ceil(q88), FixedI16::<U4>::from_bits(24));
+        assert_eq!(Q008Q004.inner(FixedI16::<U4>::from_bits(24)), q88);
     }
 
     #[test]
-    fn spot_i008i004_off_grid_positive() {
+    fn spot_q008q004_off_grid_positive() {
         // 1.3984375 (bits 358) — between Q12.4 grid points 22 and 23.
         let off = FixedI16::<U8>::from_bits(358);
-        assert_eq!(I008I004.floor(off), FixedI16::<U4>::from_bits(22));
-        assert_eq!(I008I004.ceil(off), FixedI16::<U4>::from_bits(23));
+        assert_eq!(Q008Q004.floor(off), FixedI16::<U4>::from_bits(22));
+        assert_eq!(Q008Q004.ceil(off), FixedI16::<U4>::from_bits(23));
     }
 
     #[test]
-    fn spot_i008i004_off_grid_negative() {
+    fn spot_q008q004_off_grid_negative() {
         // -1.3984375 (bits -358). div_euclid rounds toward −∞;
         // rem_euclid is non-negative, so ceil = floor + 1.
         let neg = FixedI16::<U8>::from_bits(-358);
-        assert_eq!(I008I004.floor(neg), FixedI16::<U4>::from_bits(-23));
-        assert_eq!(I008I004.ceil(neg), FixedI16::<U4>::from_bits(-22));
+        assert_eq!(Q008Q004.floor(neg), FixedI16::<U4>::from_bits(-23));
+        assert_eq!(Q008Q004.ceil(neg), FixedI16::<U4>::from_bits(-22));
     }
 
     #[test]
-    fn spot_i008i004_saturation_boundary() {
+    fn spot_q008q004_saturation_boundary() {
         // Fine::MAX (bits 32767) ceils up to Coarse(2048) = value 128.0
         // — fits in Coarse i16 range. inner(2048) saturates to Fine::MAX.
         let fmax = FixedI16::<U8>::from_bits(i16::MAX);
-        assert_eq!(I008I004.ceil(fmax), FixedI16::<U4>::from_bits(2048));
-        assert_eq!(I008I004.inner(FixedI16::<U4>::from_bits(2048)), fmax);
+        assert_eq!(Q008Q004.ceil(fmax), FixedI16::<U4>::from_bits(2048));
+        assert_eq!(Q008Q004.inner(FixedI16::<U4>::from_bits(2048)), fmax);
 
         // Fine::MAX is in the saturation plateau: floor returns Coarse::MAX,
         // not the bit-math value 2047.
-        assert_eq!(I008I004.floor(fmax), FixedI16::<U4>::from_bits(i16::MAX));
+        assert_eq!(Q008Q004.floor(fmax), FixedI16::<U4>::from_bits(i16::MAX));
 
         // Symmetric on the negative side: Fine::MIN is itself a plateau
         // member; ceil returns Coarse::MIN, not bit-math -2048.
         let fmin = FixedI16::<U8>::from_bits(i16::MIN);
-        assert_eq!(I008I004.ceil(fmin), FixedI16::<U4>::from_bits(i16::MIN));
-        assert_eq!(I008I004.floor(fmin), FixedI16::<U4>::from_bits(-2048));
+        assert_eq!(Q008Q004.ceil(fmin), FixedI16::<U4>::from_bits(i16::MIN));
+        assert_eq!(Q008Q004.floor(fmin), FixedI16::<U4>::from_bits(-2048));
     }
 
     #[test]
-    fn spot_i016i000_degenerate() {
+    fn spot_q016q000_degenerate() {
         // SHIFT = 16, RATIO = 65 536. Every Coarse value with |bits| ≥ 1
         // saturates inner. Only Coarse(0) round-trips.
         assert_eq!(
-            I016I000.inner(FixedI16::<U0>::from_bits(0)),
+            Q016Q000.inner(FixedI16::<U0>::from_bits(0)),
             FixedI16::<U16>::from_bits(0),
         );
         assert_eq!(
-            I016I000.inner(FixedI16::<U0>::from_bits(1)),
+            Q016Q000.inner(FixedI16::<U0>::from_bits(1)),
             FixedI16::<U16>::from_bits(i16::MAX),
         );
         assert_eq!(
-            I016I000.inner(FixedI16::<U0>::from_bits(-1)),
+            Q016Q000.inner(FixedI16::<U0>::from_bits(-1)),
             FixedI16::<U16>::from_bits(i16::MIN),
         );
     }
@@ -371,19 +371,19 @@ mod tests {
     }
 
     // 15 conns × 9 properties = 135 generated proptests.
-    props_for_pair!(i002i000, I002I000, U2, U0);
-    props_for_pair!(i004i000, I004I000, U4, U0);
-    props_for_pair!(i008i000, I008I000, U8, U0);
-    props_for_pair!(i012i000, I012I000, U12, U0);
-    props_for_pair!(i016i000, I016I000, U16, U0);
-    props_for_pair!(i004i002, I004I002, U4, U2);
-    props_for_pair!(i008i002, I008I002, U8, U2);
-    props_for_pair!(i012i002, I012I002, U12, U2);
-    props_for_pair!(i016i002, I016I002, U16, U2);
-    props_for_pair!(i008i004, I008I004, U8, U4);
-    props_for_pair!(i012i004, I012I004, U12, U4);
-    props_for_pair!(i016i004, I016I004, U16, U4);
-    props_for_pair!(i012i008, I012I008, U12, U8);
-    props_for_pair!(i016i008, I016I008, U16, U8);
-    props_for_pair!(i016i012, I016I012, U16, U12);
+    props_for_pair!(q002q000, Q002Q000, U2, U0);
+    props_for_pair!(q004q000, Q004Q000, U4, U0);
+    props_for_pair!(q008q000, Q008Q000, U8, U0);
+    props_for_pair!(q012q000, Q012Q000, U12, U0);
+    props_for_pair!(q016q000, Q016Q000, U16, U0);
+    props_for_pair!(q004q002, Q004Q002, U4, U2);
+    props_for_pair!(q008q002, Q008Q002, U8, U2);
+    props_for_pair!(q012q002, Q012Q002, U12, U2);
+    props_for_pair!(q016q002, Q016Q002, U16, U2);
+    props_for_pair!(q008q004, Q008Q004, U8, U4);
+    props_for_pair!(q012q004, Q012Q004, U12, U4);
+    props_for_pair!(q016q004, Q016Q004, U16, U4);
+    props_for_pair!(q012q008, Q012Q008, U12, U8);
+    props_for_pair!(q016q008, Q016Q008, U16, U8);
+    props_for_pair!(q016q012, Q016Q012, U16, U12);
 }

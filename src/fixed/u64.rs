@@ -85,27 +85,27 @@ macro_rules! fix_fix_u64 {
 }
 
 // 21 ordered pairs from {U0, U8, U16, U32, U48, U63, U64}.
-fix_fix_u64!(U008U000, U8, U0);
-fix_fix_u64!(U016U000, U16, U0);
-fix_fix_u64!(U032U000, U32, U0);
-fix_fix_u64!(U048U000, U48, U0);
-fix_fix_u64!(U063U000, U63, U0);
-fix_fix_u64!(U064U000, U64, U0);
-fix_fix_u64!(U016U008, U16, U8);
-fix_fix_u64!(U032U008, U32, U8);
-fix_fix_u64!(U048U008, U48, U8);
-fix_fix_u64!(U063U008, U63, U8);
-fix_fix_u64!(U064U008, U64, U8);
-fix_fix_u64!(U032U016, U32, U16);
-fix_fix_u64!(U048U016, U48, U16);
-fix_fix_u64!(U063U016, U63, U16);
-fix_fix_u64!(U064U016, U64, U16);
-fix_fix_u64!(U048U032, U48, U32);
-fix_fix_u64!(U063U032, U63, U32);
-fix_fix_u64!(U064U032, U64, U32);
-fix_fix_u64!(U063U048, U63, U48);
-fix_fix_u64!(U064U048, U64, U48);
-fix_fix_u64!(U064U063, U64, U63);
+fix_fix_u64!(Q008Q000, U8, U0);
+fix_fix_u64!(Q016Q000, U16, U0);
+fix_fix_u64!(Q032Q000, U32, U0);
+fix_fix_u64!(Q048Q000, U48, U0);
+fix_fix_u64!(Q063Q000, U63, U0);
+fix_fix_u64!(Q064Q000, U64, U0);
+fix_fix_u64!(Q016Q008, U16, U8);
+fix_fix_u64!(Q032Q008, U32, U8);
+fix_fix_u64!(Q048Q008, U48, U8);
+fix_fix_u64!(Q063Q008, U63, U8);
+fix_fix_u64!(Q064Q008, U64, U8);
+fix_fix_u64!(Q032Q016, U32, U16);
+fix_fix_u64!(Q048Q016, U48, U16);
+fix_fix_u64!(Q063Q016, U63, U16);
+fix_fix_u64!(Q064Q016, U64, U16);
+fix_fix_u64!(Q048Q032, U48, U32);
+fix_fix_u64!(Q063Q032, U63, U32);
+fix_fix_u64!(Q064Q032, U64, U32);
+fix_fix_u64!(Q063Q048, U63, U48);
+fix_fix_u64!(Q064Q048, U64, U48);
+fix_fix_u64!(Q064Q063, U64, U63);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -146,60 +146,60 @@ mod tests {
     // ── §2 Q-format spot checks ────────────────────────────────────
 
     /// Q1.63 (the canonical 64-bit normalised amplitude) → Q0.64:
-    /// the value 1<<62 in Q1.63 (= 0.5) embeds via U064U063.inner
+    /// the value 1<<62 in Q1.63 (= 0.5) embeds via Q064Q063.inner
     /// to 1<<63 in Q0.64 (= 0.5).
     #[test]
     fn spot_q63_to_q64() {
         let q63 = FixedU64::<U63>::from_bits(1 << 62);
-        let q64 = U064U063.inner(q63);
+        let q64 = Q064Q063.inner(q63);
         assert_eq!(q64, FixedU64::<U64>::from_bits(1 << 63));
-        assert_eq!(U064U063.ceil(q64), q63);
-        assert_eq!(U064U063.floor(q64), q63);
+        assert_eq!(Q064Q063.ceil(q64), q63);
+        assert_eq!(Q064Q063.floor(q64), q63);
     }
 
     #[test]
-    fn spot_u032u016_on_grid() {
+    fn spot_q032q016_on_grid() {
         // 1.5 in Q32.32 (bits = 1.5 × 2^32 = 6442450944);
         // same in Q48.16 is bits 98304.
         let q3232 = FixedU64::<U32>::from_bits(6_442_450_944);
-        assert_eq!(U032U016.floor(q3232), FixedU64::<U16>::from_bits(98304));
-        assert_eq!(U032U016.ceil(q3232), FixedU64::<U16>::from_bits(98304));
-        assert_eq!(U032U016.inner(FixedU64::<U16>::from_bits(98304)), q3232);
+        assert_eq!(Q032Q016.floor(q3232), FixedU64::<U16>::from_bits(98304));
+        assert_eq!(Q032Q016.ceil(q3232), FixedU64::<U16>::from_bits(98304));
+        assert_eq!(Q032Q016.inner(FixedU64::<U16>::from_bits(98304)), q3232);
     }
 
     #[test]
-    fn spot_u064u000_degenerate() {
+    fn spot_q064q000_degenerate() {
         // SHIFT = 64. Only Coarse(0) round-trips; bits ≥ 1 saturates inner.
         assert_eq!(
-            U064U000.inner(FixedU64::<U0>::from_bits(0)),
+            Q064Q000.inner(FixedU64::<U0>::from_bits(0)),
             FixedU64::<U64>::from_bits(0),
         );
         assert_eq!(
-            U064U000.inner(FixedU64::<U0>::from_bits(1)),
+            Q064Q000.inner(FixedU64::<U0>::from_bits(1)),
             FixedU64::<U64>::from_bits(u64::MAX),
         );
         // ceil: any nonzero Fine bit pattern → 1 (the smallest
         // representable Coarse value above zero); zero → 0.
         assert_eq!(
-            U064U000.ceil(FixedU64::<U64>::from_bits(0)),
+            Q064Q000.ceil(FixedU64::<U64>::from_bits(0)),
             FixedU64::<U0>::from_bits(0),
         );
         assert_eq!(
-            U064U000.ceil(FixedU64::<U64>::from_bits(1)),
+            Q064Q000.ceil(FixedU64::<U64>::from_bits(1)),
             FixedU64::<U0>::from_bits(1),
         );
         // floor: any Fine bit pattern below FINE_MAX → 0; FINE_MAX
         // takes the boundary fixup and returns Coarse::MAX.
         assert_eq!(
-            U064U000.floor(FixedU64::<U64>::from_bits(0)),
+            Q064Q000.floor(FixedU64::<U64>::from_bits(0)),
             FixedU64::<U0>::from_bits(0),
         );
         assert_eq!(
-            U064U000.floor(FixedU64::<U64>::from_bits(1)),
+            Q064Q000.floor(FixedU64::<U64>::from_bits(1)),
             FixedU64::<U0>::from_bits(0),
         );
         assert_eq!(
-            U064U000.floor(FixedU64::<U64>::from_bits(u64::MAX)),
+            Q064Q000.floor(FixedU64::<U64>::from_bits(u64::MAX)),
             FixedU64::<U0>::from_bits(u64::MAX),
         );
     }
@@ -207,9 +207,9 @@ mod tests {
     #[test]
     fn spot_boundary_fixups() {
         let fmax = FixedU64::<U32>::from_bits(u64::MAX);
-        assert_eq!(U032U016.floor(fmax), FixedU64::<U16>::from_bits(u64::MAX));
+        assert_eq!(Q032Q016.floor(fmax), FixedU64::<U16>::from_bits(u64::MAX));
         let fmin = FixedU64::<U32>::from_bits(0);
-        assert_eq!(U032U016.ceil(fmin), FixedU64::<U16>::from_bits(0));
+        assert_eq!(Q032Q016.ceil(fmin), FixedU64::<U16>::from_bits(0));
     }
 
     // The Galois proptest battery (189 generated tests across 21

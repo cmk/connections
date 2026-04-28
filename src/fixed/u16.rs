@@ -104,34 +104,34 @@ macro_rules! fix_fix_u16 {
 }
 
 // 28 ordered pairs from {U0, U2, U4, U8, U12, U14, U15, U16}.
-fix_fix_u16!(U002U000, U2, U0);
-fix_fix_u16!(U004U000, U4, U0);
-fix_fix_u16!(U008U000, U8, U0);
-fix_fix_u16!(U012U000, U12, U0);
-fix_fix_u16!(U014U000, U14, U0);
-fix_fix_u16!(U015U000, U15, U0);
-fix_fix_u16!(U016U000, U16, U0);
-fix_fix_u16!(U004U002, U4, U2);
-fix_fix_u16!(U008U002, U8, U2);
-fix_fix_u16!(U012U002, U12, U2);
-fix_fix_u16!(U014U002, U14, U2);
-fix_fix_u16!(U015U002, U15, U2);
-fix_fix_u16!(U016U002, U16, U2);
-fix_fix_u16!(U008U004, U8, U4);
-fix_fix_u16!(U012U004, U12, U4);
-fix_fix_u16!(U014U004, U14, U4);
-fix_fix_u16!(U015U004, U15, U4);
-fix_fix_u16!(U016U004, U16, U4);
-fix_fix_u16!(U012U008, U12, U8);
-fix_fix_u16!(U014U008, U14, U8);
-fix_fix_u16!(U015U008, U15, U8);
-fix_fix_u16!(U016U008, U16, U8);
-fix_fix_u16!(U014U012, U14, U12);
-fix_fix_u16!(U015U012, U15, U12);
-fix_fix_u16!(U016U012, U16, U12);
-fix_fix_u16!(U015U014, U15, U14);
-fix_fix_u16!(U016U014, U16, U14);
-fix_fix_u16!(U016U015, U16, U15);
+fix_fix_u16!(Q002Q000, U2, U0);
+fix_fix_u16!(Q004Q000, U4, U0);
+fix_fix_u16!(Q008Q000, U8, U0);
+fix_fix_u16!(Q012Q000, U12, U0);
+fix_fix_u16!(Q014Q000, U14, U0);
+fix_fix_u16!(Q015Q000, U15, U0);
+fix_fix_u16!(Q016Q000, U16, U0);
+fix_fix_u16!(Q004Q002, U4, U2);
+fix_fix_u16!(Q008Q002, U8, U2);
+fix_fix_u16!(Q012Q002, U12, U2);
+fix_fix_u16!(Q014Q002, U14, U2);
+fix_fix_u16!(Q015Q002, U15, U2);
+fix_fix_u16!(Q016Q002, U16, U2);
+fix_fix_u16!(Q008Q004, U8, U4);
+fix_fix_u16!(Q012Q004, U12, U4);
+fix_fix_u16!(Q014Q004, U14, U4);
+fix_fix_u16!(Q015Q004, U15, U4);
+fix_fix_u16!(Q016Q004, U16, U4);
+fix_fix_u16!(Q012Q008, U12, U8);
+fix_fix_u16!(Q014Q008, U14, U8);
+fix_fix_u16!(Q015Q008, U15, U8);
+fix_fix_u16!(Q016Q008, U16, U8);
+fix_fix_u16!(Q014Q012, U14, U12);
+fix_fix_u16!(Q015Q012, U15, U12);
+fix_fix_u16!(Q016Q012, U16, U12);
+fix_fix_u16!(Q015Q014, U15, U14);
+fix_fix_u16!(Q016Q014, U16, U14);
+fix_fix_u16!(Q016Q015, U16, U15);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -195,74 +195,74 @@ mod tests {
     // ── §2 Q-format spot checks ────────────────────────────────────
 
     /// Q1.15 audio amplitude → Q0.16 normalised pixel intensity:
-    /// the value 16384 in Q1.15 (= 0.5) embeds via `U016U015.inner`
+    /// the value 16384 in Q1.15 (= 0.5) embeds via `Q016Q015.inner`
     /// to 32768 in Q0.16 (= 0.5).
     #[test]
     fn spot_q15_audio_to_q16() {
         let q15 = FixedU16::<U15>::from_bits(16384);
-        let q16 = U016U015.inner(q15);
+        let q16 = Q016Q015.inner(q15);
         assert_eq!(q16, FixedU16::<U16>::from_bits(32768));
         // RATIO=2 is exact: ceil/floor agree.
-        assert_eq!(U016U015.ceil(q16), q15);
-        assert_eq!(U016U015.floor(q16), q15);
+        assert_eq!(Q016Q015.ceil(q16), q15);
+        assert_eq!(Q016Q015.floor(q16), q15);
     }
 
     /// 14-bit MIDI control value packed in u16 as Q2.14: the
-    /// midpoint 8192 (= 0.5 in Q2.14) embeds through `U016U014` to
+    /// midpoint 8192 (= 0.5 in Q2.14) embeds through `Q016Q014` to
     /// 32768 in Q0.16. RATIO = 4.
     #[test]
     fn spot_q14_midi_to_q16() {
         let q14 = FixedU16::<U14>::from_bits(8192);
-        let q16 = U016U014.inner(q14);
+        let q16 = Q016Q014.inner(q14);
         assert_eq!(q16, FixedU16::<U16>::from_bits(32768));
     }
 
     #[test]
-    fn spot_u008u004_on_grid() {
+    fn spot_q008q004_on_grid() {
         // 1.5 in Q8.8 (bits 0x0180 = 384) — exactly representable in Q12.4.
         let q88 = FixedU16::<U8>::from_bits(384);
-        assert_eq!(U008U004.floor(q88), FixedU16::<U4>::from_bits(24));
-        assert_eq!(U008U004.ceil(q88), FixedU16::<U4>::from_bits(24));
-        assert_eq!(U008U004.inner(FixedU16::<U4>::from_bits(24)), q88);
+        assert_eq!(Q008Q004.floor(q88), FixedU16::<U4>::from_bits(24));
+        assert_eq!(Q008Q004.ceil(q88), FixedU16::<U4>::from_bits(24));
+        assert_eq!(Q008Q004.inner(FixedU16::<U4>::from_bits(24)), q88);
     }
 
     #[test]
-    fn spot_u008u004_off_grid() {
+    fn spot_q008q004_off_grid() {
         // 1.398... (bits 358) — between Q12.4 grid points 22 and 23.
         let off = FixedU16::<U8>::from_bits(358);
-        assert_eq!(U008U004.floor(off), FixedU16::<U4>::from_bits(22));
-        assert_eq!(U008U004.ceil(off), FixedU16::<U4>::from_bits(23));
+        assert_eq!(Q008Q004.floor(off), FixedU16::<U4>::from_bits(22));
+        assert_eq!(Q008Q004.ceil(off), FixedU16::<U4>::from_bits(23));
     }
 
     #[test]
-    fn spot_u016u000_degenerate() {
+    fn spot_q016q000_degenerate() {
         // SHIFT = 16, RATIO = 65 536. Every Coarse value with bits ≥ 1
         // saturates inner. Only Coarse(0) round-trips.
         assert_eq!(
-            U016U000.inner(FixedU16::<U0>::from_bits(0)),
+            Q016Q000.inner(FixedU16::<U0>::from_bits(0)),
             FixedU16::<U16>::from_bits(0),
         );
         assert_eq!(
-            U016U000.inner(FixedU16::<U0>::from_bits(1)),
+            Q016Q000.inner(FixedU16::<U0>::from_bits(1)),
             FixedU16::<U16>::from_bits(u16::MAX),
         );
         assert_eq!(
-            U016U000.inner(FixedU16::<U0>::from_bits(u16::MAX)),
+            Q016Q000.inner(FixedU16::<U0>::from_bits(u16::MAX)),
             FixedU16::<U16>::from_bits(u16::MAX),
         );
     }
 
     #[test]
     fn spot_boundary_fixups() {
-        // Fine::MAX boundary fixup on U008U004 (RATIO = 16). At the
+        // Fine::MAX boundary fixup on Q008Q004 (RATIO = 16). At the
         // saturation plateau (where inner saturates at u16::MAX),
         // floor must return Coarse::MAX = u16::MAX so the Galois law
         // `inner(b) ≤ a ⟺ b ≤ floor(a)` holds.
         let fmax = FixedU16::<U8>::from_bits(u16::MAX);
-        assert_eq!(U008U004.floor(fmax), FixedU16::<U4>::from_bits(u16::MAX));
+        assert_eq!(Q008Q004.floor(fmax), FixedU16::<U4>::from_bits(u16::MAX));
         // No FINE_MIN fixup needed for unsigned.
         let fmin = FixedU16::<U8>::from_bits(0);
-        assert_eq!(U008U004.ceil(fmin), FixedU16::<U4>::from_bits(0));
+        assert_eq!(Q008Q004.ceil(fmin), FixedU16::<U4>::from_bits(0));
     }
 
     // The Galois proptest battery (252 generated tests across 28

@@ -36,21 +36,24 @@
 //! | `U064`   | `u64`                                               | unsigned 64-bit        |
 //! | `U128`   | `u128`                                              | unsigned 128-bit       |
 //!
-//! For binary fixed-point, the family letter encodes the **sign** of
-//! the underlying primitive — `I###` for `FixedI<width><U<frac>>` (signed)
-//! and `U###` for `FixedU<width><U<frac>>` (unsigned). The 3-digit
-//! field is the frac level. Backing width lives in the module path:
-//! `fixed::i8::I008I004` is the i8-backed 8-frac → 4-frac Conn,
-//! while `fixed::i64::I008I004` is the i64-backed analogue. Both
-//! share the constant name `I008I004`; resolution is by qualified
-//! import:
+//! For binary fixed-point, every Conn whose endpoints are Q-format
+//! wrappers from the [`fixed`] crate uses the **`Q`** prefix on those
+//! sides. Sign and host bit-width are implicit from the module path
+//! (`fixed::i8` → signed 8-bit, `fixed::u8` → unsigned 8-bit, etc.);
+//! the 3-digit field is the frac level. Backing width therefore lives
+//! in the module path: `fixed::i8::Q008Q004` is the i8-backed 8-frac
+//! → 4-frac Conn, while `fixed::i64::Q008Q004` is the i64-backed
+//! analogue. Both share the constant name `Q008Q004`; resolution is
+//! by qualified import:
 //!
 //! ```ignore
 //! use connections::fixed::i8 as fi8;
 //! use connections::fixed::i64 as fi64;
-//! let _ = fi8::I008I000;     // i8-backed  Q0.8 → Q8.0
-//! let _ = fi64::I008I000;    // i64-backed Q56.8 → Q64.0
+//! let _ = fi8::Q008Q000;     // i8-backed  Q0.8 → Q8.0
+//! let _ = fi64::Q008Q000;    // i64-backed Q56.8 → Q64.0
 //! ```
+//!
+//! [`fixed`]: https://docs.rs/fixed
 //!
 //! Integer-conn families live under `int::{i8,…,u128}` — one
 //! submodule per primitive, named after the **right side**
@@ -80,11 +83,11 @@
 //! - [`int::u8::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
 //! - [`int::i8::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
 //! - [`int::u8::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
-//! - [`fixed::u8::U008U007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
+//! - [`fixed::u8::Q008Q007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
 //!   the 7-bit MIDI velocity format).
-//! - [`fixed::u16::U016U015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
+//! - [`fixed::u16::Q016Q015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
 //!   canonical signed-PCM-equivalent unsigned audio amplitude).
-//! - [`fixed::u32::U032U031`] — `FixedU32<U32> → FixedU32<U31>` (Q0.32 ↔ Q1.31,
+//! - [`fixed::u32::Q032Q031`] — `FixedU32<U32> → FixedU32<U31>` (Q0.32 ↔ Q1.31,
 //!   the canonical 32-bit normalised-amplitude format).
 //!
 //! `F128` is blocked on `f128` stabilisation in stable Rust.

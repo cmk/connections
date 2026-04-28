@@ -7,7 +7,7 @@
 //! Stable Rust has no native `u256` to widen through, so the u64-style
 //! `(x.to_bits() as u128) * RATIO` pattern doesn't compose. Instead we
 //! use [`u128::checked_mul`] + saturate, and [`u128::checked_shl`] to
-//! detect the `SHIFT == 128` degenerate case (`U128U000`, where
+//! detect the `SHIFT == 128` degenerate case (`Q128Q000`, where
 //! `RATIO = 2^128` doesn't fit in `u128` at all).
 
 use super::{int_uint, uint_uint};
@@ -51,7 +51,7 @@ macro_rules! fix_fix_u128 {
             // For SHIFT < 128, RATIO = 2^SHIFT fits in u128. For
             // SHIFT == 128 the shift is degenerate — `1_u128.checked_shl(128)`
             // returns None, and we route through the `None` arms below
-            // for the U128U000 endpoint.
+            // for the Q128Q000 endpoint.
             const RATIO: Option<u128> = 1_u128.checked_shl(SHIFT);
             const FINE_MAX: u128 = u128::MAX;
 
@@ -69,7 +69,7 @@ macro_rules! fix_fix_u128 {
                         FixedU128::from_bits(res)
                     }
                     None => {
-                        // SHIFT == 128 (U128U000). For any bits ∈ u128,
+                        // SHIFT == 128 (Q128Q000). For any bits ∈ u128,
                         // bits < 2^128, so bits / 2^128 < 1.
                         // ceil: bits > 0 → 1; bits == 0 → 0.
                         if bits > 0 {
@@ -117,27 +117,27 @@ macro_rules! fix_fix_u128 {
 }
 
 // 21 ordered pairs from {U0, U16, U32, U64, U96, U127, U128}.
-fix_fix_u128!(U016U000, U16, U0);
-fix_fix_u128!(U032U000, U32, U0);
-fix_fix_u128!(U064U000, U64, U0);
-fix_fix_u128!(U096U000, U96, U0);
-fix_fix_u128!(U127U000, U127, U0);
-fix_fix_u128!(U128U000, U128, U0);
-fix_fix_u128!(U032U016, U32, U16);
-fix_fix_u128!(U064U016, U64, U16);
-fix_fix_u128!(U096U016, U96, U16);
-fix_fix_u128!(U127U016, U127, U16);
-fix_fix_u128!(U128U016, U128, U16);
-fix_fix_u128!(U064U032, U64, U32);
-fix_fix_u128!(U096U032, U96, U32);
-fix_fix_u128!(U127U032, U127, U32);
-fix_fix_u128!(U128U032, U128, U32);
-fix_fix_u128!(U096U064, U96, U64);
-fix_fix_u128!(U127U064, U127, U64);
-fix_fix_u128!(U128U064, U128, U64);
-fix_fix_u128!(U127U096, U127, U96);
-fix_fix_u128!(U128U096, U128, U96);
-fix_fix_u128!(U128U127, U128, U127);
+fix_fix_u128!(Q016Q000, U16, U0);
+fix_fix_u128!(Q032Q000, U32, U0);
+fix_fix_u128!(Q064Q000, U64, U0);
+fix_fix_u128!(Q096Q000, U96, U0);
+fix_fix_u128!(Q127Q000, U127, U0);
+fix_fix_u128!(Q128Q000, U128, U0);
+fix_fix_u128!(Q032Q016, U32, U16);
+fix_fix_u128!(Q064Q016, U64, U16);
+fix_fix_u128!(Q096Q016, U96, U16);
+fix_fix_u128!(Q127Q016, U127, U16);
+fix_fix_u128!(Q128Q016, U128, U16);
+fix_fix_u128!(Q064Q032, U64, U32);
+fix_fix_u128!(Q096Q032, U96, U32);
+fix_fix_u128!(Q127Q032, U127, U32);
+fix_fix_u128!(Q128Q032, U128, U32);
+fix_fix_u128!(Q096Q064, U96, U64);
+fix_fix_u128!(Q127Q064, U127, U64);
+fix_fix_u128!(Q128Q064, U128, U64);
+fix_fix_u128!(Q127Q096, U127, U96);
+fix_fix_u128!(Q128Q096, U128, U96);
+fix_fix_u128!(Q128Q127, U128, U127);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -169,59 +169,59 @@ mod tests {
     fn degenerate_max_shift() {
         // inner: only 0 stays in range; everything else saturates to MAX.
         assert_eq!(
-            U128U000.inner(FixedU128::<U0>::from_bits(0)),
+            Q128Q000.inner(FixedU128::<U0>::from_bits(0)),
             FixedU128::<U128>::from_bits(0),
         );
         assert_eq!(
-            U128U000.inner(FixedU128::<U0>::from_bits(1)),
+            Q128Q000.inner(FixedU128::<U0>::from_bits(1)),
             FixedU128::<U128>::from_bits(u128::MAX),
         );
         assert_eq!(
-            U128U000.inner(FixedU128::<U0>::from_bits(u128::MAX)),
+            Q128Q000.inner(FixedU128::<U0>::from_bits(u128::MAX)),
             FixedU128::<U128>::from_bits(u128::MAX),
         );
         // ceil: positive inputs round up to 1; zero → 0.
         assert_eq!(
-            U128U000.ceil(FixedU128::<U128>::from_bits(0)),
+            Q128Q000.ceil(FixedU128::<U128>::from_bits(0)),
             FixedU128::<U0>::from_bits(0),
         );
         assert_eq!(
-            U128U000.ceil(FixedU128::<U128>::from_bits(1)),
+            Q128Q000.ceil(FixedU128::<U128>::from_bits(1)),
             FixedU128::<U0>::from_bits(1),
         );
         // floor: every non-MAX bit pattern → 0; MAX takes the boundary fixup.
         assert_eq!(
-            U128U000.floor(FixedU128::<U128>::from_bits(0)),
+            Q128Q000.floor(FixedU128::<U128>::from_bits(0)),
             FixedU128::<U0>::from_bits(0),
         );
         assert_eq!(
-            U128U000.floor(FixedU128::<U128>::from_bits(1)),
+            Q128Q000.floor(FixedU128::<U128>::from_bits(1)),
             FixedU128::<U0>::from_bits(0),
         );
         assert_eq!(
-            U128U000.floor(FixedU128::<U128>::from_bits(u128::MAX)),
+            Q128Q000.floor(FixedU128::<U128>::from_bits(u128::MAX)),
             FixedU128::<U0>::from_bits(u128::MAX),
         );
     }
 
     /// Q1.127 (the canonical 128-bit normalised amplitude) → Q0.128:
-    /// the value 1<<126 in Q1.127 (= 0.5) embeds via U128U127.inner
+    /// the value 1<<126 in Q1.127 (= 0.5) embeds via Q128Q127.inner
     /// to 1<<127 in Q0.128 (= 0.5).
     #[test]
     fn spot_q127_to_q128() {
         let q127 = FixedU128::<U127>::from_bits(1 << 126);
-        let q128 = U128U127.inner(q127);
+        let q128 = Q128Q127.inner(q127);
         assert_eq!(q128, FixedU128::<U128>::from_bits(1 << 127));
-        assert_eq!(U128U127.ceil(q128), q127);
-        assert_eq!(U128U127.floor(q128), q127);
+        assert_eq!(Q128Q127.ceil(q128), q127);
+        assert_eq!(Q128Q127.floor(q128), q127);
     }
 
     #[test]
     fn spot_boundary_fixups() {
         let fmax = FixedU128::<U128>::from_bits(u128::MAX);
-        assert_eq!(U128U064.floor(fmax), FixedU128::<U64>::from_bits(u128::MAX),);
+        assert_eq!(Q128Q064.floor(fmax), FixedU128::<U64>::from_bits(u128::MAX),);
         let fmin = FixedU128::<U128>::from_bits(0);
-        assert_eq!(U128U064.ceil(fmin), FixedU128::<U64>::from_bits(0));
+        assert_eq!(Q128Q064.ceil(fmin), FixedU128::<U64>::from_bits(0));
     }
 
     /// Inner-saturation regression: for non-degenerate pairs where the
@@ -229,12 +229,12 @@ mod tests {
     /// fine u128 range, inner saturates rather than wrapping.
     #[test]
     fn inner_saturates_on_overflow() {
-        // U128U016: SHIFT=112. Coarse = u128::MAX → product = u128::MAX
+        // Q128Q016: SHIFT=112. Coarse = u128::MAX → product = u128::MAX
         // × 2^112 ≫ u128::MAX, so checked_mul returns None and we
         // saturate to FINE_MAX.
         let big_coarse = FixedU128::<U16>::from_bits(u128::MAX);
         assert_eq!(
-            U128U016.inner(big_coarse),
+            Q128Q016.inner(big_coarse),
             FixedU128::<U128>::from_bits(u128::MAX),
         );
     }
@@ -247,12 +247,12 @@ mod tests {
     /// with `r = 1` the branch computes `q + 1 = 2^127`, which fits.
     #[test]
     fn ceil_at_fine_max_no_overflow() {
-        // U128U127: SHIFT=1, the smallest RATIO and therefore the
+        // Q128Q127: SHIFT=1, the smallest RATIO and therefore the
         // largest `q` for any given `bits`.
         let fmax = FixedU128::<U128>::from_bits(u128::MAX);
         // bits = 2^128 - 1, RATIO = 2. q = 2^127 - 1, r = 1, q+1 = 2^127.
         assert_eq!(
-            U128U127.ceil(fmax),
+            Q128Q127.ceil(fmax),
             FixedU128::<U127>::from_bits(1_u128 << 127),
         );
     }
