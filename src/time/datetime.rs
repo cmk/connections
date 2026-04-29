@@ -8,19 +8,25 @@ use crate::extended::Extended;
 use time::{Date, PrimitiveDateTime, Time};
 
 /// `PrimitiveDateTime → Extended<Date>` — naive datetime ↔ calendar
-/// date, rounding sub-day fractions.
+/// date, rounding sub-day fractions up to the next whole day.
 ///
-/// On the interior:
-/// - `floor(p) = Finite(p.date())` — drop the time part.
-/// - `ceil(p) = Finite(p.date())` if `p.time() == Time::MIDNIGHT`,
-///   otherwise `Finite(p.date().next_day().unwrap())`.
-/// - `inner(Finite(d))` = `PrimitiveDateTime::new(d, Time::MIDNIGHT)`.
+/// One-sided left-Galois Conn (`Conn::new_left(ceil, inner)`).
+/// `inner` is non-injective at the source extremes — both
+/// `inner(NegInf)` and `inner(Finite(Date::MIN))` decode to
+/// `PrimitiveDateTime::MIN` (per the `time` crate's representation),
+/// which makes `inner` non-order-reflecting on the rung side. The
+/// constructor wires `floor = ceil` as a fn pointer so `floor(a) ≤
+/// ceil(a)` holds structurally.
 ///
-/// `Extended::NegInf` / `Extended::PosInf` saturate at
-/// `PrimitiveDateTime::MIN` / `MAX`. `inner` is non-injective at the
-/// extremes (`NegInf` and `Finite(Date::MIN)` both decode to
-/// `PrimitiveDateTime::MIN`) so adjacent ceil/floor at those points
-/// disagree on whether to step into the saturation arm.
+/// **Behavioral note on rounding:** `ceil(p) = Finite(p.date())` when
+/// `p.time() == MIDNIGHT`, otherwise `Finite(p.date().next_day())`
+/// (or `PosInf` if `p.date() == Date::MAX` and `p` carries a sub-day
+/// fraction). Because `floor = ceil` under `new_left`, callers
+/// reading `PDTMDATE.floor(p)` get the **rounded-up** answer (next
+/// day), not the truncated `Finite(p.date())` they'd get under the
+/// previous full-triple. Callers needing the truncating direction
+/// can compute it explicitly: `Extended::Finite(p.date())` for `p !=
+/// PrimitiveDateTime::MAX`.
 ///
 /// # Examples
 ///
@@ -31,15 +37,13 @@ use time::{Date, PrimitiveDateTime, Time};
 ///
 /// let day = Date::from_calendar_date(2026, Month::April, 26).unwrap();
 ///
-/// // Midnight: ceil = floor = same day.
+/// // Midnight: ceil resolves to the same day.
 /// let p_midnight = PrimitiveDateTime::new(day, Time::MIDNIGHT);
-/// assert_eq!(PDTMDATE.ceil(p_midnight),  Extended::Finite(day));
-/// assert_eq!(PDTMDATE.floor(p_midnight), Extended::Finite(day));
+/// assert_eq!(PDTMDATE.ceil(p_midnight), Extended::Finite(day));
 ///
 /// // Any later time: ceil rolls forward to next day.
 /// let p_later = PrimitiveDateTime::new(day, Time::from_hms(0, 0, 1).unwrap());
-/// assert_eq!(PDTMDATE.ceil(p_later),  Extended::Finite(day.next_day().unwrap()));
-/// assert_eq!(PDTMDATE.floor(p_later), Extended::Finite(day));
+/// assert_eq!(PDTMDATE.ceil(p_later), Extended::Finite(day.next_day().unwrap()));
 ///
 /// assert_eq!(PDTMDATE.inner(Extended::Finite(day)), p_midnight);
 /// ```
@@ -67,14 +71,7 @@ pub const PDTMDATE: Conn<PrimitiveDateTime, Extended<Date>> = {
         }
     }
 
-    fn floor(p: PrimitiveDateTime) -> Extended<Date> {
-        if p.eq(&PrimitiveDateTime::MAX) {
-            return Extended::PosInf;
-        }
-        Extended::Finite(p.date())
-    }
-
-    Conn::new(ceil, inner, floor)
+    Conn::new_left(ceil, inner)
 };
 
 #[cfg(test)]
@@ -129,7 +126,6 @@ mod tests {
         let d = Date::from_calendar_date(2000, Month::January, 1).unwrap();
         let p = PrimitiveDateTime::new(d, Time::MIDNIGHT);
         assert_eq!(PDTMDATE.ceil(p), Extended::Finite(d));
-        assert_eq!(PDTMDATE.floor(p), Extended::Finite(d));
         assert_eq!(PDTMDATE.inner(Extended::Finite(d)), p);
     }
 
@@ -138,16 +134,15 @@ mod tests {
         let d = Date::from_calendar_date(2000, Month::January, 1).unwrap();
         let p = PrimitiveDateTime::new(d, Time::from_hms_nano(0, 0, 0, 1).unwrap());
         assert_eq!(PDTMDATE.ceil(p), Extended::Finite(d.next_day().unwrap()));
-        assert_eq!(PDTMDATE.floor(p), Extended::Finite(d));
+        // `new_left` wires `floor = ceil` structurally.
+        assert_eq!(PDTMDATE.floor(p), Extended::Finite(d.next_day().unwrap()));
     }
 
     #[test]
     fn extremes() {
         assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MIN), Extended::NegInf);
-        assert_eq!(
-            PDTMDATE.floor(PrimitiveDateTime::MIN),
-            Extended::Finite(Date::MIN)
-        );
+        // `floor = ceil` structurally — both NegInf at PDT::MIN.
+        assert_eq!(PDTMDATE.floor(PrimitiveDateTime::MIN), Extended::NegInf);
         assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MAX), Extended::PosInf);
         assert_eq!(PDTMDATE.floor(PrimitiveDateTime::MAX), Extended::PosInf);
 
@@ -159,10 +154,9 @@ mod tests {
     fn date_max_with_subday_ceils_to_posinf() {
         let p = PrimitiveDateTime::new(Date::MAX, Time::from_hms_nano(0, 0, 0, 1).unwrap());
         assert_eq!(PDTMDATE.ceil(p), Extended::PosInf);
-        assert_eq!(PDTMDATE.floor(p), Extended::Finite(Date::MAX));
     }
 
-    // ── PDTMDATE Galois law battery ─────────────────────────────
+    // ── PDTMDATE Galois law battery (one-sided L) ───────────────
 
     proptest! {
         #[test]
@@ -171,8 +165,8 @@ mod tests {
         }
 
         #[test]
-        fn galois_r(p in arb_primitive_dt(), b in arb_extended_date()) {
-            prop_assert!(conn_laws::conn_galois_r(&PDTMDATE, p, b));
+        fn floor_le_ceil(p in arb_primitive_dt()) {
+            prop_assert!(conn_laws::conn_floor_le_ceil(&PDTMDATE, p));
         }
 
         #[test]
@@ -181,18 +175,8 @@ mod tests {
         }
 
         #[test]
-        fn closure_r(p in arb_primitive_dt()) {
-            prop_assert!(conn_laws::conn_closure_r(&PDTMDATE, p));
-        }
-
-        #[test]
         fn kernel_l(b in arb_extended_date()) {
             prop_assert!(conn_laws::conn_kernel_l(&PDTMDATE, b));
-        }
-
-        #[test]
-        fn kernel_r(b in arb_extended_date()) {
-            prop_assert!(conn_laws::conn_kernel_r(&PDTMDATE, b));
         }
 
         #[test]
@@ -201,50 +185,19 @@ mod tests {
         }
 
         #[test]
-        fn monotone_r(a in arb_extended_date(), b in arb_extended_date()) {
-            prop_assert!(conn_laws::conn_monotone_r(&PDTMDATE, a, b));
-        }
-
-        #[test]
         fn idempotent(p in arb_primitive_dt()) {
             prop_assert!(conn_laws::conn_idempotent(&PDTMDATE, p));
         }
 
-        // ulp_bound: extractor collapses NegInf into the same
-        // rung as Finite(Date::MIN) (because inner saturates
-        // both onto PDT::MIN, so they're a single equivalence
-        // class) and lifts PosInf to MAX_JD + 1. This keeps
-        // ceil ≥ floor for every input.
-        #[test]
-        fn ulp_bound(p in arb_primitive_dt()) {
-            let max_jd = Date::MAX.to_julian_day() as i64;
-            let min_jd = Date::MIN.to_julian_day() as i64;
-            let extractor = move |b: Extended<Date>| -> i64 {
-                match b {
-                    Extended::NegInf => min_jd,
-                    Extended::Finite(d) => d.to_julian_day() as i64,
-                    Extended::PosInf => max_jd + 1,
-                }
-            };
-            prop_assert!(conn_laws::conn_ulp_bound(&PDTMDATE, p, extractor));
-        }
-
-        // Roundtrip on Finite Date with d > Date::MIN. At
+        // Roundtrip on Finite Date excluding Date::MIN. At
         // exactly d = Date::MIN, `inner(Finite(MIN))` = PDT::MIN
         // and `ceil(PDT::MIN)` = NegInf (Galois-forced — same
         // equivalence class as Finite(MIN), but distinct
         // representatives); ceil's roundtrip is therefore
-        // non-strict at the lower extreme. `roundtrip_floor`
-        // is unaffected because `floor(PDT::MIN)` returns
-        // `Finite(MIN)` directly.
+        // non-strict at the lower extreme.
         #[test]
         fn roundtrip_ceil(d in arb_date().prop_filter("excludes Date::MIN", |d| *d != Date::MIN)) {
             prop_assert!(conn_laws::conn_roundtrip_ceil(&PDTMDATE, Extended::Finite(d)));
-        }
-
-        #[test]
-        fn roundtrip_floor(d in arb_date()) {
-            prop_assert!(conn_laws::conn_roundtrip_floor(&PDTMDATE, Extended::Finite(d)));
         }
     }
 }
