@@ -559,12 +559,12 @@ mod tests {
     #[test]
     fn lattbool_ordering_spot() {
         let c = LATTBOOL::<Ordering>();
-        assert_eq!(c.ceil(Ordering::Less), false);
-        assert_eq!(c.ceil(Ordering::Equal), true);
-        assert_eq!(c.ceil(Ordering::Greater), true);
-        assert_eq!(c.floor(Ordering::Less), false);
-        assert_eq!(c.floor(Ordering::Equal), false);
-        assert_eq!(c.floor(Ordering::Greater), true);
+        assert!(!c.ceil(Ordering::Less));
+        assert!(c.ceil(Ordering::Equal));
+        assert!(c.ceil(Ordering::Greater));
+        assert!(!c.floor(Ordering::Less));
+        assert!(!c.floor(Ordering::Equal));
+        assert!(c.floor(Ordering::Greater));
         assert_eq!(c.inner(false), Ordering::Less);
         assert_eq!(c.inner(true), Ordering::Greater);
     }
