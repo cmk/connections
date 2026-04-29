@@ -127,3 +127,48 @@ Three commits, all conventional (`plan:`, `feat:`, `doc:`), subjects under 72 ch
 - **Follow-up (2):** Plan body spot-check list refreshed in commit `cea4713` (`doc: Refresh plan spot-checks + arb docs post-deviation`). All seven spot-check entries now match the post-deviation behavior, with the source-side wrap and the asymmetric F???STDR negative-input arms called out inline.
 - **Follow-up (3):** Folded into commit `fb44ba4` (see Must-fix resolution).
 - **Follow-up (4):** Doc-comments added on `arb_extended_u64` / `arb_extended_u128` in commit `cea4713`, noting their intended driving (STDRU064 battery) and downstream-export status respectively.
+
+<!-- glab-id: 3296990775 -->
+<!-- glab-discussion: a0fdf2267b08b3f59e223207ab63dbfc86a096f7 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/time/duration.rs:600` (2026-04-29 00:35 UTC) [open]
+
+**[must-fix]** `shift_std_duration` uses `new >= max` (strict: `>=`) as the saturation guard, so `StdDuration::MAX.as_nanos()` itself returns `StdDuration::MAX` via the early-return path — correct. But when `n` is negative the subtraction uses `saturating_sub(n.unsigned_abs() as u128)` on a `u128`, which saturates at 0, then the reconstruction path is taken for any `new < max`. When `n >= 0` and `cur.saturating_add(n as u128)` would produce exactly `max`, the `>= max` guard fires and returns `StdDuration::MAX` — also correct. However, the `def_walk_helpers!` macro drives the shift with `n = 1` to find adjacent Duration values; when `d` is already `StdDuration::MAX` and `n = 1`, `cur.saturating_add(1)` produces `max + 1`, which trips the guard and returns `StdDuration::MAX` — the walk stalls, never advancing, and the ULP loop in `ascend_to_ceil`/`ascend_to_floor` will spin forever (or until the iteration budget). The analogous `shift_duration` for signed `time::Duration` uses `checked_add` and returns `None` to signal the boundary; this function loses that signal by returning the same value as the input when already at `MAX`.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3296990794 -->
+<!-- glab-discussion: ecea6c99afeed98a31bf77f6fae38491826daf71 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/time/duration.rs:758` (2026-04-29 00:35 UTC) [open]
+
+**[must-fix]** `STDRU128.inner` uses `n >= max_nanos` as the saturation guard, so `inner(Finite(max_nanos))` takes the saturation branch and returns `Finite(StdDuration::MAX)`. The docstring and the `STDRU128` description both say the mapping is a bijection and that `inner` round-trips exactly on the representable range. `ceil(Finite(StdDuration::MAX)) = Finite(max_nanos)`, then `inner(Finite(max_nanos)) = Finite(StdDuration::MAX)` — that part round-trips. But `ceil(inner(Finite(max_nanos)))` also works. The issue is the boundary `n == max_nanos` takes the saturation path (`>= max_nanos`) instead of the arithmetic path, yet `max_nanos / 1_000_000_000` and `max_nanos % 1_000_000_000` would reconstruct `StdDuration::MAX` exactly because `StdDuration::MAX.as_nanos()` is exact. So the saturation guard should be `n > max_nanos` (strict greater-than) to keep the bijection clean at the boundary; as written the bijection claim in the doc is only accidentally correct (both paths yield the same value), but the spot-test `stdru128_inner_saturates_above_max` asserts `inner(Finite(max_nanos + 1)) == Finite(MAX)` — that part is fine. This is a latent correctness / documentation mismatch that will break if `StdDuration::MAX.as_nanos()` is ever not exactly reconstructible by the arithmetic path.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3296990807 -->
+<!-- glab-discussion: 7f15bf35a641e71b6d4a81cbc617d1116bdb6026 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/time/duration.rs:815` (2026-04-29 00:35 UTC) [open]
+
+**[must-fix]** `F064STDR.ceil` handles `v == f64::NEG_INFINITY` via the `v <= 0.0` branch (returns `Finite(ZERO)`), but the plan's spot-check table (review-00041.md line 170) and the doctest both state `ceil(Extend(-0.5)) = Finite(ZERO)` — that is consistent. However the `floor` function has `if v == f64::INFINITY` returning `Finite(MAX)` but no explicit guard for `v == f64::NEG_INFINITY`: `-∞` falls through to `v < 0.0` and returns `NegInf`. The spot test `f64_stdr_infinity_arms` asserts `floor(Extend(NEG_INFINITY)) == NegInf` and `ceil(Extend(NEG_INFINITY)) == Finite(ZERO)`. `F064STDR.ceil` reaches the `v <= 0.0` guard via `f64::NEG_INFINITY <= 0.0 == true`, so ceil is correct. But in `floor`, `-∞` is a finite `Extend` value, and `v < 0.0` is true for `-∞`, so `floor` returns `NegInf`. The analogous `F064DURN.floor` returns `NegInf` for `-∞` too, so this is intentional — but the comment in the `floor` body says "Bot arm above already handled ExtendedFloat::Bot itself" while `-∞` is `Extend(NEG_INFINITY)`, not `Bot`. The comment is misleading and will cause confusion when readers check whether the `-∞` case is double-handled.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3297001199 -->
+<!-- glab-discussion: a0fdf2267b08b3f59e223207ab63dbfc86a096f7 -->
+#### ↳ cmk (2026-04-29 00:39 UTC) [open]
+
+By design — `def_walk_helpers!` uses `if next <= z { return }` as its boundary signal, so a saturating shift at `MAX` (where `next == z`) terminates the loop cleanly. The same contract is documented on `shift_duration`'s rustdoc ("the macro's 'if shift didn't move, terminate' guard fires correctly at the boundaries"). No spin.
+
+<!-- glab-id: 3297001568 -->
+<!-- glab-discussion: ecea6c99afeed98a31bf77f6fae38491826daf71 -->
+#### ↳ cmk (2026-04-29 00:39 UTC) [open]
+
+Fixed in 70f228d — switched the saturation guard from `n >= max_nanos` to `n > max_nanos` so the boundary value `max_nanos` goes through the arithmetic reconstruction path instead of saturation. Both paths produce `StdDuration::MAX` at exactly that value, so behavior is unchanged, but the `>` makes the bijection-on-the-representable-range claim sharper rather than relying on accidental convergence.
+
+<!-- glab-id: 3297001668 -->
+<!-- glab-discussion: 7f15bf35a641e71b6d4a81cbc617d1116bdb6026 -->
+#### ↳ cmk (2026-04-29 00:39 UTC) [open]
+
+Fixed in 70f228d — dropped the misleading parenthetical. The branch is solely about `Extend(neg)` / `Extend(-∞)`; `Bot` is matched in the early `match x` arm above and didn't need restating.

@@ -764,7 +764,13 @@ pub const STDRU128: Conn<Extended<StdDuration>, Extended<u128>> = {
             Extended::PosInf => Extended::PosInf,
             Extended::Finite(n) => {
                 let max_nanos = StdDuration::MAX.as_nanos();
-                if n >= max_nanos {
+                // Strict `>` so the boundary `n == max_nanos` goes
+                // through the arithmetic path. Both paths produce
+                // `StdDuration::MAX` at that exact value (since
+                // `max_nanos.divmod(1e9) = (u64::MAX, 999_999_999)`),
+                // so the bijection on the representable range is
+                // sharper than an `>=` saturation guard would suggest.
+                if n > max_nanos {
                     return Extended::Finite(StdDuration::MAX);
                 }
                 let secs = (n / 1_000_000_000) as u64;
@@ -867,9 +873,9 @@ pub const F064STDR: Conn<F064, Extended<StdDuration>> = {
         if v == f64::INFINITY {
             return Extended::Finite(StdDuration::MAX);
         }
-        // Negative finites and -∞ — no rung representative ≤ them on
-        // the unsigned side, so floor saturates to the synthetic NegInf.
-        // (The Bot arm above already handled ExtendedFloat::Bot itself.)
+        // Negative finite floats and `Extend(-∞)` have no rung
+        // representative ≤ them on the unsigned side, so floor
+        // saturates to the synthetic `NegInf`.
         if v < 0.0 {
             return Extended::NegInf;
         }
