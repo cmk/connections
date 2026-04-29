@@ -310,11 +310,37 @@ owns the regression. Before the next push/merge, collapse fixups via
 that temporarily broke the build. `/sprint-review` runs this check
 automatically at Step 0.
 
-### Pre-commit hook
+### Pre-commit hooks
 
-A Claude Code hook in `.claude/settings.json` runs, in order, on every
-`git commit` tool call. Every step is blocking — the chain short-
-circuits on the first failure and the commit is aborted:
+Two complementary layers guard every commit:
+
+**Layer 1 — Claude Code `PreToolUse`** (`.claude/settings.json`):
+fires on agent-invoked Bash calls matching `git commit*`. Catches
+issues during agent iteration without invoking git for real.
+Limitation: hooks run in **Claude Code's session cwd**, not the cwd a
+`cd` inside a matched compound command would reach. So an agent's
+`cd <worktree> && git commit -m "..."` call has this layer's
+`cargo fmt` / `cargo clippy` checking the launch directory, not the
+worktree. Direct `git commit` runs from the project root are caught
+fine.
+
+**Layer 2 — Git `pre-commit`** (`.githooks/pre-commit`): fires at
+git's standard `pre-commit` hook point — AFTER staging, BEFORE the
+commit object is created, in the actual repo working directory. So
+it sees the actual staged content regardless of how the commit was
+invoked: chained `git add && git commit`, agent-invoked Bash calls in
+any worktree, terminal commits, IDE commits, all paths. This is the
+unbypassable safety net.
+
+Activate Layer 2 on a fresh clone:
+
+```
+git config core.hooksPath .githooks
+```
+
+Both layers run the same check chain, in order. Every step is
+blocking — the chain short-circuits on the first failure and the
+commit is aborted:
 
 1. `cargo fmt --all -- --check` — fmt drift aborts the commit. Was
    non-blocking through Plan 25; flipped to blocking in Plan 26 after
@@ -328,9 +354,9 @@ circuits on the first failure and the commit is aborted:
 4. `cargo test --workspace --quiet`.
 5. `cargo clippy --all-targets --quiet -- -D warnings`.
 
-This is the automated quality gate; `/sprint-review` is the manual
-one. Never bypass with `--no-verify` unless Chris explicitly
-authorizes it.
+`/sprint-review` is the manual quality gate; both hook layers are
+the automated ones. Never bypass with `--no-verify` unless Chris
+explicitly authorizes it.
 
 ### Commands (`.claude/commands/`)
 
