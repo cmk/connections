@@ -150,6 +150,7 @@
 #![cfg_attr(feature = "f16", feature(f16))]
 #![forbid(unsafe_code)]
 
+pub mod addr;
 pub mod conn;
 pub mod extended;
 pub mod fixed;

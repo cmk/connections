@@ -337,11 +337,108 @@ pub fn convr<T: Symmetric + Sized>(x: &T) -> T {
 /// If the algebra is Boolean, then `neg == not == coneg`.
 pub trait Boolean: Symmetric {}
 
+// ── Canonical Conn helpers ──────────────────────────────────────
+
+/// The canonical `Conn<A, bool>` for any bounded lattice `A`.
+///
+/// Embeds the 2-element chain `false < true` as `bot < top`. The
+/// adjoint asymmetry pushes the source's bottom and top to the
+/// matching ends of `bool`:
+///
+/// - `ceil(a) = true` for every `a ≠ bot`; `ceil(bot) = false`.
+/// - `floor(a) = false` for every `a ≠ top`; `floor(top) = true`.
+/// - `inner(false) = bot`, `inner(true) = top`.
+///
+/// Port of the Haskell `connections` library's `bndbin :: (Eq a,
+/// Bounded a) => Cast k a Bool`, with [`Join`] + [`Meet`] standing
+/// in for Haskell's `Bounded` (Rust has no stdlib `Bounded` trait
+/// and this crate intentionally doesn't introduce one — the
+/// lattice-side bounds already give us what we need).
+///
+/// Both Galois laws hold:
+///
+/// - `ceil(a) ≤ b ⟺ a ≤ inner(b)`. At `b = false` the RHS is `a ≤
+///   bot`, equivalent to `a == bot`; the LHS is `ceil(a) ≤ false`,
+///   equivalent to `ceil(a) == false`. Both reduce to `a == bot`.
+/// - `inner(b) ≤ a ⟺ b ≤ floor(a)`. Dual derivation pinned at `b
+///   = true` and `a == top`.
+///
+/// Naming follows the 8-char Conn convention: `LATT` (4L+0D) on the
+/// source side stands for "abstract bounded lattice", `BOOL` (4L+0D)
+/// on the target. Defined as a generic function rather than a `pub
+/// const` because Rust consts can't carry type parameters.
+///
+/// The bounds require `Copy` because `Conn::new` stores `fn(A) -> B`
+/// pointers and the source value flows through a function call.
+/// `'static` keeps the function pointer well-formed under
+/// monomorphization.
+///
+/// # Example
+///
+/// ```rust
+/// use connections::lattice::LATTBOOL;
+/// use core::cmp::Ordering;
+///
+/// // `Ordering` impls `Join + Meet` (3-element chain Less < Equal < Greater).
+/// let c = LATTBOOL::<Ordering>();
+/// assert_eq!(c.ceil(Ordering::Less),     false); // bot → false
+/// assert_eq!(c.ceil(Ordering::Equal),    true);  // not-bot → true
+/// assert_eq!(c.ceil(Ordering::Greater),  true);
+/// assert_eq!(c.floor(Ordering::Less),    false);
+/// assert_eq!(c.floor(Ordering::Equal),   false); // not-top → false
+/// assert_eq!(c.floor(Ordering::Greater), true);  // top → true
+/// assert_eq!(c.inner(false),             Ordering::Less);
+/// assert_eq!(c.inner(true),              Ordering::Greater);
+/// ```
+#[allow(non_snake_case)]
+pub fn LATTBOOL<A>() -> crate::conn::Conn<A, bool>
+where
+    A: Join + Meet + Copy + 'static,
+{
+    fn ceil<A: Join + PartialEq>(i: A) -> bool {
+        i != A::bot()
+    }
+    fn inner<A: Join + Meet>(x: bool) -> A {
+        if x { A::top() } else { A::bot() }
+    }
+    fn floor<A: Meet + PartialEq>(i: A) -> bool {
+        i == A::top()
+    }
+    crate::conn::Conn::new(ceil::<A>, inner::<A>, floor::<A>)
+}
+
+// ── `Join + Meet` impls for primitive lattices ──────────────────
+
+// `core::cmp::Ordering` is the canonical 3-element bounded chain
+// (`Less < Equal < Greater`). Implementing `Join + Meet` makes it
+// the smallest non-trivial test surface for the generic
+// [`LATTBOOL`] helper.
+impl Join for core::cmp::Ordering {
+    fn bot() -> Self {
+        core::cmp::Ordering::Less
+    }
+    fn join(&self, other: &Self) -> Self {
+        core::cmp::max(*self, *other)
+    }
+}
+
+impl Meet for core::cmp::Ordering {
+    fn top() -> Self {
+        core::cmp::Ordering::Greater
+    }
+    fn meet(&self, other: &Self) -> Self {
+        core::cmp::min(*self, *other)
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::float::ExtendedFloat;
     use crate::prop::arb::{arb_f32, arb_f64};
+    use crate::prop::conn as conn_laws;
     use crate::prop::lattice as lattice_laws;
+    use core::cmp::Ordering;
     use proptest::prelude::*;
 
     // ── Spot checks (ExtendedFloat — the lawful float wrapper) ─────
@@ -441,6 +538,70 @@ mod tests {
         #[test]
         fn top_ef32(x in ef32()) {
             prop_assert!(lattice_laws::lattice_top(&ExtendedFloat::<f32>::Top, &x));
+        }
+    }
+
+    // ── `Ordering` lattice impls + `LATTBOOL` exercise ──────────
+    //
+    // `Ordering` is the smallest non-trivial concrete `Join + Meet`
+    // type in the crate, so it doubles as the test surface for the
+    // generic [`LATTBOOL`] helper above. The `LATTBOOL::<Ordering>()`
+    // Conn is a full triple in the bndbin shape.
+
+    #[test]
+    fn ordering_lattice_bot_top() {
+        assert_eq!(<Ordering as Join>::bot(), Ordering::Less);
+        assert_eq!(<Ordering as Meet>::top(), Ordering::Greater);
+        assert_eq!(Ordering::Less.join(&Ordering::Greater), Ordering::Greater);
+        assert_eq!(Ordering::Less.meet(&Ordering::Greater), Ordering::Less);
+    }
+
+    #[test]
+    fn lattbool_ordering_spot() {
+        let c = LATTBOOL::<Ordering>();
+        assert_eq!(c.ceil(Ordering::Less), false);
+        assert_eq!(c.ceil(Ordering::Equal), true);
+        assert_eq!(c.ceil(Ordering::Greater), true);
+        assert_eq!(c.floor(Ordering::Less), false);
+        assert_eq!(c.floor(Ordering::Equal), false);
+        assert_eq!(c.floor(Ordering::Greater), true);
+        assert_eq!(c.inner(false), Ordering::Less);
+        assert_eq!(c.inner(true), Ordering::Greater);
+    }
+
+    proptest! {
+        #[test]
+        fn ordering_lattice_bot_law(o in crate::prop::arb::arb_ordering()) {
+            prop_assert!(lattice_laws::lattice_bot(&<Ordering as Join>::bot(), &o));
+        }
+
+        #[test]
+        fn ordering_lattice_top_law(o in crate::prop::arb::arb_ordering()) {
+            prop_assert!(lattice_laws::lattice_top(&<Ordering as Meet>::top(), &o));
+        }
+
+        #[test]
+        fn lattbool_ordering_galois_l(o in crate::prop::arb::arb_ordering(), b in any::<bool>()) {
+            let c = LATTBOOL::<Ordering>();
+            prop_assert!(conn_laws::conn_galois_l(&c, o, b));
+        }
+
+        #[test]
+        fn lattbool_ordering_galois_r(o in crate::prop::arb::arb_ordering(), b in any::<bool>()) {
+            let c = LATTBOOL::<Ordering>();
+            prop_assert!(conn_laws::conn_galois_r(&c, o, b));
+        }
+
+        #[test]
+        fn lattbool_ordering_floor_le_ceil(o in crate::prop::arb::arb_ordering()) {
+            let c = LATTBOOL::<Ordering>();
+            prop_assert!(conn_laws::conn_floor_le_ceil(&c, o));
+        }
+
+        #[test]
+        fn lattbool_ordering_idempotent(o in crate::prop::arb::arb_ordering()) {
+            let c = LATTBOOL::<Ordering>();
+            prop_assert!(conn_laws::conn_idempotent(&c, o));
         }
     }
 }

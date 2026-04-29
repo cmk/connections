@@ -831,3 +831,184 @@ pub fn arb_iso_weekday_byte() -> impl Strategy<Value = u8> {
 pub fn arb_month_byte() -> impl Strategy<Value = u8> {
     1_u8..=12
 }
+
+// ── char / net / ordering strategies (Plan 24 families) ────────
+
+/// Arbitrary valid `char` with bias toward the surrogate-gap
+/// boundary (`'\u{D7FF}'`, `'\u{E000}'`) and the Unicode max
+/// (`'\u{10FFFF}'`). Uniform slot uses [`proptest::char::any`].
+pub fn arb_char() -> impl Strategy<Value = char> {
+    prop_oneof![
+        1 => Just('\u{0}'),
+        1 => Just('\u{D7FF}'),
+        1 => Just('\u{E000}'),
+        1 => Just('\u{10FFFF}'),
+        1 => Just('A'),
+        1 => Just('\n'),
+        10 => proptest::char::any(),
+    ]
+}
+
+/// `Extended<char>` over `NegInf`, `PosInf`, and `Finite` values from
+/// [`arb_char`] — 1:1:2 weighting.
+pub fn arb_extended_char() -> impl Strategy<Value = Extended<char>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        2 => arb_char().prop_map(Extended::Finite),
+    ]
+}
+
+/// `Extended<u32>` over `NegInf`, `PosInf`, and `Finite` values —
+/// 1:1:8 weighting with explicit bias toward the char-relevant
+/// boundaries (`0xD7FF`, `0xD800`, `0xDFFF`, `0xE000`, `0x10FFFF`,
+/// `0x110000`) plus `{0, MAX}`.
+pub fn arb_extended_u32() -> impl Strategy<Value = Extended<u32>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(0_u32)),
+        1 => Just(Extended::Finite(u32::MAX)),
+        1 => Just(Extended::Finite(0xD7FF)),
+        1 => Just(Extended::Finite(0xD800)),
+        1 => Just(Extended::Finite(0xDFFF)),
+        1 => Just(Extended::Finite(0xE000)),
+        1 => Just(Extended::Finite(0x10FFFF)),
+        1 => Just(Extended::Finite(0x110000)),
+        8 => any::<u32>().prop_map(Extended::Finite),
+    ]
+}
+
+/// Arbitrary `Ipv4Addr` — uniform over the full 32-bit range with
+/// explicit bias toward landmarks (UNSPECIFIED, BROADCAST, LOCALHOST).
+pub fn arb_ipv4() -> impl Strategy<Value = std::net::Ipv4Addr> {
+    prop_oneof![
+        1 => Just(std::net::Ipv4Addr::UNSPECIFIED),
+        1 => Just(std::net::Ipv4Addr::BROADCAST),
+        1 => Just(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+        1 => Just(std::net::Ipv4Addr::new(192, 168, 1, 1)),
+        8 => any::<u32>().prop_map(std::net::Ipv4Addr::from_bits),
+    ]
+}
+
+/// `Extended<Ipv4Addr>` — 1:1:2 weighting for the synthetic ends and
+/// the `Finite` slot from [`arb_ipv4`].
+pub fn arb_extended_ipv4() -> impl Strategy<Value = Extended<std::net::Ipv4Addr>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        2 => arb_ipv4().prop_map(Extended::Finite),
+    ]
+}
+
+/// Arbitrary `Ipv6Addr` — uniform over the full 128-bit range with
+/// explicit bias toward landmarks (UNSPECIFIED, LOCALHOST, the
+/// v4-mapped block extremes).
+pub fn arb_ipv6() -> impl Strategy<Value = std::net::Ipv6Addr> {
+    let v4mapped_lo: u128 = 0x0000_0000_0000_0000_0000_FFFF_0000_0000;
+    let v4mapped_hi: u128 = 0x0000_0000_0000_0000_0000_FFFF_FFFF_FFFF;
+    prop_oneof![
+        1 => Just(std::net::Ipv6Addr::UNSPECIFIED),
+        1 => Just(std::net::Ipv6Addr::LOCALHOST),
+        1 => Just(std::net::Ipv6Addr::from_bits(v4mapped_lo)),
+        1 => Just(std::net::Ipv6Addr::from_bits(v4mapped_hi)),
+        1 => Just(std::net::Ipv6Addr::from_bits(v4mapped_hi + 1)),
+        1 => Just(std::net::Ipv6Addr::from_bits(u128::MAX)),
+        8 => any::<u128>().prop_map(std::net::Ipv6Addr::from_bits),
+    ]
+}
+
+/// `Extended<Ipv6Addr>` — 1:1:2 weighting for the synthetic ends and
+/// the `Finite` slot from [`arb_ipv6`].
+pub fn arb_extended_ipv6() -> impl Strategy<Value = Extended<std::net::Ipv6Addr>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        2 => arb_ipv6().prop_map(Extended::Finite),
+    ]
+}
+
+/// Arbitrary `IpAddr` — sums [`arb_ipv4`] and [`arb_ipv6`] with the
+/// V4/V6 ratio weighted toward V6 (more boundary cases live there).
+pub fn arb_ip_addr() -> impl Strategy<Value = std::net::IpAddr> {
+    prop_oneof![
+        1 => arb_ipv4().prop_map(std::net::IpAddr::V4),
+        2 => arb_ipv6().prop_map(std::net::IpAddr::V6),
+    ]
+}
+
+/// Arbitrary `SocketAddrV4` — cartesian product of [`arb_ipv4`] and
+/// the full `u16` port range, with bias toward landmark ports
+/// (`0`, `65535`, `80`, `443`).
+pub fn arb_socket_addr_v4() -> impl Strategy<Value = std::net::SocketAddrV4> {
+    let port = prop_oneof![
+        1 => Just(0_u16),
+        1 => Just(u16::MAX),
+        1 => Just(80_u16),
+        1 => Just(443_u16),
+        6 => any::<u16>(),
+    ];
+    (arb_ipv4(), port).prop_map(|(ip, p)| std::net::SocketAddrV4::new(ip, p))
+}
+
+/// `Extended<SocketAddrV4>` — 1:1:2 weighting for synthetic ends and
+/// `Finite` slot from [`arb_socket_addr_v4`].
+pub fn arb_extended_socket_addr_v4() -> impl Strategy<Value = Extended<std::net::SocketAddrV4>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        2 => arb_socket_addr_v4().prop_map(Extended::Finite),
+    ]
+}
+
+/// Arbitrary `SocketAddrV6` — cartesian product of [`arb_ipv6`],
+/// `u16` port, `u32` flowinfo, and `u32` scope_id with all-zero
+/// flowinfo/scope_id biased.
+pub fn arb_socket_addr_v6() -> impl Strategy<Value = std::net::SocketAddrV6> {
+    let port = prop_oneof![
+        1 => Just(0_u16),
+        1 => Just(u16::MAX),
+        1 => Just(80_u16),
+        6 => any::<u16>(),
+    ];
+    let flowinfo = prop_oneof![
+        2 => Just(0_u32),
+        1 => Just(u32::MAX),
+        4 => any::<u32>(),
+    ];
+    let scope_id = prop_oneof![
+        2 => Just(0_u32),
+        1 => Just(u32::MAX),
+        4 => any::<u32>(),
+    ];
+    (arb_ipv6(), port, flowinfo, scope_id)
+        .prop_map(|(ip, p, fi, si)| std::net::SocketAddrV6::new(ip, p, fi, si))
+}
+
+/// `Extended<SocketAddrV6>` — 1:1:2 weighting for synthetic ends and
+/// `Finite` slot from [`arb_socket_addr_v6`].
+pub fn arb_extended_socket_addr_v6() -> impl Strategy<Value = Extended<std::net::SocketAddrV6>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        2 => arb_socket_addr_v6().prop_map(Extended::Finite),
+    ]
+}
+
+/// Arbitrary `SocketAddr` — sums [`arb_socket_addr_v4`] and
+/// [`arb_socket_addr_v6`] with the V4/V6 ratio weighted toward V6.
+pub fn arb_socket_addr() -> impl Strategy<Value = std::net::SocketAddr> {
+    prop_oneof![
+        1 => arb_socket_addr_v4().prop_map(std::net::SocketAddr::V4),
+        2 => arb_socket_addr_v6().prop_map(std::net::SocketAddr::V6),
+    ]
+}
+
+/// Arbitrary `core::cmp::Ordering` — uniform over the three variants.
+pub fn arb_ordering() -> impl Strategy<Value = core::cmp::Ordering> {
+    prop_oneof![
+        Just(core::cmp::Ordering::Less),
+        Just(core::cmp::Ordering::Equal),
+        Just(core::cmp::Ordering::Greater),
+    ]
+}
