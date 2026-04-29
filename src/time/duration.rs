@@ -1466,6 +1466,12 @@ mod stdr_tests {
     }
 
     #[test]
+    fn f64_stdr_inner_one_second() {
+        let one_d = Extended::Finite(StdDuration::from_secs(1));
+        assert_eq!(F064STDR.inner(one_d), ExtendedFloat::Extend(1.0_f64));
+    }
+
+    #[test]
     fn f64_stdr_negative_input_asymmetric() {
         let neg = ExtendedFloat::Extend(-0.5_f64);
         assert_eq!(F064STDR.ceil(neg), Extended::Finite(StdDuration::ZERO));
@@ -1622,6 +1628,30 @@ mod stdr_tests {
         fn f64_stdr_negative_input_ceil_to_zero(v in -1.0e9_f64..0.0_f64) {
             let a = ExtendedFloat::Extend(v);
             prop_assert_eq!(F064STDR.ceil(a), Extended::Finite(StdDuration::ZERO));
+        }
+
+        // Plateau invariant for the F064STDR walk machinery: at any
+        // whole-second `StdDuration` `d`, `v = d.as_secs_f64()` is exact
+        // and the f64 plateau around `v` brackets `d`. ceil walks down to
+        // the smallest plateau member, floor walks up to the largest;
+        // both endpoints widen back to exactly `v` and bracket `d`.
+        // Exercises the `def_walk_helpers!`-emitted ULP loops at every
+        // magnitude up to 10⁹ s where the plateau widens from a single
+        // ns at low magnitudes to ~220 ns at the bound.
+        #[test]
+        fn f64_stdr_plateau(s in 0_u64..=1_000_000_000_u64) {
+            let d = StdDuration::from_secs(s);
+            let v = d.as_secs_f64();
+            let a = ExtendedFloat::Extend(v);
+            if let (Extended::Finite(c), Extended::Finite(f)) =
+                (F064STDR.ceil(a), F064STDR.floor(a))
+            {
+                prop_assert!(c <= d && d <= f, "ceil={c:?} d={d:?} floor={f:?}");
+                prop_assert_eq!(c.as_secs_f64(), v);
+                prop_assert_eq!(f.as_secs_f64(), v);
+            } else {
+                panic!("expected Finite ceil/floor at v={v}");
+            }
         }
 
         #[test]
