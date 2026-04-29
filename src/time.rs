@@ -61,7 +61,7 @@
 //! |------|------|------|
 //! | [`DATEJDAY`] | `Conn<Extended<Date>, i32>` | proleptic-Gregorian Julian day (exact bijection on Date range; saturating outside). |
 //! | [`TIMENANO`] | `Conn<Extended<Time>, i64>` | nanoseconds since midnight (exact bijection on `[0, 86_400 × 10⁹)`). |
-//! | [`TIMESECS`] | `Conn<Extended<Time>, i64>` | whole seconds since midnight; sub-second `ceil` and `floor` differ. |
+//! | [`TIMESECS`] | `Conn<Extended<Time>, i64>` | whole seconds since midnight; sub-second inputs round up (`floor = ceil` under `new_left`). |
 //! | [`DURNSECS`] | `Conn<Duration, Extended<i64>>` | signed whole seconds; rung extended for `±i64::MAX ± 1` overflow. |
 //! | [`F064DURN`] | `Conn<F064, Extended<Duration>>` | f64 seconds ↔ Duration; saturating ceil/floor walk on the 1ns Duration rung. |
 //! | [`F032DURN`] | `Conn<F032, Extended<Duration>>` | f32 seconds ↔ Duration; same walk shape with f32 precision. |
@@ -69,9 +69,9 @@
 //! | [`STDRU128`] | `Conn<Extended<StdDuration>, Extended<u128>>` | unsigned exact nanoseconds; bijection on the representable Finite range, `inner` saturates above `MAX.as_nanos()`. |
 //! | [`F064STDR`] | `Conn<F064, Extended<StdDuration>>` | f64 seconds ↔ StdDuration; negative inputs project ceil → `Finite(ZERO)`, floor → `NegInf`. |
 //! | [`F032STDR`] | `Conn<F032, Extended<StdDuration>>` | f32 seconds ↔ StdDuration; same walk shape with f32 precision. |
-//! | [`PDTMDATE`] | `Conn<PrimitiveDateTime, Extended<Date>>` | drops sub-day time; `ceil` rolls to the next day if past midnight. |
+//! | [`PDTMDATE`] | `Conn<PrimitiveDateTime, Extended<Date>>` | sub-day inputs round up to the next day (`floor = ceil` under `new_left`). |
 //! | [`OFDTNANO`] | `Conn<Extended<OffsetDateTime>, i128>` | unix nanoseconds since epoch (lossless across full OffsetDateTime range). |
-//! | [`OFDTSECS`] | `Conn<Extended<OffsetDateTime>, i64>` | unix whole seconds since epoch; sub-second rounding. |
+//! | [`OFDTSECS`] | `Conn<Extended<OffsetDateTime>, i64>` | unix whole seconds since epoch; sub-second inputs round up (`floor = ceil` under `new_left`). |
 //!
 //! Each constant ships with a runnable `# Examples` doctest and a
 //! `proptest!` block driving the laws in [`crate::prop::conn`].
@@ -79,12 +79,14 @@
 //! # Verification
 //!
 //! Every `Conn` constant is exercised in its sub-module's
-//! `#[cfg(test)] mod tests` by the full Galois law battery from
-//! [`crate::prop::conn`]. The four time-crate types used here
-//! (`Date`, `Time`, `Duration`, `PrimitiveDateTime`) all derive
-//! `Eq + PartialOrd` upstream — total order, no NaN sentinel — so
-//! the law machinery accepts them directly without any per-crate
-//! trait impls.
+//! `#[cfg(test)] mod tests` by the appropriate law battery from
+//! [`crate::prop::conn`] — the left-sided battery for `new_left`
+//! Conns (TIMENANO, TIMESECS, DATEJDAY, OFDTNANO, OFDTSECS, PDTMDATE)
+//! and the full battery for full-triple Conns (the Duration / SystemTime
+//! family). The four time-crate types used here (`Date`, `Time`,
+//! `Duration`, `PrimitiveDateTime`) all derive `Eq + PartialOrd`
+//! upstream — total order, no NaN sentinel — so the law machinery
+//! accepts them directly without any per-crate trait impls.
 //!
 //! # Example
 //!

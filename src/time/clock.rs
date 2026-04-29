@@ -331,9 +331,10 @@ mod tests {
         #[test]
         fn end_of_day() {
             // Sub-second past 23:59:59 ceils to 86_400 (the PosInf
-            // marker on the rung side).
+            // marker on the rung side); floor = ceil under new_left.
             let last = Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap();
             assert_eq!(TIMESECS.ceil(Extended::Finite(last)), 86_400);
+            assert_eq!(TIMESECS.floor(Extended::Finite(last)), 86_400);
         }
 
         #[test]

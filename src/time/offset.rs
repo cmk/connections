@@ -434,6 +434,16 @@ mod ofdt_tests {
         assert_eq!(OFDTSECS.ceil(Extended::Finite(half_before)), 0);
     }
 
+    #[test]
+    fn ofdtsecs_saturation_extremes() {
+        let max_s = utc_max_s();
+        assert_eq!(OFDTSECS.ceil(Extended::PosInf), max_s + 1);
+        assert_eq!(OFDTSECS.ceil(Extended::NegInf), i64::MIN);
+        // `new_left` wires `floor = ceil` structurally.
+        assert_eq!(OFDTSECS.floor(Extended::PosInf), max_s + 1);
+        assert_eq!(OFDTSECS.floor(Extended::NegInf), i64::MIN);
+    }
+
     // ── Galois law battery — OFDTNANO (one-sided L) ────────────
 
     proptest! {
