@@ -138,9 +138,20 @@ Per-domain Conn families:
 | Submodule | Host crates                                | Files (one per host type)                                  |
 |-----------|--------------------------------------------|------------------------------------------------------------|
 | `fixed`   | `fixed`, `std` (i8…u128), `core::num` (NonZero) | `i8.rs`–`i128.rs`, `u8.rs`–`u128.rs` (per-destination type) |
-| `time`    | `time`                                     | `clock.rs`, `date.rs`, `datetime.rs`, `duration.rs`, `offset.rs` |
+| `time`    | `time`, `std::time`                        | `clock.rs`, `date.rs`, `datetime.rs`, `duration.rs`, `offset.rs` |
 | `float`   | (this crate)                               | `ExtendedFloat<T>` + IEEE narrowing Conns; submodules `f32.rs` (target `F032`) and `f16.rs` (target `F016`, gated on `f16` cargo feature → nightly required) |
 | `conn`    | (this crate)                               | The `Conn<A, B>` type, the `compose!` macro, free fns operating on a `Conn` (`ceiling`, `floor`, `upper`, `lower`, `maximize`, `minimize`, `median`, `round`, `truncate`, lifters), and `Conn::new` / `new_left` / `new_right` / `new_iso` constructors |
+
+**Modules are keyed by host crate by default**, except where a single
+domain is meaningfully shared across crates. `time/` is the worked
+example: it hosts both the [`time`](https://docs.rs/time) crate's
+calendar / clock / signed-`Duration` Conns and the
+[`std::time`](https://doc.rust-lang.org/std/time/) `Duration` family
+(`STDRU064`, `STDRU128`, `F064STDR`, `F032STDR`) under `time/duration.rs`.
+The principle: when two crates ship structurally-similar types in the
+same algebraic domain, fold them into one module rather than mirroring
+the per-crate split. Plan 25 (the `int` ⊕ `fixed` merge) applies the
+same principle to the integer / Q-format / NonZero stack.
 
 Per-host-type files in `fixed/X.rs` are sectioned (§1 std-int /
 §2 Q-format / §3 NonZero / §4 cross-crate iso). Std-int Conns
