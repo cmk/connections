@@ -1,12 +1,16 @@
-//! Galois connections among the [`time`](https://docs.rs/time) crate's
-//! calendar / clock / duration types.
+//! Galois connections among time-domain types, spanning both the
+//! [`time`](https://docs.rs/time) crate and
+//! [`std::time`](https://doc.rust-lang.org/std/time/).
 //!
 //! Submodules group the connections by source domain so the file
 //! layout mirrors `conn::fixed`:
 //!
 //! - [`date`] — calendar `Date` connections ([`DATEJDAY`]).
 //! - [`clock`] — clock-time connections ([`TIMENANO`], [`TIMESECS`]).
-//! - [`duration`] — signed time-span connections ([`DURNSECS`]).
+//! - [`duration`] — time-span connections, signed (`time::Duration`:
+//!   [`DURNSECS`], [`F032DURN`], [`F064DURN`]) and unsigned
+//!   (`std::time::Duration`: [`STDRU064`], [`STDRU128`], [`F032STDR`],
+//!   [`F064STDR`]).
 //! - [`datetime`] — naive `PrimitiveDateTime` connections ([`PDTMDATE`]).
 //! - [`offset`] — timezone-aware `OffsetDateTime` connections
 //!   ([`OFDTNANO`], [`OFDTSECS`]). A planned `UtcOffset` conn is
@@ -31,9 +35,25 @@
 //! | `ABCD`       | 4 letters                                   | `DATE`  |
 //!
 //! The two halves of a constant name need not share the same pattern.
-//! All constants in this module use the all-letter `ABCDXWYZ` shape
+//! Most constants in this module use the all-letter `ABCDXWYZ` shape
 //! because the source/target types are domain-typed (`Date`, `Time`,
-//! `Duration`, `PrimitiveDateTime`) rather than tier-coded.
+//! `Duration`, `PrimitiveDateTime`, `StdDuration`); the `STDR`/`F???`
+//! cross-bridges (`STDRU064`, `STDRU128`, `F064STDR`, `F032STDR`) mix
+//! the all-letter `STDR` half with the std-primitive `1L+3D` half.
+//!
+//! Domain-mnemonic prefixes used by this module:
+//!
+//! | code   | source / target type           |
+//! |--------|--------------------------------|
+//! | `DATE` | `Extended<time::Date>`         |
+//! | `JDAY` | `i32` julian day               |
+//! | `TIME` | `Extended<time::Time>`         |
+//! | `NANO` | `i64` nanos since midnight     |
+//! | `SECS` | `i64` whole seconds            |
+//! | `DURN` | `time::Duration` / `Extended<time::Duration>` |
+//! | `STDR` | `Extended<std::time::Duration>` |
+//! | `PDTM` | `time::PrimitiveDateTime`      |
+//! | `OFDT` | `Extended<time::OffsetDateTime>` |
 //!
 //! # Constants
 //!
@@ -45,6 +65,10 @@
 //! | [`DURNSECS`] | `Conn<Duration, Extended<i64>>` | signed whole seconds; rung extended for `±i64::MAX ± 1` overflow. |
 //! | [`F064DURN`] | `Conn<F064, Extended<Duration>>` | f64 seconds ↔ Duration; saturating ceil/floor walk on the 1ns Duration rung. |
 //! | [`F032DURN`] | `Conn<F032, Extended<Duration>>` | f32 seconds ↔ Duration; same walk shape with f32 precision. |
+//! | [`STDRU064`] | `Conn<Extended<StdDuration>, Extended<u64>>` | unsigned whole seconds; rung PosInf at `MAX` overflow, both sides wrapped to keep `ceil(Finite(ZERO)) = Finite(0)`. |
+//! | [`STDRU128`] | `Conn<Extended<StdDuration>, Extended<u128>>` | unsigned exact nanoseconds; bijection on the representable Finite range, `inner` saturates above `MAX.as_nanos()`. |
+//! | [`F064STDR`] | `Conn<F064, Extended<StdDuration>>` | f64 seconds ↔ StdDuration; negative inputs project ceil → `Finite(ZERO)`, floor → `NegInf`. |
+//! | [`F032STDR`] | `Conn<F032, Extended<StdDuration>>` | f32 seconds ↔ StdDuration; same walk shape with f32 precision. |
 //! | [`PDTMDATE`] | `Conn<PrimitiveDateTime, Extended<Date>>` | drops sub-day time; `ceil` rolls to the next day if past midnight. |
 //! | [`OFDTNANO`] | `Conn<Extended<OffsetDateTime>, i128>` | unix nanoseconds since epoch (lossless across full OffsetDateTime range). |
 //! | [`OFDTSECS`] | `Conn<Extended<OffsetDateTime>, i64>` | unix whole seconds since epoch; sub-second rounding. |
@@ -79,6 +103,18 @@
 //! assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
 //! assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
 //! ```
+//!
+//! And the unsigned counterpoint via [`STDRU064`]:
+//!
+//! ```rust
+//! use connections::time::STDRU064;
+//! use connections::extended::Extended;
+//! use std::time::Duration as StdDuration;
+//!
+//! let half = StdDuration::from_secs(5) + StdDuration::from_nanos(1);
+//! assert_eq!(STDRU064.ceil(Extended::Finite(half)),  Extended::Finite(6));
+//! assert_eq!(STDRU064.floor(Extended::Finite(half)), Extended::Finite(5));
+//! ```
 
 pub mod clock;
 pub mod date;
@@ -89,5 +125,5 @@ pub mod offset;
 pub use clock::{TIMENANO, TIMESECS};
 pub use date::DATEJDAY;
 pub use datetime::PDTMDATE;
-pub use duration::{DURNSECS, F032DURN, F064DURN};
+pub use duration::{DURNSECS, F032DURN, F032STDR, F064DURN, F064STDR, STDRU064, STDRU128};
 pub use offset::{OFDTNANO, OFDTSECS};

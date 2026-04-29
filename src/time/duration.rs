@@ -1,18 +1,37 @@
-//! Signed-`Duration` connections.
+//! Time-span connections — both signed (`time::Duration`) and unsigned
+//! (`std::time::Duration`).
 //!
 //! Hosts:
-//! - [`DURNSECS`] — signed time-span ↔ whole seconds via an
+//! - [`DURNSECS`] — signed `time::Duration` ↔ whole seconds via an
 //!   `Extended<i64>` rung (the rung is extended because ceil at
 //!   `Duration::MAX` and floor at `Duration::MIN` overflow `i64`).
-//! - [`F064DURN`] / [`F032DURN`] — IEEE float seconds ↔ Duration.
+//! - [`F064DURN`] / [`F032DURN`] — IEEE float seconds ↔ `time::Duration`.
 //!   Walks happen on the Duration rung (1ns ULPs); ULP-bounded
 //!   correction loops driven by the `def_walk_helpers!` macro
 //!   handle the float-precision plateau where multiple Durations
 //!   map to the same f-value.
+//! - [`STDRU064`] / [`STDRU128`] — unsigned `std::time::Duration` ↔
+//!   whole seconds (`u64`) and exact nanoseconds (`u128`). Both wrap
+//!   the source side in `Extended` so `inner(NegInf)` lands on the
+//!   synthetic source bottom rather than collapsing onto
+//!   `StdDuration::ZERO` (which would force the surprising
+//!   `ceil(ZERO) = NegInf` arm a non-wrapped source would inherit).
+//! - [`F064STDR`] / [`F032STDR`] — IEEE float seconds ↔ `StdDuration`.
+//!   Same shape as `F???DURN` but the unsigned rung means a finite
+//!   negative float input projects to `ceil = Finite(ZERO)` and
+//!   `floor = NegInf`.
+//!
+//! ## Signed vs unsigned rung
+//!
+//! | Conn family   | Source                  | Target          | Below-zero arm                |
+//! |---------------|-------------------------|-----------------|-------------------------------|
+//! | `DURNSECS`    | `Duration`              | `Extended<i64>` | rung NegInf at `MIN` overflow |
+//! | `STDRU064/128`| `Extended<StdDuration>` | `Extended<u??>` | source NegInf (synthetic)     |
 
 use crate::conn::Conn;
 use crate::extended::Extended;
 use crate::float::{ExtendedFloat, F032, F064, def_walk_helpers};
+use std::time::Duration as StdDuration;
 use time::Duration;
 
 // ── Duration ULP shift + float widen helpers ─────────────────────
@@ -569,6 +588,409 @@ pub const F032DURN: Conn<F032, Extended<Duration>> = {
     Conn::new(ceil, inner, floor)
 };
 
+// ── std::time::Duration helpers ──────────────────────────────────
+
+/// Shift `d` by `n` nanoseconds with saturation at `StdDuration::ZERO`
+/// (no negative arm) and `StdDuration::MAX`. Used by
+/// `def_walk_helpers!` for the `F???STDR` bridges.
+pub(crate) fn shift_std_duration(n: i32, d: StdDuration) -> StdDuration {
+    let cur = d.as_nanos();
+    let max = StdDuration::MAX.as_nanos();
+    let new = if n >= 0 {
+        cur.saturating_add(n as u128)
+    } else {
+        cur.saturating_sub(n.unsigned_abs() as u128)
+    };
+    if new >= max {
+        return StdDuration::MAX;
+    }
+    let secs = (new / 1_000_000_000) as u64;
+    let subsec = (new % 1_000_000_000) as u32;
+    StdDuration::new(secs, subsec)
+}
+
+#[inline]
+fn std_duration_to_f64(d: StdDuration) -> f64 {
+    d.as_secs_f64()
+}
+
+#[inline]
+fn std_duration_to_f32(d: StdDuration) -> f32 {
+    d.as_secs_f32()
+}
+
+def_walk_helpers!(
+    f64_stdr_walks,
+    f64,
+    StdDuration,
+    shift_std_duration,
+    std_duration_to_f64
+);
+def_walk_helpers!(
+    f32_stdr_walks,
+    f32,
+    StdDuration,
+    shift_std_duration,
+    std_duration_to_f32
+);
+
+/// `Extended<StdDuration> → Extended<u64>` — unsigned time span ↔
+/// whole seconds.
+///
+/// Rung saturation arms (`Extended::PosInf`) catch the
+/// `StdDuration::MAX` overflow where `as_secs() == u64::MAX` and a
+/// non-zero sub-second part would push past `u64::MAX`. The source is
+/// also wrapped (`Extended<StdDuration>`) so the synthetic `NegInf`
+/// has a synthetic representative on each side rather than collapsing
+/// onto `StdDuration::ZERO` — keeping the natural `ceil(Finite(ZERO))
+/// = Finite(0)` arm.
+///
+/// On Finite source values:
+/// - `floor(Finite(d)) = Finite(d.as_secs())`. No overflow possible
+///   since `as_secs()` returns `u64`.
+/// - `ceil(Finite(d)) = Finite(d.as_secs() + (subsec > 0 ? 1 : 0))`,
+///   saturating to `PosInf` when `as_secs() == u64::MAX && subsec > 0`.
+/// - `inner(Finite(s)) = Finite(StdDuration::from_secs(s))`.
+///
+/// Synthetic-arm round-trips: `inner(NegInf) = NegInf`,
+/// `inner(PosInf) = PosInf`; `ceil(NegInf) = NegInf`, `ceil(PosInf) =
+/// PosInf` (and likewise `floor`).
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::time::STDRU064;
+/// use connections::extended::Extended;
+/// use std::time::Duration as StdDuration;
+///
+/// let half = StdDuration::from_secs(5) + StdDuration::from_nanos(1);
+/// assert_eq!(STDRU064.ceil(Extended::Finite(half)),  Extended::Finite(6));
+/// assert_eq!(STDRU064.floor(Extended::Finite(half)), Extended::Finite(5));
+///
+/// // Sub-second part at MAX overflows u64::MAX seconds → PosInf.
+/// assert_eq!(STDRU064.ceil(Extended::Finite(StdDuration::MAX)), Extended::PosInf);
+/// assert_eq!(STDRU064.floor(Extended::Finite(StdDuration::MAX)), Extended::Finite(u64::MAX));
+///
+/// assert_eq!(STDRU064.inner(Extended::Finite(42)),
+///            Extended::Finite(StdDuration::from_secs(42)));
+/// assert_eq!(STDRU064.inner(Extended::PosInf), Extended::PosInf);
+/// ```
+pub const STDRU064: Conn<Extended<StdDuration>, Extended<u64>> = {
+    fn ceil(d: Extended<StdDuration>) -> Extended<u64> {
+        match d {
+            Extended::NegInf => Extended::NegInf,
+            Extended::PosInf => Extended::PosInf,
+            Extended::Finite(d) => {
+                let w = d.as_secs();
+                let n = d.subsec_nanos();
+                if n > 0 {
+                    match w.checked_add(1) {
+                        Some(s) => Extended::Finite(s),
+                        None => Extended::PosInf,
+                    }
+                } else {
+                    Extended::Finite(w)
+                }
+            }
+        }
+    }
+
+    fn inner(b: Extended<u64>) -> Extended<StdDuration> {
+        match b {
+            Extended::NegInf => Extended::NegInf,
+            Extended::PosInf => Extended::PosInf,
+            Extended::Finite(s) => Extended::Finite(StdDuration::from_secs(s)),
+        }
+    }
+
+    fn floor(d: Extended<StdDuration>) -> Extended<u64> {
+        match d {
+            Extended::NegInf => Extended::NegInf,
+            Extended::PosInf => Extended::PosInf,
+            Extended::Finite(d) => Extended::Finite(d.as_secs()),
+        }
+    }
+
+    Conn::new(ceil, inner, floor)
+};
+
+/// `Extended<StdDuration> → Extended<u128>` — unsigned time span ↔
+/// nanoseconds.
+///
+/// On the Finite slot this is a bijection: `floor = ceil = Finite(d
+/// .as_nanos())` and `inner` round-trips back exactly. The widest
+/// `StdDuration` is `MAX`, whose `as_nanos()` is well within `u128`
+/// (≈ 1.84×10²⁸ vs `u128::MAX` ≈ 3.4×10³⁸), so no rung-side overflow
+/// is possible from a Finite source.
+///
+/// Inputs `Finite(n)` with `n > StdDuration::MAX.as_nanos()` clamp to
+/// `Finite(StdDuration::MAX)` on `inner` (Galois pins this to the
+/// largest representative ≤ the synthetic top).
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::time::STDRU128;
+/// use connections::extended::Extended;
+/// use std::time::Duration as StdDuration;
+///
+/// let one_and_a_half = StdDuration::from_nanos(1_500_000_000);
+/// assert_eq!(STDRU128.ceil(Extended::Finite(one_and_a_half)),
+///            Extended::Finite(1_500_000_000_u128));
+/// assert_eq!(STDRU128.floor(Extended::Finite(one_and_a_half)),
+///            Extended::Finite(1_500_000_000_u128));
+///
+/// // `inner` is exact on the representable range and round-trips both ways.
+/// let n = 1_500_000_000_u128;
+/// assert_eq!(STDRU128.inner(Extended::Finite(n)),
+///            Extended::Finite(StdDuration::from_nanos(n as u64)));
+///
+/// // Above StdDuration::MAX.as_nanos(), inner saturates.
+/// assert_eq!(STDRU128.inner(Extended::Finite(u128::MAX)),
+///            Extended::Finite(StdDuration::MAX));
+/// ```
+pub const STDRU128: Conn<Extended<StdDuration>, Extended<u128>> = {
+    fn ceil(d: Extended<StdDuration>) -> Extended<u128> {
+        match d {
+            Extended::NegInf => Extended::NegInf,
+            Extended::PosInf => Extended::PosInf,
+            Extended::Finite(d) => Extended::Finite(d.as_nanos()),
+        }
+    }
+
+    fn inner(b: Extended<u128>) -> Extended<StdDuration> {
+        match b {
+            Extended::NegInf => Extended::NegInf,
+            Extended::PosInf => Extended::PosInf,
+            Extended::Finite(n) => {
+                let max_nanos = StdDuration::MAX.as_nanos();
+                if n >= max_nanos {
+                    return Extended::Finite(StdDuration::MAX);
+                }
+                let secs = (n / 1_000_000_000) as u64;
+                let subsec = (n % 1_000_000_000) as u32;
+                Extended::Finite(StdDuration::new(secs, subsec))
+            }
+        }
+    }
+
+    fn floor(d: Extended<StdDuration>) -> Extended<u128> {
+        ceil(d)
+    }
+
+    Conn::new(ceil, inner, floor)
+};
+
+/// `F064 → Extended<StdDuration>` — IEEE binary64 seconds ↔
+/// `std::time::Duration`.
+///
+/// Mirrors [`F064DURN`]'s walk-on-rung shape but with an unsigned rung.
+/// The asymmetry shows up at negative finite floats: `inner(NegInf) =
+/// Bot` (synthetic source bottom) so Galois forces `ceil(Extend(v < 0))
+/// = Finite(StdDuration::ZERO)` (the smallest representative ≥ a
+/// negative input) and `floor(Extend(v < 0)) = NegInf` (no rung
+/// representative ≤ a negative input).
+///
+/// Saturation arms otherwise match `F064DURN`: NaN sends `ceil` to
+/// `PosInf` and `floor` to `NegInf`; `Bot`/`Top` round-trip through the
+/// synthetic rung extremes.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::time::F064STDR;
+/// use connections::float::ExtendedFloat;
+/// use connections::extended::Extended;
+/// use std::time::Duration as StdDuration;
+///
+/// // 0.5 s round-trips exactly.
+/// let half = ExtendedFloat::Extend(0.5_f64);
+/// assert_eq!(F064STDR.ceil(half),  Extended::Finite(StdDuration::from_millis(500)));
+/// assert_eq!(F064STDR.floor(half), Extended::Finite(StdDuration::from_millis(500)));
+///
+/// // Negative float: ceil saturates up to ZERO; floor saturates down
+/// // to NegInf because the unsigned rung has no negative representative.
+/// let neg = ExtendedFloat::Extend(-0.5_f64);
+/// assert_eq!(F064STDR.ceil(neg),  Extended::Finite(StdDuration::ZERO));
+/// assert_eq!(F064STDR.floor(neg), Extended::NegInf);
+/// ```
+pub const F064STDR: Conn<F064, Extended<StdDuration>> = {
+    fn ceil(x: F064) -> Extended<StdDuration> {
+        let v = match x {
+            ExtendedFloat::Bot => return Extended::NegInf,
+            ExtendedFloat::Top => return Extended::PosInf,
+            ExtendedFloat::Extend(v) => v,
+        };
+        if v.is_nan() {
+            return Extended::PosInf;
+        }
+        if v == f64::INFINITY {
+            return Extended::PosInf;
+        }
+        // Negative finites and -∞ — no representative ≤ them on the
+        // unsigned rung (other than the synthetic NegInf, which `inner`
+        // sends to Bot, not Extend(neg)). Galois pins ceil to ZERO.
+        if v <= 0.0 {
+            return Extended::Finite(StdDuration::ZERO);
+        }
+        let max_secs = StdDuration::MAX.as_secs_f64();
+        if v > max_secs {
+            return Extended::PosInf;
+        }
+        let est = StdDuration::from_secs_f64(v);
+        let est_widen = est.as_secs_f64();
+        let (z, _) = if est_widen >= v {
+            f64_stdr_walks::descend_to_ceil(est, v)
+        } else {
+            f64_stdr_walks::ascend_to_ceil(est, v)
+        };
+        Extended::Finite(z)
+    }
+
+    fn inner(d: Extended<StdDuration>) -> F064 {
+        match d {
+            Extended::NegInf => ExtendedFloat::Bot,
+            Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_secs_f64()),
+            Extended::PosInf => ExtendedFloat::Top,
+        }
+    }
+
+    fn floor(x: F064) -> Extended<StdDuration> {
+        let v = match x {
+            ExtendedFloat::Bot => return Extended::NegInf,
+            ExtendedFloat::Top => return Extended::PosInf,
+            ExtendedFloat::Extend(v) => v,
+        };
+        if v.is_nan() {
+            return Extended::NegInf;
+        }
+        if v == f64::INFINITY {
+            return Extended::Finite(StdDuration::MAX);
+        }
+        // Negative finites and -∞ — no rung representative ≤ them on
+        // the unsigned side, so floor saturates to the synthetic NegInf.
+        // (The Bot arm above already handled ExtendedFloat::Bot itself.)
+        if v < 0.0 {
+            return Extended::NegInf;
+        }
+        let max_secs = StdDuration::MAX.as_secs_f64();
+        // See F064DURN.floor for the `>=` rationale: the f64 plateau at
+        // |v| ≈ 1.84e19 spans billions of seconds, and without a fast
+        // path the walk would crawl one ns at a time.
+        if v >= max_secs {
+            return Extended::Finite(StdDuration::MAX);
+        }
+        let est = StdDuration::from_secs_f64(v);
+        let est_widen = est.as_secs_f64();
+        let (z, _) = if est_widen <= v {
+            f64_stdr_walks::ascend_to_floor(est, v)
+        } else {
+            f64_stdr_walks::descend_to_floor(est, v)
+        };
+        Extended::Finite(z)
+    }
+
+    Conn::new(ceil, inner, floor)
+};
+
+/// `F032 → Extended<StdDuration>` — IEEE binary32 seconds ↔
+/// `std::time::Duration`.
+///
+/// Mirrors [`F064STDR`] with `f32` precision; same negative-input
+/// asymmetry. Proptest strategies bound the float-side finite slot to
+/// `|x| ≤ 10` (see [`crate::prop::arb::arb_f32_bounded`]) so the
+/// per-call ULP-walk budget stays small.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::time::F032STDR;
+/// use connections::float::ExtendedFloat;
+/// use connections::extended::Extended;
+/// use std::time::Duration as StdDuration;
+///
+/// // 1.0 s lies in an f32 plateau ~120 ns wide; ceil and floor return
+/// // the bottom and top of that plateau respectively.
+/// let one = ExtendedFloat::Extend(1.0_f32);
+/// let exact = StdDuration::from_secs(1);
+/// if let (Extended::Finite(c), Extended::Finite(f)) =
+///     (F032STDR.ceil(one), F032STDR.floor(one))
+/// {
+///     assert!(c <= exact && exact <= f);
+///     assert_eq!(c.as_secs_f32(), 1.0_f32);
+///     assert_eq!(f.as_secs_f32(), 1.0_f32);
+/// }
+/// ```
+pub const F032STDR: Conn<F032, Extended<StdDuration>> = {
+    fn ceil(x: F032) -> Extended<StdDuration> {
+        let v = match x {
+            ExtendedFloat::Bot => return Extended::NegInf,
+            ExtendedFloat::Top => return Extended::PosInf,
+            ExtendedFloat::Extend(v) => v,
+        };
+        if v.is_nan() {
+            return Extended::PosInf;
+        }
+        if v == f32::INFINITY {
+            return Extended::PosInf;
+        }
+        if v <= 0.0 {
+            return Extended::Finite(StdDuration::ZERO);
+        }
+        let max_secs = StdDuration::MAX.as_secs_f32();
+        if v > max_secs {
+            return Extended::PosInf;
+        }
+        let est = StdDuration::from_secs_f32(v);
+        let est_widen = est.as_secs_f32();
+        let (z, _) = if est_widen >= v {
+            f32_stdr_walks::descend_to_ceil(est, v)
+        } else {
+            f32_stdr_walks::ascend_to_ceil(est, v)
+        };
+        Extended::Finite(z)
+    }
+
+    fn inner(d: Extended<StdDuration>) -> F032 {
+        match d {
+            Extended::NegInf => ExtendedFloat::Bot,
+            Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_secs_f32()),
+            Extended::PosInf => ExtendedFloat::Top,
+        }
+    }
+
+    fn floor(x: F032) -> Extended<StdDuration> {
+        let v = match x {
+            ExtendedFloat::Bot => return Extended::NegInf,
+            ExtendedFloat::Top => return Extended::PosInf,
+            ExtendedFloat::Extend(v) => v,
+        };
+        if v.is_nan() {
+            return Extended::NegInf;
+        }
+        if v == f32::INFINITY {
+            return Extended::Finite(StdDuration::MAX);
+        }
+        if v < 0.0 {
+            return Extended::NegInf;
+        }
+        let max_secs = StdDuration::MAX.as_secs_f32();
+        if v >= max_secs {
+            return Extended::Finite(StdDuration::MAX);
+        }
+        let est = StdDuration::from_secs_f32(v);
+        let est_widen = est.as_secs_f32();
+        let (z, _) = if est_widen <= v {
+            f32_stdr_walks::ascend_to_floor(est, v)
+        } else {
+            f32_stdr_walks::descend_to_floor(est, v)
+        };
+        Extended::Finite(z)
+    }
+
+    Conn::new(ceil, inner, floor)
+};
+
 #[cfg(test)]
 mod float_durn_tests {
     use super::*;
@@ -831,6 +1253,420 @@ mod float_durn_tests {
         #[test]
         fn f32_idempotent(a in extended_float_f32()) {
             prop_assert!(conn_laws::conn_idempotent(&F032DURN, a));
+        }
+    }
+}
+
+// ── STDR* Conn tests ────────────────────────────────────────────
+
+#[cfg(test)]
+mod stdr_tests {
+    use super::*;
+    use crate::prop::arb::{
+        arb_extended_std_duration, arb_extended_std_duration_bounded_f32,
+        arb_extended_std_duration_bounded_f64, arb_extended_stdr_nanos_in_range, arb_extended_u64,
+        extended_float_f32, extended_float_f64,
+    };
+    use crate::prop::conn as conn_laws;
+    use proptest::prelude::*;
+
+    // ── STDRU064 spot checks ────────────────────────────────────
+
+    #[test]
+    fn stdru064_zero() {
+        let z = Extended::Finite(StdDuration::ZERO);
+        assert_eq!(STDRU064.ceil(z), Extended::Finite(0_u64));
+        assert_eq!(STDRU064.floor(z), Extended::Finite(0_u64));
+        assert_eq!(STDRU064.inner(Extended::Finite(0_u64)), z);
+    }
+
+    #[test]
+    fn stdru064_positive_subsec_rounds_up() {
+        let d = Extended::Finite(StdDuration::from_secs(5) + StdDuration::from_nanos(1));
+        assert_eq!(STDRU064.ceil(d), Extended::Finite(6_u64));
+        assert_eq!(STDRU064.floor(d), Extended::Finite(5_u64));
+    }
+
+    #[test]
+    fn stdru064_max_overflows_ceil() {
+        let m = Extended::Finite(StdDuration::MAX);
+        assert_eq!(STDRU064.ceil(m), Extended::PosInf);
+        assert_eq!(STDRU064.floor(m), Extended::Finite(u64::MAX));
+    }
+
+    #[test]
+    fn stdru064_synthetic_arms() {
+        assert_eq!(STDRU064.ceil(Extended::NegInf), Extended::NegInf);
+        assert_eq!(STDRU064.ceil(Extended::PosInf), Extended::PosInf);
+        assert_eq!(STDRU064.floor(Extended::NegInf), Extended::NegInf);
+        assert_eq!(STDRU064.floor(Extended::PosInf), Extended::PosInf);
+        assert_eq!(STDRU064.inner(Extended::NegInf), Extended::NegInf);
+        assert_eq!(STDRU064.inner(Extended::PosInf), Extended::PosInf);
+    }
+
+    // ── STDRU128 spot checks ────────────────────────────────────
+
+    #[test]
+    fn stdru128_one_and_a_half() {
+        let d = Extended::Finite(StdDuration::from_nanos(1_500_000_000));
+        assert_eq!(STDRU128.ceil(d), Extended::Finite(1_500_000_000_u128));
+        assert_eq!(STDRU128.floor(d), Extended::Finite(1_500_000_000_u128));
+    }
+
+    #[test]
+    fn stdru128_max_no_overflow() {
+        let m = Extended::Finite(StdDuration::MAX);
+        let m_nanos = StdDuration::MAX.as_nanos();
+        assert_eq!(STDRU128.ceil(m), Extended::Finite(m_nanos));
+        assert_eq!(STDRU128.floor(m), Extended::Finite(m_nanos));
+    }
+
+    #[test]
+    fn stdru128_inner_saturates_above_max() {
+        assert_eq!(
+            STDRU128.inner(Extended::Finite(u128::MAX)),
+            Extended::Finite(StdDuration::MAX)
+        );
+        let above = StdDuration::MAX.as_nanos() + 1;
+        assert_eq!(
+            STDRU128.inner(Extended::Finite(above)),
+            Extended::Finite(StdDuration::MAX)
+        );
+    }
+
+    #[test]
+    fn stdru128_synthetic_arms() {
+        assert_eq!(STDRU128.ceil(Extended::NegInf), Extended::NegInf);
+        assert_eq!(STDRU128.ceil(Extended::PosInf), Extended::PosInf);
+        assert_eq!(STDRU128.inner(Extended::NegInf), Extended::NegInf);
+        assert_eq!(STDRU128.inner(Extended::PosInf), Extended::PosInf);
+    }
+
+    // ── STDRU064 / STDRU128 Galois law battery ──────────────────
+
+    proptest! {
+        #[test]
+        fn stdru064_galois_l(d in arb_extended_std_duration(), b in arb_extended_u64()) {
+            prop_assert!(conn_laws::conn_galois_l(&STDRU064, d, b));
+        }
+
+        #[test]
+        fn stdru064_galois_r(d in arb_extended_std_duration(), b in arb_extended_u64()) {
+            prop_assert!(conn_laws::conn_galois_r(&STDRU064, d, b));
+        }
+
+        #[test]
+        fn stdru064_closure_l(d in arb_extended_std_duration()) {
+            prop_assert!(conn_laws::conn_closure_l(&STDRU064, d));
+        }
+
+        #[test]
+        fn stdru064_closure_r(d in arb_extended_std_duration()) {
+            prop_assert!(conn_laws::conn_closure_r(&STDRU064, d));
+        }
+
+        #[test]
+        fn stdru064_kernel_l(b in arb_extended_u64()) {
+            prop_assert!(conn_laws::conn_kernel_l(&STDRU064, b));
+        }
+
+        #[test]
+        fn stdru064_kernel_r(b in arb_extended_u64()) {
+            prop_assert!(conn_laws::conn_kernel_r(&STDRU064, b));
+        }
+
+        #[test]
+        fn stdru064_monotone_l(a in arb_extended_std_duration(), b in arb_extended_std_duration()) {
+            prop_assert!(conn_laws::conn_monotone_l(&STDRU064, a, b));
+        }
+
+        #[test]
+        fn stdru064_monotone_r(a in arb_extended_u64(), b in arb_extended_u64()) {
+            prop_assert!(conn_laws::conn_monotone_r(&STDRU064, a, b));
+        }
+
+        #[test]
+        fn stdru064_idempotent(d in arb_extended_std_duration()) {
+            prop_assert!(conn_laws::conn_idempotent(&STDRU064, d));
+        }
+
+        #[test]
+        fn stdru128_galois_l(d in arb_extended_std_duration(), b in arb_extended_stdr_nanos_in_range()) {
+            prop_assert!(conn_laws::conn_galois_l(&STDRU128, d, b));
+        }
+
+        #[test]
+        fn stdru128_galois_r(d in arb_extended_std_duration(), b in arb_extended_stdr_nanos_in_range()) {
+            prop_assert!(conn_laws::conn_galois_r(&STDRU128, d, b));
+        }
+
+        #[test]
+        fn stdru128_closure_l(d in arb_extended_std_duration()) {
+            prop_assert!(conn_laws::conn_closure_l(&STDRU128, d));
+        }
+
+        #[test]
+        fn stdru128_closure_r(d in arb_extended_std_duration()) {
+            prop_assert!(conn_laws::conn_closure_r(&STDRU128, d));
+        }
+
+        #[test]
+        fn stdru128_kernel_l(b in arb_extended_stdr_nanos_in_range()) {
+            prop_assert!(conn_laws::conn_kernel_l(&STDRU128, b));
+        }
+
+        #[test]
+        fn stdru128_kernel_r(b in arb_extended_stdr_nanos_in_range()) {
+            prop_assert!(conn_laws::conn_kernel_r(&STDRU128, b));
+        }
+
+        #[test]
+        fn stdru128_monotone_l(a in arb_extended_std_duration(), b in arb_extended_std_duration()) {
+            prop_assert!(conn_laws::conn_monotone_l(&STDRU128, a, b));
+        }
+
+        #[test]
+        fn stdru128_monotone_r(a in arb_extended_stdr_nanos_in_range(), b in arb_extended_stdr_nanos_in_range()) {
+            prop_assert!(conn_laws::conn_monotone_r(&STDRU128, a, b));
+        }
+
+        #[test]
+        fn stdru128_idempotent(d in arb_extended_std_duration()) {
+            prop_assert!(conn_laws::conn_idempotent(&STDRU128, d));
+        }
+
+        // STDRU128 is a bijection on the representable Finite range
+        // — for any rung n ≤ MAX.as_nanos(), `ceil(inner(Finite(n)))
+        // == Finite(n)`. Above the range, `inner` saturates and the
+        // round-trip drops back to MAX.as_nanos().
+        #[test]
+        fn stdru128_round_trip(n in 0_u128..=StdDuration::MAX.as_nanos()) {
+            prop_assert!(conn_laws::conn_roundtrip_ceil(&STDRU128, Extended::Finite(n)));
+            prop_assert!(conn_laws::conn_roundtrip_floor(&STDRU128, Extended::Finite(n)));
+        }
+    }
+
+    // ── F064STDR spot checks ────────────────────────────────────
+
+    #[test]
+    fn f64_stdr_zero() {
+        let zero = ExtendedFloat::Extend(0.0_f64);
+        assert_eq!(F064STDR.ceil(zero), Extended::Finite(StdDuration::ZERO));
+        assert_eq!(F064STDR.floor(zero), Extended::Finite(StdDuration::ZERO));
+        assert_eq!(F064STDR.inner(Extended::Finite(StdDuration::ZERO)), zero);
+    }
+
+    #[test]
+    fn f64_stdr_half_second() {
+        let half = ExtendedFloat::Extend(0.5_f64);
+        let half_d = StdDuration::from_millis(500);
+        assert_eq!(F064STDR.ceil(half), Extended::Finite(half_d));
+        assert_eq!(F064STDR.floor(half), Extended::Finite(half_d));
+        assert_eq!(F064STDR.inner(Extended::Finite(half_d)), half);
+    }
+
+    #[test]
+    fn f64_stdr_negative_input_asymmetric() {
+        let neg = ExtendedFloat::Extend(-0.5_f64);
+        assert_eq!(F064STDR.ceil(neg), Extended::Finite(StdDuration::ZERO));
+        assert_eq!(F064STDR.floor(neg), Extended::NegInf);
+    }
+
+    #[test]
+    fn f64_stdr_nan_arms() {
+        let nan = ExtendedFloat::Extend(f64::NAN);
+        assert_eq!(F064STDR.ceil(nan), Extended::PosInf);
+        assert_eq!(F064STDR.floor(nan), Extended::NegInf);
+    }
+
+    #[test]
+    fn f64_stdr_infinity_arms() {
+        let pos_inf = ExtendedFloat::Extend(f64::INFINITY);
+        assert_eq!(F064STDR.ceil(pos_inf), Extended::PosInf);
+        assert_eq!(F064STDR.floor(pos_inf), Extended::Finite(StdDuration::MAX));
+
+        let neg_inf = ExtendedFloat::Extend(f64::NEG_INFINITY);
+        assert_eq!(F064STDR.ceil(neg_inf), Extended::Finite(StdDuration::ZERO));
+        assert_eq!(F064STDR.floor(neg_inf), Extended::NegInf);
+    }
+
+    #[test]
+    fn f64_stdr_bot_top_arms() {
+        assert_eq!(F064STDR.ceil(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(F064STDR.floor(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(F064STDR.ceil(ExtendedFloat::Top), Extended::PosInf);
+        assert_eq!(F064STDR.floor(ExtendedFloat::Top), Extended::PosInf);
+        assert_eq!(F064STDR.inner(Extended::NegInf), ExtendedFloat::Bot);
+        assert_eq!(F064STDR.inner(Extended::PosInf), ExtendedFloat::Top);
+    }
+
+    #[test]
+    fn f64_stdr_floor_max_secs_fast_path() {
+        let v_max = ExtendedFloat::Extend(StdDuration::MAX.as_secs_f64());
+        assert_eq!(F064STDR.floor(v_max), Extended::Finite(StdDuration::MAX));
+    }
+
+    // ── F032STDR spot checks ────────────────────────────────────
+
+    #[test]
+    fn f32_stdr_zero() {
+        let zero = ExtendedFloat::Extend(0.0_f32);
+        assert_eq!(F032STDR.ceil(zero), Extended::Finite(StdDuration::ZERO));
+        assert_eq!(F032STDR.floor(zero), Extended::Finite(StdDuration::ZERO));
+    }
+
+    #[test]
+    fn f32_stdr_one_second_brackets_plateau() {
+        let one = ExtendedFloat::Extend(1.0_f32);
+        let exact = StdDuration::from_secs(1);
+        let c = F032STDR.ceil(one);
+        let f = F032STDR.floor(one);
+        if let (Extended::Finite(cd), Extended::Finite(fd)) = (c, f) {
+            assert!(cd <= exact && exact <= fd, "ceil={cd:?} floor={fd:?}");
+            assert_eq!(cd.as_secs_f32(), 1.0_f32);
+            assert_eq!(fd.as_secs_f32(), 1.0_f32);
+        } else {
+            panic!("expected Finite both, got ceil={c:?} floor={f:?}");
+        }
+    }
+
+    #[test]
+    fn f32_stdr_negative_input_asymmetric() {
+        let neg = ExtendedFloat::Extend(-0.5_f32);
+        assert_eq!(F032STDR.ceil(neg), Extended::Finite(StdDuration::ZERO));
+        assert_eq!(F032STDR.floor(neg), Extended::NegInf);
+    }
+
+    #[test]
+    fn f32_stdr_nan_arms() {
+        let nan = ExtendedFloat::Extend(f32::NAN);
+        assert_eq!(F032STDR.ceil(nan), Extended::PosInf);
+        assert_eq!(F032STDR.floor(nan), Extended::NegInf);
+    }
+
+    #[test]
+    fn f32_stdr_infinity_arms() {
+        let pos_inf = ExtendedFloat::Extend(f32::INFINITY);
+        assert_eq!(F032STDR.ceil(pos_inf), Extended::PosInf);
+        assert_eq!(F032STDR.floor(pos_inf), Extended::Finite(StdDuration::MAX));
+
+        let neg_inf = ExtendedFloat::Extend(f32::NEG_INFINITY);
+        assert_eq!(F032STDR.ceil(neg_inf), Extended::Finite(StdDuration::ZERO));
+        assert_eq!(F032STDR.floor(neg_inf), Extended::NegInf);
+    }
+
+    #[test]
+    fn f32_stdr_floor_max_secs_fast_path() {
+        let v_max = ExtendedFloat::Extend(StdDuration::MAX.as_secs_f32());
+        assert_eq!(F032STDR.floor(v_max), Extended::Finite(StdDuration::MAX));
+    }
+
+    // ── F064STDR / F032STDR Galois law battery ──────────────────
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 64,
+            max_shrink_iters: 200,
+            .. ProptestConfig::default()
+        })]
+
+        #[test]
+        fn f64_stdr_galois_l(a in extended_float_f64(), b in arb_extended_std_duration_bounded_f64()) {
+            prop_assert!(conn_laws::conn_galois_l(&F064STDR, a, b));
+        }
+
+        #[test]
+        fn f64_stdr_galois_r(a in extended_float_f64(), b in arb_extended_std_duration_bounded_f64()) {
+            prop_assert!(conn_laws::conn_galois_r(&F064STDR, a, b));
+        }
+
+        #[test]
+        fn f64_stdr_closure_l(a in extended_float_f64()) {
+            prop_assert!(conn_laws::conn_closure_l(&F064STDR, a));
+        }
+
+        #[test]
+        fn f64_stdr_closure_r(a in extended_float_f64()) {
+            prop_assert!(conn_laws::conn_closure_r(&F064STDR, a));
+        }
+
+        #[test]
+        fn f64_stdr_kernel_l(b in arb_extended_std_duration_bounded_f64()) {
+            prop_assert!(conn_laws::conn_kernel_l(&F064STDR, b));
+        }
+
+        #[test]
+        fn f64_stdr_kernel_r(b in arb_extended_std_duration_bounded_f64()) {
+            prop_assert!(conn_laws::conn_kernel_r(&F064STDR, b));
+        }
+
+        #[test]
+        fn f64_stdr_monotone_l(a1 in extended_float_f64(), a2 in extended_float_f64()) {
+            prop_assert!(conn_laws::conn_monotone_l(&F064STDR, a1, a2));
+        }
+
+        #[test]
+        fn f64_stdr_monotone_r(b1 in arb_extended_std_duration_bounded_f64(), b2 in arb_extended_std_duration_bounded_f64()) {
+            prop_assert!(conn_laws::conn_monotone_r(&F064STDR, b1, b2));
+        }
+
+        #[test]
+        fn f64_stdr_idempotent(a in extended_float_f64()) {
+            prop_assert!(conn_laws::conn_idempotent(&F064STDR, a));
+        }
+
+        // Negative finite inputs project to ZERO under ceil — Galois-
+        // forced because the unsigned rung has no representative below
+        // ZERO and `inner(NegInf) = Bot` (synthetic source bottom).
+        #[test]
+        fn f64_stdr_negative_input_ceil_to_zero(v in -1.0e9_f64..0.0_f64) {
+            let a = ExtendedFloat::Extend(v);
+            prop_assert_eq!(F064STDR.ceil(a), Extended::Finite(StdDuration::ZERO));
+        }
+
+        #[test]
+        fn f32_stdr_galois_l(a in extended_float_f32(), b in arb_extended_std_duration_bounded_f32()) {
+            prop_assert!(conn_laws::conn_galois_l(&F032STDR, a, b));
+        }
+
+        #[test]
+        fn f32_stdr_galois_r(a in extended_float_f32(), b in arb_extended_std_duration_bounded_f32()) {
+            prop_assert!(conn_laws::conn_galois_r(&F032STDR, a, b));
+        }
+
+        #[test]
+        fn f32_stdr_closure_l(a in extended_float_f32()) {
+            prop_assert!(conn_laws::conn_closure_l(&F032STDR, a));
+        }
+
+        #[test]
+        fn f32_stdr_closure_r(a in extended_float_f32()) {
+            prop_assert!(conn_laws::conn_closure_r(&F032STDR, a));
+        }
+
+        #[test]
+        fn f32_stdr_kernel_l(b in arb_extended_std_duration_bounded_f32()) {
+            prop_assert!(conn_laws::conn_kernel_l(&F032STDR, b));
+        }
+
+        #[test]
+        fn f32_stdr_kernel_r(b in arb_extended_std_duration_bounded_f32()) {
+            prop_assert!(conn_laws::conn_kernel_r(&F032STDR, b));
+        }
+
+        #[test]
+        fn f32_stdr_monotone_l(a1 in extended_float_f32(), a2 in extended_float_f32()) {
+            prop_assert!(conn_laws::conn_monotone_l(&F032STDR, a1, a2));
+        }
+
+        #[test]
+        fn f32_stdr_monotone_r(b1 in arb_extended_std_duration_bounded_f32(), b2 in arb_extended_std_duration_bounded_f32()) {
+            prop_assert!(conn_laws::conn_monotone_r(&F032STDR, b1, b2));
+        }
+
+        #[test]
+        fn f32_stdr_idempotent(a in extended_float_f32()) {
+            prop_assert!(conn_laws::conn_idempotent(&F032STDR, a));
         }
     }
 }
