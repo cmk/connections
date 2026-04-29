@@ -14,18 +14,19 @@
 //! All three are **total** (every input has a defined output) and the
 //! five Galois axioms — adjointness in both halves, closure, kernel,
 //! `inner` monotonicity — hold for every input. See `doc/design.md`
-//! § "Triple-only properties and the role of injectivity" for the
-//! reasoning behind the design.
+//! § "The rounding-sandwich property and full-triple lawfulness" for
+//! the reasoning behind the design.
 //!
 //! `inner` is **not** injective: any Coarse value where `|c.bits *
 //! RATIO|` exceeds `i16::MAX` saturates to `Fine::{MIN, MAX}`,
 //! collapsing a plateau of Coarse values onto a single Fine value.
-//! As a consequence the
-//! triple-only rounding sandwich `floor(a) ≤ ceil(a)` does not hold at
-//! the saturation boundary, and is not asserted by the test suite.
-//! `ceil` and `floor` carry the matching boundary fixups: `ceil(Fine::MIN)
-//! = Coarse::MIN` and `floor(Fine::MAX) = Coarse::MAX`, ensuring the
-//! Galois laws hold at the extremes.
+//! As a consequence `floor(a) ≤ ceil(a)` is violated at the saturation
+//! boundary — a known lawfulness gap shipped here ahead of the Plan 27
+//! audit, which converts these Conns to one-sided
+//! (`Conn::new_left` / `Conn::new_right`) so the rounding sandwich
+//! holds structurally. `ceil` and `floor` carry boundary fixups
+//! (`ceil(Fine::MIN) = Coarse::MIN`, `floor(Fine::MAX) = Coarse::MAX`)
+//! that make Galois L and R individually hold at the extremes.
 
 use super::{ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
 use crate::conn::Conn;

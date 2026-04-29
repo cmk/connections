@@ -903,13 +903,18 @@ pub fn arb_extended_ipv4() -> impl Strategy<Value = Extended<std::net::Ipv4Addr>
 
 /// Arbitrary `Ipv6Addr` — uniform over the full 128-bit range with
 /// explicit bias toward landmarks (UNSPECIFIED, LOCALHOST, the
-/// v4-mapped block extremes).
+/// v4-mapped block extremes plus the points just outside it).
 pub fn arb_ipv6() -> impl Strategy<Value = std::net::Ipv6Addr> {
     let v4mapped_lo: u128 = 0x0000_0000_0000_0000_0000_FFFF_0000_0000;
     let v4mapped_hi: u128 = 0x0000_0000_0000_0000_0000_FFFF_FFFF_FFFF;
     prop_oneof![
         1 => Just(std::net::Ipv6Addr::UNSPECIFIED),
         1 => Just(std::net::Ipv6Addr::LOCALHOST),
+        // `v4mapped_lo - 1` is the largest v6 below the v4-mapped block —
+        // the first point where `IPV6IPV4`'s ceil and floor diverge in
+        // opposite directions, so the proptest battery needs reliable
+        // coverage of it.
+        1 => Just(std::net::Ipv6Addr::from_bits(v4mapped_lo - 1)),
         1 => Just(std::net::Ipv6Addr::from_bits(v4mapped_lo)),
         1 => Just(std::net::Ipv6Addr::from_bits(v4mapped_hi)),
         1 => Just(std::net::Ipv6Addr::from_bits(v4mapped_hi + 1)),

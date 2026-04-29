@@ -1,13 +1,30 @@
-//! IPv4 / IPv6 ↔ integer connections.
+//! IPv4 / IPv6 / IpAddr connections.
 //!
-//! Both Conns are total bijections via the standard big-endian
-//! representation (`Ipv4Addr::{from,to}_bits`,
-//! `Ipv6Addr::{from,to}_bits`). Constructed via [`Conn::new_iso`]:
-//! `floor = ceil = forward`, and both Galois laws hold trivially.
+//! Five Conns covering the std-library IP types:
 //!
-//! IP-address types sit on the right side of the Conn — they're the
-//! use-wise-more-specific endpoint, so the natural composition flows
-//! `<numeric chain> → u32 → Ipv4Addr`.
+//! - [`U032IPV4`] — `Conn<u32, Ipv4Addr>` total bijection via
+//!   `Ipv4Addr::{from,to}_bits`. Constructed with [`Conn::new_iso`];
+//!   both Galois laws and `floor_le_ceil` hold trivially.
+//! - [`U128IPV6`] — `Conn<u128, Ipv6Addr>` total bijection, same
+//!   shape.
+//! - [`IPV6IPV4`] — `Conn<Ipv6Addr, Extended<Ipv4Addr>>`, the
+//!   v4-mapped bridge. Full triple ([`Conn::new`]) with asymmetric
+//!   ceil/floor outside the v4-mapped block; lawful (passes
+//!   `floor_le_ceil`) because `inner` is order-reflecting — the
+//!   v4-mapped block sits strictly inside `Ipv6Addr`, giving "room"
+//!   between `inner(NegInf) = ::` and `inner(Finite(0.0.0.0)) =
+//!   ::ffff:0:0`.
+//! - [`IPVXIPV4`] — `Conn<IpAddr, Extended<Ipv4Addr>>` extracting
+//!   V4 from the sum. One-sided ([`Conn::new_left`]); only Galois L
+//!   is asserted. V6 inputs saturate up to `PosInf`.
+//! - [`IPVXIPV6`] — `Conn<IpAddr, Extended<Ipv6Addr>>` extracting
+//!   V6. One-sided ([`Conn::new_right`]); only Galois R is asserted.
+//!   V4 inputs saturate down to `NegInf`.
+//!
+//! IP-address types sit on the right side of these Conns — they're
+//! the use-wise-more-specific endpoint. The natural composition
+//! flows `<numeric chain> → u32 → Ipv4Addr` and `IpAddr →
+//! Extended<Ipv4Addr>` (left-to-right, generic to specific).
 
 use crate::conn::Conn;
 use crate::extended::Extended;
