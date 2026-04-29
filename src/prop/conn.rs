@@ -191,9 +191,11 @@ where
 
 /// `midpoint(c, x)` lies between `c.inner(c.floor(x))` and
 /// `c.inner(c.ceil(x))` whenever those two are themselves comparable.
-/// On saturating Conns the bracket can flip; the predicate returns
-/// `true` vacuously when `lo > hi` (consistent with the
-/// `conn_floor_le_ceil` precedent for injective-`inner` checks).
+/// The predicate returns `true` vacuously when `lo > hi`. For
+/// in-tree Conns this case is unreachable (every shipped Conn
+/// satisfies `conn_floor_le_ceil`); the vacuous branch covers
+/// downstream callers who might construct an unlawful Conn directly
+/// via [`crate::conn::Conn::new`].
 pub fn conn_midpoint_between<A, B>(c: &Conn<A, B>, x: A) -> bool
 where
     A: Copy

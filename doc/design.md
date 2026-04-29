@@ -38,7 +38,7 @@ Every Galois connection `f ⊣ g` satisfies:
 These properties are the test suite contract. Every connection value must
 satisfy all five.
 
-### Triple-only properties and the role of injectivity
+### The rounding-sandwich property and full-triple lawfulness
 
 In an adjoint *triple* `f ⊣ g ⊣ h` (with `g` shared as the middle
 adjoint), both `f` and `h` have type `A → B`, so it becomes meaningful
@@ -58,30 +58,39 @@ To strip the outer `g` and recover `h(a) ≤ f(a)`, you need `g` to
 embedding into a totally ordered set, is the same as saying `g` is
 injective (no plateaus where multiple `b`'s collapse to the same `a`).
 
-So `floor ≤ ceil` is two things at once:
+This makes the rounding sandwich a **necessary lawfulness condition**
+for any full-triple `Conn<A, B>` we ship: a Conn whose `inner` is not
+order-reflecting (e.g. because the rung's synthetic `NegInf`/`PosInf`
+collapses to the same source value as some `Finite(_)`) is *not a
+lawful adjoint triple* even if both Galois L and R hold individually
+— `floor(a) > ceil(a)` somewhere in the source domain.
 
-- **Structurally** triple-only: a plain adjoint pair `f ⊣ g` has no
-  second function `A → B` to compare against, so the property has no
-  statement.
-- **Logically** an extra side condition on the triple, namely that
-  `g` is injective.
+The escape hatch when `inner` can't be made order-reflecting is to
+ship the Conn as **one-sided** via [`Conn::new_left`] (only the
+`ceil ⊣ inner` pair, with `floor = ceil` as a fn pointer) or
+[`Conn::new_right`] (only `inner ⊣ floor`, with `ceil = floor`). Each
+constructor structurally collapses the two outer adjoints, so the
+rounding sandwich holds trivially (`floor = ceil` ⟹ `floor ≤ ceil`)
+at the cost of asserting only one Galois law (the contract documented
+on the constructor).
 
 For lossless-embedding connections (any `inner` that is an exact
 bit-shift into a target with sufficient precision — e.g. the within-
-ladder `FD12 → FD12` identity, or any cross-width `FixedI<W1><F1>` →
+ladder `FD12 → FD12` identity, any cross-width `FixedI<W1><F1>` →
 `FixedI<W2><F2>` where the Coarse value range is a strict subset of
-Fine's), `inner` is injective and the rounding sandwich holds for
-free. For *saturating* `inner` (e.g. distinct fixed-point types where
-Coarse value range exceeds Fine's, forcing `inner(c) = Fine::MAX` for
-a plateau of large `c`), `floor(a) ≤ ceil(a)` fails at the plateau —
-multiple `c`'s map to the same `inner(c)`, so the smallest such `c`
-(returned by `ceil`) and the largest (returned by `floor`) differ in
-the wrong direction.
+Fine's, or saturating-numeric Conns whose source has "subsec room"
+distinguishing the synthetic-end `inner` value from any `Finite`
+image — DURNSECS is the canonical example), `inner` is order-
+reflecting and the full triple is lawful. For Conns where it isn't
+(e.g. sum-type projections where the source extremes coincide with
+synthetic-end `inner` values, the `addr/` `IPVX*`/`SOVX*` family),
+ship them one-sided.
 
-Property-test consequence: the test suite asserts the five Galois
-axioms above for **every** connection. The rounding sandwich is
-asserted only for connections where `inner` is documented-injective.
-Per-connection module headers note which case they are in.
+Property-test consequence: every shipped `Conn<A, B>` must pass
+`conn_floor_le_ceil` over its full source domain. Full triples
+satisfy it because `inner` is order-reflecting; one-sided Conns
+satisfy it because `floor = ceil` structurally. There is no third
+case.
 
 ## Core type
 

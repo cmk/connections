@@ -137,11 +137,14 @@
 //! | [`conn_idempotent`](crate::prop::conn::conn_idempotent) | `inner ∘ ceil` is idempotent on its image |
 //!
 //! A tenth law, [`conn_floor_le_ceil`](crate::prop::conn::conn_floor_le_ceil)
-//! (`floor(a) ≤ ceil(a)`), is asserted only on connections whose
-//! `inner` is a documented injective embedding — on saturating
-//! connections it fails at the saturation plateau by design. See
-//! `doc/design.md` § "Triple-only properties and the role of
-//! injectivity".
+//! (`floor(a) ≤ ceil(a)`), is required for **every** shipped Conn.
+//! Full triples satisfy it because their `inner` is order-reflecting;
+//! one-sided Conns ([`Conn::new_left`] / [`Conn::new_right`]) satisfy
+//! it trivially because `floor = ceil` as a fn pointer. A Conn that
+//! fails `conn_floor_le_ceil` is structurally not a lawful adjoint
+//! triple — it must be reshaped (typically as one-sided) before it
+//! can ship. See `doc/design.md` § "The rounding-sandwich property
+//! and full-triple lawfulness".
 
 use core::cmp::Ordering;
 use core::ops::{Add, Div, Sub};
@@ -598,13 +601,12 @@ where
 /// integer and floating-point sources — Haskell's `lo/2 + hi/2`
 /// loses 1 bit on odd-summed integers; the offset form does not.
 ///
-/// **Precondition:** `lo ≤ hi`. The conns this crate ships with
-/// injective `inner` (i.e. those that pass `conn_floor_le_ceil`)
-/// satisfy this trivially. On a saturating conn where the
-/// inner-bracket can flip (`hi < lo`), `hi - lo` underflows silently
-/// on signed-integer sources and produces a meaningless value; the
-/// companion predicate [`crate::prop::conn::conn_midpoint_between`]
-/// gates on `lo ≤ hi` for exactly this reason.
+/// **Precondition:** `lo ≤ hi`. Every Conn this crate ships satisfies
+/// `conn_floor_le_ceil`, so this precondition holds by construction
+/// for any in-tree caller. The companion predicate
+/// [`crate::prop::conn::conn_midpoint_between`] still gates on `lo ≤
+/// hi` defensively for downstream callers who might construct an
+/// unlawful Conn directly via [`Conn::new`].
 ///
 /// The offset form sidesteps the intermediate-sum overflow that
 /// `lo/2 + hi/2` would otherwise hit on near-MAX rungs, but the

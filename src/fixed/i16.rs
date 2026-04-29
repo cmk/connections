@@ -317,9 +317,14 @@ mod tests {
     // full i16 range — the connection is total and lawful for every
     // value, so no bounded strategies are needed.
     //
-    // `conn_floor_le_ceil` is intentionally NOT asserted: it requires
-    // injective `inner`, which fails at the saturation plateau (see
-    // doc/design.md § Triple-only properties).
+    // `conn_floor_le_ceil` is currently NOT asserted because these
+    // Conns ship as full triples but `inner` is non-order-reflecting
+    // at the saturation plateau, so `floor > ceil` there. This is
+    // tracked as known debt — Plan 27 audits the crate for the same
+    // pattern and converts offending Conns to one-sided
+    // (`Conn::new_left` / `Conn::new_right`) so `floor_le_ceil` holds
+    // structurally. Until then, the test is omitted here to avoid
+    // failing CI on a pre-existing issue.
     macro_rules! props_for_pair {
         ($mod_name:ident, $conn:ident, $FineFrac:ty, $CoarseFrac:ty) => {
             mod $mod_name {
