@@ -143,7 +143,7 @@ Per-domain Conn families:
 | `float`   | (this crate)                               | `ExtendedFloat<T>` + IEEE narrowing Conns; submodules `f32.rs` (target `F032`) and `f16.rs` (target `F016`, gated on `f16` cargo feature → nightly required) |
 | `addr`    | `std::net`                                 | `ip.rs`, `socket.rs` |
 | `char`    | `core` (primitive)                         | `char.rs` (`U032CHAR` codepoint projection)                |
-| `conn`    | (this crate)                               | The `Conn<A, B, K>` type, the `compose!` / `triple!` macros, free fns operating on a `Conn` (`round`, `truncate`, `interval`, `midpoint`, `median`, lifters), and `Conn::new_l` / `new_r` constructors |
+| `conn`    | (this crate)                               | The `Conn<A, B, K>` type, the `compose!` / `triple!` / `iso!` macros, free fns operating on a `Conn` (`round`, `truncate`, `interval`, `midpoint`, `median`, lifters), and `Conn::new_l` / `new_r` constructors |
 
 **Modules are keyed by host crate by default**, except where a single
 domain is meaningfully shared across crates. `time/` is the worked

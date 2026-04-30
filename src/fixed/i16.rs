@@ -30,6 +30,8 @@
 
 use super::{ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
 #[allow(unused_imports)]
+use crate::conn::Conn;
+#[allow(unused_imports)]
 use crate::extended::Extended;
 use ::fixed::FixedI16;
 use ::fixed::types::extra::{U0, U2, U4, U8, U12, U16, Unsigned};
