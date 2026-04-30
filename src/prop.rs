@@ -36,6 +36,7 @@
 //! can drive the predicates over arbitrary inputs:
 //!
 //! ```ignore
+//! use connections::conn::ViewL;  // brings F064F032::L into scope
 //! use connections::prop::{arb, conn};
 //! use connections::float::f32::F064F032;
 //! use connections::float::ExtendedFloat;
@@ -48,7 +49,7 @@
 //!         b in arb::arb_f32(),
 //!     ) {
 //!         prop_assert!(conn::galois_l(
-//!             &F064F032,
+//!             &F064F032::L,
 //!             ExtendedFloat::Extend(a),
 //!             ExtendedFloat::Extend(b),
 //!         ));

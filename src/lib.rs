@@ -63,13 +63,14 @@
 //! (cross-sign non-widening `u8 → i8`) also lives in `fixed::i8`.
 //! The signed-widening (`I###I###`) and unsigned-into-signed-widening
 //! (`U###I###`) families wrap the source in
-//! [`Extended`](extended::Extended) (full adjoint triple). The other
-//! six families ship as single-sided over plain primitives —
-//! left-Galois ([`Conn::new_left`](conn::Conn::new_left)) for the
-//! U→U / I→U widening + the I→I / U→U / I→U narrowing cases,
-//! right-Galois ([`Conn::new_right`](conn::Conn::new_right)) for U→I
-//! non-widening (where the saturation plateau lives on the target
-//! side).
+//! [`Extended`](extended::Extended) and ship as adjoint-triple markers
+//! (unit structs implementing both [`ViewL`](conn::ViewL) and
+//! [`ViewR`](conn::ViewR)). The other six families ship as
+//! single-sided `Conn` consts — left-Galois
+//! ([`Conn::new_l`](conn::Conn::new_l)) for the U→U / I→U widening +
+//! the I→I / U→U / I→U narrowing cases, right-Galois
+//! ([`Conn::new_r`](conn::Conn::new_r)) for U→I non-widening (where
+//! the saturation plateau lives on the target side).
 //!
 //! Examples:
 //!
@@ -98,12 +99,14 @@
 //!
 //! ## Composition
 //!
-//! [`Conn<A, B>`](conn::Conn) stores three bare `fn` pointers so the
-//! type is `Copy`, const-constructible, and heap-free — which
-//! prevents a generic `.then()` method (a composed fn would need to
-//! capture both inputs, which bare `fn` cannot). For the
-//! compile-time-known case, the [`compose!`] macro expands a chain of
-//! two or more `Conn` consts into a fresh `Conn<Src, Dst>`:
+//! [`Conn<A, B, K>`](conn::Conn) stores two bare `fn` pointers (`f` and
+//! `g`) plus a phantom kind tag, so the type is `Copy`, const-
+//! constructible, and heap-free — which prevents a generic `.then()`
+//! method (a composed fn would need to capture both inputs, which bare
+//! `fn` cannot). For the compile-time-known case the
+//! [`compose_l!`](crate::compose_l) / [`compose_r!`](crate::compose_r)
+//! macros expand a chain of two or more same-kind `Conn` consts into
+//! a fresh `ConnL<Src, Dst>` / `ConnR<Src, Dst>`:
 //!
 //! ```rust,no_run
 //! use connections::compose_l;
@@ -114,33 +117,37 @@
 //! const COMPOSED: ConnL<i32, i32> = compose_l!(ID_I32, ID_I32, ID_I32);
 //! ```
 //!
-//! Source/destination types come from the binding annotation;
-//! intermediates are inferred. Runtime composition is deferred until
-//! a closure-capturing `DynConn` variant lands — see `doc/design.md`.
+//! For triple markers, [`compose!`](crate::compose) is the
+//! declaration-form combiner: it generates a fresh marker unit-struct
+//! whose [`ViewL`](conn::ViewL) / [`ViewR`](conn::ViewR) impls compose
+//! the parents' views via `compose_l!` / `compose_r!`. Source /
+//! destination / intermediate types are written into the macro
+//! invocation. Runtime composition is deferred until a
+//! closure-capturing `DynConn` variant lands — see `doc/design.md`.
 //!
 //! ## Cast operations
 //!
-//! Operations on a [`Conn`](conn::Conn) — accessors and lifters —
-//! are free functions in [`conn`] and re-exported at the crate root
-//! for ergonomic access (`connections::ceiling(&c, x)` rather than
-//! `connections::conn::ceiling(&c, x)`).
+//! Operations on a [`Conn`](conn::Conn) live as **inherent methods**
+//! on the kind-specific impl blocks, not free functions:
+//!
+//! - L-kind methods on [`Conn<_, _, L>`](conn::Conn) (and on any type
+//!   implementing [`ViewL`](conn::ViewL) via default-method dispatch):
+//!   `ceiling`, `upper`, plus the back-compat aliases `ceil` / `inner`
+//!   and the `1` / `2` lifters.
+//! - R-kind methods on [`Conn<_, _, R>`](conn::Conn) (and on
+//!   [`ViewR`](conn::ViewR) implementors): `floor`, `lower`, plus the
+//!   `1` / `2` lifters.
+//! - Two-sided helpers ([`round`](conn::round),
+//!   [`truncate`](conn::truncate), [`interval`](conn::interval),
+//!   [`midpoint`](conn::midpoint), [`median`](conn::median), and the
+//!   `1` / `2` lifters of `round` / `truncate`) bind on
+//!   [`Triple`](conn::Triple) and re-export at the crate root.
 //!
 //! The Haskell `Data.Connection.Cast` module distinguishes L-side
 //! names (`ceiling`/`upper`) from R-side names (`floor`/`lower`) via
-//! a phantom `Side` data kind. This port collapses both sides onto
-//! the unified [`Conn`](conn::Conn) (it always carries the full triple
-//! `ceil ⊣ inner ⊣ floor`), so both naming conventions are
-//! simultaneously available on every value. See [`conn`] for the
-//! rationale.
-//!
-//! | Haskell | Rust (free fn at crate root) |
-//! |---------|-------------------------------|
-//! | `ceiling`/`upper` | [`ceiling`] / [`upper`] |
-//! | `floor`/`lower` | [`floor`] / [`lower`] |
-//! | `ceiling1`/`upper1` | [`ceiling1`] / [`upper1`] |
-//! | `floor1`/`lower1` | [`floor1`] / [`lower1`] |
-//! | `ceiling2`/`upper2` | [`ceiling2`] / [`upper2`] |
-//! | `floor2`/`lower2` | [`floor2`] / [`lower2`] |
+//! a phantom `Side` data kind. This port mirrors that discipline
+//! structurally: an L-kind `Conn` has no `.floor()` method (compile
+//! error), and vice versa. See [`conn`] for the rationale.
 
 // `f16` is currently a nightly-only primitive (tracking #116909). Opting
 // into the `f16` cargo feature enables the gated `F016` / `F032F016` /

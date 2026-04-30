@@ -520,41 +520,41 @@ where
 /// an `fn(_) -> _` pointer at the `Conn::new_l` call site.
 #[macro_export]
 macro_rules! compose_l {
-    ($first:path $(, $rest:path)+ $(,)?) => {
+    ($first:expr, $($rest:expr),+ $(,)?) => {
         $crate::conn::Conn::new_l(
             |a| $crate::compose_l!(@nest_f a; $first $(, $rest)+),
             |z| $crate::compose_l!(@nest_g z; $first $(, $rest)+),
         )
     };
 
-    (@nest_f $x:expr; $last:path) => { $last.ceiling($x) };
-    (@nest_f $x:expr; $first:path $(, $rest:path)+) => {
+    (@nest_f $x:expr; $last:expr) => { $last.ceiling($x) };
+    (@nest_f $x:expr; $first:expr $(, $rest:expr)+) => {
         $crate::compose_l!(@nest_f $first.ceiling($x); $($rest),+)
     };
 
-    (@nest_g $z:expr; $last:path) => { $last.upper($z) };
-    (@nest_g $z:expr; $first:path $(, $rest:path)+) => {
+    (@nest_g $z:expr; $last:expr) => { $last.upper($z) };
+    (@nest_g $z:expr; $first:expr $(, $rest:expr)+) => {
         $first.upper($crate::compose_l!(@nest_g $z; $($rest),+))
     };
 }
 
-/// Compose a chain of R-Conn paths into a single fresh `ConnR<Src, Dst>`.
+/// Compose a chain of R-Conn expressions into a single fresh `ConnR<Src, Dst>`.
 #[macro_export]
 macro_rules! compose_r {
-    ($first:path $(, $rest:path)+ $(,)?) => {
+    ($first:expr, $($rest:expr),+ $(,)?) => {
         $crate::conn::Conn::new_r(
             |z| $crate::compose_r!(@nest_g z; $first $(, $rest)+),
             |a| $crate::compose_r!(@nest_f a; $first $(, $rest)+),
         )
     };
 
-    (@nest_f $x:expr; $last:path) => { $last.floor($x) };
-    (@nest_f $x:expr; $first:path $(, $rest:path)+) => {
+    (@nest_f $x:expr; $last:expr) => { $last.floor($x) };
+    (@nest_f $x:expr; $first:expr $(, $rest:expr)+) => {
         $crate::compose_r!(@nest_f $first.floor($x); $($rest),+)
     };
 
-    (@nest_g $z:expr; $last:path) => { $last.lower($z) };
-    (@nest_g $z:expr; $first:path $(, $rest:path)+) => {
+    (@nest_g $z:expr; $last:expr) => { $last.lower($z) };
+    (@nest_g $z:expr; $first:expr $(, $rest:expr)+) => {
         $first.lower($crate::compose_r!(@nest_g $z; $($rest),+))
     };
 }
@@ -619,4 +619,126 @@ macro_rules! triple {
                 $crate::conn::Conn::new_r($inner, $floor);
         }
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Type-alias smoke test (Plan 29B spot check) ──────────────────
+
+    #[test]
+    fn aliases_compile() {
+        const _L: ConnL<i64, i32> = Conn::new_l(|x| x as i32, |x| x as i64);
+        const _R: ConnR<i64, i32> = Conn::new_r(|x| x as i64, |x| x as i32);
+    }
+
+    // ── triple! macro instantiation (Plan 29B spot check) ────────────
+
+    const fn _id_i32_ceil(x: i32) -> i32 {
+        x
+    }
+    const fn _id_i32_inner(x: i32) -> i32 {
+        x
+    }
+    const fn _id_i32_floor(x: i32) -> i32 {
+        x
+    }
+
+    crate::triple! {
+        TripleIdI32 : i32 => i32 {
+            ceil:  _id_i32_ceil,
+            inner: _id_i32_inner,
+            floor: _id_i32_floor,
+        }
+    }
+
+    #[test]
+    fn triple_marker_zero_sized() {
+        assert_eq!(core::mem::size_of::<TripleIdI32>(), 0);
+    }
+
+    #[test]
+    fn triple_uses_both_views() {
+        // Reach for both views and confirm they round-trip through
+        // the shared inner.
+        assert_eq!(TripleIdI32::L.ceiling(7_i32), 7_i32);
+        assert_eq!(TripleIdI32::R.floor(7_i32), 7_i32);
+        assert_eq!(TripleIdI32::L.upper(7_i32), 7_i32);
+        assert_eq!(TripleIdI32::R.lower(7_i32), 7_i32);
+    }
+
+    // ── compose! macro instantiation (Plan 29B spot check) ───────────
+
+    crate::triple! {
+        TripleAdd1 : i32 => i32 {
+            ceil:  _add1,
+            inner: _sub1,
+            floor: _add1,
+        }
+    }
+    const fn _add1(x: i32) -> i32 {
+        x.wrapping_add(1)
+    }
+    const fn _sub1(x: i32) -> i32 {
+        x.wrapping_sub(1)
+    }
+
+    crate::compose! {
+        ComposedI32 : i32 => i32 => i32 = TripleIdI32, TripleAdd1
+    }
+
+    #[test]
+    fn compose_triple_marker() {
+        // Composed triple's L-view: ceil(x) = TripleAdd1::ceil(TripleIdI32::ceil(x)) = x + 1
+        assert_eq!(ComposedI32::L.ceiling(0_i32), 1_i32);
+        // Composed triple's R-view: floor(x) = TripleAdd1::floor(TripleIdI32::floor(x)) = x + 1
+        assert_eq!(ComposedI32::R.floor(0_i32), 1_i32);
+    }
+
+    // ── Variadic compose_l! chain (3 operands, const-context) ────────
+
+    const ID_L: ConnL<i32, i32> = Conn::identity();
+    const COMPOSED_3WAY: ConnL<i32, i32> = crate::compose_l!(ID_L, ID_L, ID_L);
+
+    #[test]
+    fn compose_l_three_arg_chain() {
+        // id ∘ id ∘ id over the L-side stays identity. Proves the
+        // variadic `:expr` arm parses with 3 operands and produces a
+        // valid `const` expression.
+        assert_eq!(COMPOSED_3WAY.ceiling(42_i32), 42_i32);
+        assert_eq!(COMPOSED_3WAY.upper(7_i32), 7_i32);
+    }
+
+    // ── swap_l / swap_r involution proptests ─────────────────────────
+
+    use proptest::prelude::*;
+
+    const fn _double(x: i32) -> i64 {
+        (x as i64).wrapping_mul(2)
+    }
+    const fn _halve(x: i64) -> i32 {
+        (x / 2) as i32
+    }
+    const ROUND_TRIP_L: ConnL<i32, i64> = Conn::new_l(_double, _halve);
+    const ROUND_TRIP_R: ConnR<i32, i64> = Conn::new_r(_halve, _double);
+
+    proptest! {
+        #[test]
+        fn swap_round_trip_l(a: i32, b: i64) {
+            // (swap_r ∘ swap_l)(c) preserves the fn pair on every input.
+            let c = ROUND_TRIP_L;
+            let c2: ConnL<i32, i64> = c.swap_l().swap_r();
+            prop_assert_eq!(c.ceiling(a), c2.ceiling(a));
+            prop_assert_eq!(c.upper(b),   c2.upper(b));
+        }
+
+        #[test]
+        fn swap_round_trip_r(a: i32, b: i64) {
+            let c = ROUND_TRIP_R;
+            let c2: ConnR<i32, i64> = c.swap_r().swap_l();
+            prop_assert_eq!(c.floor(a),   c2.floor(a));
+            prop_assert_eq!(c.lower(b),   c2.lower(b));
+        }
+    }
 }

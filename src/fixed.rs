@@ -288,7 +288,7 @@ pub(crate) use uint_uint_narrow;
 /// non-negative `$B` values to `$A`, also lossless under the
 /// same constraint. Mirrors the `ext_int!` constraint pattern.
 ///
-/// **Right-Galois single-sided** (uses [`Conn::new_right`](crate::conn::Conn::new_right)). The
+/// **Right-Galois single-sided** (uses [`Conn::new_r`](crate::conn::Conn::new_r)). The
 /// saturation plateau lives on the target side: `inner` clips
 /// `i_M`'s negative half to `0_u_N`. `floor` saturates `u_N` values
 /// above `i_M::MAX` down to `i_M::MAX`.
@@ -385,11 +385,11 @@ pub(crate) use nz_int_ext;
 /// [`nz_int_ext!`]. `floor` and `ceil` collapse identically at 0
 /// because there is no NonZero ≤ 0 on the unsigned side: both pick
 /// `NonZero(1)`, the smallest representable NonZero. Single-sided
-/// left-Galois ([`Conn::new_left`]) — `floor = ceil`. The
+/// left-Galois ([`Conn::new_l`]) — `floor = ceil`. The
 /// right-Galois law fails at `(NonZero(1), 0)` (no NonZero strictly
 /// below 1 to act as the "previous" rounding target).
 ///
-/// [`Conn::new_left`]: crate::conn::Conn::new_left
+/// [`Conn::new_l`]: crate::conn::Conn::new_l
 macro_rules! nz_uint_ext {
     ($NAME:ident, $A:ty, $NZ:ty) => {
 #[rustfmt::skip]

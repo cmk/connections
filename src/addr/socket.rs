@@ -16,8 +16,8 @@
 //! below all V6 variants, and within each variant Ord is
 //! lexicographic over the inner fields.
 //!
-//! Both Conns ship as one-sided ([`Conn::new_left`] for `SOVXSOV4`,
-//! [`Conn::new_right`] for `SOVXSOV6`). The full triple isn't lawful
+//! Both Conns ship as one-sided ([`Conn::new_l`] for `SOVXSOV4`,
+//! [`Conn::new_r`] for `SOVXSOV6`). The full triple isn't lawful
 //! for these projections because the source `SocketAddr`'s MIN/MAX
 //! coincides with `inner`'s synthetic-end values, making `inner`
 //! non-order-reflecting and forcing a `floor_le_ceil` violation.
@@ -39,7 +39,7 @@ const fn sov6_max() -> SocketAddrV6 {
 /// `SocketAddr → Extended<SocketAddrV4>` — V4 extraction from the
 /// SocketAddr sum.
 ///
-/// One-sided ceil-adjoint Conn ([`Conn::new_left`]): only `ceil ⊣
+/// One-sided ceil-adjoint Conn ([`Conn::new_l`]): only `ceil ⊣
 /// inner` holds (`galois_l`); the right-Galois law does not. The
 /// full triple isn't lawful for this projection because the source
 /// SocketAddr's MIN (`V4(0.0.0.0:0)`) coincides with `inner(NegInf
@@ -95,7 +95,7 @@ pub const SOVXSOV4: crate::conn::ConnL<SocketAddr, Extended<SocketAddrV4>> = {
 /// `SocketAddr → Extended<SocketAddrV6>` — V6 extraction from the
 /// SocketAddr sum.
 ///
-/// One-sided floor-adjoint Conn ([`Conn::new_right`]): only `inner ⊣
+/// One-sided floor-adjoint Conn ([`Conn::new_r`]): only `inner ⊣
 /// floor` holds (`galois_r`); the left-Galois law does not. The
 /// full triple isn't lawful here because the source SocketAddr's MAX
 /// (`V6(SOV6_MAX)`) coincides with `inner(PosInf rung)`, making

@@ -23,7 +23,7 @@
 //! As a consequence `floor(a) ≤ ceil(a)` is violated at the saturation
 //! boundary — a known lawfulness gap shipped here ahead of the Plan 27
 //! audit, which converts these Conns to one-sided
-//! (`Conn::new_left` / `Conn::new_right`) so the rounding sandwich
+//! (`Conn::new_l` / `Conn::new_r`) so the rounding sandwich
 //! holds structurally. `ceil` and `floor` carry boundary fixups
 //! (`ceil(Fine::MIN) = Coarse::MIN`, `floor(Fine::MAX) = Coarse::MAX`)
 //! that make Galois L and R individually hold at the extremes.
@@ -345,7 +345,7 @@ mod tests {
     // at the saturation plateau, so `floor > ceil` there. This is
     // tracked as known debt — Plan 27 audits the crate for the same
     // pattern and converts offending Conns to one-sided
-    // (`Conn::new_left` / `Conn::new_right`) so `floor_le_ceil` holds
+    // (`Conn::new_l` / `Conn::new_r`) so `floor_le_ceil` holds
     // structurally. Until then, the test is omitted here to avoid
     // failing CI on a pre-existing issue.
     macro_rules! props_for_pair {

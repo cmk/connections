@@ -178,3 +178,150 @@ Plan 29B's tasks all landed:
 1. **Add a one-line comment in the `fix_fix_*!` and `triple!` macro definitions** explaining the underscore prefix on `_ceil`/`_inner`/`_floor` (avoids shadowing the trait default methods on the marker). Cuts surprise for the next reader.
 2. **Restore the f16 README doctest** when the `f16` feature stabilizes (currently the only legitimately-ignored README block tied to upstream Rust).
 3. **Sprint A's intermediate state was discarded by the squash** — if there's value in showing the staged design (3-fn struct + T-kind via ImpliesL/ImpliesR/Meet) for future cross-references, an archived plan note in `doc/plans/plan-2026-04-29-02.md` already covers it. Acceptable as-is.
+
+## Local review (2026-04-30, independent agent re-run)
+
+**Branch:** sprint/phantom
+**Commits:** 3 (origin/main..sprint/phantom)
+**Reviewer:** Claude (sonnet, **independent**) — second pass after the org usage cap reset; supersedes the author self-review above.
+
+---
+
+### Commit Hygiene
+
+Three commits, each conventional (`feat:`, `doc:`, `fix:`). The `feat:` squash commit is large (58 files, ~3200 insertions) but acceptable given the explicit user instruction. The `fix:` commit that follows (`1134910`) is a clean targeted repair. No merge commits; history is linear. All three commits leave a passing test suite. Commit messages are within 72 chars.
+
+### Code Quality
+
+`#![forbid(unsafe_code)]` is present at `src/lib.rs:151`. No unsafe code found.
+
+**Conn struct shape** (`src/conn.rs:88–92`): Exactly `{ f, g, _k: PhantomData<fn() -> K> }`. Matches Plan 29B T1 precisely.
+
+**Kind machinery**: Sealed `Kind` trait with `L` / `R` markers, `ConnL` / `ConnR` type aliases. All correct.
+
+**ViewL / ViewR / Triple**: Defined at `conn.rs:316–374`. Default methods on `ViewL` give `.ceiling()` / `.upper()` / `.ceil()` / `.inner()`; on `ViewR` give `.floor()` / `.lower()`. The `Triple` blanket impl is a one-liner. All correct.
+
+**Back-compat aliases (`.ceil` / `.inner` / `.floor`)**: Present as documented back-compat aliases on the `Copy` inherent impl blocks and as `ViewL` / `ViewR` default methods. Justified — they preserve call-site compatibility for code migrated from the 3-fn API.
+
+**Inherent ops by kind**: L-side ops (`ceiling`, `upper`, lifters `upper1/2`, `ceiling1/2`) live only on `impl<A:Copy, B:Copy> Conn<A,B,L>`. R-side ops (`floor`, `lower`, lifters) live only on `Conn<A,B,R>`. The kind-discipline is structural.
+
+**compose_l! / compose_r!**: The closures in the macro arms (`|a| $first.ceiling($x)` etc.) are non-capturing and coerce to `fn` pointers. Correct.
+
+**compose! macro**: Emits `pub struct $name; impl ViewL...; impl ViewR...`. Syntactically correct. However, the macro has **never been instantiated** anywhere in the codebase — neither in production code nor in a test. `F064F016` is implemented directly rather than via `compose!(F064F016 : F064 => F032 => F016 = F064F032, F032F016)`. The compile-correctness of the macro body is not exercised by any test.
+
+**triple! macro**: Same situation — `#[macro_export]` but zero invocations. Neither `triple!` nor `compose!` appear outside their own macro definition.
+
+**Broken intra-doc links (31 warnings from `cargo doc --no-deps`)**: This sprint removed `Conn::new`, `Conn::new_left`, `Conn::new_right`, `Conn::new_iso` and promoted the old free functions `ceiling` / `floor` / `upper` / `lower` to inherent methods. The doc comments that linked to those names were not updated. Affected files: `src/lib.rs`, `src/addr.rs`, `src/addr/ip.rs`, `src/addr/socket.rs`, `src/fixed.rs`, `src/fixed/i128.rs`, `src/time.rs`, `src/time/clock.rs`, `src/time/datetime.rs`, `src/time/duration.rs`, `src/time/offset.rs`. Specifically:
+
+- `src/lib.rs:68–70`: `[Conn::new_left]` / `[Conn::new_right]` — both links dead.
+- `src/lib.rs:101`: "stores three bare `fn` pointers" — factually wrong (two fields now).
+- `src/lib.rs:130–132`: "collapses both sides onto the unified `Conn` (it always carries the full triple `ceil ⊣ inner ⊣ floor`)" — directly contradicts the new design.
+- `src/lib.rs:138–143`: The Haskell/Rust table claims `ceiling` / `upper` / `floor` / `lower` and their lifters are "free fn at crate root" — they are now inherent methods and the links are unresolved.
+- `src/addr.rs:51–59`: Four `[Conn::new_left]` / `[Conn::new_right]` links.
+- `src/fixed.rs:44–50`, `src/fixed.rs:291`, `src/fixed.rs:388–392`: Multiple `new_left` / `new_right` references in rustdoc tables.
+
+The pre-commit hook does not run `cargo doc --deny broken_intra_doc_links`. Broken intra-doc links are warnings not errors, and `cargo test` doesn't check them. They slip through cleanly.
+
+**Stale prop.rs ignore doctest**: `src/prop.rs:38–57` shows a downstream usage example passing `&F064F032` directly to `galois_l`. Since `F064F032` is now a unit struct marker (not `Conn<_,_,L>`), and `galois_l` takes `&Conn<A,B,L>`, this example would not compile. The `ignore` hides the mismatch. The correct call is `conn::galois_l(&F064F032::L, a, b)` as shown in the `no_run` block above it. A consumer reading the `ignore` block as a usage guide would copy broken code.
+
+**README stale narrative**: `README.md:84–99` describes `Conn<A,B>` as holding three fn fields (`ceil`, `inner`, `floor`) and says "A length-2 (one-sided) connection sets `floor = ceil`." This is the pre-migration design and is now incorrect. `README.md:268–270` repeats "three function pointers in one value" and "crate-root `ceiling` / `floor` / `upper` / `lower` free functions." Both claims are false after this sprint.
+
+No dead code or clippy issues. `cargo clippy --all-targets -- -D warnings` passes clean. `cargo fmt --all -- --check` passes clean.
+
+### Test Coverage
+
+**Property tests preserved**: The core property batteries are present and exercised on every shipped Conn. The kind-monomorphic predicates in `src/prop/conn.rs` correctly take `&Conn<A,B,L>` or `&Conn<A,B,R>` — the compile-fail fixtures confirm the wrong-kind calls are rejected.
+
+**compile-fail fixtures**: All four shipped fixtures pass and the `.stderr` snapshots pin the correct error mode after the `1134910` repair commit:
+- `floor_on_l_conn.rs` → `error[E0599]: no method named 'floor' found for struct Conn<i32, i32>` with the note that it's available on `Conn<A, B, R>`. Correct.
+- `ceiling_on_r_conn.rs` → dual error, correct.
+- `galois_l_on_r_conn.rs` → `error[E0308]: mismatched types`, expected `&Conn<i32,i32,L>` found `&Conn<i32,i32,R>`. Correct.
+- `galois_r_on_l_conn.rs` → dual, correct.
+
+**Plan 29B verification gaps**: Two fixtures from Plan 29B's Verification table are absent:
+1. `tests/compile_fail/round_on_l_conn.rs` — the `Triple` bound on `round()` is never negatively tested.
+2. `tests/compile_fail/compose_l_with_r.rs` — mixed-kind composition through `compose_l!` is never negatively tested.
+
+The swap involution properties from Plan 29B's Verification table (`swap_l . swap_r ≡ id`, `swap_r . swap_l ≡ id`) have no tests at all. `swap_l` and `swap_r` are untested beyond type-checking.
+
+**Plan 29B spot checks**: None of the five named spot checks from the Verification table exist (`aliases_compile`, `triple_marker_zero_sized`, `triple_uses_both_views`, `round_works_on_triple`, `compose_triple_marker`). `src/conn.rs` has zero `#[test]` functions outside doctests.
+
+**compose! / triple! macros**: Neither macro is instantiated anywhere in the codebase. Their correctness is untested beyond the fact that they parse.
+
+**Deleted tests**: Three deletions (`u_to_i_ceil_eq_floor`, `lattbool_ordering_galois_r`, `lattbool_ordering_floor_le_ceil`) all justified by structural impossibility under the new kind discipline. The replaced surface (L-law battery on `LATTBOOL`, R-Galois on `U008I008` integration tests) covers the lost ground.
+
+### Plan Conformance
+
+| Task | Status |
+|------|--------|
+| T1: 2-fn `Conn<A,B,K>` | Complete |
+| T2: Kind constructors `new_l` / `new_r` | Complete |
+| T3: Inherent ops by kind | Complete |
+| T4: `ViewL` / `ViewR` / `Triple` | Complete |
+| T5: Two-sided ops on `Triple` | Complete |
+| T6: `swap_l` / `swap_r` | Present (but untested) |
+| T7: Property fn signatures by kind | Complete |
+| T8: `compose_l!` / `compose_r!` / `compose!` | Macros present; `compose!` / `triple!` never instantiated or tested |
+| T9: Migrate ~28 full-triple consts | Complete |
+| T10: Rewrite `conn.rs` rustdoc | `conn.rs` module doc is accurate; stale text in `lib.rs` and `README.md` not cleaned up |
+| T11: Compile-fail tests | 4 of 5 Plan 29B fixtures; 2 missing (`round_on_l_conn`, `compose_l_with_r`) |
+
+### Risks
+
+**No blocking bugs found.** `cargo test --workspace` passes clean with 1172+ unit tests. `cargo clippy -- -D warnings` is clean. `cargo fmt --check` is clean.
+
+The 31 broken intra-doc links are warnings, not errors — `cargo test` does not check them, and the pre-commit hook has no `cargo doc --deny broken_intra_doc_links` step. They will appear in published documentation and can mislead downstream users.
+
+The `compose!` and `triple!` macros are dead from a testing perspective. If they contain a subtle expansion bug (especially the `compose!` macro's const-context behavior with associated-const paths like `<T as ViewL<A,B>>::L`), it will not be discovered until someone first instantiates the macro.
+
+### Recommendations
+
+**Must fix before push:**
+
+1. **Stale intra-doc links (31 warnings).** `src/lib.rs:68–70, 101, 130–132, 136–143`, `src/addr.rs:51–59`, `src/fixed.rs:44–50, 291, 388–392`, and the `time/` module comment blocks all link to removed constructors or removed free functions. Update to `new_l` / `new_r`, or remove the broken `[` links for the free fns. Also correct the "three bare `fn` pointers" and "full triple" narrative at `lib.rs:101` and `lib.rs:130–132` to match the 2-fn reality.
+
+2. **Stale `prop.rs` ignore doctest (`src/prop.rs:51`).** Replace `&F064F032` with `&F064F032::L` in the `ignore` block. This is an example that downstream crate authors will copy; it should compile.
+
+**Follow-up (future work):**
+
+3. **README "How connections work" section** (`README.md:84–99, 268–270`). The three-fn struct description and "crate-root free functions" claim are wrong. Not blocking (it's `rust,no_run` / prose), but will confuse first-time readers.
+
+4. **`compose!` and `triple!` macros untested.** Add at least one instantiation of each (a test-only unit struct in a `#[cfg(test)]` block in `conn.rs`) to prove the expansion compiles and the resulting type satisfies `Triple<A,B>`.
+
+5. **Missing Plan 29B compile-fail fixtures.** Add `round_on_l_conn.rs` and `compose_l_with_r.rs`. Negative-test coverage is materially thinner than the plan specified.
+
+6. **`swap_l` / `swap_r` involution properties** (`prop::conn::swap_round_trip_l/r`) are absent. Worth a short proptest block in a `#[cfg(test)]` section of `conn.rs`.
+
+## Local review (2026-04-30, round 2 — independent re-run)
+
+**Branch:** sprint/phantom
+**Commits:** 4 (origin/main..sprint/phantom)
+**Reviewer:** Claude (sonnet, independent)
+
+---
+
+### Round-1 must-fix verification
+
+**MF-1 (broken intra-doc links + stale narrative):** Landed cleanly. `cargo doc --no-deps` now emits exactly 3 warnings — all pre-existing `arb_f32_bounded` references, zero sprint-introduced warnings. `src/fixed.rs:291,388` use `new_r` / `new_l`. `src/addr.rs:58-59` uses `new_l` / `new_r`. `src/lib.rs:102-144` describes the 2-fn struct + phantom kind tag + Triple-bound shape correctly; "stores three bare fn pointers" is gone.
+
+**MF-2 (`src/prop.rs:51` ignore-block with `&F064F032`):** Fixed correctly. The `ignore` block now reads `&F064F032::L` and imports `use connections::conn::ViewL;`. The non-`ignore` example above it was already correct.
+
+### Round-1 follow-up verification
+
+**FU-3 (README "How connections work"):** Lines 80-108 correctly describe the 2-fn struct with phantom kind tag. "No struct in the crate stores three fns" is explicit.
+
+**FU-4 (`triple!` / `compose!` / `swap_l` / `swap_r` tests):** All present in `src/conn.rs` lines 636-729. `triple_marker_zero_sized`, `triple_uses_both_views`, and `compose_triple_marker` test the new macros with concrete values. `swap_round_trip_l` / `swap_round_trip_r` are proptest blocks. The `:path` → `:expr` change in `compose_l!` / `compose_r!` is correct (all fragment specifiers are `:expr` throughout the recursive arms).
+
+**FU-5 (compile-fail fixtures):** Both new fixtures pin genuine kind-discipline errors: `round_on_l_conn.stderr` pins `E0277` ("trait `ViewL<_, _>` is not implemented for `Conn<i32, i32>`"), `compose_l_with_r.stderr` pins `E0599` ("no method named `ceiling` found for struct `Conn<i32, i32, R>`"). A regression that re-permitted either use would break the snapshot.
+
+**FU-6 (`swap_round_trip_l` / `swap_round_trip_r`):** Present at `src/conn.rs:712-729`. Proper proptest blocks over `(i32, i64)`.
+
+### New issues
+
+**Minor — README "Why this crate" bullet still says three fn pointers (line 21-25).** The introductory bullet reads: "A `Conn<A, B>` exposes `ceil: A → B`, `floor: A → B`, *and* the embedding `inner: B → A` as three function pointers on one value." Under the post-sprint design a `ConnL` carries 2 fn pointers and a `ConnR` carries 2 fn pointers; the third function lives in module scope via `triple!`. The "How connections work" section two scrolls below correctly undoes this, but the contradiction in the first user-facing paragraph is jarring. Not a must-fix; should be corrected before 0.1 is published.
+
+**Absent — variadic `compose_l!` chain test with 3+ operands.** The `:expr` macro fix is structurally sound, but the 3-operand path is never exercised in a real test. The lib.rs doc example (`compose_l!(ID_I32, ID_I32, ID_I32)`) is `no_run` so it doesn't prove it compiles. A concrete `const`-level test with 3 operands would close this gap. Not blocking given structural correctness.
+
+### Net assessment
+
+**Clear to push.** Both round-1 must-fix items landed correctly. All four follow-ups are addressed with genuine kind-discipline fixtures and a full proptest battery. The test suite passes clean. Clippy is clean. The two new issues are quality follow-ups, not blockers. The branch is ready to push.

@@ -18,11 +18,14 @@ direction at a time — and `as` in particular is silent on rounding,
 saturation, and lossy conversion. Three concrete things this crate gives
 you that the standard tools don't:
 
-1. **Both arms of a cast on one value.** A `Conn<A, B>` exposes
-   `ceil: A → B`, `floor: A → B`, *and* the embedding `inner: B → A` as
-   three function pointers on one value. You don't pick "ceiling cast" vs
-   "floor cast" up front — you carry both and call whichever you need
-   per-call.
+1. **Both arms of a cast on one value.** An adjoint-triple marker
+   exposes `ceil: A → B`, `floor: A → B`, *and* the embedding
+   `inner: B → A` as a unit struct with `ViewL` / `ViewR` impls — you
+   don't pick "ceiling cast" vs "floor cast" up front, you carry the
+   marker and call whichever you need per-call. (One-sided
+   connections — where only one law holds — ship as kind-tagged
+   `ConnL<A, B>` / `ConnR<A, B>` values, exposing only the methods of
+   their kind.)
 
 2. **Round-trip identities that hold.** `(x as f32) as f64 != x` for many
    `x: f64`. With a `Conn`, the closure law `a ≤ inner(ceil(a))` and
@@ -81,22 +84,31 @@ behave the way the math says.
 
 The basic type in this library is:
 
-```rust,no_run
-pub struct Conn<A, B> {
-    ceil:  fn(A) -> B,   // lower adjoint (rounds up)
-    inner: fn(B) -> A,   // shared middle adjoint (embedding)
-    floor: fn(A) -> B,   // upper adjoint (rounds down)
+```text
+pub struct Conn<A, B, K: Kind = L> {
+    f: fn(A) -> B,   // L-kind: ceil; R-kind: floor
+    g: fn(B) -> A,   // shared middle adjoint (embedding)
+    // plus a phantom kind tag K ∈ {L, R}
 }
 ```
 
-The first thing you'll notice is that there are three functions, not
-two as in the example above. That's because we are chaining two sets
-of connections together. A `Conn<A, B>` is an [adjoint
-triple](https://ncatlab.org/nlab/show/adjoint+triple) `ceil ⊣ inner ⊣
-floor` between two preordered sets — exactly the `f ⊣ g ⊣ h` chain
-that Example 3 above derived. A length-2 (one-sided) connection sets
-`floor = ceil`. The struct is `Copy`, `const`-constructible,
-heap-free, and the crate is `#![forbid(unsafe_code)]`.
+A `Conn<A, B, K>` is exactly a Galois connection — a pair of monotone
+functions `(f, g)` whose adjoint role depends on the kind tag. An
+L-kind Conn satisfies `f(a) ≤ b ⟺ a ≤ g(b)`; an R-kind Conn
+satisfies `g(b) ≤ a ⟺ b ≤ f(a)`.
+
+[Adjoint triples](https://ncatlab.org/nlab/show/adjoint+triple) — the
+`f ⊣ g ⊣ h` shape Example 3 below derives — are *not* a third kind
+of `Conn`. They are zero-sized **marker types** implementing two
+projection traits, `ViewL<A, B>` and `ViewR<A, B>`, whose associated
+consts are the L-view and R-view `Conn`s of the triple. The "third
+function" lives as a free function in module scope, referenced from
+the marker's trait impls; no struct in the crate stores three fns.
+Two-sided helpers (`round`, `truncate`, …) bind on the
+`Triple<A, B>` super-trait and reach through both views.
+
+The struct is `Copy`, `const`-constructible, heap-free, and the crate
+is `#![forbid(unsafe_code)]`.
 
 ## Quick tour
 
@@ -126,21 +138,23 @@ qualified import (e.g. `fixed::i8::Q008Q000` and
 
 **Conn API**
 
-- L-side accessors + lifters: `upper`, `upper1`, `upper2`, `ceiling`, `ceiling1`, `ceiling2`
-- R-side accessors + lifters: `lower`, `lower1`, `lower2`, `floor`, `floor1`, `floor2`
-- Two-sided helpers: `interval`, `midpoint`, `round`/`round1`/`round2`, `truncate`/`truncate1`/`truncate2`, `median`
+- L-side methods on `Conn<_, _, L>` (and on any `ViewL` implementor
+  via default-method dispatch): `ceiling`, `upper`, `ceiling1`/`2`,
+  `upper1`/`2`. Back-compat aliases: `ceil` / `inner`.
+- R-side methods on `Conn<_, _, R>` (and on any `ViewR` implementor):
+  `floor`, `lower`, `floor1`/`2`, `lower1`/`2`. Back-compat alias for
+  `lower`: `inner`.
+- Two-sided helpers (re-exported at the crate root): `interval`,
+  `midpoint`, `round`/`round1`/`round2`,
+  `truncate`/`truncate1`/`truncate2`, `median`. All bind on
+  `T: Triple<A, B>` (= `ViewL + ViewR`), so they're callable only on
+  triple markers — not on one-sided Conns.
 
-The two-sided combinators (`round`, `truncate`, `midpoint`,
-`interval`, `median`) are defined on every `Conn<A, B>` — not just
-full triples. On a one-sided connection (Examples 1 and 2,
-constructed via `Conn::new_left`) they still type-check and run; they
-just don't return anything interesting because the bracket between
-`floor` and `ceil` collapses to a single point. `interval` returns
-`Some(Ordering::Equal)`, `round` and `truncate` both pick that point,
-and `midpoint` lands on it too. The API surface is uniform — you
-don't track 'one-sided vs two-sided' at the type level; a one-sided
-conn passed into a function expecting `round` behavior just
-degenerates gracefully into the trivial case.
+Kind discipline is structural: calling `.floor(...)` on an L-kind
+Conn is a compile error (the method only exists on `Conn<_, _, R>`),
+and likewise `.ceiling(...)` on R. Two-sided helpers similarly reject
+one-sided operands at compile time because a one-sided `Conn` doesn't
+implement `Triple`.
 
 ## Examples
 
@@ -265,9 +279,12 @@ verify the `g ⊣ h` pair (with the appropriate reversal):
 | `Equal`          | `>`/`>`/`=` | `=`/`<`/`<` |
 | `Greater`        | `>`/`>`/`>` | `=`/`=`/`=` |
 
-This is the shape `Conn<A, B>` carries: three function pointers in
-one value. The crate-root `ceiling` / `floor` / `upper` / `lower` free
-functions select which adjoint pair you read off per call.
+This is the shape an adjoint-triple **marker** carries: three free
+fns wired through `ViewL` and `ViewR` impls, with `MARKER::L` /
+`MARKER::R` projecting to the L-view and R-view `Conn`s respectively.
+The default-method dispatch on `ViewL` / `ViewR` lets you call
+`.ceiling()` / `.floor()` on the marker directly when both traits are
+in scope.
 
 ### Example 4
 

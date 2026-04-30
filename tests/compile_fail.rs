@@ -18,4 +18,6 @@ fn kind_discipline() {
     t.compile_fail("tests/compile_fail/ceiling_on_r_conn.rs");
     t.compile_fail("tests/compile_fail/galois_l_on_r_conn.rs");
     t.compile_fail("tests/compile_fail/galois_r_on_l_conn.rs");
+    t.compile_fail("tests/compile_fail/round_on_l_conn.rs");
+    t.compile_fail("tests/compile_fail/compose_l_with_r.rs");
 }

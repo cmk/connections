@@ -48,15 +48,15 @@
 //!   order-reflecting (the v4-mapped block is a strict subset of
 //!   `Ipv6Addr`, giving the same "subsec room" pattern that lets
 //!   `DURNSECS` survive at `Duration::MIN`).
-//! - **One-sided** ([`IPVXIPV4`] / [`SOVXSOV4`] via [`Conn::new_left`];
-//!   [`IPVXIPV6`] / [`SOVXSOV6`] via [`Conn::new_right`]) — the sum
+//! - **One-sided** ([`IPVXIPV4`] / [`SOVXSOV4`] via [`Conn::new_l`];
+//!   [`IPVXIPV6`] / [`SOVXSOV6`] via [`Conn::new_r`]) — the sum
 //!   types' MIN/MAX coincide with `inner`'s synthetic-end values, so
 //!   the full triple isn't lawful (`floor_le_ceil` would fail at the
-//!   source extremes). Shipped one-sided so `floor = ceil`
-//!   structurally; only the constructor's side of Galois is asserted.
+//!   source extremes). Shipped one-sided as `ConnL` / `ConnR`; only
+//!   the constructor's side of Galois is asserted.
 //!
-//! [`Conn::new_left`]: crate::conn::Conn::new_left
-//! [`Conn::new_right`]: crate::conn::Conn::new_right
+//! [`Conn::new_l`]: crate::conn::Conn::new_l
+//! [`Conn::new_r`]: crate::conn::Conn::new_r
 
 pub mod ip;
 pub mod socket;

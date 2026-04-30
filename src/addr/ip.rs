@@ -3,22 +3,22 @@
 //! Five Conns covering the std-library IP types:
 //!
 //! - [`U032IPV4`] — `Conn<u32, Ipv4Addr>` total bijection via
-//!   `Ipv4Addr::{from,to}_bits`. Constructed with [`Conn::new_iso`];
+//!   `Ipv4Addr::{from,to}_bits`. Constructed with the [`triple!`](crate::triple) macro;
 //!   both Galois laws and `floor_le_ceil` hold trivially.
 //! - [`U128IPV6`] — `Conn<u128, Ipv6Addr>` total bijection, same
 //!   shape.
 //! - [`IPV6IPV4`] — `Conn<Ipv6Addr, Extended<Ipv4Addr>>`, the
-//!   v4-mapped bridge. Full triple ([`Conn::new`]) with asymmetric
+//!   v4-mapped bridge. Full triple (the [`triple!`](crate::triple) macro) with asymmetric
 //!   ceil/floor outside the v4-mapped block; lawful (passes
 //!   `floor_le_ceil`) because `inner` is order-reflecting — the
 //!   v4-mapped block sits strictly inside `Ipv6Addr`, giving "room"
 //!   between `inner(NegInf) = ::` and `inner(Finite(0.0.0.0)) =
 //!   ::ffff:0:0`.
 //! - [`IPVXIPV4`] — `Conn<IpAddr, Extended<Ipv4Addr>>` extracting
-//!   V4 from the sum. One-sided ([`Conn::new_left`]); only Galois L
+//!   V4 from the sum. One-sided ([`Conn::new_l`]); only Galois L
 //!   is asserted. V6 inputs saturate up to `PosInf`.
 //! - [`IPVXIPV6`] — `Conn<IpAddr, Extended<Ipv6Addr>>` extracting
-//!   V6. One-sided ([`Conn::new_right`]); only Galois R is asserted.
+//!   V6. One-sided ([`Conn::new_r`]); only Galois R is asserted.
 //!   V4 inputs saturate down to `NegInf`.
 //!
 //! IP-address types sit on the right side of these Conns — they're
@@ -41,7 +41,7 @@ const V4MAPPED_HI: u128 = 0x0000_0000_0000_0000_0000_FFFF_FFFF_FFFF;
 /// representation.
 ///
 /// Both directions are lossless; `floor = ceil = forward`
-/// (degenerate Galois, constructed via [`Conn::new_iso`]).
+/// (degenerate Galois, constructed via the [`triple!`](crate::triple) macro).
 ///
 /// # Examples
 ///
@@ -226,7 +226,7 @@ impl crate::conn::ViewR<Ipv6Addr, Extended<Ipv4Addr>> for IPV6IPV4 {
 
 /// `IpAddr → Extended<Ipv4Addr>` — V4 extraction from the IpAddr sum.
 ///
-/// One-sided ceil-adjoint Conn ([`Conn::new_left`]): only `ceil ⊣
+/// One-sided ceil-adjoint Conn ([`Conn::new_l`]): only `ceil ⊣
 /// inner` holds (`galois_l`); the right-Galois law does not. The
 /// full triple isn't lawful for this projection because the source
 /// IpAddr's MIN (`V4(0.0.0.0)`) coincides with `inner(NegInf rung)`,
@@ -284,7 +284,7 @@ pub const IPVXIPV4: crate::conn::ConnL<IpAddr, Extended<Ipv4Addr>> = {
 
 /// `IpAddr → Extended<Ipv6Addr>` — V6 extraction from the IpAddr sum.
 ///
-/// One-sided floor-adjoint Conn ([`Conn::new_right`]): only `inner ⊣
+/// One-sided floor-adjoint Conn ([`Conn::new_r`]): only `inner ⊣
 /// floor` holds (`galois_r`); the left-Galois law does not. The
 /// full triple isn't lawful here because the source IpAddr's MAX
 /// (`V6(MAX)`) coincides with `inner(PosInf rung)`, making `inner`
