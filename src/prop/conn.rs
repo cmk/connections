@@ -338,7 +338,7 @@ where
 /// |-------------------------|---------------|---------------------------|
 /// | `full` (default)        | `galois_l`, `galois_r`, `closure_l`, `closure_r`, `kernel_l`, `kernel_r`, `monotone_l`, `monotone_r`, `idempotent` | `A`, `B`: `Copy + Eq + PartialOrd` |
 /// | `l_only`                | `galois_l`, `closure_l`, `kernel_l`, `monotone_l`, `idempotent`                                                       | same |
-/// | `r_only`                | `galois_r`, `closure_r`, `kernel_r`, `monotone_r`                                                                     | same |
+/// | `r_only`                | `galois_r`, `closure_r`, `kernel_r`, `monotone_r` (4 tests; `idempotent` is L-side and doesn't fit a one-sided R-Conn) | same |
 /// | `iso_only`              | `idempotent`, `iso_roundtrip_l`, `roundtrip_ceil`                                                                     | `A`: `Copy + Eq`; `B`: `Copy + Eq` (no `Ord` required) |
 ///
 /// `cases: N` optionally overrides the proptest case count
