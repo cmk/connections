@@ -11,7 +11,8 @@
 //! `Q3.4 → Q7.0` — every `FixedI8<U4>` value lies in `[-8.0, 7.9375]`.
 //! The Conn brackets that value between adjacent integers in Q7.0:
 //!
-//! ```rust,ignore
+//! ```rust
+//! use connections::conn::{ViewL, ViewR};  // brings .ceil/.inner/.floor in via default methods
 //! use connections::fixed::i8::Q004Q000;
 //! use fixed::FixedI8;
 //! use fixed::types::extra::{U0, U4};

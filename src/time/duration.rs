@@ -111,7 +111,8 @@ def_walk_helpers!(
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
+/// use connections::conn::{ViewL, ViewR};
 /// use connections::time::DURNSECS;
 /// use connections::extended::Extended;
 /// use time::Duration;
@@ -369,7 +370,8 @@ mod tests {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
+/// use connections::conn::{ViewL, ViewR};
 /// use connections::time::F064DURN;
 /// use connections::float::ExtendedFloat;
 /// use connections::extended::Extended;
@@ -500,7 +502,8 @@ impl crate::conn::ViewR<F064, Extended<Duration>> for F064DURN {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
+/// use connections::conn::{ViewL, ViewR};
 /// use connections::time::F032DURN;
 /// use connections::float::ExtendedFloat;
 /// use connections::extended::Extended;
@@ -690,7 +693,8 @@ def_walk_helpers!(
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
+/// use connections::conn::{ViewL, ViewR};
 /// use connections::time::STDRU064;
 /// use connections::extended::Extended;
 /// use std::time::Duration as StdDuration;
@@ -770,7 +774,8 @@ impl crate::conn::ViewR<Extended<StdDuration>, Extended<u64>> for STDRU064 {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
+/// use connections::conn::{ViewL, ViewR};
 /// use connections::time::STDRU128;
 /// use connections::extended::Extended;
 /// use std::time::Duration as StdDuration;
@@ -853,7 +858,8 @@ impl crate::conn::ViewR<Extended<StdDuration>, Extended<u128>> for STDRU128 {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
+/// use connections::conn::{ViewL, ViewR};
 /// use connections::time::F064STDR;
 /// use connections::float::ExtendedFloat;
 /// use connections::extended::Extended;
@@ -968,7 +974,8 @@ impl crate::conn::ViewR<F064, Extended<StdDuration>> for F064STDR {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
+/// use connections::conn::{ViewL, ViewR};
 /// use connections::time::F032STDR;
 /// use connections::float::ExtendedFloat;
 /// use connections::extended::Extended;

@@ -375,20 +375,18 @@ pub trait Boolean: Symmetric {}
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust
 /// use connections::lattice::LATTBOOL;
 /// use core::cmp::Ordering;
 ///
 /// // `Ordering` impls `Join + Meet` (3-element chain Less < Equal < Greater).
+/// // LATTBOOL returns a one-sided ConnL — only the L-side adjoint laws hold.
 /// let c = LATTBOOL::<Ordering>();
-/// assert_eq!(c.ceil(Ordering::Less),     false); // bot → false
-/// assert_eq!(c.ceil(Ordering::Equal),    true);  // not-bot → true
-/// assert_eq!(c.ceil(Ordering::Greater),  true);
-/// assert_eq!(c.floor(Ordering::Less),    false);
-/// assert_eq!(c.floor(Ordering::Equal),   false); // not-top → false
-/// assert_eq!(c.floor(Ordering::Greater), true);  // top → true
-/// assert_eq!(c.inner(false),             Ordering::Less);
-/// assert_eq!(c.inner(true),              Ordering::Greater);
+/// assert_eq!(c.ceiling(Ordering::Less),     false); // bot → false
+/// assert_eq!(c.ceiling(Ordering::Equal),    true);  // not-bot → true
+/// assert_eq!(c.ceiling(Ordering::Greater),  true);
+/// assert_eq!(c.upper(false),                Ordering::Less);
+/// assert_eq!(c.upper(true),                 Ordering::Greater);
 /// ```
 #[allow(non_snake_case)]
 pub fn LATTBOOL<A>() -> crate::conn::ConnL<A, bool>

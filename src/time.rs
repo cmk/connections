@@ -95,7 +95,8 @@
 //! into the README so that `cargo test --doc` enforces both stay
 //! compiling.
 //!
-//! ```rust,ignore
+//! ```rust
+//! use connections::conn::{ViewL, ViewR};  // brings .ceil/.inner/.floor in via default methods
 //! use connections::time::DURNSECS;
 //! use connections::extended::Extended;
 //! use time::Duration;
@@ -108,7 +109,8 @@
 //!
 //! And the unsigned counterpoint via [`STDRU064`]:
 //!
-//! ```rust,ignore
+//! ```rust
+//! use connections::conn::{ViewL, ViewR};
 //! use connections::time::STDRU064;
 //! use connections::extended::Extended;
 //! use std::time::Duration as StdDuration;

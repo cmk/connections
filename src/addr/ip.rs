@@ -45,7 +45,8 @@ const V4MAPPED_HI: u128 = 0x0000_0000_0000_0000_0000_FFFF_FFFF_FFFF;
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
+/// use connections::conn::{ViewL, ViewR};
 /// use connections::addr::U032IPV4;
 /// use std::net::Ipv4Addr;
 ///
@@ -79,7 +80,8 @@ impl crate::conn::ViewR<u32, Ipv4Addr> for U032IPV4 {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
+/// use connections::conn::{ViewL, ViewR};
 /// use connections::addr::U128IPV6;
 /// use std::net::Ipv6Addr;
 ///
@@ -144,7 +146,8 @@ impl crate::conn::ViewR<u128, Ipv6Addr> for U128IPV6 {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
+/// use connections::conn::{ViewL, ViewR};
 /// use connections::addr::ip::IPV6IPV4;
 /// use connections::extended::Extended;
 /// use std::net::{Ipv4Addr, Ipv6Addr};
@@ -239,7 +242,7 @@ impl crate::conn::ViewR<Ipv6Addr, Extended<Ipv4Addr>> for IPV6IPV4 {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// use connections::addr::ip::IPVXIPV4;
 /// use connections::extended::Extended;
 /// use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -296,7 +299,7 @@ pub const IPVXIPV4: crate::conn::ConnL<IpAddr, Extended<Ipv4Addr>> = {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// use connections::addr::ip::IPVXIPV6;
 /// use connections::extended::Extended;
 /// use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};

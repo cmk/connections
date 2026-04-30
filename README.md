@@ -151,8 +151,8 @@ Let's build the simplest possible connection in Rust — between
 and `bool` — three different ways, each illustrating one more piece
 of the structure that the unified `Conn<A, B>` type carries.
 
-```rust,ignore
-use connections::conn::Conn;
+```rust
+use connections::conn::{Conn, ConnL};
 use std::cmp::Ordering;
 
 fn ceil(o: Ordering) -> bool {
@@ -161,7 +161,6 @@ fn ceil(o: Ordering) -> bool {
 fn inner(b: bool) -> Ordering {
     if b { Ordering::Greater } else { Ordering::Less }
 }
-use connections::conn::ConnL;
 const ORDRBOOL: ConnL<Ordering, bool> = Conn::new_l(ceil, inner);
 
 assert_eq!(ORDRBOOL.ceil(Ordering::Less),    false);
@@ -192,8 +191,8 @@ Notice that `inner` from Example 1 — the `bool → Ordering` function —
 is itself *also* the lower adjoint of a different pair. Define a new
 upper adjoint `h` going the other way:
 
-```rust,ignore
-use connections::conn::Conn;
+```rust
+use connections::conn::{Conn, ConnL};
 use std::cmp::Ordering;
 
 fn ceil(b: bool) -> Ordering {
@@ -202,7 +201,6 @@ fn ceil(b: bool) -> Ordering {
 fn inner(o: Ordering) -> bool {
     matches!(o, Ordering::Greater)
 }
-use connections::conn::ConnL;
 const BOOLORDR: ConnL<bool, Ordering> = Conn::new_l(ceil, inner);
 
 assert_eq!(BOOLORDR.ceil(false),              Ordering::Less);
@@ -233,8 +231,9 @@ arbitrary `Conn`s.
 A small change to Example 1 — supplying both the upper and lower
 adjoints on the L side — packs the whole chain into a single value:
 
-```rust,ignore
-use connections::conn::Conn;
+```rust
+use connections::conn::{Conn, ConnL, ConnR, ViewL, ViewR};
+use connections::triple;
 use std::cmp::Ordering;
 
 fn ceil(o: Ordering) -> bool {
@@ -246,7 +245,9 @@ fn inner(b: bool) -> Ordering {
 fn floor(o: Ordering) -> bool {
     matches!(o, Ordering::Greater)
 }
-const ORDRBOOL: Conn<Ordering, bool> = Conn::new(ceil, inner, floor);
+
+// Adjoint triples are unit-struct markers implementing ViewL + ViewR.
+triple! { pub ORDRBOOL : Ordering => bool { ceil: ceil, inner: inner, floor: floor } }
 
 // `ceil` reads the L-pair (ceil ⊣ inner); `floor` reads the R-pair
 // (inner ⊣ floor). They differ on `Equal`, where the bracket is open:
@@ -274,7 +275,8 @@ Integer widening through `Extended<T>` (so values *outside* the source
 range have somewhere to land — `floor` saturates to the target bounds,
 `ceil` lands on a synthetic point one past the source range):
 
-```rust,ignore
+```rust
+use connections::conn::{ViewL, ViewR};
 use connections::fixed::i16::U008I016;
 use connections::extended::Extended;
 
@@ -296,23 +298,24 @@ assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 
 `Conn` API — accessors and lifters operating on any `Conn`:
 
-```rust,ignore
-use connections::{ceiling, upper1};
+```rust
+use connections::conn::{ViewL, ViewR};
 use connections::fixed::i16::U008I016;
 use connections::extended::Extended;
 
-// `ceiling` is the named alias of `c.ceil` under the L-side reading.
+// `ceiling` is the named alias of `ceil` under the L-side reading.
+// Triple markers route via U008I016::L (the L-view ConnL).
 assert_eq!(
-    ceiling(&U008I016, Extended::Finite(200_u8)),
-    U008I016.ceil(Extended::Finite(200_u8)),
+    U008I016::L.ceiling(Extended::Finite(200_u8)),
+    U008I016::L.ceil(Extended::Finite(200_u8)),
 );
 
 // `upper1` lifts an endofunction over the target type back to the source:
 //   upper1(c, f, a) = inner(f(ceil(a)))
-let bumped = upper1(&U008I016, |n| n, Extended::Finite(200_u8));
+let bumped = U008I016::L.upper1(|n| n, Extended::Finite(200_u8));
 assert_eq!(
     bumped,
-    U008I016.inner(U008I016.ceil(Extended::Finite(200_u8))),
+    U008I016::L.upper(U008I016::L.ceiling(Extended::Finite(200_u8))),
 );
 ```
 
@@ -322,7 +325,8 @@ A sub-second `Duration` bracketed via the `time`-crate ladder (the same
 code block is mirrored verbatim into the `time` module-level
 rustdoc, so `cargo test --doc` keeps the two in sync):
 
-```rust,ignore
+```rust
+use connections::conn::{ViewL, ViewR};
 use connections::time::DURNSECS;
 use connections::extended::Extended;
 use time::Duration;
@@ -337,11 +341,12 @@ assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
 
 Round-tripping a unix-timestamp through `OffsetDateTime`:
 
-```rust,ignore
+```rust
 use connections::time::OFDTNANO;
 use connections::extended::Extended;
 use time::OffsetDateTime;
 
+// OFDTNANO is a one-sided ConnL; the L-side methods are inherent.
 assert_eq!(OFDTNANO.inner(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
 assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
 ```
@@ -350,7 +355,8 @@ assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
 
 Bracketing an IEEE-float number of seconds with `Duration`:
 
-```rust,ignore
+```rust
+use connections::conn::{ViewL, ViewR};
 use connections::float::ExtendedFloat;
 use connections::time::F064DURN;
 use connections::extended::Extended;
