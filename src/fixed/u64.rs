@@ -30,25 +30,19 @@ nz_uint_ext!(U064N064, u64, NonZeroU64);
 
 // ── §3 cross-crate iso: FixedU64<U0> ↔ u64 ─────────────────────────
 
-/// `FixedU64<U0> ↔ u64` — Q64.0 unsigned lossless iso. Degenerate Galois.
-pub struct Q000U064;
-
-impl Q000U064 {
-    const fn forward(q: FixedU64<U0>) -> u64 {
-        q.to_bits()
-    }
-    const fn back(i: u64) -> FixedU64<U0> {
-        FixedU64::<U0>::from_bits(i)
-    }
+const fn q000u064_fwd(q: FixedU64<U0>) -> u64 {
+    q.to_bits()
+}
+const fn q000u064_bk(i: u64) -> FixedU64<U0> {
+    FixedU64::<U0>::from_bits(i)
 }
 
-impl crate::conn::ViewL<FixedU64<U0>, u64> for Q000U064 {
-    const L: crate::conn::ConnL<FixedU64<U0>, u64> =
-        crate::conn::Conn::new_l(Q000U064::forward, Q000U064::back);
-}
-impl crate::conn::ViewR<FixedU64<U0>, u64> for Q000U064 {
-    const R: crate::conn::ConnR<FixedU64<U0>, u64> =
-        crate::conn::Conn::new_r(Q000U064::back, Q000U064::forward);
+crate::iso! {
+    /// `FixedU64<U0> ↔ u64` — Q64.0 unsigned lossless iso. Degenerate Galois.
+    pub Q000U064 : FixedU64<U0> => u64 {
+        forward: q000u064_fwd,
+        back:    q000u064_bk,
+    }
 }
 
 // ── §4 Q-format ladder over `FixedU64<Frac>` ────────────────────────

@@ -642,6 +642,43 @@ macro_rules! triple {
     };
 }
 
+/// Declaration-form macro: ship a degenerate-Galois iso (lossless
+/// bijection) from a single `(forward, back)` function pair.
+///
+/// Equivalent to [`triple!`] with `ceil = floor = forward`; the macro
+/// name itself flags the bijection so the body fields read as
+/// `forward` / `back` rather than `ceil` / `inner` / `floor`. Both
+/// `ViewL` and `ViewR` are implemented; every iso law (`galois_l`,
+/// `galois_r`, `floor_le_ceil`, `idempotent`, …) holds trivially.
+///
+/// ```ignore
+/// iso! {
+///     pub U032IPV4 : u32 => Ipv4Addr {
+///         forward: u32_to_v4,
+///         back:    v4_to_u32,
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! iso {
+    (
+        $(#[$meta:meta])*
+        $vis:vis $name:ident : $A:ty => $B:ty {
+            forward: $fwd:expr,
+            back:    $bk:expr $(,)?
+        }
+    ) => {
+        $crate::triple! {
+            $(#[$meta])*
+            $vis $name : $A => $B {
+                ceil:  $fwd,
+                inner: $bk,
+                floor: $fwd,
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -707,6 +744,49 @@ mod tests {
 
     crate::compose! {
         ComposedI32 : i32 => i32 => i32 = TripleIdI32, TripleAdd1
+    }
+
+    // ── iso! macro instantiation (Plan 31 T1 spot check) ─────────────
+
+    const fn _i32_to_u32(x: i32) -> u32 {
+        x as u32
+    }
+    const fn _u32_to_i32(x: u32) -> i32 {
+        x as i32
+    }
+
+    crate::iso! {
+        IsoI32U32 : i32 => u32 {
+            forward: _i32_to_u32,
+            back:    _u32_to_i32,
+        }
+    }
+
+    #[test]
+    fn iso_marker_zero_sized() {
+        assert_eq!(core::mem::size_of::<IsoI32U32>(), 0);
+    }
+
+    #[test]
+    fn iso_floor_eq_ceil() {
+        // iso! sets floor = ceil = forward, so both adjoints agree on
+        // every input (the defining property of a degenerate Galois
+        // iso).
+        for x in [i32::MIN, -1, 0, 1, 42, i32::MAX] {
+            assert_eq!(IsoI32U32::L.ceiling(x), IsoI32U32::R.floor(x));
+        }
+    }
+
+    #[test]
+    fn iso_round_trip_both_directions() {
+        for x in [i32::MIN, -1, 0, 1, 42, i32::MAX] {
+            let y = IsoI32U32::L.ceiling(x);
+            assert_eq!(IsoI32U32::L.upper(y), x);
+        }
+        for y in [0_u32, 1, 42, u32::MAX] {
+            let x = IsoI32U32::L.upper(y);
+            assert_eq!(IsoI32U32::L.ceiling(x), y);
+        }
     }
 
     #[test]

@@ -37,75 +37,63 @@ const V4MAPPED_LO: u128 = 0x0000_0000_0000_0000_0000_FFFF_0000_0000;
 /// `::ffff:ffff:ffff`.
 const V4MAPPED_HI: u128 = 0x0000_0000_0000_0000_0000_FFFF_FFFF_FFFF;
 
-/// `u32 ↔ Ipv4Addr` — total bijection via the standard big-endian
-/// representation.
-///
-/// Both directions are lossless; `floor = ceil = forward`
-/// (degenerate Galois, constructed via the [`triple!`](crate::triple) macro).
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::conn::{ViewL, ViewR};
-/// use connections::addr::U032IPV4;
-/// use std::net::Ipv4Addr;
-///
-/// assert_eq!(U032IPV4.ceil(0xC0A80101_u32), Ipv4Addr::new(192, 168, 1, 1));
-/// assert_eq!(U032IPV4.inner(Ipv4Addr::new(192, 168, 1, 1)), 0xC0A80101_u32);
-/// ```
-pub struct U032IPV4;
-
-impl U032IPV4 {
-    const fn _forward(b: u32) -> Ipv4Addr {
-        Ipv4Addr::from_bits(b)
-    }
-    const fn _back(a: Ipv4Addr) -> u32 {
-        a.to_bits()
-    }
+const fn u32_to_v4(b: u32) -> Ipv4Addr {
+    Ipv4Addr::from_bits(b)
+}
+const fn v4_to_u32(a: Ipv4Addr) -> u32 {
+    a.to_bits()
 }
 
-impl crate::conn::ViewL<u32, Ipv4Addr> for U032IPV4 {
-    const L: crate::conn::ConnL<u32, Ipv4Addr> =
-        crate::conn::Conn::new_l(U032IPV4::_forward, U032IPV4::_back);
-}
-impl crate::conn::ViewR<u32, Ipv4Addr> for U032IPV4 {
-    const R: crate::conn::ConnR<u32, Ipv4Addr> =
-        crate::conn::Conn::new_r(U032IPV4::_back, U032IPV4::_forward);
-}
-
-/// `u128 ↔ Ipv6Addr` — total bijection via the standard big-endian
-/// representation.
-///
-/// Both directions are lossless; `floor = ceil = forward`.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::conn::{ViewL, ViewR};
-/// use connections::addr::U128IPV6;
-/// use std::net::Ipv6Addr;
-///
-/// assert_eq!(U128IPV6.ceil(1_u128), Ipv6Addr::LOCALHOST);
-/// assert_eq!(U128IPV6.inner(Ipv6Addr::LOCALHOST), 1_u128);
-/// ```
-pub struct U128IPV6;
-
-impl U128IPV6 {
-    const fn _forward(b: u128) -> Ipv6Addr {
-        Ipv6Addr::from_bits(b)
-    }
-    const fn _back(a: Ipv6Addr) -> u128 {
-        a.to_bits()
+crate::iso! {
+    /// `u32 ↔ Ipv4Addr` — total bijection via the standard big-endian
+    /// representation.
+    ///
+    /// Both directions are lossless; `floor = ceil = forward`
+    /// (degenerate Galois, constructed via the [`iso!`](crate::iso) macro).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::addr::U032IPV4;
+    /// use std::net::Ipv4Addr;
+    ///
+    /// assert_eq!(U032IPV4.ceil(0xC0A80101_u32), Ipv4Addr::new(192, 168, 1, 1));
+    /// assert_eq!(U032IPV4.inner(Ipv4Addr::new(192, 168, 1, 1)), 0xC0A80101_u32);
+    /// ```
+    pub U032IPV4 : u32 => Ipv4Addr {
+        forward: u32_to_v4,
+        back:    v4_to_u32,
     }
 }
 
-impl crate::conn::ViewL<u128, Ipv6Addr> for U128IPV6 {
-    const L: crate::conn::ConnL<u128, Ipv6Addr> =
-        crate::conn::Conn::new_l(U128IPV6::_forward, U128IPV6::_back);
+const fn u128_to_v6(b: u128) -> Ipv6Addr {
+    Ipv6Addr::from_bits(b)
 }
-impl crate::conn::ViewR<u128, Ipv6Addr> for U128IPV6 {
-    const R: crate::conn::ConnR<u128, Ipv6Addr> =
-        crate::conn::Conn::new_r(U128IPV6::_back, U128IPV6::_forward);
+const fn v6_to_u128(a: Ipv6Addr) -> u128 {
+    a.to_bits()
+}
+
+crate::iso! {
+    /// `u128 ↔ Ipv6Addr` — total bijection via the standard big-endian
+    /// representation.
+    ///
+    /// Both directions are lossless; `floor = ceil = forward`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::addr::U128IPV6;
+    /// use std::net::Ipv6Addr;
+    ///
+    /// assert_eq!(U128IPV6.ceil(1_u128), Ipv6Addr::LOCALHOST);
+    /// assert_eq!(U128IPV6.inner(Ipv6Addr::LOCALHOST), 1_u128);
+    /// ```
+    pub U128IPV6 : u128 => Ipv6Addr {
+        forward: u128_to_v6,
+        back:    v6_to_u128,
+    }
 }
 
 /// `Ipv6Addr → Extended<Ipv4Addr>` — the v4-mapped bridge.

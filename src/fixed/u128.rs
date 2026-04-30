@@ -34,25 +34,19 @@ nz_uint_ext!(U128N128, u128, NonZeroU128);
 
 // ── §3 cross-crate iso: FixedU128<U0> ↔ u128 ───────────────────────
 
-/// `FixedU128<U0> ↔ u128` — Q128.0 unsigned lossless iso. Degenerate Galois.
-pub struct Q000U128;
-
-impl Q000U128 {
-    const fn forward(q: FixedU128<U0>) -> u128 {
-        q.to_bits()
-    }
-    const fn back(i: u128) -> FixedU128<U0> {
-        FixedU128::<U0>::from_bits(i)
-    }
+const fn q000u128_fwd(q: FixedU128<U0>) -> u128 {
+    q.to_bits()
+}
+const fn q000u128_bk(i: u128) -> FixedU128<U0> {
+    FixedU128::<U0>::from_bits(i)
 }
 
-impl crate::conn::ViewL<FixedU128<U0>, u128> for Q000U128 {
-    const L: crate::conn::ConnL<FixedU128<U0>, u128> =
-        crate::conn::Conn::new_l(Q000U128::forward, Q000U128::back);
-}
-impl crate::conn::ViewR<FixedU128<U0>, u128> for Q000U128 {
-    const R: crate::conn::ConnR<FixedU128<U0>, u128> =
-        crate::conn::Conn::new_r(Q000U128::back, Q000U128::forward);
+crate::iso! {
+    /// `FixedU128<U0> ↔ u128` — Q128.0 unsigned lossless iso. Degenerate Galois.
+    pub Q000U128 : FixedU128<U0> => u128 {
+        forward: q000u128_fwd,
+        back:    q000u128_bk,
+    }
 }
 
 // ── §4 Q-format ladder over `FixedU128<Frac>` ───────────────────────

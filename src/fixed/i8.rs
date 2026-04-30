@@ -60,27 +60,21 @@ nz_int_ext!(I008N008, i8, NonZeroI8);
 
 // ── §3 cross-crate iso: FixedI8<U0> ↔ i8 ───────────────────────────
 
-/// `FixedI8<U0> ↔ i8` — Q8.0 lossless iso, the canonical bridge
-/// between the Q-format and std-int views of the same 8-bit signed
-/// integer storage. Degenerate Galois (`floor = ceil`).
-pub struct Q000I008;
-
-impl Q000I008 {
-    const fn forward(q: FixedI8<U0>) -> i8 {
-        q.to_bits()
-    }
-    const fn back(i: i8) -> FixedI8<U0> {
-        FixedI8::<U0>::from_bits(i)
-    }
+const fn q000i008_fwd(q: FixedI8<U0>) -> i8 {
+    q.to_bits()
+}
+const fn q000i008_bk(i: i8) -> FixedI8<U0> {
+    FixedI8::<U0>::from_bits(i)
 }
 
-impl crate::conn::ViewL<FixedI8<U0>, i8> for Q000I008 {
-    const L: crate::conn::ConnL<FixedI8<U0>, i8> =
-        crate::conn::Conn::new_l(Q000I008::forward, Q000I008::back);
-}
-impl crate::conn::ViewR<FixedI8<U0>, i8> for Q000I008 {
-    const R: crate::conn::ConnR<FixedI8<U0>, i8> =
-        crate::conn::Conn::new_r(Q000I008::back, Q000I008::forward);
+crate::iso! {
+    /// `FixedI8<U0> ↔ i8` — Q8.0 lossless iso, the canonical bridge
+    /// between the Q-format and std-int views of the same 8-bit signed
+    /// integer storage. Degenerate Galois (`floor = ceil`).
+    pub Q000I008 : FixedI8<U0> => i8 {
+        forward: q000i008_fwd,
+        back:    q000i008_bk,
+    }
 }
 
 // ── §4 Q-format ladder over `FixedI8<Frac>` ─────────────────────────
