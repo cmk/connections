@@ -158,6 +158,7 @@
 #![forbid(unsafe_code)]
 
 pub mod addr;
+pub mod char;
 pub mod conn;
 pub mod extended;
 pub mod fixed;
