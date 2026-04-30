@@ -1,5 +1,8 @@
-error[E0432]: unresolved import `connections::conn::floor`
- --> tests/compile_fail/floor_on_l_conn.rs:4:38
-  |
-4 | use connections::conn::{Conn, ConnL, floor};
-  |                                      ^^^^^ no `floor` in `conn`
+error[E0599]: no method named `floor` found for struct `Conn<i32, i32>` in the current scope
+  --> tests/compile_fail/floor_on_l_conn.rs:10:20
+   |
+10 |     let _ = L_CONN.floor(0_i32);
+   |                    ^^^^^ method not found in `Conn<i32, i32>`
+   |
+   = note: the method was found for
+           - `Conn<A, B, R>`

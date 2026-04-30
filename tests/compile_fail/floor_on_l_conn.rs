@@ -1,10 +1,11 @@
-//! Calling the R-side `floor` free fn on an L-kind Conn should fail
-//! to type-check: `L: ImpliesR` is not satisfied.
+//! Calling `.floor(...)` on an L-kind Conn should fail to type-check:
+//! `floor` is an inherent method only on `Conn<_, _, R>`, so the
+//! method lookup on `Conn<i32, i32, L>` finds nothing.
 
-use connections::conn::{Conn, ConnL, floor};
+use connections::conn::{Conn, ConnL};
 
 const L_CONN: ConnL<i32, i32> = Conn::new_l(|x| x, |x| x);
 
 fn main() {
-    let _ = floor(&L_CONN, 0_i32);
+    let _ = L_CONN.floor(0_i32);
 }
