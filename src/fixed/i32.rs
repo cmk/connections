@@ -5,7 +5,7 @@
 //! design (this module mirrors it with `i32` inner / `i64` widening).
 
 use super::{ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
-use crate::conn::Conn;
+#[allow(unused_imports)]
 use crate::extended::Extended;
 use ::fixed::FixedI32;
 use ::fixed::types::extra::{U0, U4, U8, U16, U24, U32, Unsigned};

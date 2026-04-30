@@ -17,7 +17,6 @@
 //! amplitude format, included alongside the mirror-of-signed levels.
 
 use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint_narrow};
-use crate::conn::Conn;
 use ::fixed::FixedU8;
 use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U7, U8, Unsigned};
 use core::num::NonZeroU8;

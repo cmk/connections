@@ -59,6 +59,13 @@ testing = ["dep:proptest"]
 # builds skip the f16 path entirely.
 f16 = []
 
+# Re-export the crate's internal codegen macros under
+# `connections::macros` for downstream crates building their own
+# bounded-integer / Q-format / NonZero / iso lattices on top of
+# this crate. Adds no new code (the macros already exist as
+# `pub(crate)`); just lifts visibility. See `src/macros.rs`.
+macros = []
+
 # docs.rs builds on stable rustc by default. We can't use
 # `all-features = true` because the `f16` feature activates
 # `#![cfg_attr(feature = "f16", feature(f16))]` — a nightly-only

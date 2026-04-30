@@ -79,6 +79,7 @@
 ///
 /// `ceil` is the lossless `as`-upcast; `inner` saturates targets
 /// above `u_N::MAX` down to `u_N::MAX` before downcasting.
+#[cfg_attr(feature = "macros", macro_export)]
 macro_rules! uint_uint {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating cast.")]
@@ -91,7 +92,7 @@ macro_rules! uint_uint {
                 let clipped = if x > cap { cap } else { x };
                 clipped as $A
             }
-            Conn::new_l(ceil, inner)
+            $crate::conn::Conn::new_l(ceil, inner)
         };
     };
 }
@@ -103,6 +104,7 @@ pub(crate) use uint_uint;
 /// `ceil` clips negatives to `0` then upcasts (lossless on the
 /// non-negative half by the bit-width constraint); `inner`
 /// saturates targets above `i_N::MAX` down to `i_N::MAX`.
+#[cfg_attr(feature = "macros", macro_export)]
 macro_rules! int_uint {
     ($NAME:ident, $A:ty, $B:ty) => {
         // rustfmt's indent-instability bug with `#[doc = concat!(...)]`
@@ -126,7 +128,7 @@ macro_rules! int_uint {
                 let clipped = if x > cap { cap } else { x };
                 clipped as $A
             }
-            Conn::new_l(ceil, inner)
+            $crate::conn::Conn::new_l(ceil, inner)
         };
     };
 }
@@ -144,6 +146,7 @@ pub(crate) use int_uint;
 /// - `<$B>::MIN < BELOW` and `<$B>::MAX > ABOVE` (i.e. target has
 ///   room beyond the source range so saturation values are
 ///   distinct).
+#[cfg_attr(feature = "macros", macro_export)]
 macro_rules! ext_int {
     ($NAME:ident, $A:ty, $B:ty) => {
 #[rustfmt::skip]
@@ -159,37 +162,37 @@ macro_rules! ext_int {
         impl $NAME {
             const BELOW: $B = (<$A>::MIN as $B) - 1;
             const ABOVE: $B = (<$A>::MAX as $B) + 1;
-            const fn _ceil(x: Extended<$A>) -> $B {
+            const fn _ceil(x: $crate::extended::Extended<$A>) -> $B {
                 match x {
-                    Extended::NegInf => <$B>::MIN,
-                    Extended::Finite(a) => a as $B,
-                    Extended::PosInf => Self::ABOVE,
+                    $crate::extended::Extended::NegInf => <$B>::MIN,
+                    $crate::extended::Extended::Finite(a) => a as $B,
+                    $crate::extended::Extended::PosInf => Self::ABOVE,
                 }
             }
-            const fn _inner(x: $B) -> Extended<$A> {
+            const fn _inner(x: $B) -> $crate::extended::Extended<$A> {
                 if x <= Self::BELOW {
-                    Extended::NegInf
+                    $crate::extended::Extended::NegInf
                 } else if x >= Self::ABOVE {
-                    Extended::PosInf
+                    $crate::extended::Extended::PosInf
                 } else {
-                    Extended::Finite(x as $A)
+                    $crate::extended::Extended::Finite(x as $A)
                 }
             }
-            const fn _floor(x: Extended<$A>) -> $B {
+            const fn _floor(x: $crate::extended::Extended<$A>) -> $B {
                 match x {
-                    Extended::NegInf => Self::BELOW,
-                    Extended::Finite(a) => a as $B,
-                    Extended::PosInf => <$B>::MAX,
+                    $crate::extended::Extended::NegInf => Self::BELOW,
+                    $crate::extended::Extended::Finite(a) => a as $B,
+                    $crate::extended::Extended::PosInf => <$B>::MAX,
                 }
             }
         }
 
-        impl $crate::conn::ViewL<Extended<$A>, $B> for $NAME {
-            const L: $crate::conn::ConnL<Extended<$A>, $B> =
+        impl $crate::conn::ViewL<$crate::extended::Extended<$A>, $B> for $NAME {
+            const L: $crate::conn::ConnL<$crate::extended::Extended<$A>, $B> =
                 $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner);
         }
-        impl $crate::conn::ViewR<Extended<$A>, $B> for $NAME {
-            const R: $crate::conn::ConnR<Extended<$A>, $B> =
+        impl $crate::conn::ViewR<$crate::extended::Extended<$A>, $B> for $NAME {
+            const R: $crate::conn::ConnR<$crate::extended::Extended<$A>, $B> =
                 $crate::conn::Conn::new_r($NAME::_inner, $NAME::_floor);
         }
     };
@@ -221,6 +224,7 @@ pub(crate) use ext_int;
 /// constraint). Both sides match without fiddling. Compare the
 /// high end, where `ceil` collapsing onto `i_M::MAX` does require
 /// the fixup so `a ≤ inner(i_M::MAX) = i_N::MAX` holds.
+#[cfg_attr(feature = "macros", macro_export)]
 macro_rules! int_int_narrow {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
@@ -237,7 +241,7 @@ macro_rules! int_int_narrow {
             fn inner(x: $B) -> $A {
                 if x == <$B>::MAX { <$A>::MAX } else { x as $A }
             }
-            Conn::new_l(ceil, inner)
+            $crate::conn::Conn::new_l(ceil, inner)
         };
     };
 }
@@ -258,6 +262,7 @@ pub(crate) use int_int_narrow;
 /// left-Galois to hold at the source-side saturation plateau
 /// (mirrors the same pattern in the per-primitive `fix_fix_uN!`
 /// macros).
+#[cfg_attr(feature = "macros", macro_export)]
 macro_rules! uint_uint_narrow {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
@@ -272,7 +277,7 @@ macro_rules! uint_uint_narrow {
             fn inner(x: $B) -> $A {
                 if x == <$B>::MAX { <$A>::MAX } else { x as $A }
             }
-            Conn::new_l(ceil, inner)
+            $crate::conn::Conn::new_l(ceil, inner)
         };
     };
 }
@@ -297,6 +302,7 @@ pub(crate) use uint_uint_narrow;
 /// `[0, i_M::MAX as u_N]`, and `floor`'s collapse at the high
 /// plateau aligns the target-side fiber with the source identity at
 /// `i_M::MAX`.
+#[cfg_attr(feature = "macros", macro_export)]
 macro_rules! uint_int_sat {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating cast (right-Galois).")]
@@ -311,7 +317,7 @@ macro_rules! uint_int_sat {
             fn inner(x: $B) -> $A {
                 if x < 0 { 0 } else { x as $A }
             }
-            Conn::new_r(inner, floor)
+            $crate::conn::Conn::new_r(inner, floor)
         };
     };
 }
@@ -337,6 +343,7 @@ pub(crate) use uint_int_sat;
 /// asymmetric `floor`/`ceil` lift the target's puncture at zero to a
 /// [-1, +1] sandwich on the source side, exactly bracketing the
 /// missing value.
+#[cfg_attr(feature = "macros", macro_export)]
 macro_rules! nz_int_ext {
     ($NAME:ident, $A:ty, $NZ:ty) => {
 #[rustfmt::skip]
@@ -390,6 +397,7 @@ pub(crate) use nz_int_ext;
 /// below 1 to act as the "previous" rounding target).
 ///
 /// [`Conn::new_l`]: crate::conn::Conn::new_l
+#[cfg_attr(feature = "macros", macro_export)]
 macro_rules! nz_uint_ext {
     ($NAME:ident, $A:ty, $NZ:ty) => {
 #[rustfmt::skip]
@@ -430,6 +438,7 @@ pub(crate) use nz_uint_ext;
 /// fixup (`inner(u_M::MAX) = i_N::MAX`). The negative half of the
 /// source has no plateau issue (it collapses on `ceil`, the
 /// source-side fiber compatible with left-Galois).
+#[cfg_attr(feature = "macros", macro_export)]
 macro_rules! int_uint_narrow {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
@@ -446,7 +455,7 @@ macro_rules! int_uint_narrow {
             fn inner(x: $B) -> $A {
                 if x == <$B>::MAX { <$A>::MAX } else { x as $A }
             }
-            Conn::new_l(ceil, inner)
+            $crate::conn::Conn::new_l(ceil, inner)
         };
     };
 }

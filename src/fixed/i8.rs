@@ -32,7 +32,6 @@
 //! ```
 
 use super::{int_int_narrow, nz_int_ext, uint_int_sat};
-use crate::conn::Conn;
 use ::fixed::FixedI8;
 use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U8, Unsigned};
 use core::num::NonZeroI8;

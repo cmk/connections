@@ -40,7 +40,7 @@
 //! same construction as the smaller modules.
 
 use super::{ext_int, nz_int_ext, uint_int_sat};
-use crate::conn::Conn;
+#[allow(unused_imports)]
 use crate::extended::Extended;
 use ::fixed::FixedI128;
 use ::fixed::types::extra::{U0, U16, U32, U64, U96, U128, Unsigned};

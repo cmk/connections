@@ -196,3 +196,51 @@ pub use conn::{Triple, ViewL, ViewR};
 // over this crate's types. `arb` is gated on the `testing` feature,
 // which flips `proptest` from a dev-dep to an optional regular dep.
 pub mod prop;
+
+/// Codegen macros for downstream crates building their own
+/// bounded-integer / Q-format / NonZero / iso lattices on top of
+/// this crate. Gated on the `macros` cargo feature.
+///
+/// The macros listed here are accessible at the crate root
+/// (e.g. `connections::uint_uint!`) once the feature is enabled —
+/// `pub use` aliases under `connections::macros::*` provide an
+/// alternative curated namespace.
+///
+/// | macro                 | purpose                                                                       |
+/// |-----------------------|-------------------------------------------------------------------------------|
+/// | [`iso!`]              | degenerate-Galois bijection (lossless iso) from a `(forward, back)` pair.     |
+/// | [`triple!`]           | full adjoint triple from `(ceil, inner, floor)`.                              |
+/// | [`compose!`]          | declaration-form composition of two triple markers.                           |
+/// | [`compose_l!`]        | compose a chain of L-Conn paths into a fresh `ConnL`.                         |
+/// | [`compose_r!`]        | compose a chain of R-Conn paths into a fresh `ConnR`.                         |
+/// | [`uint_uint!`]        | `Conn<u_N, u_M>` widening (left-Galois).                                      |
+/// | [`int_uint!`]         | `Conn<i_N, u_M>` widening / same-width cross-sign (left-Galois).              |
+/// | [`ext_int!`]          | `Conn<Extended<$A>, $B>` widening with Extended source (full triple).         |
+/// | [`int_int_narrow!`]   | `Conn<i_N, i_M>` narrowing (left-Galois).                                     |
+/// | [`uint_uint_narrow!`] | `Conn<u_N, u_M>` narrowing (left-Galois).                                     |
+/// | [`uint_int_sat!`]     | `Conn<u_N, i_M>` non-widening cross-sign (right-Galois).                      |
+/// | [`int_uint_narrow!`]  | `Conn<i_N, u_M>` narrowing (left-Galois).                                     |
+/// | [`nz_int_ext!`]       | `Conn<i_N, NonZero<i_N>>` asymmetric-at-zero adjoint (full triple).           |
+/// | [`nz_uint_ext!`]      | `Conn<u_N, NonZero<u_N>>` saturating-to-NonZero(1) (left-Galois).             |
+///
+/// [`iso!`]: crate::iso
+/// [`triple!`]: crate::triple
+/// [`compose!`]: crate::compose
+/// [`compose_l!`]: crate::compose_l
+/// [`compose_r!`]: crate::compose_r
+/// [`uint_uint!`]: crate::uint_uint
+/// [`int_uint!`]: crate::int_uint
+/// [`ext_int!`]: crate::ext_int
+/// [`int_int_narrow!`]: crate::int_int_narrow
+/// [`uint_uint_narrow!`]: crate::uint_uint_narrow
+/// [`uint_int_sat!`]: crate::uint_int_sat
+/// [`int_uint_narrow!`]: crate::int_uint_narrow
+/// [`nz_int_ext!`]: crate::nz_int_ext
+/// [`nz_uint_ext!`]: crate::nz_uint_ext
+#[cfg(feature = "macros")]
+pub mod macros {
+    pub use crate::{
+        compose, compose_l, compose_r, ext_int, int_int_narrow, int_uint, int_uint_narrow, iso,
+        nz_int_ext, nz_uint_ext, triple, uint_int_sat, uint_uint, uint_uint_narrow,
+    };
+}

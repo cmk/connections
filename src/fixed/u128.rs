@@ -11,7 +11,6 @@
 //! `RATIO = 2^128` doesn't fit in `u128` at all).
 
 use super::{int_uint, nz_uint_ext, uint_uint};
-use crate::conn::Conn;
 use ::fixed::FixedU128;
 use ::fixed::types::extra::{U0, U16, U32, U64, U96, U127, U128, Unsigned};
 use core::num::NonZeroU128;

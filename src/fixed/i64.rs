@@ -5,7 +5,7 @@
 //! design (this module mirrors it with `i64` inner / `i128` widening).
 
 use super::{ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
-use crate::conn::Conn;
+#[allow(unused_imports)]
 use crate::extended::Extended;
 use ::fixed::FixedI64;
 use ::fixed::types::extra::{U0, U8, U16, U32, U48, U64, Unsigned};
