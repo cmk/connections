@@ -255,8 +255,14 @@ impl crate::conn::ViewR<Ipv6Addr, Extended<Ipv4Addr>> for IPV6IPV4 {
 /// // V6 input saturates above all V4 values.
 /// assert_eq!(IPVXIPV4.ceil(IpAddr::V6(Ipv6Addr::LOCALHOST)), Extended::PosInf);
 ///
-/// // `floor` returns the same as `ceil` (one-sided contract).
-/// assert_eq!(IPVXIPV4.ceil(IpAddr::V6(Ipv6Addr::LOCALHOST)), Extended::PosInf);
+/// // IPVXIPV4 is a one-sided ConnL — no `.floor()` method exists,
+/// // and no R-view is exposed. `inner` is the surviving lower-side
+/// // accessor; `inner(PosInf)` saturates to the source MAX
+/// // (`V6` with all bits set) per the L-Galois right-adjoint formula.
+/// assert_eq!(
+///     IPVXIPV4.inner(Extended::PosInf),
+///     IpAddr::V6(Ipv6Addr::from_bits(u128::MAX)),
+/// );
 /// ```
 pub const IPVXIPV4: crate::conn::ConnL<IpAddr, Extended<Ipv4Addr>> = {
     fn ceil(a: IpAddr) -> Extended<Ipv4Addr> {
@@ -312,8 +318,10 @@ pub const IPVXIPV4: crate::conn::ConnL<IpAddr, Extended<Ipv4Addr>> = {
 /// // V4 input saturates below all V6 values.
 /// assert_eq!(IPVXIPV6.floor(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))), Extended::NegInf);
 ///
-/// // `ceil` returns the same as `floor` (one-sided contract).
-/// assert_eq!(IPVXIPV6.floor(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))),  Extended::NegInf);
+/// // IPVXIPV6 is a one-sided ConnR — no `.ceil()` method exists,
+/// // and no L-view is exposed. `inner` is the surviving lower-side
+/// // accessor.
+/// assert_eq!(IPVXIPV6.inner(Extended::NegInf), IpAddr::V4(Ipv4Addr::UNSPECIFIED));
 /// ```
 pub const IPVXIPV6: crate::conn::ConnR<IpAddr, Extended<Ipv6Addr>> = {
     fn inner(b: Extended<Ipv6Addr>) -> IpAddr {

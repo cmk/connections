@@ -313,6 +313,15 @@ impl<X> Conn<X, X, L> {
 /// Default methods dispatch through [`Self::L`] so values that
 /// implement [`ViewL`] gain `.ceiling()` / `.upper()` (and the
 /// back-compat aliases `.ceil()` / `.inner()`) directly.
+///
+/// **Implementor contract: `Self` should be a zero-sized type.** The
+/// default methods take `&self` for ergonomic method-call syntax
+/// (`marker.ceiling(x)`) but ignore the receiver entirely; they
+/// always dispatch through the associated const [`Self::L`]. A
+/// non-ZST implementor would silently lose its instance state at
+/// every call. The macros that ship triples (`triple!`, `ext_int!`,
+/// `nz_int_ext!`, `fix_fix_*!`) emit unit structs to satisfy this
+/// contract; downstream impls should do the same.
 pub trait ViewL<A: Copy, B: Copy> {
     /// The L-view: an `L`-kinded `Conn<A, B>`.
     const L: ConnL<A, B>;
@@ -349,6 +358,10 @@ pub trait ViewL<A: Copy, B: Copy> {
 ///
 /// Default methods give values that implement [`ViewR`] direct
 /// `.floor()` / `.lower()` access.
+///
+/// **Implementor contract: `Self` should be a zero-sized type.** Same
+/// rationale as [`ViewL`] — the default methods ignore the receiver
+/// and dispatch through [`Self::R`].
 pub trait ViewR<A: Copy, B: Copy> {
     /// The R-view: an `R`-kinded `Conn<A, B>`.
     const R: ConnR<A, B>;
@@ -424,6 +437,14 @@ where
 
 /// Lift a unary function `h: A → A` through the triple, with the
 /// result truncated toward zero.
+///
+/// We widen `x: B → A` via `T::L.upper`, but `truncate` then routes
+/// the positive branch through `T::R.floor` and the negative through
+/// `T::L.ceiling`. Choosing `T::L.upper` here is canonical: in any
+/// lawful triple, `T::L`'s `g` field and `T::R`'s `g` field are both
+/// the same shared middle adjoint (the `inner` from Haskell's `Cast`
+/// triple), so widening through either view yields the same value.
+/// We pick L by convention.
 #[inline]
 #[must_use]
 pub fn truncate1<T, A, B, H>(t: &T, h: H, x: B) -> B

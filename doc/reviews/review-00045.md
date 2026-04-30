@@ -325,3 +325,65 @@ The `compose!` and `triple!` macros are dead from a testing perspective. If they
 ### Net assessment
 
 **Clear to push.** Both round-1 must-fix items landed correctly. All four follow-ups are addressed with genuine kind-discipline fixtures and a full proptest battery. The test suite passes clean. Clippy is clean. The two new issues are quality follow-ups, not blockers. The branch is ready to push.
+
+<!-- glab-id: 3302801510 -->
+<!-- glab-discussion: 72e1aac08b43215e2adfc93e487a901a74862116 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 — (2026-04-30 09:05 UTC) [open]
+
+**[must-fix]** `src/addr/ip.rs:256` — The doctest for `IPVXIPV4` previously demonstrated that `floor` and `ceil` return the same value on a one-sided conn, but after the migration the assertion was changed from `IPVXIPV4.floor(...)` to `IPVXIPV4.ceil(...)` — so both lines now assert the same thing (`ceil` twice) and the test no longer demonstrates the one-sided property it claims to document. The comment still says `// 'floor' returns the same as 'ceil' (one-sided contract)` but no `floor` call appears. Either restore the second assertion using `IPVXIPV4::R` or remove the misleading comment.
+
+*(inline anchor rejected by GitLab: 400)*
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3302801541 -->
+<!-- glab-discussion: ceedfe26cf23b5e935149dfdc0483a9e8e11b555 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/addr/socket.rs:69` (2026-04-30 09:05 UTC) [open]
+
+**[must-fix]** Same issue as `ip.rs:256`: the doctest comment says `// 'floor' returns the same as 'ceil' (one-sided contract)` but the assertion was changed from `SOVXSOV4.floor(...)` to `SOVXSOV4.ceil(...)`, making both lines identical. The claimed one-sided contract is no longer demonstrated. The analogous change at `socket.rs:125` (`SOVXSOV6`) has the same problem for the `ceil` / `floor` pair. Either restore meaningful assertions or remove the misleading comments.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3302801578 -->
+<!-- glab-discussion: 243cd0810fcd2d9682759754cd2ab4e557de7ed6 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn.rs:436` (2026-04-30 09:05 UTC) [open]
+
+**[follow-up]** `truncate1` reaches the upper adjoint through `ViewL` (`<T as ViewL<A,B>>::L.upper(x)`) to widen `x: B` to `A` before calling `truncate`. But `truncate` itself routes the positive branch through `ViewR::R.floor` and the negative branch through `ViewL::L.ceiling`. The Haskell original uses `inner` from either side (they share the middle adjoint); in the new design the L upper and R lower are wired to different fn pointers (`f` vs `g` of different Conn values). For a lawful triple these coincide, so the behavior is correct, but it is worth a comment explaining why `ViewL::L.upper` is the right choice here (the L and R `g` fields are both `inner` by convention in any lawful triple).
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3302801620 -->
+<!-- glab-discussion: df17c82fb8589d9a013e5ec90f3633db9d983b42 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/conn.rs:316` (2026-04-30 09:05 UTC) [open]
+
+**[follow-up]** The `ViewL` and `ViewR` trait default methods take `&self` but only ever delegate to the associated const `Self::L` / `Self::R`, ignoring the receiver entirely. This means zero-sized triple markers work fine, but a hypothetical non-ZST implementor would silently ignore its own state. The plan text acknowledges triple markers are always zero-sized, but the trait definition itself has no `where Self: Sized` or documentation note constraining implementors. A short doc comment stating the expectation (implementors should be ZSTs) would prevent misuse.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3302830549 -->
+<!-- glab-discussion: 72e1aac08b43215e2adfc93e487a901a74862116 -->
+#### ↳ cmk (2026-04-30 09:14 UTC) [open]
+
+Fixed — IPVXIPV4 is a one-sided ConnL with no `.floor()` method, so the second assertion now exercises `.inner()` (the surviving lower-side accessor for the L-pair) and the comment was rewritten to match. IPVXIPV6 got the symmetric treatment.
+
+<!-- glab-id: 3302831042 -->
+<!-- glab-discussion: ceedfe26cf23b5e935149dfdc0483a9e8e11b555 -->
+#### ↳ cmk (2026-04-30 09:14 UTC) [open]
+
+Fixed — same shape as the ip.rs thread: SOVXSOV4 and SOVXSOV6 are one-sided so the second assertion now exercises `.inner()` and the misleading "floor returns same as ceil" comment is gone.
+
+<!-- glab-id: 3302831958 -->
+<!-- glab-discussion: 243cd0810fcd2d9682759754cd2ab4e557de7ed6 -->
+#### ↳ cmk (2026-04-30 09:14 UTC) [open]
+
+Added — truncate1's docstring now explains that both views' `g` fields are wired to the same shared middle adjoint in any lawful triple, so widening through `<T as ViewL<A,B>>::L.upper` is canonical (we pick L by convention).
+
+<!-- glab-id: 3302833323 -->
+<!-- glab-discussion: df17c82fb8589d9a013e5ec90f3633db9d983b42 -->
+#### ↳ cmk (2026-04-30 09:14 UTC) [open]
+
+Added an "Implementor contract" paragraph to both `ViewL` and `ViewR` documenting that `Self` should be a zero-sized type, and noting the macros (`triple!`, `ext_int!`, `nz_int_ext!`, `fix_fix_*!`) emit unit structs to satisfy that contract. No `where Self: Sized` bound — kept it doc-only since enforcing structurally would gratuitously block ZST-with-PhantomData markers downstream.

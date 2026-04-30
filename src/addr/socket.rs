@@ -65,8 +65,9 @@ const fn sov6_max() -> SocketAddrV6 {
 /// let v6 = SocketAddrV6::new(Ipv6Addr::LOCALHOST, 80, 0, 0);
 /// assert_eq!(SOVXSOV4.ceil(SocketAddr::V6(v6)),  Extended::PosInf);
 ///
-/// // `floor` returns the same as `ceil` (one-sided contract).
-/// assert_eq!(SOVXSOV4.ceil(SocketAddr::V6(v6)), Extended::PosInf);
+/// // SOVXSOV4 is a one-sided ConnL — no `.floor()` method exists.
+/// // `inner` is the surviving lower-side accessor for the L-pair.
+/// let _: SocketAddr = SOVXSOV4.inner(Extended::Finite(v4));
 /// ```
 pub const SOVXSOV4: crate::conn::ConnL<SocketAddr, Extended<SocketAddrV4>> = {
     fn ceil(s: SocketAddr) -> Extended<SocketAddrV4> {
@@ -121,8 +122,9 @@ pub const SOVXSOV4: crate::conn::ConnL<SocketAddr, Extended<SocketAddrV4>> = {
 /// let v4 = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 80);
 /// assert_eq!(SOVXSOV6.floor(SocketAddr::V4(v4)), Extended::NegInf);
 ///
-/// // `ceil` returns the same as `floor` (one-sided contract).
-/// assert_eq!(SOVXSOV6.floor(SocketAddr::V4(v4)),  Extended::NegInf);
+/// // SOVXSOV6 is a one-sided ConnR — no `.ceil()` method exists.
+/// // `inner` is the surviving lower-side accessor for the R-pair.
+/// let _: SocketAddr = SOVXSOV6.inner(Extended::Finite(v6));
 /// ```
 pub const SOVXSOV6: crate::conn::ConnR<SocketAddr, Extended<SocketAddrV6>> = {
     fn inner(b: Extended<SocketAddrV6>) -> SocketAddr {
