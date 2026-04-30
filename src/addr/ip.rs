@@ -96,120 +96,115 @@ crate::iso! {
     }
 }
 
-/// `Ipv6Addr → Extended<Ipv4Addr>` — the v4-mapped bridge.
-///
-/// The forward map projects an `Ipv6Addr` onto its embedded
-/// `Ipv4Addr` whenever the address sits in the v4-mapped prefix
-/// `::ffff:0:0/96`; outside that block, projection saturates to
-/// `NegInf` / `PosInf` on the rung. Target `Extended<Ipv4Addr>`
-/// supplies the synthetic ends; source `Ipv6Addr` stays plain (the
-/// Ipv6 range is its own bounded universe).
-///
-/// On the v4-mapped block the Conn is bijective — `ceil = floor =
-/// Finite(extracted v4)`, and `inner` round-trips via
-/// `Ipv4Addr::to_ipv6_mapped`.
-///
-/// Outside the v4-mapped block the Conn has asymmetric arms: ceil
-/// rounds *up* into the block (or saturates above), floor rounds
-/// *down* (or saturates below). This is a lawful full triple
-/// (`floor ≤ ceil` everywhere) because `inner` is order-reflecting:
-/// `inner(NegInf) = ::` is strictly below `inner(Finite(0.0.0.0)) =
-/// ::ffff:0:0`, and `inner(PosInf) = MAX` is strictly above
-/// `inner(Finite(255.255.255.255)) = ::ffff:ffff:ffff` — the
-/// pre-block and post-block "room" plays the role that subsec
-/// precision plays in `DURNSECS`. Ceil and floor agree at the Ipv6
-/// extremes (`::`, `Ipv6Addr::MAX`) and inside the v4-mapped block;
-/// below or above the block they diverge:
-///
-/// | v6 region                      | `ceil`                  | `floor`                  |
-/// |--------------------------------|-------------------------|--------------------------|
-/// | `::` (UNSPECIFIED)             | `NegInf`                | `NegInf`                 |
-/// | `::1` …  `::ffff:0:0 - 1`      | `Finite(0.0.0.0)`       | `NegInf`                 |
-/// | `::ffff:0:0` … `::ffff:ffff:ffff` | `Finite(extracted v4)` | `Finite(extracted v4)` |
-/// | `::1:0:0:0` … `MAX - 1`        | `PosInf`                | `Finite(255.255.255.255)`|
-/// | `MAX`                          | `PosInf`                | `PosInf`                 |
-///
-/// `inner` is the v4-mapped embedding (synthetic ends saturate to
-/// `Ipv6Addr::UNSPECIFIED` and `Ipv6Addr::MAX` respectively).
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::conn::{ViewL, ViewR};
-/// use connections::addr::ip::IPV6IPV4;
-/// use connections::extended::Extended;
-/// use std::net::{Ipv4Addr, Ipv6Addr};
-///
-/// // V4-mapped Ipv6 round-trips through the bridge.
-/// let v4_in_v6: Ipv6Addr = "::ffff:7f00:1".parse().unwrap();
-/// assert_eq!(
-///     IPV6IPV4.ceil(v4_in_v6),
-///     Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))
-/// );
-/// assert_eq!(
-///     IPV6IPV4.inner(Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))),
-///     v4_in_v6
-/// );
-///
-/// // `::1` (loopback) sits below the v4-mapped block — ceil and
-/// // floor diverge.
-/// assert_eq!(IPV6IPV4.ceil(Ipv6Addr::LOCALHOST),  Extended::Finite(Ipv4Addr::UNSPECIFIED));
-/// assert_eq!(IPV6IPV4.floor(Ipv6Addr::LOCALHOST), Extended::NegInf);
-/// ```
-pub struct IPV6IPV4;
-
-impl IPV6IPV4 {
-    const fn _ceil(v6: Ipv6Addr) -> Extended<Ipv4Addr> {
-        let bits = v6.to_bits();
-        if bits == 0 {
-            // `::` — Galois pins ceil to NegInf because inner(NegInf) = `::`.
-            Extended::NegInf
-        } else if bits < V4MAPPED_LO {
-            // Below v4-mapped block — smallest rung b with v6 ≤ inner(b)
-            // is `Finite(0.0.0.0)` (whose inner is `::ffff:0:0`).
-            Extended::Finite(Ipv4Addr::UNSPECIFIED)
-        } else if bits <= V4MAPPED_HI {
-            Extended::Finite(Ipv4Addr::from_bits(bits as u32))
-        } else {
-            // Above v4-mapped block — no Finite v4 has inner(v4) ≥ v6.
-            Extended::PosInf
-        }
-    }
-
-    const fn _inner(b: Extended<Ipv4Addr>) -> Ipv6Addr {
-        match b {
-            Extended::NegInf => Ipv6Addr::UNSPECIFIED,
-            Extended::Finite(v4) => v4.to_ipv6_mapped(),
-            Extended::PosInf => Ipv6Addr::from_bits(u128::MAX),
-        }
-    }
-
-    const fn _floor(v6: Ipv6Addr) -> Extended<Ipv4Addr> {
-        let bits = v6.to_bits();
-        if bits == u128::MAX {
-            // `MAX` — Galois pins floor to PosInf (inner(PosInf) = MAX).
-            Extended::PosInf
-        } else if bits < V4MAPPED_LO {
-            // Below v4-mapped block — no Finite v4 has inner(v4) ≤ v6
-            // (inner of any Finite is in the block).
-            Extended::NegInf
-        } else if bits <= V4MAPPED_HI {
-            Extended::Finite(Ipv4Addr::from_bits(bits as u32))
-        } else {
-            // Above v4-mapped block — largest Finite v4 with inner ≤ v6
-            // is `Finite(255.255.255.255)` (whose inner is V4MAPPED_HI).
-            Extended::Finite(Ipv4Addr::BROADCAST)
-        }
+const fn ipv6ipv4_ceil(v6: Ipv6Addr) -> Extended<Ipv4Addr> {
+    let bits = v6.to_bits();
+    if bits == 0 {
+        // `::` — Galois pins ceil to NegInf because inner(NegInf) = `::`.
+        Extended::NegInf
+    } else if bits < V4MAPPED_LO {
+        // Below v4-mapped block — smallest rung b with v6 ≤ inner(b)
+        // is `Finite(0.0.0.0)` (whose inner is `::ffff:0:0`).
+        Extended::Finite(Ipv4Addr::UNSPECIFIED)
+    } else if bits <= V4MAPPED_HI {
+        Extended::Finite(Ipv4Addr::from_bits(bits as u32))
+    } else {
+        // Above v4-mapped block — no Finite v4 has inner(v4) ≥ v6.
+        Extended::PosInf
     }
 }
 
-impl crate::conn::ViewL<Ipv6Addr, Extended<Ipv4Addr>> for IPV6IPV4 {
-    const L: crate::conn::ConnL<Ipv6Addr, Extended<Ipv4Addr>> =
-        crate::conn::Conn::new_l(IPV6IPV4::_ceil, IPV6IPV4::_inner);
+const fn ipv6ipv4_inner(b: Extended<Ipv4Addr>) -> Ipv6Addr {
+    match b {
+        Extended::NegInf => Ipv6Addr::UNSPECIFIED,
+        Extended::Finite(v4) => v4.to_ipv6_mapped(),
+        Extended::PosInf => Ipv6Addr::from_bits(u128::MAX),
+    }
 }
-impl crate::conn::ViewR<Ipv6Addr, Extended<Ipv4Addr>> for IPV6IPV4 {
-    const R: crate::conn::ConnR<Ipv6Addr, Extended<Ipv4Addr>> =
-        crate::conn::Conn::new_r(IPV6IPV4::_inner, IPV6IPV4::_floor);
+
+const fn ipv6ipv4_floor(v6: Ipv6Addr) -> Extended<Ipv4Addr> {
+    let bits = v6.to_bits();
+    if bits == u128::MAX {
+        // `MAX` — Galois pins floor to PosInf (inner(PosInf) = MAX).
+        Extended::PosInf
+    } else if bits < V4MAPPED_LO {
+        // Below v4-mapped block — no Finite v4 has inner(v4) ≤ v6
+        // (inner of any Finite is in the block).
+        Extended::NegInf
+    } else if bits <= V4MAPPED_HI {
+        Extended::Finite(Ipv4Addr::from_bits(bits as u32))
+    } else {
+        // Above v4-mapped block — largest Finite v4 with inner ≤ v6
+        // is `Finite(255.255.255.255)` (whose inner is V4MAPPED_HI).
+        Extended::Finite(Ipv4Addr::BROADCAST)
+    }
+}
+
+crate::triple! {
+    /// `Ipv6Addr → Extended<Ipv4Addr>` — the v4-mapped bridge.
+    ///
+    /// The forward map projects an `Ipv6Addr` onto its embedded
+    /// `Ipv4Addr` whenever the address sits in the v4-mapped prefix
+    /// `::ffff:0:0/96`; outside that block, projection saturates to
+    /// `NegInf` / `PosInf` on the rung. Target `Extended<Ipv4Addr>`
+    /// supplies the synthetic ends; source `Ipv6Addr` stays plain (the
+    /// Ipv6 range is its own bounded universe).
+    ///
+    /// On the v4-mapped block the Conn is bijective — `ceil = floor =
+    /// Finite(extracted v4)`, and `inner` round-trips via
+    /// `Ipv4Addr::to_ipv6_mapped`.
+    ///
+    /// Outside the v4-mapped block the Conn has asymmetric arms: ceil
+    /// rounds *up* into the block (or saturates above), floor rounds
+    /// *down* (or saturates below). This is a lawful full triple
+    /// (`floor ≤ ceil` everywhere) because `inner` is order-reflecting:
+    /// `inner(NegInf) = ::` is strictly below `inner(Finite(0.0.0.0)) =
+    /// ::ffff:0:0`, and `inner(PosInf) = MAX` is strictly above
+    /// `inner(Finite(255.255.255.255)) = ::ffff:ffff:ffff` — the
+    /// pre-block and post-block "room" plays the role that subsec
+    /// precision plays in `DURNSECS`. Ceil and floor agree at the Ipv6
+    /// extremes (`::`, `Ipv6Addr::MAX`) and inside the v4-mapped block;
+    /// below or above the block they diverge:
+    ///
+    /// | v6 region                      | `ceil`                  | `floor`                  |
+    /// |--------------------------------|-------------------------|--------------------------|
+    /// | `::` (UNSPECIFIED)             | `NegInf`                | `NegInf`                 |
+    /// | `::1` …  `::ffff:0:0 - 1`      | `Finite(0.0.0.0)`       | `NegInf`                 |
+    /// | `::ffff:0:0` … `::ffff:ffff:ffff` | `Finite(extracted v4)` | `Finite(extracted v4)` |
+    /// | `::1:0:0:0` … `MAX - 1`        | `PosInf`                | `Finite(255.255.255.255)`|
+    /// | `MAX`                          | `PosInf`                | `PosInf`                 |
+    ///
+    /// `inner` is the v4-mapped embedding (synthetic ends saturate to
+    /// `Ipv6Addr::UNSPECIFIED` and `Ipv6Addr::MAX` respectively).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::addr::ip::IPV6IPV4;
+    /// use connections::extended::Extended;
+    /// use std::net::{Ipv4Addr, Ipv6Addr};
+    ///
+    /// // V4-mapped Ipv6 round-trips through the bridge.
+    /// let v4_in_v6: Ipv6Addr = "::ffff:7f00:1".parse().unwrap();
+    /// assert_eq!(
+    ///     IPV6IPV4.ceil(v4_in_v6),
+    ///     Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))
+    /// );
+    /// assert_eq!(
+    ///     IPV6IPV4.inner(Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))),
+    ///     v4_in_v6
+    /// );
+    ///
+    /// // `::1` (loopback) sits below the v4-mapped block — ceil and
+    /// // floor diverge.
+    /// assert_eq!(IPV6IPV4.ceil(Ipv6Addr::LOCALHOST),  Extended::Finite(Ipv4Addr::UNSPECIFIED));
+    /// assert_eq!(IPV6IPV4.floor(Ipv6Addr::LOCALHOST), Extended::NegInf);
+    /// ```
+    pub IPV6IPV4 : Ipv6Addr => Extended<Ipv4Addr> {
+        ceil:  ipv6ipv4_ceil,
+        inner: ipv6ipv4_inner,
+        floor: ipv6ipv4_floor,
+    }
 }
 
 /// `IpAddr → Extended<Ipv4Addr>` — V4 extraction from the IpAddr sum.

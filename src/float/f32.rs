@@ -12,50 +12,45 @@ use crate::conn::Conn;
 
 def_walk_helpers!(f64_f32_walks, f64, f32, shift32, widen_f32_f64);
 
-/// Connection between [`super::F064`] (i.e. `ExtendedFloat<f64>`) and
-/// [`super::F032`] (`ExtendedFloat<f32>`) under the N5 lattice ordering.
-///
-/// - `inner`: lossless `f32 → f64` embedding (`Bot/Top/Extend` pass through;
-///   `Extend(v)` casts `v as f64`).
-/// - `ceil`: smallest `f32` whose `f64` embedding is ≥ the input (round up).
-/// - `floor`: largest `f32` whose `f64` embedding is ≤ the input (round down).
-///
-/// `ExtendedFloat::Bot` / `Top` are preserved on both sides;
-/// `Extend(NaN)` flows through unchanged because the `Extend(NaN) →
-/// Extend(NaN as f32)` cast is bit-preserving for NaN.
-pub struct F064F032;
-
-impl F064F032 {
-    fn _ceil(x: F064) -> F032 {
-        match x {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f64_f32(v)),
-        }
+fn f064f032_ceil(x: F064) -> F032 {
+    match x {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f64_f32(v)),
     }
-    fn _inner(y: F032) -> F064 {
-        match y {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f64),
-        }
+}
+fn f064f032_inner(y: F032) -> F064 {
+    match y {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f64),
     }
-    fn _floor(x: F064) -> F032 {
-        match x {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f64_f32(v)),
-        }
+}
+fn f064f032_floor(x: F064) -> F032 {
+    match x {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f64_f32(v)),
     }
 }
 
-impl crate::conn::ViewL<F064, F032> for F064F032 {
-    const L: crate::conn::ConnL<F064, F032> =
-        crate::conn::Conn::new_l(F064F032::_ceil, F064F032::_inner);
-}
-impl crate::conn::ViewR<F064, F032> for F064F032 {
-    const R: crate::conn::ConnR<F064, F032> =
-        crate::conn::Conn::new_r(F064F032::_inner, F064F032::_floor);
+crate::triple! {
+    /// Connection between [`super::F064`] (i.e. `ExtendedFloat<f64>`) and
+    /// [`super::F032`] (`ExtendedFloat<f32>`) under the N5 lattice ordering.
+    ///
+    /// - `inner`: lossless `f32 → f64` embedding (`Bot/Top/Extend` pass through;
+    ///   `Extend(v)` casts `v as f64`).
+    /// - `ceil`: smallest `f32` whose `f64` embedding is ≥ the input (round up).
+    /// - `floor`: largest `f32` whose `f64` embedding is ≤ the input (round down).
+    ///
+    /// `ExtendedFloat::Bot` / `Top` are preserved on both sides;
+    /// `Extend(NaN)` flows through unchanged because the `Extend(NaN) →
+    /// Extend(NaN as f32)` cast is bit-preserving for NaN.
+    pub F064F032 : F064 => F032 {
+        ceil:  f064f032_ceil,
+        inner: f064f032_inner,
+        floor: f064f032_floor,
+    }
 }
 
 // All `<=` and `==` comparisons in the helpers below operate on

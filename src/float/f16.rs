@@ -85,70 +85,65 @@ def_walk_helpers!(f64_f16_walks, f64, f16, shift16_f16, widen_f16_f64);
 
 // ── F032F016 ───────────────────────────────────────────────────────
 
-/// Connection between [`super::F032`] (`ExtendedFloat<f32>`) and
-/// [`F016`] (`ExtendedFloat<f16>`) under the N5 lattice.
-///
-/// - `inner`: lossless `f16 → f32` widening (`Bot/Top/Extend` pass through;
-///   `Extend(v)` performs `v as f32`).
-/// - `ceil`: smallest `f16` whose `f32` widening is ≥ the input (round up).
-/// - `floor`: largest `f16` whose `f32` widening is ≤ the input (round down).
-///
-/// `Bot`/`Top` are preserved on both sides; `Extend(NaN)` flows through
-/// (`x as f16` collapses distinct f32 NaN bit patterns to a canonical
-/// f16 NaN, but our `Eq` impl on `ExtendedFloat<f16>` treats
-/// `Extend(NaN) == Extend(NaN)` regardless of bit pattern). f32
-/// magnitudes outside f16's ±65504 range saturate to
-/// `Extend(±INFINITY)` — RNE narrowing in `x as f16`.
-///
-/// ```
-/// # #![feature(f16)]
-/// use connections::float::f16::F032F016;
-/// use connections::float::{ExtendedFloat::Extend, F032};
-///
-/// // π narrows to the nearest f16 above/below π's f32 value.
-/// let pi = Extend(std::f32::consts::PI);
-/// let pi_up   = F032F016.ceil(pi);
-/// let pi_down = F032F016.floor(pi);
-/// assert!(F032F016.inner(pi_down) <= pi);
-/// assert!(pi <= F032F016.inner(pi_up));
-///
-/// // f32::MAX saturates to f16::INFINITY.
-/// let huge: F032 = Extend(f32::MAX);
-/// assert_eq!(F032F016.ceil(huge), Extend(f16::INFINITY));
-/// ```
-pub struct F032F016;
-
-impl F032F016 {
-    fn _ceil(x: F032) -> F016 {
-        match x {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f32_f16(v)),
-        }
+fn f032f016_ceil(x: F032) -> F016 {
+    match x {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f32_f16(v)),
     }
-    fn _inner(y: F016) -> F032 {
-        match y {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f32),
-        }
+}
+fn f032f016_inner(y: F016) -> F032 {
+    match y {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f32),
     }
-    fn _floor(x: F032) -> F016 {
-        match x {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f32_f16(v)),
-        }
+}
+fn f032f016_floor(x: F032) -> F016 {
+    match x {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f32_f16(v)),
     }
 }
 
-impl crate::conn::ViewL<F032, F016> for F032F016 {
-    const L: crate::conn::ConnL<F032, F016> =
-        crate::conn::Conn::new_l(F032F016::_ceil, F032F016::_inner);
-}
-impl crate::conn::ViewR<F032, F016> for F032F016 {
-    const R: crate::conn::ConnR<F032, F016> =
-        crate::conn::Conn::new_r(F032F016::_inner, F032F016::_floor);
+crate::triple! {
+    /// Connection between [`super::F032`] (`ExtendedFloat<f32>`) and
+    /// [`F016`] (`ExtendedFloat<f16>`) under the N5 lattice.
+    ///
+    /// - `inner`: lossless `f16 → f32` widening (`Bot/Top/Extend` pass through;
+    ///   `Extend(v)` performs `v as f32`).
+    /// - `ceil`: smallest `f16` whose `f32` widening is ≥ the input (round up).
+    /// - `floor`: largest `f16` whose `f32` widening is ≤ the input (round down).
+    ///
+    /// `Bot`/`Top` are preserved on both sides; `Extend(NaN)` flows through
+    /// (`x as f16` collapses distinct f32 NaN bit patterns to a canonical
+    /// f16 NaN, but our `Eq` impl on `ExtendedFloat<f16>` treats
+    /// `Extend(NaN) == Extend(NaN)` regardless of bit pattern). f32
+    /// magnitudes outside f16's ±65504 range saturate to
+    /// `Extend(±INFINITY)` — RNE narrowing in `x as f16`.
+    ///
+    /// ```
+    /// # #![feature(f16)]
+    /// use connections::float::f16::F032F016;
+    /// use connections::float::{ExtendedFloat::Extend, F032};
+    ///
+    /// // π narrows to the nearest f16 above/below π's f32 value.
+    /// let pi = Extend(std::f32::consts::PI);
+    /// let pi_up   = F032F016.ceil(pi);
+    /// let pi_down = F032F016.floor(pi);
+    /// assert!(F032F016.inner(pi_down) <= pi);
+    /// assert!(pi <= F032F016.inner(pi_up));
+    ///
+    /// // f32::MAX saturates to f16::INFINITY.
+    /// let huge: F032 = Extend(f32::MAX);
+    /// assert_eq!(F032F016.ceil(huge), Extend(f16::INFINITY));
+    /// ```
+    pub F032F016 : F032 => F016 {
+        ceil:  f032f016_ceil,
+        inner: f032f016_inner,
+        floor: f032f016_floor,
+    }
 }
 
 // `<=` and `==` on the f32 side (after the early NaN filter) is total
@@ -191,58 +186,53 @@ fn floor_f32_f16(x: f32) -> f16 {
 
 // ── F064F016 ───────────────────────────────────────────────────────
 
-/// Connection between [`super::F064`] and [`F016`] under the
-/// N5 lattice — direct `f64 ↔ f16` narrowing.
-///
-/// Direct (rather than `compose!(F064F032, F032F016)`) because the
-/// two-stage version rounds twice — RNE-RNE composition can land on
-/// a value 1 ULP off from the true f64 → f16 ceiling/floor on
-/// double-rounding cases. The direct path uses `x as f16` (single
-/// RNE step) and then walks ≤ 2 f16 ULPs to correct.
-///
-/// ```
-/// # #![feature(f16)]
-/// use connections::float::f16::F064F016;
-/// use connections::float::ExtendedFloat::Extend;
-///
-/// let pi = Extend(std::f64::consts::PI);
-/// let pi_up = F064F016.ceil(pi);
-/// // Widening f16 back to f64 lands above the original.
-/// assert!(F064F016.inner(pi_up) >= pi);
-/// ```
-pub struct F064F016;
-
-impl F064F016 {
-    fn _ceil(x: F064) -> F016 {
-        match x {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f64_f16(v)),
-        }
+fn f064f016_ceil(x: F064) -> F016 {
+    match x {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f64_f16(v)),
     }
-    fn _inner(y: F016) -> F064 {
-        match y {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f64),
-        }
+}
+fn f064f016_inner(y: F016) -> F064 {
+    match y {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f64),
     }
-    fn _floor(x: F064) -> F016 {
-        match x {
-            ExtendedFloat::Bot => ExtendedFloat::Bot,
-            ExtendedFloat::Top => ExtendedFloat::Top,
-            ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f64_f16(v)),
-        }
+}
+fn f064f016_floor(x: F064) -> F016 {
+    match x {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f64_f16(v)),
     }
 }
 
-impl crate::conn::ViewL<F064, F016> for F064F016 {
-    const L: crate::conn::ConnL<F064, F016> =
-        crate::conn::Conn::new_l(F064F016::_ceil, F064F016::_inner);
-}
-impl crate::conn::ViewR<F064, F016> for F064F016 {
-    const R: crate::conn::ConnR<F064, F016> =
-        crate::conn::Conn::new_r(F064F016::_inner, F064F016::_floor);
+crate::triple! {
+    /// Connection between [`super::F064`] and [`F016`] under the
+    /// N5 lattice — direct `f64 ↔ f16` narrowing.
+    ///
+    /// Direct (rather than `compose!(F064F032, F032F016)`) because the
+    /// two-stage version rounds twice — RNE-RNE composition can land on
+    /// a value 1 ULP off from the true f64 → f16 ceiling/floor on
+    /// double-rounding cases. The direct path uses `x as f16` (single
+    /// RNE step) and then walks ≤ 2 f16 ULPs to correct.
+    ///
+    /// ```
+    /// # #![feature(f16)]
+    /// use connections::float::f16::F064F016;
+    /// use connections::float::ExtendedFloat::Extend;
+    ///
+    /// let pi = Extend(std::f64::consts::PI);
+    /// let pi_up = F064F016.ceil(pi);
+    /// // Widening f16 back to f64 lands above the original.
+    /// assert!(F064F016.inner(pi_up) >= pi);
+    /// ```
+    pub F064F016 : F064 => F016 {
+        ceil:  f064f016_ceil,
+        inner: f064f016_inner,
+        floor: f064f016_floor,
+    }
 }
 
 fn ceil_f64_f16(x: f64) -> f16 {

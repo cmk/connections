@@ -89,100 +89,95 @@ def_walk_helpers!(
     duration_to_f32
 );
 
-/// `Duration → Extended<i64>` — signed time span ↔ whole seconds.
-///
-/// `Duration` already covers the full `i64`-second range, so the
-/// rung is `Extended<i64>` rather than plain `i64`: ceiling
-/// `Duration::MAX` (which has a positive sub-second part) needs
-/// "i64::MAX + 1", and flooring `Duration::MIN` (negative sub-second)
-/// needs "i64::MIN − 1" — the saturation arms.
-///
-/// On the interior:
-/// - `floor(d)` truncates toward zero-of-subsecond:
-///   `whole_seconds(d) − (1 if subsec_nanoseconds(d) < 0 else 0)`.
-/// - `ceil(d)` rounds away from the same:
-///   `whole_seconds(d) + (1 if subsec_nanoseconds(d) > 0 else 0)`.
-/// - `inner(Finite(s))` = `Duration::seconds(s)` (exact embedding).
-///
-/// Saturation arms (`Extended::NegInf` / `Extended::PosInf`) handle
-/// `Duration::MIN` / `Duration::MAX` and the i64 overflow at the
-/// signed-rounding edges. `inner(NegInf) = Duration::MIN` and
-/// `inner(PosInf) = Duration::MAX` (both saturating).
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::conn::{ViewL, ViewR};
-/// use connections::time::DURNSECS;
-/// use connections::extended::Extended;
-/// use time::Duration;
-///
-/// let half = Duration::seconds(5) + Duration::nanoseconds(1);
-/// assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));
-/// assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
-///
-/// // Negative sub-second: ceil rounds toward zero, floor away.
-/// let neg = Duration::seconds(-5) - Duration::nanoseconds(1);
-/// assert_eq!(DURNSECS.ceil(neg),  Extended::Finite(-5));
-/// assert_eq!(DURNSECS.floor(neg), Extended::Finite(-6));
-///
-/// assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
-/// ```
-pub struct DURNSECS;
-
-impl DURNSECS {
-    fn _ceil(d: Duration) -> Extended<i64> {
-        if d.eq(&Duration::MIN) {
-            // Forced by Galois: inner(NegInf) saturates to
-            // Duration::MIN, so the smallest b with d ≤ inner(b) is
-            // NegInf.
-            return Extended::NegInf;
-        }
-        let w = d.whole_seconds();
-        let n = d.subsec_nanoseconds();
-        if n > 0 {
-            match w.checked_add(1) {
-                Some(s) => Extended::Finite(s),
-                None => Extended::PosInf,
-            }
-        } else {
-            Extended::Finite(w)
-        }
+fn durnsecs_ceil(d: Duration) -> Extended<i64> {
+    if d.eq(&Duration::MIN) {
+        // Forced by Galois: inner(NegInf) saturates to
+        // Duration::MIN, so the smallest b with d ≤ inner(b) is
+        // NegInf.
+        return Extended::NegInf;
     }
-
-    fn _inner(b: Extended<i64>) -> Duration {
-        match b {
-            Extended::NegInf => Duration::MIN,
-            Extended::Finite(s) => Duration::seconds(s),
-            Extended::PosInf => Duration::MAX,
+    let w = d.whole_seconds();
+    let n = d.subsec_nanoseconds();
+    if n > 0 {
+        match w.checked_add(1) {
+            Some(s) => Extended::Finite(s),
+            None => Extended::PosInf,
         }
-    }
-
-    fn _floor(d: Duration) -> Extended<i64> {
-        if d.eq(&Duration::MAX) {
-            // Galois dual of the ceil(MIN) case.
-            return Extended::PosInf;
-        }
-        let w = d.whole_seconds();
-        let n = d.subsec_nanoseconds();
-        if n < 0 {
-            match w.checked_sub(1) {
-                Some(s) => Extended::Finite(s),
-                None => Extended::NegInf,
-            }
-        } else {
-            Extended::Finite(w)
-        }
+    } else {
+        Extended::Finite(w)
     }
 }
 
-impl crate::conn::ViewL<Duration, Extended<i64>> for DURNSECS {
-    const L: crate::conn::ConnL<Duration, Extended<i64>> =
-        crate::conn::Conn::new_l(DURNSECS::_ceil, DURNSECS::_inner);
+fn durnsecs_inner(b: Extended<i64>) -> Duration {
+    match b {
+        Extended::NegInf => Duration::MIN,
+        Extended::Finite(s) => Duration::seconds(s),
+        Extended::PosInf => Duration::MAX,
+    }
 }
-impl crate::conn::ViewR<Duration, Extended<i64>> for DURNSECS {
-    const R: crate::conn::ConnR<Duration, Extended<i64>> =
-        crate::conn::Conn::new_r(DURNSECS::_inner, DURNSECS::_floor);
+
+fn durnsecs_floor(d: Duration) -> Extended<i64> {
+    if d.eq(&Duration::MAX) {
+        // Galois dual of the ceil(MIN) case.
+        return Extended::PosInf;
+    }
+    let w = d.whole_seconds();
+    let n = d.subsec_nanoseconds();
+    if n < 0 {
+        match w.checked_sub(1) {
+            Some(s) => Extended::Finite(s),
+            None => Extended::NegInf,
+        }
+    } else {
+        Extended::Finite(w)
+    }
+}
+
+crate::triple! {
+    /// `Duration → Extended<i64>` — signed time span ↔ whole seconds.
+    ///
+    /// `Duration` already covers the full `i64`-second range, so the
+    /// rung is `Extended<i64>` rather than plain `i64`: ceiling
+    /// `Duration::MAX` (which has a positive sub-second part) needs
+    /// "i64::MAX + 1", and flooring `Duration::MIN` (negative sub-second)
+    /// needs "i64::MIN − 1" — the saturation arms.
+    ///
+    /// On the interior:
+    /// - `floor(d)` truncates toward zero-of-subsecond:
+    ///   `whole_seconds(d) − (1 if subsec_nanoseconds(d) < 0 else 0)`.
+    /// - `ceil(d)` rounds away from the same:
+    ///   `whole_seconds(d) + (1 if subsec_nanoseconds(d) > 0 else 0)`.
+    /// - `inner(Finite(s))` = `Duration::seconds(s)` (exact embedding).
+    ///
+    /// Saturation arms (`Extended::NegInf` / `Extended::PosInf`) handle
+    /// `Duration::MIN` / `Duration::MAX` and the i64 overflow at the
+    /// signed-rounding edges. `inner(NegInf) = Duration::MIN` and
+    /// `inner(PosInf) = Duration::MAX` (both saturating).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::time::DURNSECS;
+    /// use connections::extended::Extended;
+    /// use time::Duration;
+    ///
+    /// let half = Duration::seconds(5) + Duration::nanoseconds(1);
+    /// assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));
+    /// assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
+    ///
+    /// // Negative sub-second: ceil rounds toward zero, floor away.
+    /// let neg = Duration::seconds(-5) - Duration::nanoseconds(1);
+    /// assert_eq!(DURNSECS.ceil(neg),  Extended::Finite(-5));
+    /// assert_eq!(DURNSECS.floor(neg), Extended::Finite(-6));
+    ///
+    /// assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
+    /// ```
+    pub DURNSECS : Duration => Extended<i64> {
+        ceil:  durnsecs_ceil,
+        inner: durnsecs_inner,
+        floor: durnsecs_floor,
+    }
 }
 
 #[cfg(test)]
@@ -306,283 +301,273 @@ mod tests {
         }
     }
 }
-/// `F064 → Extended<Duration>` — IEEE binary64 seconds ↔ Duration.
-///
-/// Walks happen on the Duration rung (1ns ULPs); the float side is
-/// the comparison frame. `inner(Finite(d))` widens via
-/// `Duration::as_seconds_f64()`. The walk-correction loops emitted
-/// by `def_walk_helpers!` handle the f64-precision plateau where
-/// multiple Durations map to the same f64 (which begins around
-/// |Duration| > 2⁵³ ns ≈ 104 days).
-///
-/// Saturation arms:
-/// - `ceil(Bot)` = `NegInf`, `floor(Bot)` = `NegInf` (Bot is
-///   synthetic-below-everything).
-/// - `ceil(Top)` = `PosInf`, `floor(Top)` = `PosInf`.
-/// - `ceil(Extend(NaN))` = `PosInf`, `floor(Extend(NaN))` = `NegInf`
-///   (under N5: NaN ≤ Top, Bot ≤ NaN, NaN incomparable with finite).
-/// - `ceil(Extend(+∞))` = `PosInf`, `floor(Extend(+∞))` =
-///   `Finite(Duration::MAX)`. Symmetric for `-∞`. The asymmetry
-///   between `ceil` and `floor` at `Extend(±∞)` is the same shape
-///   as every Extended-source Conn in this module (DATEJDAY,
-///   TIMENANO, DURNSECS, …): `ExtendedFloat<f64>` carries a
-///   synthetic `Top` strictly above `Extend(f64::INFINITY)`, which
-///   forces `inner(PosInf) = Top` to satisfy Galois at the
-///   `(Top, PosInf)` input pair.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::conn::{ViewL, ViewR};
-/// use connections::time::F064DURN;
-/// use connections::float::ExtendedFloat;
-/// use connections::extended::Extended;
-/// use time::Duration;
-///
-/// // 0.5 seconds round-trips exactly.
-/// let half = ExtendedFloat::Extend(0.5_f64);
-/// assert_eq!(F064DURN.ceil(half),  Extended::Finite(Duration::milliseconds(500)));
-/// assert_eq!(F064DURN.floor(half), Extended::Finite(Duration::milliseconds(500)));
-/// assert_eq!(F064DURN.inner(Extended::Finite(Duration::milliseconds(500))),
-///            ExtendedFloat::Extend(0.5));
-///
-/// // NaN saturates ceil to PosInf, floor to NegInf.
-/// assert_eq!(F064DURN.ceil(ExtendedFloat::Extend(f64::NAN)),  Extended::PosInf);
-/// assert_eq!(F064DURN.floor(ExtendedFloat::Extend(f64::NAN)), Extended::NegInf);
-/// ```
-pub struct F064DURN;
-
-impl F064DURN {
-    fn _ceil(x: F064) -> Extended<Duration> {
-        let v = match x {
-            ExtendedFloat::Bot => return Extended::NegInf,
-            ExtendedFloat::Top => return Extended::PosInf,
-            ExtendedFloat::Extend(v) => v,
-        };
-        if v.is_nan() {
-            return Extended::PosInf;
-        }
-        if v == f64::INFINITY {
-            return Extended::PosInf;
-        }
-        if v == f64::NEG_INFINITY {
-            return Extended::Finite(Duration::MIN);
-        }
-        let max_secs = Duration::MAX.as_seconds_f64();
-        let min_secs = Duration::MIN.as_seconds_f64();
-        if v > max_secs {
-            return Extended::PosInf;
-        }
-        // Use `<=` not `<`: when `v == min_secs` (e.g., the round-trip
-        // `inner(ceil(NEG_INFINITY))`), Duration::MIN is the smallest d
-        // with d.as_seconds_f64() ≥ v_min, so it IS the correct ceil.
-        // The walk would converge to Duration::MIN anyway but takes
-        // ~2 × 10¹² nanosecond-steps at this magnitude (the f64
-        // plateau at |v| ≈ 9.2e18 is ~2049 s wide). Fast-path it.
-        if v <= min_secs {
-            return Extended::Finite(Duration::MIN);
-        }
-        let est = Duration::saturating_seconds_f64(v);
-        let est_widen = est.as_seconds_f64();
-        let (z, _) = if est_widen >= v {
-            f64_durn_walks::descend_to_ceil(est, v)
-        } else {
-            f64_durn_walks::ascend_to_ceil(est, v)
-        };
-        Extended::Finite(z)
+fn f064durn_ceil(x: F064) -> Extended<Duration> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::PosInf;
     }
-
-    fn _inner(d: Extended<Duration>) -> F064 {
-        match d {
-            Extended::NegInf => ExtendedFloat::Bot,
-            Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_seconds_f64()),
-            Extended::PosInf => ExtendedFloat::Top,
-        }
+    if v == f64::INFINITY {
+        return Extended::PosInf;
     }
+    if v == f64::NEG_INFINITY {
+        return Extended::Finite(Duration::MIN);
+    }
+    let max_secs = Duration::MAX.as_seconds_f64();
+    let min_secs = Duration::MIN.as_seconds_f64();
+    if v > max_secs {
+        return Extended::PosInf;
+    }
+    // Use `<=` not `<`: when `v == min_secs` (e.g., the round-trip
+    // `inner(ceil(NEG_INFINITY))`), Duration::MIN is the smallest d
+    // with d.as_seconds_f64() ≥ v_min, so it IS the correct ceil.
+    // The walk would converge to Duration::MIN anyway but takes
+    // ~2 × 10¹² nanosecond-steps at this magnitude (the f64
+    // plateau at |v| ≈ 9.2e18 is ~2049 s wide). Fast-path it.
+    if v <= min_secs {
+        return Extended::Finite(Duration::MIN);
+    }
+    let est = Duration::saturating_seconds_f64(v);
+    let est_widen = est.as_seconds_f64();
+    let (z, _) = if est_widen >= v {
+        f64_durn_walks::descend_to_ceil(est, v)
+    } else {
+        f64_durn_walks::ascend_to_ceil(est, v)
+    };
+    Extended::Finite(z)
+}
 
-    fn _floor(x: F064) -> Extended<Duration> {
-        let v = match x {
-            ExtendedFloat::Bot => return Extended::NegInf,
-            ExtendedFloat::Top => return Extended::PosInf,
-            ExtendedFloat::Extend(v) => v,
-        };
-        if v.is_nan() {
-            return Extended::NegInf;
-        }
-        if v == f64::INFINITY {
-            return Extended::Finite(Duration::MAX);
-        }
-        if v == f64::NEG_INFINITY {
-            return Extended::NegInf;
-        }
-        let max_secs = Duration::MAX.as_seconds_f64();
-        let min_secs = Duration::MIN.as_seconds_f64();
-        // Use `>=` not `>`: when `v == max_secs` (e.g., the round-trip
-        // `inner(floor(INFINITY))`), Duration::MAX is the largest d
-        // with d.as_seconds_f64() ≤ v_max, so it IS the correct floor.
-        // Fast-path it; the walk would otherwise climb ~2 × 10¹² ns
-        // (the f64 plateau is ~2049 s wide at this magnitude).
-        if v >= max_secs {
-            return Extended::Finite(Duration::MAX);
-        }
-        // Asymmetric with the `>=` check above: `<` is intentional.
-        // floor of a value below the range saturates to NegInf, not
-        // Finite(Duration::MIN). At v == min_secs the walk converges
-        // to Duration::MIN (top of the v_min plateau in floor's
-        // direction); only v < min_secs is "off the bottom".
-        if v < min_secs {
-            return Extended::NegInf;
-        }
-        let est = Duration::saturating_seconds_f64(v);
-        let est_widen = est.as_seconds_f64();
-        let (z, _) = if est_widen <= v {
-            f64_durn_walks::ascend_to_floor(est, v)
-        } else {
-            f64_durn_walks::descend_to_floor(est, v)
-        };
-        Extended::Finite(z)
+fn f064durn_inner(d: Extended<Duration>) -> F064 {
+    match d {
+        Extended::NegInf => ExtendedFloat::Bot,
+        Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_seconds_f64()),
+        Extended::PosInf => ExtendedFloat::Top,
     }
 }
 
-impl crate::conn::ViewL<F064, Extended<Duration>> for F064DURN {
-    const L: crate::conn::ConnL<F064, Extended<Duration>> =
-        crate::conn::Conn::new_l(F064DURN::_ceil, F064DURN::_inner);
-}
-impl crate::conn::ViewR<F064, Extended<Duration>> for F064DURN {
-    const R: crate::conn::ConnR<F064, Extended<Duration>> =
-        crate::conn::Conn::new_r(F064DURN::_inner, F064DURN::_floor);
-}
-
-/// `F032 → Extended<Duration>` — IEEE binary32 seconds ↔ Duration.
-///
-/// Mirrors [`F064DURN`]'s shape with `f32` precision. The f32 plateau
-/// (range of Durations mapping to the same `f32`) is much wider than
-/// f64's: at magnitude ~1 s it is ~120 ns; at magnitude ~10³ s it is
-/// ~10⁵ ns. Proptest strategies bound the float-side finite slot to
-/// `|x| ≤ 10` (see [`crate::prop::arb::arb_f32_bounded`]) so the
-/// per-call ULP-walk budget stays small.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::conn::{ViewL, ViewR};
-/// use connections::time::F032DURN;
-/// use connections::float::ExtendedFloat;
-/// use connections::extended::Extended;
-/// use time::Duration;
-///
-/// // 1.0 s lies in an f32 plateau ~120 ns wide. ceil and floor return
-/// // the bottom and top of that plateau respectively; both round-trip
-/// // to `1.0_f32` via `inner` and bracket `Duration::seconds(1)`.
-/// let one = ExtendedFloat::Extend(1.0_f32);
-/// let exact = Duration::seconds(1);
-/// if let (Extended::Finite(c), Extended::Finite(f)) =
-///     (F032DURN.ceil(one), F032DURN.floor(one))
-/// {
-///     assert!(c <= exact && exact <= f);
-///     assert_eq!(c.as_seconds_f32(), 1.0_f32);
-///     assert_eq!(f.as_seconds_f32(), 1.0_f32);
-/// }
-/// ```
-pub struct F032DURN;
-
-impl F032DURN {
-    fn _ceil(x: F032) -> Extended<Duration> {
-        let v = match x {
-            ExtendedFloat::Bot => return Extended::NegInf,
-            ExtendedFloat::Top => return Extended::PosInf,
-            ExtendedFloat::Extend(v) => v,
-        };
-        if v.is_nan() {
-            return Extended::PosInf;
-        }
-        if v == f32::INFINITY {
-            return Extended::PosInf;
-        }
-        if v == f32::NEG_INFINITY {
-            return Extended::Finite(Duration::MIN);
-        }
-        let max_secs = Duration::MAX.as_seconds_f32();
-        let min_secs = Duration::MIN.as_seconds_f32();
-        if v > max_secs {
-            return Extended::PosInf;
-        }
-        // See F064DURN.ceil for rationale: `<=` so the round-trip
-        // value `inner(ceil(NEG_INFINITY)) = Duration::MIN.as_f32()`
-        // fast-paths to Duration::MIN. The f32 plateau at this
-        // magnitude is ~10²¹ nanoseconds wide; without this fast-path
-        // the walk takes ~70 seconds per call.
-        if v <= min_secs {
-            return Extended::Finite(Duration::MIN);
-        }
-        let est = Duration::saturating_seconds_f32(v);
-        let est_widen = est.as_seconds_f32();
-        let (z, _) = if est_widen >= v {
-            f32_durn_walks::descend_to_ceil(est, v)
-        } else {
-            f32_durn_walks::ascend_to_ceil(est, v)
-        };
-        Extended::Finite(z)
+fn f064durn_floor(x: F064) -> Extended<Duration> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::NegInf;
     }
-
-    fn _inner(d: Extended<Duration>) -> F032 {
-        match d {
-            Extended::NegInf => ExtendedFloat::Bot,
-            Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_seconds_f32()),
-            Extended::PosInf => ExtendedFloat::Top,
-        }
+    if v == f64::INFINITY {
+        return Extended::Finite(Duration::MAX);
     }
+    if v == f64::NEG_INFINITY {
+        return Extended::NegInf;
+    }
+    let max_secs = Duration::MAX.as_seconds_f64();
+    let min_secs = Duration::MIN.as_seconds_f64();
+    // Use `>=` not `>`: when `v == max_secs` (e.g., the round-trip
+    // `inner(floor(INFINITY))`), Duration::MAX is the largest d
+    // with d.as_seconds_f64() ≤ v_max, so it IS the correct floor.
+    // Fast-path it; the walk would otherwise climb ~2 × 10¹² ns
+    // (the f64 plateau is ~2049 s wide at this magnitude).
+    if v >= max_secs {
+        return Extended::Finite(Duration::MAX);
+    }
+    // Asymmetric with the `>=` check above: `<` is intentional.
+    // floor of a value below the range saturates to NegInf, not
+    // Finite(Duration::MIN). At v == min_secs the walk converges
+    // to Duration::MIN (top of the v_min plateau in floor's
+    // direction); only v < min_secs is "off the bottom".
+    if v < min_secs {
+        return Extended::NegInf;
+    }
+    let est = Duration::saturating_seconds_f64(v);
+    let est_widen = est.as_seconds_f64();
+    let (z, _) = if est_widen <= v {
+        f64_durn_walks::ascend_to_floor(est, v)
+    } else {
+        f64_durn_walks::descend_to_floor(est, v)
+    };
+    Extended::Finite(z)
+}
 
-    fn _floor(x: F032) -> Extended<Duration> {
-        let v = match x {
-            ExtendedFloat::Bot => return Extended::NegInf,
-            ExtendedFloat::Top => return Extended::PosInf,
-            ExtendedFloat::Extend(v) => v,
-        };
-        if v.is_nan() {
-            return Extended::NegInf;
-        }
-        if v == f32::INFINITY {
-            return Extended::Finite(Duration::MAX);
-        }
-        if v == f32::NEG_INFINITY {
-            return Extended::NegInf;
-        }
-        let max_secs = Duration::MAX.as_seconds_f32();
-        let min_secs = Duration::MIN.as_seconds_f32();
-        // See F064DURN.floor for rationale: `>=` so the round-trip
-        // value `inner(floor(INFINITY)) = Duration::MAX.as_f32()`
-        // fast-paths to Duration::MAX. Same plateau-walk argument as
-        // ceil's `v <= min_secs` fix.
-        if v >= max_secs {
-            return Extended::Finite(Duration::MAX);
-        }
-        // Asymmetric with the `>=` check above: `<` is intentional.
-        // See F064DURN.floor for the rationale (floor of a value
-        // strictly below v_min saturates to NegInf; v == min_secs
-        // would walk to Duration::MIN, but that's covered by the
-        // walk path, not this guard).
-        if v < min_secs {
-            return Extended::NegInf;
-        }
-        let est = Duration::saturating_seconds_f32(v);
-        let est_widen = est.as_seconds_f32();
-        let (z, _) = if est_widen <= v {
-            f32_durn_walks::ascend_to_floor(est, v)
-        } else {
-            f32_durn_walks::descend_to_floor(est, v)
-        };
-        Extended::Finite(z)
+crate::triple! {
+    /// `F064 → Extended<Duration>` — IEEE binary64 seconds ↔ Duration.
+    ///
+    /// Walks happen on the Duration rung (1ns ULPs); the float side is
+    /// the comparison frame. `inner(Finite(d))` widens via
+    /// `Duration::as_seconds_f64()`. The walk-correction loops emitted
+    /// by `def_walk_helpers!` handle the f64-precision plateau where
+    /// multiple Durations map to the same f64 (which begins around
+    /// |Duration| > 2⁵³ ns ≈ 104 days).
+    ///
+    /// Saturation arms:
+    /// - `ceil(Bot)` = `NegInf`, `floor(Bot)` = `NegInf` (Bot is
+    ///   synthetic-below-everything).
+    /// - `ceil(Top)` = `PosInf`, `floor(Top)` = `PosInf`.
+    /// - `ceil(Extend(NaN))` = `PosInf`, `floor(Extend(NaN))` = `NegInf`
+    ///   (under N5: NaN ≤ Top, Bot ≤ NaN, NaN incomparable with finite).
+    /// - `ceil(Extend(+∞))` = `PosInf`, `floor(Extend(+∞))` =
+    ///   `Finite(Duration::MAX)`. Symmetric for `-∞`. The asymmetry
+    ///   between `ceil` and `floor` at `Extend(±∞)` is the same shape
+    ///   as every Extended-source Conn in this module (DATEJDAY,
+    ///   TIMENANO, DURNSECS, …): `ExtendedFloat<f64>` carries a
+    ///   synthetic `Top` strictly above `Extend(f64::INFINITY)`, which
+    ///   forces `inner(PosInf) = Top` to satisfy Galois at the
+    ///   `(Top, PosInf)` input pair.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::time::F064DURN;
+    /// use connections::float::ExtendedFloat;
+    /// use connections::extended::Extended;
+    /// use time::Duration;
+    ///
+    /// // 0.5 seconds round-trips exactly.
+    /// let half = ExtendedFloat::Extend(0.5_f64);
+    /// assert_eq!(F064DURN.ceil(half),  Extended::Finite(Duration::milliseconds(500)));
+    /// assert_eq!(F064DURN.floor(half), Extended::Finite(Duration::milliseconds(500)));
+    /// assert_eq!(F064DURN.inner(Extended::Finite(Duration::milliseconds(500))),
+    ///            ExtendedFloat::Extend(0.5));
+    ///
+    /// // NaN saturates ceil to PosInf, floor to NegInf.
+    /// assert_eq!(F064DURN.ceil(ExtendedFloat::Extend(f64::NAN)),  Extended::PosInf);
+    /// assert_eq!(F064DURN.floor(ExtendedFloat::Extend(f64::NAN)), Extended::NegInf);
+    /// ```
+    pub F064DURN : F064 => Extended<Duration> {
+        ceil:  f064durn_ceil,
+        inner: f064durn_inner,
+        floor: f064durn_floor,
     }
 }
 
-impl crate::conn::ViewL<F032, Extended<Duration>> for F032DURN {
-    const L: crate::conn::ConnL<F032, Extended<Duration>> =
-        crate::conn::Conn::new_l(F032DURN::_ceil, F032DURN::_inner);
+fn f032durn_ceil(x: F032) -> Extended<Duration> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::PosInf;
+    }
+    if v == f32::INFINITY {
+        return Extended::PosInf;
+    }
+    if v == f32::NEG_INFINITY {
+        return Extended::Finite(Duration::MIN);
+    }
+    let max_secs = Duration::MAX.as_seconds_f32();
+    let min_secs = Duration::MIN.as_seconds_f32();
+    if v > max_secs {
+        return Extended::PosInf;
+    }
+    // See f064durn_ceil for rationale: `<=` so the round-trip
+    // value `inner(ceil(NEG_INFINITY)) = Duration::MIN.as_f32()`
+    // fast-paths to Duration::MIN. The f32 plateau at this
+    // magnitude is ~10²¹ nanoseconds wide; without this fast-path
+    // the walk takes ~70 seconds per call.
+    if v <= min_secs {
+        return Extended::Finite(Duration::MIN);
+    }
+    let est = Duration::saturating_seconds_f32(v);
+    let est_widen = est.as_seconds_f32();
+    let (z, _) = if est_widen >= v {
+        f32_durn_walks::descend_to_ceil(est, v)
+    } else {
+        f32_durn_walks::ascend_to_ceil(est, v)
+    };
+    Extended::Finite(z)
 }
-impl crate::conn::ViewR<F032, Extended<Duration>> for F032DURN {
-    const R: crate::conn::ConnR<F032, Extended<Duration>> =
-        crate::conn::Conn::new_r(F032DURN::_inner, F032DURN::_floor);
+
+fn f032durn_inner(d: Extended<Duration>) -> F032 {
+    match d {
+        Extended::NegInf => ExtendedFloat::Bot,
+        Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_seconds_f32()),
+        Extended::PosInf => ExtendedFloat::Top,
+    }
+}
+
+fn f032durn_floor(x: F032) -> Extended<Duration> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::NegInf;
+    }
+    if v == f32::INFINITY {
+        return Extended::Finite(Duration::MAX);
+    }
+    if v == f32::NEG_INFINITY {
+        return Extended::NegInf;
+    }
+    let max_secs = Duration::MAX.as_seconds_f32();
+    let min_secs = Duration::MIN.as_seconds_f32();
+    // See f064durn_floor for rationale: `>=` so the round-trip
+    // value `inner(floor(INFINITY)) = Duration::MAX.as_f32()`
+    // fast-paths to Duration::MAX. Same plateau-walk argument as
+    // ceil's `v <= min_secs` fix.
+    if v >= max_secs {
+        return Extended::Finite(Duration::MAX);
+    }
+    // Asymmetric with the `>=` check above: `<` is intentional.
+    // See f064durn_floor for the rationale (floor of a value
+    // strictly below v_min saturates to NegInf; v == min_secs
+    // would walk to Duration::MIN, but that's covered by the
+    // walk path, not this guard).
+    if v < min_secs {
+        return Extended::NegInf;
+    }
+    let est = Duration::saturating_seconds_f32(v);
+    let est_widen = est.as_seconds_f32();
+    let (z, _) = if est_widen <= v {
+        f32_durn_walks::ascend_to_floor(est, v)
+    } else {
+        f32_durn_walks::descend_to_floor(est, v)
+    };
+    Extended::Finite(z)
+}
+
+crate::triple! {
+    /// `F032 → Extended<Duration>` — IEEE binary32 seconds ↔ Duration.
+    ///
+    /// Mirrors [`F064DURN`]'s shape with `f32` precision. The f32 plateau
+    /// (range of Durations mapping to the same `f32`) is much wider than
+    /// f64's: at magnitude ~1 s it is ~120 ns; at magnitude ~10³ s it is
+    /// ~10⁵ ns. Proptest strategies bound the float-side finite slot to
+    /// `|x| ≤ 10` (see [`crate::prop::arb::arb_f32_bounded`]) so the
+    /// per-call ULP-walk budget stays small.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::time::F032DURN;
+    /// use connections::float::ExtendedFloat;
+    /// use connections::extended::Extended;
+    /// use time::Duration;
+    ///
+    /// // 1.0 s lies in an f32 plateau ~120 ns wide. ceil and floor return
+    /// // the bottom and top of that plateau respectively; both round-trip
+    /// // to `1.0_f32` via `inner` and bracket `Duration::seconds(1)`.
+    /// let one = ExtendedFloat::Extend(1.0_f32);
+    /// let exact = Duration::seconds(1);
+    /// if let (Extended::Finite(c), Extended::Finite(f)) =
+    ///     (F032DURN.ceil(one), F032DURN.floor(one))
+    /// {
+    ///     assert!(c <= exact && exact <= f);
+    ///     assert_eq!(c.as_seconds_f32(), 1.0_f32);
+    ///     assert_eq!(f.as_seconds_f32(), 1.0_f32);
+    /// }
+    /// ```
+    pub F032DURN : F032 => Extended<Duration> {
+        ceil:  f032durn_ceil,
+        inner: f032durn_inner,
+        floor: f032durn_floor,
+    }
 }
 
 // ── std::time::Duration helpers ──────────────────────────────────
@@ -631,407 +616,387 @@ def_walk_helpers!(
     std_duration_to_f32
 );
 
-/// `Extended<StdDuration> → Extended<u64>` — unsigned time span ↔
-/// whole seconds.
-///
-/// Rung saturation arms (`Extended::PosInf`) catch the
-/// `StdDuration::MAX` overflow where `as_secs() == u64::MAX` and a
-/// non-zero sub-second part would push past `u64::MAX`. The source is
-/// also wrapped (`Extended<StdDuration>`) so the synthetic `NegInf`
-/// has a synthetic representative on each side rather than collapsing
-/// onto `StdDuration::ZERO` — keeping the natural `ceil(Finite(ZERO))
-/// = Finite(0)` arm.
-///
-/// On Finite source values:
-/// - `floor(Finite(d)) = Finite(d.as_secs())`. No overflow possible
-///   since `as_secs()` returns `u64`.
-/// - `ceil(Finite(d)) = Finite(d.as_secs() + (subsec > 0 ? 1 : 0))`,
-///   saturating to `PosInf` when `as_secs() == u64::MAX && subsec > 0`.
-/// - `inner(Finite(s)) = Finite(StdDuration::from_secs(s))`.
-///
-/// Synthetic-arm round-trips: `inner(NegInf) = NegInf`,
-/// `inner(PosInf) = PosInf`; `ceil(NegInf) = NegInf`, `ceil(PosInf) =
-/// PosInf` (and likewise `floor`).
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::conn::{ViewL, ViewR};
-/// use connections::time::STDRU064;
-/// use connections::extended::Extended;
-/// use std::time::Duration as StdDuration;
-///
-/// let half = StdDuration::from_secs(5) + StdDuration::from_nanos(1);
-/// assert_eq!(STDRU064.ceil(Extended::Finite(half)),  Extended::Finite(6));
-/// assert_eq!(STDRU064.floor(Extended::Finite(half)), Extended::Finite(5));
-///
-/// // Sub-second part at MAX overflows u64::MAX seconds → PosInf.
-/// assert_eq!(STDRU064.ceil(Extended::Finite(StdDuration::MAX)), Extended::PosInf);
-/// assert_eq!(STDRU064.floor(Extended::Finite(StdDuration::MAX)), Extended::Finite(u64::MAX));
-///
-/// assert_eq!(STDRU064.inner(Extended::Finite(42)),
-///            Extended::Finite(StdDuration::from_secs(42)));
-/// assert_eq!(STDRU064.inner(Extended::PosInf), Extended::PosInf);
-/// ```
-pub struct STDRU064;
-
-impl STDRU064 {
-    fn _ceil(d: Extended<StdDuration>) -> Extended<u64> {
-        match d {
-            Extended::NegInf => Extended::NegInf,
-            Extended::PosInf => Extended::PosInf,
-            Extended::Finite(d) => {
-                let w = d.as_secs();
-                let n = d.subsec_nanos();
-                if n > 0 {
-                    match w.checked_add(1) {
-                        Some(s) => Extended::Finite(s),
-                        None => Extended::PosInf,
-                    }
-                } else {
-                    Extended::Finite(w)
+fn stdru064_ceil(d: Extended<StdDuration>) -> Extended<u64> {
+    match d {
+        Extended::NegInf => Extended::NegInf,
+        Extended::PosInf => Extended::PosInf,
+        Extended::Finite(d) => {
+            let w = d.as_secs();
+            let n = d.subsec_nanos();
+            if n > 0 {
+                match w.checked_add(1) {
+                    Some(s) => Extended::Finite(s),
+                    None => Extended::PosInf,
                 }
+            } else {
+                Extended::Finite(w)
             }
         }
     }
+}
 
-    fn _inner(b: Extended<u64>) -> Extended<StdDuration> {
-        match b {
-            Extended::NegInf => Extended::NegInf,
-            Extended::PosInf => Extended::PosInf,
-            Extended::Finite(s) => Extended::Finite(StdDuration::from_secs(s)),
-        }
-    }
-
-    fn _floor(d: Extended<StdDuration>) -> Extended<u64> {
-        match d {
-            Extended::NegInf => Extended::NegInf,
-            Extended::PosInf => Extended::PosInf,
-            Extended::Finite(d) => Extended::Finite(d.as_secs()),
-        }
+fn stdru064_inner(b: Extended<u64>) -> Extended<StdDuration> {
+    match b {
+        Extended::NegInf => Extended::NegInf,
+        Extended::PosInf => Extended::PosInf,
+        Extended::Finite(s) => Extended::Finite(StdDuration::from_secs(s)),
     }
 }
 
-impl crate::conn::ViewL<Extended<StdDuration>, Extended<u64>> for STDRU064 {
-    const L: crate::conn::ConnL<Extended<StdDuration>, Extended<u64>> =
-        crate::conn::Conn::new_l(STDRU064::_ceil, STDRU064::_inner);
-}
-impl crate::conn::ViewR<Extended<StdDuration>, Extended<u64>> for STDRU064 {
-    const R: crate::conn::ConnR<Extended<StdDuration>, Extended<u64>> =
-        crate::conn::Conn::new_r(STDRU064::_inner, STDRU064::_floor);
-}
-
-/// `Extended<StdDuration> → Extended<u128>` — unsigned time span ↔
-/// nanoseconds.
-///
-/// On the Finite slot this is a bijection: `floor = ceil = Finite(d
-/// .as_nanos())` and `inner` round-trips back exactly. The widest
-/// `StdDuration` is `MAX`, whose `as_nanos()` is well within `u128`
-/// (≈ 1.84×10²⁸ vs `u128::MAX` ≈ 3.4×10³⁸), so no rung-side overflow
-/// is possible from a Finite source.
-///
-/// Inputs `Finite(n)` with `n > StdDuration::MAX.as_nanos()` clamp to
-/// `Finite(StdDuration::MAX)` on `inner` (Galois pins this to the
-/// largest representative ≤ the synthetic top).
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::conn::{ViewL, ViewR};
-/// use connections::time::STDRU128;
-/// use connections::extended::Extended;
-/// use std::time::Duration as StdDuration;
-///
-/// let one_and_a_half = StdDuration::from_nanos(1_500_000_000);
-/// assert_eq!(STDRU128.ceil(Extended::Finite(one_and_a_half)),
-///            Extended::Finite(1_500_000_000_u128));
-/// assert_eq!(STDRU128.floor(Extended::Finite(one_and_a_half)),
-///            Extended::Finite(1_500_000_000_u128));
-///
-/// // `inner` is exact on the representable range and round-trips both ways.
-/// let n = 1_500_000_000_u128;
-/// assert_eq!(STDRU128.inner(Extended::Finite(n)),
-///            Extended::Finite(StdDuration::from_nanos(n as u64)));
-///
-/// // Above StdDuration::MAX.as_nanos(), inner saturates.
-/// assert_eq!(STDRU128.inner(Extended::Finite(u128::MAX)),
-///            Extended::Finite(StdDuration::MAX));
-/// ```
-pub struct STDRU128;
-
-impl STDRU128 {
-    fn _ceil(d: Extended<StdDuration>) -> Extended<u128> {
-        match d {
-            Extended::NegInf => Extended::NegInf,
-            Extended::PosInf => Extended::PosInf,
-            Extended::Finite(d) => Extended::Finite(d.as_nanos()),
-        }
+fn stdru064_floor(d: Extended<StdDuration>) -> Extended<u64> {
+    match d {
+        Extended::NegInf => Extended::NegInf,
+        Extended::PosInf => Extended::PosInf,
+        Extended::Finite(d) => Extended::Finite(d.as_secs()),
     }
+}
 
-    fn _inner(b: Extended<u128>) -> Extended<StdDuration> {
-        match b {
-            Extended::NegInf => Extended::NegInf,
-            Extended::PosInf => Extended::PosInf,
-            Extended::Finite(n) => {
-                let max_nanos = StdDuration::MAX.as_nanos();
-                // Strict `>` so the boundary `n == max_nanos` goes
-                // through the arithmetic path. Both paths produce
-                // `StdDuration::MAX` at that exact value (since
-                // `max_nanos.divmod(1e9) = (u64::MAX, 999_999_999)`),
-                // so the bijection on the representable range is
-                // sharper than an `>=` saturation guard would suggest.
-                if n > max_nanos {
-                    return Extended::Finite(StdDuration::MAX);
-                }
-                let secs = (n / 1_000_000_000) as u64;
-                let subsec = (n % 1_000_000_000) as u32;
-                Extended::Finite(StdDuration::new(secs, subsec))
+crate::triple! {
+    /// `Extended<StdDuration> → Extended<u64>` — unsigned time span ↔
+    /// whole seconds.
+    ///
+    /// Rung saturation arms (`Extended::PosInf`) catch the
+    /// `StdDuration::MAX` overflow where `as_secs() == u64::MAX` and a
+    /// non-zero sub-second part would push past `u64::MAX`. The source is
+    /// also wrapped (`Extended<StdDuration>`) so the synthetic `NegInf`
+    /// has a synthetic representative on each side rather than collapsing
+    /// onto `StdDuration::ZERO` — keeping the natural `ceil(Finite(ZERO))
+    /// = Finite(0)` arm.
+    ///
+    /// On Finite source values:
+    /// - `floor(Finite(d)) = Finite(d.as_secs())`. No overflow possible
+    ///   since `as_secs()` returns `u64`.
+    /// - `ceil(Finite(d)) = Finite(d.as_secs() + (subsec > 0 ? 1 : 0))`,
+    ///   saturating to `PosInf` when `as_secs() == u64::MAX && subsec > 0`.
+    /// - `inner(Finite(s)) = Finite(StdDuration::from_secs(s))`.
+    ///
+    /// Synthetic-arm round-trips: `inner(NegInf) = NegInf`,
+    /// `inner(PosInf) = PosInf`; `ceil(NegInf) = NegInf`, `ceil(PosInf) =
+    /// PosInf` (and likewise `floor`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::time::STDRU064;
+    /// use connections::extended::Extended;
+    /// use std::time::Duration as StdDuration;
+    ///
+    /// let half = StdDuration::from_secs(5) + StdDuration::from_nanos(1);
+    /// assert_eq!(STDRU064.ceil(Extended::Finite(half)),  Extended::Finite(6));
+    /// assert_eq!(STDRU064.floor(Extended::Finite(half)), Extended::Finite(5));
+    ///
+    /// // Sub-second part at MAX overflows u64::MAX seconds → PosInf.
+    /// assert_eq!(STDRU064.ceil(Extended::Finite(StdDuration::MAX)), Extended::PosInf);
+    /// assert_eq!(STDRU064.floor(Extended::Finite(StdDuration::MAX)), Extended::Finite(u64::MAX));
+    ///
+    /// assert_eq!(STDRU064.inner(Extended::Finite(42)),
+    ///            Extended::Finite(StdDuration::from_secs(42)));
+    /// assert_eq!(STDRU064.inner(Extended::PosInf), Extended::PosInf);
+    /// ```
+    pub STDRU064 : Extended<StdDuration> => Extended<u64> {
+        ceil:  stdru064_ceil,
+        inner: stdru064_inner,
+        floor: stdru064_floor,
+    }
+}
+
+fn stdru128_ceil(d: Extended<StdDuration>) -> Extended<u128> {
+    match d {
+        Extended::NegInf => Extended::NegInf,
+        Extended::PosInf => Extended::PosInf,
+        Extended::Finite(d) => Extended::Finite(d.as_nanos()),
+    }
+}
+
+fn stdru128_inner(b: Extended<u128>) -> Extended<StdDuration> {
+    match b {
+        Extended::NegInf => Extended::NegInf,
+        Extended::PosInf => Extended::PosInf,
+        Extended::Finite(n) => {
+            let max_nanos = StdDuration::MAX.as_nanos();
+            // Strict `>` so the boundary `n == max_nanos` goes
+            // through the arithmetic path. Both paths produce
+            // `StdDuration::MAX` at that exact value (since
+            // `max_nanos.divmod(1e9) = (u64::MAX, 999_999_999)`),
+            // so the bijection on the representable range is
+            // sharper than an `>=` saturation guard would suggest.
+            if n > max_nanos {
+                return Extended::Finite(StdDuration::MAX);
             }
+            let secs = (n / 1_000_000_000) as u64;
+            let subsec = (n % 1_000_000_000) as u32;
+            Extended::Finite(StdDuration::new(secs, subsec))
         }
-    }
-
-    fn _floor(d: Extended<StdDuration>) -> Extended<u128> {
-        Self::_ceil(d)
     }
 }
 
-impl crate::conn::ViewL<Extended<StdDuration>, Extended<u128>> for STDRU128 {
-    const L: crate::conn::ConnL<Extended<StdDuration>, Extended<u128>> =
-        crate::conn::Conn::new_l(STDRU128::_ceil, STDRU128::_inner);
-}
-impl crate::conn::ViewR<Extended<StdDuration>, Extended<u128>> for STDRU128 {
-    const R: crate::conn::ConnR<Extended<StdDuration>, Extended<u128>> =
-        crate::conn::Conn::new_r(STDRU128::_inner, STDRU128::_floor);
+fn stdru128_floor(d: Extended<StdDuration>) -> Extended<u128> {
+    stdru128_ceil(d)
 }
 
-/// `F064 → Extended<StdDuration>` — IEEE binary64 seconds ↔
-/// `std::time::Duration`.
-///
-/// Mirrors [`F064DURN`]'s walk-on-rung shape but with an unsigned rung.
-/// The asymmetry shows up at negative finite floats: `inner(NegInf) =
-/// Bot` (synthetic source bottom) so Galois forces `ceil(Extend(v < 0))
-/// = Finite(StdDuration::ZERO)` (the smallest representative ≥ a
-/// negative input) and `floor(Extend(v < 0)) = NegInf` (no rung
-/// representative ≤ a negative input).
-///
-/// Saturation arms otherwise match `F064DURN`: NaN sends `ceil` to
-/// `PosInf` and `floor` to `NegInf`; `Bot`/`Top` round-trip through the
-/// synthetic rung extremes.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::conn::{ViewL, ViewR};
-/// use connections::time::F064STDR;
-/// use connections::float::ExtendedFloat;
-/// use connections::extended::Extended;
-/// use std::time::Duration as StdDuration;
-///
-/// // 0.5 s round-trips exactly.
-/// let half = ExtendedFloat::Extend(0.5_f64);
-/// assert_eq!(F064STDR.ceil(half),  Extended::Finite(StdDuration::from_millis(500)));
-/// assert_eq!(F064STDR.floor(half), Extended::Finite(StdDuration::from_millis(500)));
-///
-/// // Negative float: ceil saturates up to ZERO; floor saturates down
-/// // to NegInf because the unsigned rung has no negative representative.
-/// let neg = ExtendedFloat::Extend(-0.5_f64);
-/// assert_eq!(F064STDR.ceil(neg),  Extended::Finite(StdDuration::ZERO));
-/// assert_eq!(F064STDR.floor(neg), Extended::NegInf);
-/// ```
-pub struct F064STDR;
-
-impl F064STDR {
-    fn _ceil(x: F064) -> Extended<StdDuration> {
-        let v = match x {
-            ExtendedFloat::Bot => return Extended::NegInf,
-            ExtendedFloat::Top => return Extended::PosInf,
-            ExtendedFloat::Extend(v) => v,
-        };
-        if v.is_nan() {
-            return Extended::PosInf;
-        }
-        if v == f64::INFINITY {
-            return Extended::PosInf;
-        }
-        // Negative finites and -∞ — no representative ≤ them on the
-        // unsigned rung (other than the synthetic NegInf, which `inner`
-        // sends to Bot, not Extend(neg)). Galois pins ceil to ZERO.
-        if v <= 0.0 {
-            return Extended::Finite(StdDuration::ZERO);
-        }
-        let max_secs = StdDuration::MAX.as_secs_f64();
-        if v > max_secs {
-            return Extended::PosInf;
-        }
-        let est = StdDuration::from_secs_f64(v);
-        let est_widen = est.as_secs_f64();
-        let (z, _) = if est_widen >= v {
-            f64_stdr_walks::descend_to_ceil(est, v)
-        } else {
-            f64_stdr_walks::ascend_to_ceil(est, v)
-        };
-        Extended::Finite(z)
-    }
-
-    fn _inner(d: Extended<StdDuration>) -> F064 {
-        match d {
-            Extended::NegInf => ExtendedFloat::Bot,
-            Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_secs_f64()),
-            Extended::PosInf => ExtendedFloat::Top,
-        }
-    }
-
-    fn _floor(x: F064) -> Extended<StdDuration> {
-        let v = match x {
-            ExtendedFloat::Bot => return Extended::NegInf,
-            ExtendedFloat::Top => return Extended::PosInf,
-            ExtendedFloat::Extend(v) => v,
-        };
-        if v.is_nan() {
-            return Extended::NegInf;
-        }
-        if v == f64::INFINITY {
-            return Extended::Finite(StdDuration::MAX);
-        }
-        // Negative finite floats and `Extend(-∞)` have no rung
-        // representative ≤ them on the unsigned side, so floor
-        // saturates to the synthetic `NegInf`.
-        if v < 0.0 {
-            return Extended::NegInf;
-        }
-        let max_secs = StdDuration::MAX.as_secs_f64();
-        // See F064DURN.floor for the `>=` rationale: the f64 plateau at
-        // |v| ≈ 1.84e19 spans billions of seconds, and without a fast
-        // path the walk would crawl one ns at a time.
-        if v >= max_secs {
-            return Extended::Finite(StdDuration::MAX);
-        }
-        let est = StdDuration::from_secs_f64(v);
-        let est_widen = est.as_secs_f64();
-        let (z, _) = if est_widen <= v {
-            f64_stdr_walks::ascend_to_floor(est, v)
-        } else {
-            f64_stdr_walks::descend_to_floor(est, v)
-        };
-        Extended::Finite(z)
+crate::triple! {
+    /// `Extended<StdDuration> → Extended<u128>` — unsigned time span ↔
+    /// nanoseconds.
+    ///
+    /// On the Finite slot this is a bijection: `floor = ceil = Finite(d
+    /// .as_nanos())` and `inner` round-trips back exactly. The widest
+    /// `StdDuration` is `MAX`, whose `as_nanos()` is well within `u128`
+    /// (≈ 1.84×10²⁸ vs `u128::MAX` ≈ 3.4×10³⁸), so no rung-side overflow
+    /// is possible from a Finite source.
+    ///
+    /// Inputs `Finite(n)` with `n > StdDuration::MAX.as_nanos()` clamp to
+    /// `Finite(StdDuration::MAX)` on `inner` (Galois pins this to the
+    /// largest representative ≤ the synthetic top).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::time::STDRU128;
+    /// use connections::extended::Extended;
+    /// use std::time::Duration as StdDuration;
+    ///
+    /// let one_and_a_half = StdDuration::from_nanos(1_500_000_000);
+    /// assert_eq!(STDRU128.ceil(Extended::Finite(one_and_a_half)),
+    ///            Extended::Finite(1_500_000_000_u128));
+    /// assert_eq!(STDRU128.floor(Extended::Finite(one_and_a_half)),
+    ///            Extended::Finite(1_500_000_000_u128));
+    ///
+    /// // `inner` is exact on the representable range and round-trips both ways.
+    /// let n = 1_500_000_000_u128;
+    /// assert_eq!(STDRU128.inner(Extended::Finite(n)),
+    ///            Extended::Finite(StdDuration::from_nanos(n as u64)));
+    ///
+    /// // Above StdDuration::MAX.as_nanos(), inner saturates.
+    /// assert_eq!(STDRU128.inner(Extended::Finite(u128::MAX)),
+    ///            Extended::Finite(StdDuration::MAX));
+    /// ```
+    pub STDRU128 : Extended<StdDuration> => Extended<u128> {
+        ceil:  stdru128_ceil,
+        inner: stdru128_inner,
+        floor: stdru128_floor,
     }
 }
 
-impl crate::conn::ViewL<F064, Extended<StdDuration>> for F064STDR {
-    const L: crate::conn::ConnL<F064, Extended<StdDuration>> =
-        crate::conn::Conn::new_l(F064STDR::_ceil, F064STDR::_inner);
-}
-impl crate::conn::ViewR<F064, Extended<StdDuration>> for F064STDR {
-    const R: crate::conn::ConnR<F064, Extended<StdDuration>> =
-        crate::conn::Conn::new_r(F064STDR::_inner, F064STDR::_floor);
-}
-
-/// `F032 → Extended<StdDuration>` — IEEE binary32 seconds ↔
-/// `std::time::Duration`.
-///
-/// Mirrors [`F064STDR`] with `f32` precision; same negative-input
-/// asymmetry. Proptest strategies bound the float-side finite slot to
-/// `|x| ≤ 10` (see [`crate::prop::arb::arb_f32_bounded`]) so the
-/// per-call ULP-walk budget stays small.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::conn::{ViewL, ViewR};
-/// use connections::time::F032STDR;
-/// use connections::float::ExtendedFloat;
-/// use connections::extended::Extended;
-/// use std::time::Duration as StdDuration;
-///
-/// // 1.0 s lies in an f32 plateau ~120 ns wide; ceil and floor return
-/// // the bottom and top of that plateau respectively.
-/// let one = ExtendedFloat::Extend(1.0_f32);
-/// let exact = StdDuration::from_secs(1);
-/// if let (Extended::Finite(c), Extended::Finite(f)) =
-///     (F032STDR.ceil(one), F032STDR.floor(one))
-/// {
-///     assert!(c <= exact && exact <= f);
-///     assert_eq!(c.as_secs_f32(), 1.0_f32);
-///     assert_eq!(f.as_secs_f32(), 1.0_f32);
-/// }
-/// ```
-pub struct F032STDR;
-
-impl F032STDR {
-    fn _ceil(x: F032) -> Extended<StdDuration> {
-        let v = match x {
-            ExtendedFloat::Bot => return Extended::NegInf,
-            ExtendedFloat::Top => return Extended::PosInf,
-            ExtendedFloat::Extend(v) => v,
-        };
-        if v.is_nan() {
-            return Extended::PosInf;
-        }
-        if v == f32::INFINITY {
-            return Extended::PosInf;
-        }
-        if v <= 0.0 {
-            return Extended::Finite(StdDuration::ZERO);
-        }
-        let max_secs = StdDuration::MAX.as_secs_f32();
-        if v > max_secs {
-            return Extended::PosInf;
-        }
-        let est = StdDuration::from_secs_f32(v);
-        let est_widen = est.as_secs_f32();
-        let (z, _) = if est_widen >= v {
-            f32_stdr_walks::descend_to_ceil(est, v)
-        } else {
-            f32_stdr_walks::ascend_to_ceil(est, v)
-        };
-        Extended::Finite(z)
+fn f064stdr_ceil(x: F064) -> Extended<StdDuration> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::PosInf;
     }
-
-    fn _inner(d: Extended<StdDuration>) -> F032 {
-        match d {
-            Extended::NegInf => ExtendedFloat::Bot,
-            Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_secs_f32()),
-            Extended::PosInf => ExtendedFloat::Top,
-        }
+    if v == f64::INFINITY {
+        return Extended::PosInf;
     }
+    // Negative finites and -∞ — no representative ≤ them on the
+    // unsigned rung (other than the synthetic NegInf, which `inner`
+    // sends to Bot, not Extend(neg)). Galois pins ceil to ZERO.
+    if v <= 0.0 {
+        return Extended::Finite(StdDuration::ZERO);
+    }
+    let max_secs = StdDuration::MAX.as_secs_f64();
+    if v > max_secs {
+        return Extended::PosInf;
+    }
+    let est = StdDuration::from_secs_f64(v);
+    let est_widen = est.as_secs_f64();
+    let (z, _) = if est_widen >= v {
+        f64_stdr_walks::descend_to_ceil(est, v)
+    } else {
+        f64_stdr_walks::ascend_to_ceil(est, v)
+    };
+    Extended::Finite(z)
+}
 
-    fn _floor(x: F032) -> Extended<StdDuration> {
-        let v = match x {
-            ExtendedFloat::Bot => return Extended::NegInf,
-            ExtendedFloat::Top => return Extended::PosInf,
-            ExtendedFloat::Extend(v) => v,
-        };
-        if v.is_nan() {
-            return Extended::NegInf;
-        }
-        if v == f32::INFINITY {
-            return Extended::Finite(StdDuration::MAX);
-        }
-        if v < 0.0 {
-            return Extended::NegInf;
-        }
-        let max_secs = StdDuration::MAX.as_secs_f32();
-        if v >= max_secs {
-            return Extended::Finite(StdDuration::MAX);
-        }
-        let est = StdDuration::from_secs_f32(v);
-        let est_widen = est.as_secs_f32();
-        let (z, _) = if est_widen <= v {
-            f32_stdr_walks::ascend_to_floor(est, v)
-        } else {
-            f32_stdr_walks::descend_to_floor(est, v)
-        };
-        Extended::Finite(z)
+fn f064stdr_inner(d: Extended<StdDuration>) -> F064 {
+    match d {
+        Extended::NegInf => ExtendedFloat::Bot,
+        Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_secs_f64()),
+        Extended::PosInf => ExtendedFloat::Top,
     }
 }
 
-impl crate::conn::ViewL<F032, Extended<StdDuration>> for F032STDR {
-    const L: crate::conn::ConnL<F032, Extended<StdDuration>> =
-        crate::conn::Conn::new_l(F032STDR::_ceil, F032STDR::_inner);
+fn f064stdr_floor(x: F064) -> Extended<StdDuration> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::NegInf;
+    }
+    if v == f64::INFINITY {
+        return Extended::Finite(StdDuration::MAX);
+    }
+    // Negative finite floats and `Extend(-∞)` have no rung
+    // representative ≤ them on the unsigned side, so floor
+    // saturates to the synthetic `NegInf`.
+    if v < 0.0 {
+        return Extended::NegInf;
+    }
+    let max_secs = StdDuration::MAX.as_secs_f64();
+    // See f064durn_floor for the `>=` rationale: the f64 plateau at
+    // |v| ≈ 1.84e19 spans billions of seconds, and without a fast
+    // path the walk would crawl one ns at a time.
+    if v >= max_secs {
+        return Extended::Finite(StdDuration::MAX);
+    }
+    let est = StdDuration::from_secs_f64(v);
+    let est_widen = est.as_secs_f64();
+    let (z, _) = if est_widen <= v {
+        f64_stdr_walks::ascend_to_floor(est, v)
+    } else {
+        f64_stdr_walks::descend_to_floor(est, v)
+    };
+    Extended::Finite(z)
 }
-impl crate::conn::ViewR<F032, Extended<StdDuration>> for F032STDR {
-    const R: crate::conn::ConnR<F032, Extended<StdDuration>> =
-        crate::conn::Conn::new_r(F032STDR::_inner, F032STDR::_floor);
+
+crate::triple! {
+    /// `F064 → Extended<StdDuration>` — IEEE binary64 seconds ↔
+    /// `std::time::Duration`.
+    ///
+    /// Mirrors [`F064DURN`]'s walk-on-rung shape but with an unsigned rung.
+    /// The asymmetry shows up at negative finite floats: `inner(NegInf) =
+    /// Bot` (synthetic source bottom) so Galois forces `ceil(Extend(v < 0))
+    /// = Finite(StdDuration::ZERO)` (the smallest representative ≥ a
+    /// negative input) and `floor(Extend(v < 0)) = NegInf` (no rung
+    /// representative ≤ a negative input).
+    ///
+    /// Saturation arms otherwise match `F064DURN`: NaN sends `ceil` to
+    /// `PosInf` and `floor` to `NegInf`; `Bot`/`Top` round-trip through the
+    /// synthetic rung extremes.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::time::F064STDR;
+    /// use connections::float::ExtendedFloat;
+    /// use connections::extended::Extended;
+    /// use std::time::Duration as StdDuration;
+    ///
+    /// // 0.5 s round-trips exactly.
+    /// let half = ExtendedFloat::Extend(0.5_f64);
+    /// assert_eq!(F064STDR.ceil(half),  Extended::Finite(StdDuration::from_millis(500)));
+    /// assert_eq!(F064STDR.floor(half), Extended::Finite(StdDuration::from_millis(500)));
+    ///
+    /// // Negative float: ceil saturates up to ZERO; floor saturates down
+    /// // to NegInf because the unsigned rung has no negative representative.
+    /// let neg = ExtendedFloat::Extend(-0.5_f64);
+    /// assert_eq!(F064STDR.ceil(neg),  Extended::Finite(StdDuration::ZERO));
+    /// assert_eq!(F064STDR.floor(neg), Extended::NegInf);
+    /// ```
+    pub F064STDR : F064 => Extended<StdDuration> {
+        ceil:  f064stdr_ceil,
+        inner: f064stdr_inner,
+        floor: f064stdr_floor,
+    }
+}
+
+fn f032stdr_ceil(x: F032) -> Extended<StdDuration> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::PosInf;
+    }
+    if v == f32::INFINITY {
+        return Extended::PosInf;
+    }
+    if v <= 0.0 {
+        return Extended::Finite(StdDuration::ZERO);
+    }
+    let max_secs = StdDuration::MAX.as_secs_f32();
+    if v > max_secs {
+        return Extended::PosInf;
+    }
+    let est = StdDuration::from_secs_f32(v);
+    let est_widen = est.as_secs_f32();
+    let (z, _) = if est_widen >= v {
+        f32_stdr_walks::descend_to_ceil(est, v)
+    } else {
+        f32_stdr_walks::ascend_to_ceil(est, v)
+    };
+    Extended::Finite(z)
+}
+
+fn f032stdr_inner(d: Extended<StdDuration>) -> F032 {
+    match d {
+        Extended::NegInf => ExtendedFloat::Bot,
+        Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_secs_f32()),
+        Extended::PosInf => ExtendedFloat::Top,
+    }
+}
+
+fn f032stdr_floor(x: F032) -> Extended<StdDuration> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::NegInf;
+    }
+    if v == f32::INFINITY {
+        return Extended::Finite(StdDuration::MAX);
+    }
+    if v < 0.0 {
+        return Extended::NegInf;
+    }
+    let max_secs = StdDuration::MAX.as_secs_f32();
+    if v >= max_secs {
+        return Extended::Finite(StdDuration::MAX);
+    }
+    let est = StdDuration::from_secs_f32(v);
+    let est_widen = est.as_secs_f32();
+    let (z, _) = if est_widen <= v {
+        f32_stdr_walks::ascend_to_floor(est, v)
+    } else {
+        f32_stdr_walks::descend_to_floor(est, v)
+    };
+    Extended::Finite(z)
+}
+
+crate::triple! {
+    /// `F032 → Extended<StdDuration>` — IEEE binary32 seconds ↔
+    /// `std::time::Duration`.
+    ///
+    /// Mirrors [`F064STDR`] with `f32` precision; same negative-input
+    /// asymmetry. Proptest strategies bound the float-side finite slot to
+    /// `|x| ≤ 10` (see [`crate::prop::arb::arb_f32_bounded`]) so the
+    /// per-call ULP-walk budget stays small.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::time::F032STDR;
+    /// use connections::float::ExtendedFloat;
+    /// use connections::extended::Extended;
+    /// use std::time::Duration as StdDuration;
+    ///
+    /// // 1.0 s lies in an f32 plateau ~120 ns wide; ceil and floor return
+    /// // the bottom and top of that plateau respectively.
+    /// let one = ExtendedFloat::Extend(1.0_f32);
+    /// let exact = StdDuration::from_secs(1);
+    /// if let (Extended::Finite(c), Extended::Finite(f)) =
+    ///     (F032STDR.ceil(one), F032STDR.floor(one))
+    /// {
+    ///     assert!(c <= exact && exact <= f);
+    ///     assert_eq!(c.as_secs_f32(), 1.0_f32);
+    ///     assert_eq!(f.as_secs_f32(), 1.0_f32);
+    /// }
+    /// ```
+    pub F032STDR : F032 => Extended<StdDuration> {
+        ceil:  f032stdr_ceil,
+        inner: f032stdr_inner,
+        floor: f032stdr_floor,
+    }
 }
 
 #[cfg(test)]
