@@ -15,6 +15,8 @@
 
 use ::fixed::types::extra::U0;
 use ::fixed::{FixedI16, FixedI32, FixedI64, FixedI128, FixedU16, FixedU32, FixedU64, FixedU128};
+
+use connections::conn::{ViewL, ViewR};
 use connections::fixed;
 use connections::prop::conn as conn_laws;
 use core::num::{
@@ -27,7 +29,7 @@ use proptest::prelude::*;
 //    at zero brackets the target's puncture). ─────────────────────
 
 macro_rules! signed_nz_props {
-    ($mod_name:ident, $CONN:expr, $A:ty, $NZ:ty) => {
+    ($mod_name:ident, $CONN:path, $A:ty, $NZ:ty) => {
         mod $mod_name {
             use super::*;
 
@@ -38,11 +40,11 @@ macro_rules! signed_nz_props {
             proptest! {
                 #[test]
                 fn galois_l(a in any::<$A>(), b in arb_nz()) {
-                    prop_assert!(conn_laws::conn_galois_l(&$CONN, a, b));
+                    prop_assert!(conn_laws::galois_l(&<$CONN as connections::conn::ViewL<_, _>>::L, a, b));
                 }
                 #[test]
                 fn galois_r(a in any::<$A>(), b in arb_nz()) {
-                    prop_assert!(conn_laws::conn_galois_r(&$CONN, a, b));
+                    prop_assert!(conn_laws::galois_r(&<$CONN as connections::conn::ViewR<_, _>>::R, a, b));
                 }
                 #[test]
                 fn inner_then_ceil_recovers(nz in arb_nz()) {
@@ -63,7 +65,7 @@ signed_nz_props!(i128n128, fixed::i128::I128N128, i128, NonZeroI128);
 //    unsigned bottom plateau (no NonZero strictly below 1). ──────
 
 macro_rules! unsigned_nz_props {
-    ($mod_name:ident, $CONN:expr, $A:ty, $NZ:ty) => {
+    ($mod_name:ident, $CONN:path, $A:ty, $NZ:ty) => {
         mod $mod_name {
             use super::*;
 
@@ -74,12 +76,11 @@ macro_rules! unsigned_nz_props {
             proptest! {
                 #[test]
                 fn galois_l(a in any::<$A>(), b in arb_nz()) {
-                    prop_assert!(conn_laws::conn_galois_l(&$CONN, a, b));
+                    prop_assert!(conn_laws::galois_l(&<$CONN as connections::conn::ViewL<_, _>>::L, a, b));
                 }
                 #[test]
                 fn inner_then_ceil_recovers(nz in arb_nz()) {
                     prop_assert_eq!($CONN.ceil($CONN.inner(nz)), nz);
-                    prop_assert_eq!($CONN.floor($CONN.inner(nz)), nz);
                 }
             }
         }
@@ -94,7 +95,7 @@ unsigned_nz_props!(u128n128, fixed::u128::U128N128, u128, NonZeroU128);
 // ── Cross-crate iso: both Galois laws hold (degenerate iso). ────
 
 macro_rules! iso_props {
-    ($mod_name:ident, $CONN:expr, $A:ty, $FIXED:ident) => {
+    ($mod_name:ident, $CONN:path, $A:ty, $FIXED:ident) => {
         mod $mod_name {
             use super::*;
 
@@ -102,12 +103,12 @@ macro_rules! iso_props {
                 #[test]
                 fn galois_l(a_bits in any::<$A>(), b in any::<$A>()) {
                     let a = $FIXED::<U0>::from_bits(a_bits);
-                    prop_assert!(conn_laws::conn_galois_l(&$CONN, a, b));
+                    prop_assert!(conn_laws::galois_l(&<$CONN as connections::conn::ViewL<_, _>>::L, a, b));
                 }
                 #[test]
                 fn galois_r(a_bits in any::<$A>(), b in any::<$A>()) {
                     let a = $FIXED::<U0>::from_bits(a_bits);
-                    prop_assert!(conn_laws::conn_galois_r(&$CONN, a, b));
+                    prop_assert!(conn_laws::galois_r(&<$CONN as connections::conn::ViewR<_, _>>::R, a, b));
                 }
                 #[test]
                 fn round_trip_both_directions(v in any::<$A>()) {

@@ -43,7 +43,7 @@
 //! # One-sided vs full-triple shapes
 //!
 //! - **Full triples** ([`U032IPV4`], [`U128IPV6`], [`IPV6IPV4`])
-//!   satisfy both Galois laws plus `conn_floor_le_ceil`. The total
+//!   satisfy both Galois laws plus `floor_le_ceil`. The total
 //!   bijections trivially; `IPV6IPV4` because `inner` is
 //!   order-reflecting (the v4-mapped block is a strict subset of
 //!   `Ipv6Addr`, giving the same "subsec room" pattern that lets

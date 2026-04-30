@@ -47,15 +47,25 @@ nz_uint_ext!(U008N008, u8, NonZeroU8);
 // ── §3 cross-crate iso: FixedU8<U0> ↔ u8 ───────────────────────────
 
 /// `FixedU8<U0> ↔ u8` — Q8.0 unsigned lossless iso. Degenerate Galois.
-pub const Q000U008: Conn<FixedU8<U0>, u8> = {
-    fn forward(q: FixedU8<U0>) -> u8 {
+pub struct Q000U008;
+
+impl Q000U008 {
+    const fn forward(q: FixedU8<U0>) -> u8 {
         q.to_bits()
     }
-    fn back(i: u8) -> FixedU8<U0> {
+    const fn back(i: u8) -> FixedU8<U0> {
         FixedU8::<U0>::from_bits(i)
     }
-    Conn::new_iso(forward, back)
-};
+}
+
+impl crate::conn::ViewL<FixedU8<U0>, u8> for Q000U008 {
+    const L: crate::conn::ConnL<FixedU8<U0>, u8> =
+        crate::conn::Conn::new_l(Q000U008::forward, Q000U008::back);
+}
+impl crate::conn::ViewR<FixedU8<U0>, u8> for Q000U008 {
+    const R: crate::conn::ConnR<FixedU8<U0>, u8> =
+        crate::conn::Conn::new_r(Q000U008::back, Q000U008::forward);
+}
 
 // ── §4 Q-format ladder over `FixedU8<Frac>` ─────────────────────────
 
@@ -81,44 +91,54 @@ macro_rules! fix_fix_u8 {
             stringify!($CoarseFrac),
             ">` frac-level convert (u8-backed)."
         )]
-        pub const $const_name: Conn<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> = {
+        pub struct $const_name;
+
+        impl $const_name {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
             // u16 covers SHIFT ∈ [1, 8]: 1 << 8 = 256 fits, and
             // u8::MAX × 256 = 65 280 < u16::MAX = 65 535.
-            const RATIO: u16 = 1_u16 << SHIFT;
+            const RATIO: u16 = 1_u16 << Self::SHIFT;
             const FINE_MAX: u8 = u8::MAX;
 
-            fn ceil(x: FixedU8<$FineFrac>) -> FixedU8<$CoarseFrac> {
+            const fn _ceil(x: FixedU8<$FineFrac>) -> FixedU8<$CoarseFrac> {
                 let bits = x.to_bits() as u16;
-                let q = bits / RATIO;
-                let r = bits % RATIO;
-                // `res ≤ ⌈bits / RATIO⌉ ≤ ⌈u8::MAX / 2⌉ = 128` since
-                // RATIO ≥ 2 (Fine has more frac bits than Coarse, so
+                let q = bits / Self::RATIO;
+                let r = bits % Self::RATIO;
+                // `res ≤ ⌈bits / Self::RATIO⌉ ≤ ⌈u8::MAX / 2⌉ = 128` since
+                // Self::RATIO ≥ 2 (Fine has more frac bits than Coarse, so
                 // SHIFT ≥ 1). The `as u8` cast is therefore lossless.
                 let res = if r != 0 { q + 1 } else { q };
                 FixedU8::from_bits(res as u8)
             }
 
-            fn inner(x: FixedU8<$CoarseFrac>) -> FixedU8<$FineFrac> {
-                let res = (x.to_bits() as u16) * RATIO;
-                let saturated = if res > FINE_MAX as u16 {
-                    FINE_MAX
+            const fn _inner(x: FixedU8<$CoarseFrac>) -> FixedU8<$FineFrac> {
+                let res = (x.to_bits() as u16) * Self::RATIO;
+                let saturated = if res > Self::FINE_MAX as u16 {
+                    Self::FINE_MAX
                 } else {
                     res as u8
                 };
                 FixedU8::from_bits(saturated)
             }
 
-            fn floor(x: FixedU8<$FineFrac>) -> FixedU8<$CoarseFrac> {
-                if x.to_bits() == FINE_MAX {
+            const fn _floor(x: FixedU8<$FineFrac>) -> FixedU8<$CoarseFrac> {
+                if x.to_bits() == Self::FINE_MAX {
                     return FixedU8::<$CoarseFrac>::from_bits(u8::MAX);
                 }
-                let res = (x.to_bits() as u16) / RATIO;
+                let res = (x.to_bits() as u16) / Self::RATIO;
                 FixedU8::from_bits(res as u8)
             }
+        }
 
-            Conn::new(ceil, inner, floor)
-        };
+        impl $crate::conn::ViewL<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> for $const_name {
+            const L: $crate::conn::ConnL<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> =
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        }
+
+        impl $crate::conn::ViewR<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> for $const_name {
+            const R: $crate::conn::ConnR<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> =
+                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
+        }
     };
 }
 
@@ -159,6 +179,8 @@ fix_fix_u8!(Q008Q007, U8, U7);
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
@@ -231,7 +253,7 @@ mod tests {
         // floor = ceil because new_left collapses both adjoints.
         let one = NonZeroU8::new(1).unwrap();
         assert_eq!(U008N008.ceil(0_u8), one);
-        assert_eq!(U008N008.floor(0_u8), one);
+        assert_eq!(U008N008.ceil(0_u8), one);
     }
 
     #[test]
@@ -239,7 +261,7 @@ mod tests {
         for &v in &[1, 50, u8::MAX] {
             let nz = NonZeroU8::new(v).unwrap();
             assert_eq!(U008N008.ceil(v), nz);
-            assert_eq!(U008N008.floor(v), nz);
+            assert_eq!(U008N008.ceil(v), nz);
         }
     }
 
@@ -279,26 +301,26 @@ mod tests {
         // galois_l is asserted.
         #[test]
         fn u008n008_galois_l(a in any::<u8>(), b in arb_nz_u8()) {
-            prop_assert!(conn_laws::conn_galois_l(&U008N008, a, b));
+            prop_assert!(conn_laws::galois_l(&U008N008::L, a, b));
         }
 
         #[test]
         fn u008n008_inner_then_ceil_recovers_nonzero(nz in arb_nz_u8()) {
             prop_assert_eq!(U008N008.ceil(U008N008.inner(nz)), nz);
-            prop_assert_eq!(U008N008.floor(U008N008.inner(nz)), nz);
+            prop_assert_eq!(U008N008.ceil(U008N008.inner(nz)), nz);
         }
 
         // Q000U008 iso — both Galois laws hold.
         #[test]
         fn q000u008_galois_l(a_bits in any::<u8>(), b in any::<u8>()) {
             let a = FixedU8::<U0>::from_bits(a_bits);
-            prop_assert!(conn_laws::conn_galois_l(&Q000U008, a, b));
+            prop_assert!(conn_laws::galois_l(&Q000U008::L, a, b));
         }
 
         #[test]
         fn q000u008_galois_r(a_bits in any::<u8>(), b in any::<u8>()) {
             let a = FixedU8::<U0>::from_bits(a_bits);
-            prop_assert!(conn_laws::conn_galois_r(&Q000U008, a, b));
+            prop_assert!(conn_laws::galois_r(&Q000U008::R, a, b));
         }
 
         #[test]

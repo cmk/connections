@@ -10,7 +10,7 @@ use time::{Date, PrimitiveDateTime, Time};
 /// `PrimitiveDateTime → Extended<Date>` — naive datetime ↔ calendar
 /// date, rounding sub-day fractions up to the next whole day.
 ///
-/// One-sided left-Galois Conn (`Conn::new_left(ceil, inner)`).
+/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`).
 /// `inner` is non-injective at the source extremes — both
 /// `inner(NegInf)` and `inner(Finite(Date::MIN))` decode to
 /// `PrimitiveDateTime::MIN` (per the `time` crate's representation),
@@ -22,7 +22,7 @@ use time::{Date, PrimitiveDateTime, Time};
 /// `p.time() == MIDNIGHT`, otherwise `Finite(p.date().next_day())`
 /// (or `PosInf` if `p.date() == Date::MAX` and `p` carries a sub-day
 /// fraction). Because `floor = ceil` under `new_left`, callers
-/// reading `PDTMDATE.floor(p)` get the **rounded-up** answer (next
+/// reading `PDTMDATE.ceil(p)` get the **rounded-up** answer (next
 /// day), not the truncated `Finite(p.date())` they'd get under the
 /// previous full-triple. Callers needing the truncating direction
 /// can compute it explicitly: `Extended::Finite(p.date())` for `p !=
@@ -47,7 +47,7 @@ use time::{Date, PrimitiveDateTime, Time};
 ///
 /// assert_eq!(PDTMDATE.inner(Extended::Finite(day)), p_midnight);
 /// ```
-pub const PDTMDATE: Conn<PrimitiveDateTime, Extended<Date>> = {
+pub const PDTMDATE: crate::conn::ConnL<PrimitiveDateTime, Extended<Date>> = {
     fn ceil(p: PrimitiveDateTime) -> Extended<Date> {
         if p.eq(&PrimitiveDateTime::MIN) {
             return Extended::NegInf;
@@ -71,12 +71,14 @@ pub const PDTMDATE: Conn<PrimitiveDateTime, Extended<Date>> = {
         }
     }
 
-    Conn::new_left(ceil, inner)
+    Conn::new_l(ceil, inner)
 };
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::prop::arb::{arb_date, arb_extended_date, arb_primitive_dt};
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -135,16 +137,16 @@ mod tests {
         let p = PrimitiveDateTime::new(d, Time::from_hms_nano(0, 0, 0, 1).unwrap());
         assert_eq!(PDTMDATE.ceil(p), Extended::Finite(d.next_day().unwrap()));
         // `new_left` wires `floor = ceil` structurally.
-        assert_eq!(PDTMDATE.floor(p), Extended::Finite(d.next_day().unwrap()));
+        assert_eq!(PDTMDATE.ceil(p), Extended::Finite(d.next_day().unwrap()));
     }
 
     #[test]
     fn extremes() {
         assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MIN), Extended::NegInf);
         // `floor = ceil` structurally — both NegInf at PDT::MIN.
-        assert_eq!(PDTMDATE.floor(PrimitiveDateTime::MIN), Extended::NegInf);
+        assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MIN), Extended::NegInf);
         assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MAX), Extended::PosInf);
-        assert_eq!(PDTMDATE.floor(PrimitiveDateTime::MAX), Extended::PosInf);
+        assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MAX), Extended::PosInf);
 
         assert_eq!(PDTMDATE.inner(Extended::NegInf), PrimitiveDateTime::MIN);
         assert_eq!(PDTMDATE.inner(Extended::PosInf), PrimitiveDateTime::MAX);
@@ -161,32 +163,27 @@ mod tests {
     proptest! {
         #[test]
         fn galois_l(p in arb_primitive_dt(), b in arb_extended_date()) {
-            prop_assert!(conn_laws::conn_galois_l(&PDTMDATE, p, b));
-        }
-
-        #[test]
-        fn floor_le_ceil(p in arb_primitive_dt()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&PDTMDATE, p));
+            prop_assert!(conn_laws::galois_l(&PDTMDATE, p, b));
         }
 
         #[test]
         fn closure_l(p in arb_primitive_dt()) {
-            prop_assert!(conn_laws::conn_closure_l(&PDTMDATE, p));
+            prop_assert!(conn_laws::closure_l(&PDTMDATE, p));
         }
 
         #[test]
         fn kernel_l(b in arb_extended_date()) {
-            prop_assert!(conn_laws::conn_kernel_l(&PDTMDATE, b));
+            prop_assert!(conn_laws::kernel_l(&PDTMDATE, b));
         }
 
         #[test]
         fn monotone_l(a in arb_primitive_dt(), b in arb_primitive_dt()) {
-            prop_assert!(conn_laws::conn_monotone_l(&PDTMDATE, a, b));
+            prop_assert!(conn_laws::monotone_l(&PDTMDATE, a, b));
         }
 
         #[test]
         fn idempotent(p in arb_primitive_dt()) {
-            prop_assert!(conn_laws::conn_idempotent(&PDTMDATE, p));
+            prop_assert!(conn_laws::idempotent(&PDTMDATE, p));
         }
 
         // Roundtrip on Finite Date excluding Date::MIN. At
@@ -197,7 +194,7 @@ mod tests {
         // non-strict at the lower extreme.
         #[test]
         fn roundtrip_ceil(d in arb_date().prop_filter("excludes Date::MIN", |d| *d != Date::MIN)) {
-            prop_assert!(conn_laws::conn_roundtrip_ceil(&PDTMDATE, Extended::Finite(d)));
+            prop_assert!(conn_laws::roundtrip_ceil(&PDTMDATE, Extended::Finite(d)));
         }
     }
 }

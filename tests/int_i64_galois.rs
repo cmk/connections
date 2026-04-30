@@ -1,6 +1,8 @@
 //! Galois-law proptest battery for `conn::std::i64`. Integration
 //! test — see `tests/conn_std_u8_galois.rs` for rationale.
 
+#[allow(unused_imports)]
+use connections::conn::{ViewL, ViewR};
 use connections::extended::Extended;
 use connections::fixed::i64::*;
 use proptest::prelude::*;
@@ -27,7 +29,7 @@ arb_ext!(arb_ext_u16, u16);
 arb_ext!(arb_ext_u32, u32);
 
 macro_rules! ext_int_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 
@@ -85,7 +87,7 @@ ext_int_props!(u032i064, U032I064, arb_ext_u32(), any::<i64>());
 // `galois_lower` intentionally omitted; see
 // `tests/conn_std_u8_galois.rs`.
 macro_rules! single_sided_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 
@@ -123,7 +125,7 @@ single_sided_props!(i128i064, I128I064, any::<i128>(), any::<i64>());
 
 // §3 U→I non-widening — single-sided right-Galois.
 macro_rules! single_sided_right_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 

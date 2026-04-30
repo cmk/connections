@@ -40,7 +40,7 @@ const fn sov6_max() -> SocketAddrV6 {
 /// SocketAddr sum.
 ///
 /// One-sided ceil-adjoint Conn ([`Conn::new_left`]): only `ceil ⊣
-/// inner` holds (`conn_galois_l`); the right-Galois law does not. The
+/// inner` holds (`galois_l`); the right-Galois law does not. The
 /// full triple isn't lawful for this projection because the source
 /// SocketAddr's MIN (`V4(0.0.0.0:0)`) coincides with `inner(NegInf
 /// rung)`, making `inner` non-order-reflecting at the bottom and
@@ -66,9 +66,9 @@ const fn sov6_max() -> SocketAddrV6 {
 /// assert_eq!(SOVXSOV4.ceil(SocketAddr::V6(v6)),  Extended::PosInf);
 ///
 /// // `floor` returns the same as `ceil` (one-sided contract).
-/// assert_eq!(SOVXSOV4.floor(SocketAddr::V6(v6)), Extended::PosInf);
+/// assert_eq!(SOVXSOV4.ceil(SocketAddr::V6(v6)), Extended::PosInf);
 /// ```
-pub const SOVXSOV4: Conn<SocketAddr, Extended<SocketAddrV4>> = {
+pub const SOVXSOV4: crate::conn::ConnL<SocketAddr, Extended<SocketAddrV4>> = {
     fn ceil(s: SocketAddr) -> Extended<SocketAddrV4> {
         match s {
             // Galois forces ceil(MIN) = NegInf because inner(NegInf) = SOV4_MIN
@@ -89,14 +89,14 @@ pub const SOVXSOV4: Conn<SocketAddr, Extended<SocketAddrV4>> = {
         }
     }
 
-    Conn::new_left(ceil, inner)
+    Conn::new_l(ceil, inner)
 };
 
 /// `SocketAddr → Extended<SocketAddrV6>` — V6 extraction from the
 /// SocketAddr sum.
 ///
 /// One-sided floor-adjoint Conn ([`Conn::new_right`]): only `inner ⊣
-/// floor` holds (`conn_galois_r`); the left-Galois law does not. The
+/// floor` holds (`galois_r`); the left-Galois law does not. The
 /// full triple isn't lawful here because the source SocketAddr's MAX
 /// (`V6(SOV6_MAX)`) coincides with `inner(PosInf rung)`, making
 /// `inner` non-order-reflecting at the top and forcing a
@@ -122,9 +122,9 @@ pub const SOVXSOV4: Conn<SocketAddr, Extended<SocketAddrV4>> = {
 /// assert_eq!(SOVXSOV6.floor(SocketAddr::V4(v4)), Extended::NegInf);
 ///
 /// // `ceil` returns the same as `floor` (one-sided contract).
-/// assert_eq!(SOVXSOV6.ceil(SocketAddr::V4(v4)),  Extended::NegInf);
+/// assert_eq!(SOVXSOV6.floor(SocketAddr::V4(v4)),  Extended::NegInf);
 /// ```
-pub const SOVXSOV6: Conn<SocketAddr, Extended<SocketAddrV6>> = {
+pub const SOVXSOV6: crate::conn::ConnR<SocketAddr, Extended<SocketAddrV6>> = {
     fn inner(b: Extended<SocketAddrV6>) -> SocketAddr {
         match b {
             // Galois R pins inner(NegInf) below all V6: largest V4 ≤ all V6 is the
@@ -146,12 +146,14 @@ pub const SOVXSOV6: Conn<SocketAddr, Extended<SocketAddrV6>> = {
         }
     }
 
-    Conn::new_right(inner, floor)
+    Conn::new_r(inner, floor)
 };
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::prop::arb::{
         arb_extended_socket_addr_v4, arb_extended_socket_addr_v6, arb_socket_addr,
     };
@@ -166,27 +168,22 @@ mod tests {
 
         #[test]
         fn sovxsov4_galois_l(a in arb_socket_addr(), b in arb_extended_socket_addr_v4()) {
-            prop_assert!(conn_laws::conn_galois_l(&SOVXSOV4, a, b));
+            prop_assert!(conn_laws::galois_l(&SOVXSOV4, a, b));
         }
 
         #[test]
         fn sovxsov4_closure_l(a in arb_socket_addr()) {
-            prop_assert!(conn_laws::conn_closure_l(&SOVXSOV4, a));
+            prop_assert!(conn_laws::closure_l(&SOVXSOV4, a));
         }
 
         #[test]
         fn sovxsov4_kernel_l(b in arb_extended_socket_addr_v4()) {
-            prop_assert!(conn_laws::conn_kernel_l(&SOVXSOV4, b));
-        }
-
-        #[test]
-        fn sovxsov4_floor_le_ceil(a in arb_socket_addr()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&SOVXSOV4, a));
+            prop_assert!(conn_laws::kernel_l(&SOVXSOV4, b));
         }
 
         #[test]
         fn sovxsov4_idempotent(a in arb_socket_addr()) {
-            prop_assert!(conn_laws::conn_idempotent(&SOVXSOV4, a));
+            prop_assert!(conn_laws::idempotent(&SOVXSOV4, a));
         }
 
         // ── SOVXSOV6 (one-sided floor-adjoint) law battery ──────
@@ -196,27 +193,17 @@ mod tests {
 
         #[test]
         fn sovxsov6_galois_r(a in arb_socket_addr(), b in arb_extended_socket_addr_v6()) {
-            prop_assert!(conn_laws::conn_galois_r(&SOVXSOV6, a, b));
+            prop_assert!(conn_laws::galois_r(&SOVXSOV6, a, b));
         }
 
         #[test]
         fn sovxsov6_closure_r(a in arb_socket_addr()) {
-            prop_assert!(conn_laws::conn_closure_r(&SOVXSOV6, a));
+            prop_assert!(conn_laws::closure_r(&SOVXSOV6, a));
         }
 
         #[test]
         fn sovxsov6_kernel_r(b in arb_extended_socket_addr_v6()) {
-            prop_assert!(conn_laws::conn_kernel_r(&SOVXSOV6, b));
-        }
-
-        #[test]
-        fn sovxsov6_floor_le_ceil(a in arb_socket_addr()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&SOVXSOV6, a));
-        }
-
-        #[test]
-        fn sovxsov6_idempotent(a in arb_socket_addr()) {
-            prop_assert!(conn_laws::conn_idempotent(&SOVXSOV6, a));
+            prop_assert!(conn_laws::kernel_r(&SOVXSOV6, b));
         }
     }
 }

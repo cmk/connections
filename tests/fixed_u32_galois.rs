@@ -1,6 +1,8 @@
 //! Galois-law proptest battery for `conn::fixed::u32`. Integration
 //! test — see `tests/conn_fixed_u08_galois.rs` for rationale.
 
+#[allow(unused_imports)]
+use connections::conn::{ViewL, ViewR};
 use connections::fixed::u32::*;
 use connections::prop::conn as conn_laws;
 use fixed::FixedU32;
@@ -17,50 +19,50 @@ macro_rules! props_for_pair {
                 fn galois_l(f in any::<u32>(), b in any::<u32>()) {
                     let fine = FixedU32::<$FineFrac>::from_bits(f);
                     let coarse = FixedU32::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::conn_galois_l(&$conn, fine, coarse));
+                    prop_assert!(conn_laws::galois_l(&<$conn as connections::conn::ViewL<_, _>>::L, fine, coarse));
                 }
                 #[test]
                 fn galois_r(f in any::<u32>(), b in any::<u32>()) {
                     let fine = FixedU32::<$FineFrac>::from_bits(f);
                     let coarse = FixedU32::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::conn_galois_r(&$conn, fine, coarse));
+                    prop_assert!(conn_laws::galois_r(&<$conn as connections::conn::ViewR<_, _>>::R, fine, coarse));
                 }
                 #[test]
                 fn monotone_l(f1 in any::<u32>(), f2 in any::<u32>()) {
                     let f1 = FixedU32::<$FineFrac>::from_bits(f1);
                     let f2 = FixedU32::<$FineFrac>::from_bits(f2);
-                    prop_assert!(conn_laws::conn_monotone_l(&$conn, f1, f2));
+                    prop_assert!(conn_laws::monotone_l(&<$conn as connections::conn::ViewL<_, _>>::L, f1, f2));
                 }
                 #[test]
                 fn monotone_r(b1 in any::<u32>(), b2 in any::<u32>()) {
                     let b1 = FixedU32::<$CoarseFrac>::from_bits(b1);
                     let b2 = FixedU32::<$CoarseFrac>::from_bits(b2);
-                    prop_assert!(conn_laws::conn_monotone_r(&$conn, b1, b2));
+                    prop_assert!(conn_laws::monotone_r(&<$conn as connections::conn::ViewR<_, _>>::R, b1, b2));
                 }
                 #[test]
                 fn closure_l(f in any::<u32>()) {
                     let fine = FixedU32::<$FineFrac>::from_bits(f);
-                    prop_assert!(conn_laws::conn_closure_l(&$conn, fine));
+                    prop_assert!(conn_laws::closure_l(&<$conn as connections::conn::ViewL<_, _>>::L, fine));
                 }
                 #[test]
                 fn closure_r(f in any::<u32>()) {
                     let fine = FixedU32::<$FineFrac>::from_bits(f);
-                    prop_assert!(conn_laws::conn_closure_r(&$conn, fine));
+                    prop_assert!(conn_laws::closure_r(&<$conn as connections::conn::ViewR<_, _>>::R, fine));
                 }
                 #[test]
                 fn kernel_l(b in any::<u32>()) {
                     let c = FixedU32::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::conn_kernel_l(&$conn, c));
+                    prop_assert!(conn_laws::kernel_l(&<$conn as connections::conn::ViewL<_, _>>::L, c));
                 }
                 #[test]
                 fn kernel_r(b in any::<u32>()) {
                     let c = FixedU32::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::conn_kernel_r(&$conn, c));
+                    prop_assert!(conn_laws::kernel_r(&<$conn as connections::conn::ViewR<_, _>>::R, c));
                 }
                 #[test]
                 fn idempotent(f in any::<u32>()) {
                     let fine = FixedU32::<$FineFrac>::from_bits(f);
-                    prop_assert!(conn_laws::conn_idempotent(&$conn, fine));
+                    prop_assert!(conn_laws::idempotent(&<$conn as connections::conn::ViewL<_, _>>::L, fine));
                 }
             }
         }

@@ -116,30 +116,40 @@ def_walk_helpers!(f64_f16_walks, f64, f16, shift16_f16, widen_f16_f64);
 /// let huge: F032 = Extend(f32::MAX);
 /// assert_eq!(F032F016.ceil(huge), Extend(f16::INFINITY));
 /// ```
-pub const F032F016: Conn<F032, F016> = {
-    fn ceil(x: F032) -> F016 {
+pub struct F032F016;
+
+impl F032F016 {
+    fn _ceil(x: F032) -> F016 {
         match x {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
             ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f32_f16(v)),
         }
     }
-    fn inner(y: F016) -> F032 {
+    fn _inner(y: F016) -> F032 {
         match y {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
             ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f32),
         }
     }
-    fn floor(x: F032) -> F016 {
+    fn _floor(x: F032) -> F016 {
         match x {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
             ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f32_f16(v)),
         }
     }
-    Conn::new(ceil, inner, floor)
-};
+}
+
+impl crate::conn::ViewL<F032, F016> for F032F016 {
+    const L: crate::conn::ConnL<F032, F016> =
+        crate::conn::Conn::new_l(F032F016::_ceil, F032F016::_inner);
+}
+impl crate::conn::ViewR<F032, F016> for F032F016 {
+    const R: crate::conn::ConnR<F032, F016> =
+        crate::conn::Conn::new_r(F032F016::_inner, F032F016::_floor);
+}
 
 // `<=` and `==` on the f32 side (after the early NaN filter) is total
 // and exact. The walk converges in ≤ 2 ULPs because RNE narrowing
@@ -200,30 +210,40 @@ fn floor_f32_f16(x: f32) -> f16 {
 /// // Widening f16 back to f64 lands above the original.
 /// assert!(F064F016.inner(pi_up) >= pi);
 /// ```
-pub const F064F016: Conn<F064, F016> = {
-    fn ceil(x: F064) -> F016 {
+pub struct F064F016;
+
+impl F064F016 {
+    fn _ceil(x: F064) -> F016 {
         match x {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
             ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f64_f16(v)),
         }
     }
-    fn inner(y: F016) -> F064 {
+    fn _inner(y: F016) -> F064 {
         match y {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
             ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f64),
         }
     }
-    fn floor(x: F064) -> F016 {
+    fn _floor(x: F064) -> F016 {
         match x {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
             ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f64_f16(v)),
         }
     }
-    Conn::new(ceil, inner, floor)
-};
+}
+
+impl crate::conn::ViewL<F064, F016> for F064F016 {
+    const L: crate::conn::ConnL<F064, F016> =
+        crate::conn::Conn::new_l(F064F016::_ceil, F064F016::_inner);
+}
+impl crate::conn::ViewR<F064, F016> for F064F016 {
+    const R: crate::conn::ConnR<F064, F016> =
+        crate::conn::Conn::new_r(F064F016::_inner, F064F016::_floor);
+}
 
 fn ceil_f64_f16(x: f64) -> f16 {
     if x.is_nan() {
@@ -262,6 +282,8 @@ fn floor_f64_f16(x: f64) -> f16 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::prop::arb::{arb_f32, arb_f64, extended_float_f16 as ef16};
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -472,52 +494,52 @@ mod tests {
 
         #[test]
         fn f032_galois_l(a in ef32(), b in ef16()) {
-            prop_assert!(conn_laws::conn_galois_l(&F032F016, a, b));
+            prop_assert!(conn_laws::galois_l(&F032F016::L, a, b));
         }
 
         #[test]
         fn f032_galois_r(a in ef32(), b in ef16()) {
-            prop_assert!(conn_laws::conn_galois_r(&F032F016, a, b));
+            prop_assert!(conn_laws::galois_r(&F032F016::R, a, b));
         }
 
         #[test]
         fn f032_closure_l(a in ef32()) {
-            prop_assert!(conn_laws::conn_closure_l(&F032F016, a));
+            prop_assert!(conn_laws::closure_l(&F032F016::L, a));
         }
 
         #[test]
         fn f032_closure_r(a in ef32()) {
-            prop_assert!(conn_laws::conn_closure_r(&F032F016, a));
+            prop_assert!(conn_laws::closure_r(&F032F016::R, a));
         }
 
         #[test]
         fn f032_kernel_l(b in ef16()) {
-            prop_assert!(conn_laws::conn_kernel_l(&F032F016, b));
+            prop_assert!(conn_laws::kernel_l(&F032F016::L, b));
         }
 
         #[test]
         fn f032_kernel_r(b in ef16()) {
-            prop_assert!(conn_laws::conn_kernel_r(&F032F016, b));
+            prop_assert!(conn_laws::kernel_r(&F032F016::R, b));
         }
 
         #[test]
         fn f032_monotone_l(a1 in ef32(), a2 in ef32()) {
-            prop_assert!(conn_laws::conn_monotone_l(&F032F016, a1, a2));
+            prop_assert!(conn_laws::monotone_l(&F032F016::L, a1, a2));
         }
 
         #[test]
         fn f032_monotone_r(b1 in ef16(), b2 in ef16()) {
-            prop_assert!(conn_laws::conn_monotone_r(&F032F016, b1, b2));
+            prop_assert!(conn_laws::monotone_r(&F032F016::R, b1, b2));
         }
 
         #[test]
         fn f032_idempotent(a in ef32()) {
-            prop_assert!(conn_laws::conn_idempotent(&F032F016, a));
+            prop_assert!(conn_laws::idempotent(&F032F016::L, a));
         }
 
         #[test]
         fn f032_floor_le_ceil(a in ef32()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&F032F016, a));
+            prop_assert!(conn_laws::floor_le_ceil(&F032F016, a));
         }
 
         // The four walk helpers must converge in ≤ 2 ULP corrections
@@ -553,52 +575,52 @@ mod tests {
 
         #[test]
         fn f064_galois_l(a in ef64(), b in ef16()) {
-            prop_assert!(conn_laws::conn_galois_l(&F064F016, a, b));
+            prop_assert!(conn_laws::galois_l(&F064F016::L, a, b));
         }
 
         #[test]
         fn f064_galois_r(a in ef64(), b in ef16()) {
-            prop_assert!(conn_laws::conn_galois_r(&F064F016, a, b));
+            prop_assert!(conn_laws::galois_r(&F064F016::R, a, b));
         }
 
         #[test]
         fn f064_closure_l(a in ef64()) {
-            prop_assert!(conn_laws::conn_closure_l(&F064F016, a));
+            prop_assert!(conn_laws::closure_l(&F064F016::L, a));
         }
 
         #[test]
         fn f064_closure_r(a in ef64()) {
-            prop_assert!(conn_laws::conn_closure_r(&F064F016, a));
+            prop_assert!(conn_laws::closure_r(&F064F016::R, a));
         }
 
         #[test]
         fn f064_kernel_l(b in ef16()) {
-            prop_assert!(conn_laws::conn_kernel_l(&F064F016, b));
+            prop_assert!(conn_laws::kernel_l(&F064F016::L, b));
         }
 
         #[test]
         fn f064_kernel_r(b in ef16()) {
-            prop_assert!(conn_laws::conn_kernel_r(&F064F016, b));
+            prop_assert!(conn_laws::kernel_r(&F064F016::R, b));
         }
 
         #[test]
         fn f064_monotone_l(a1 in ef64(), a2 in ef64()) {
-            prop_assert!(conn_laws::conn_monotone_l(&F064F016, a1, a2));
+            prop_assert!(conn_laws::monotone_l(&F064F016::L, a1, a2));
         }
 
         #[test]
         fn f064_monotone_r(b1 in ef16(), b2 in ef16()) {
-            prop_assert!(conn_laws::conn_monotone_r(&F064F016, b1, b2));
+            prop_assert!(conn_laws::monotone_r(&F064F016::R, b1, b2));
         }
 
         #[test]
         fn f064_idempotent(a in ef64()) {
-            prop_assert!(conn_laws::conn_idempotent(&F064F016, a));
+            prop_assert!(conn_laws::idempotent(&F064F016::L, a));
         }
 
         #[test]
         fn f064_floor_le_ceil(a in ef64()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&F064F016, a));
+            prop_assert!(conn_laws::floor_le_ceil(&F064F016, a));
         }
 
         #[test]

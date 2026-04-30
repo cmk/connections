@@ -120,7 +120,7 @@ fn utc_max_s() -> i64 {
 /// `Extended<OffsetDateTime> → i128` — unix nanoseconds since
 /// `OffsetDateTime::UNIX_EPOCH`.
 ///
-/// One-sided left-Galois Conn (`Conn::new_left(ceil, inner)`):
+/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`):
 /// `inner: i128 → Extended<OffsetDateTime>` saturates out-of-range
 /// `i128` values onto `Extended::NegInf` / `Extended::PosInf`, which
 /// makes `inner` non-order-reflecting at the synthetic extremes. The
@@ -151,7 +151,7 @@ fn utc_max_s() -> i64 {
 /// // Out-of-range nanoseconds saturate.
 /// assert_eq!(OFDTNANO.inner(i128::MAX), Extended::PosInf);
 /// ```
-pub const OFDTNANO: Conn<Extended<OffsetDateTime>, i128> = {
+pub const OFDTNANO: crate::conn::ConnL<Extended<OffsetDateTime>, i128> = {
     fn ceil(o: Extended<OffsetDateTime>) -> i128 {
         let min_ns = utc_min_ns();
         let max_ns = utc_max_ns();
@@ -189,7 +189,7 @@ pub const OFDTNANO: Conn<Extended<OffsetDateTime>, i128> = {
         }
     }
 
-    Conn::new_left(ceil, inner)
+    Conn::new_l(ceil, inner)
 };
 
 // ── OFDTSECS ─────────────────────────────────────────────────────
@@ -198,7 +198,7 @@ pub const OFDTNANO: Conn<Extended<OffsetDateTime>, i128> = {
 /// `OffsetDateTime::UNIX_EPOCH`, rounding sub-second fractions up to
 /// the next whole second.
 ///
-/// One-sided left-Galois Conn (`Conn::new_left(ceil, inner)`). Two
+/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`). Two
 /// reasons it can't ship as a full triple:
 ///
 /// - `inner` saturates out-of-range `i64` values to
@@ -211,7 +211,7 @@ pub const OFDTNANO: Conn<Extended<OffsetDateTime>, i128> = {
 /// **Behavioral note on rounding:** `ceil(Finite(odt))` =
 /// `odt.unix_timestamp() + 1` when `odt.nanosecond() != 0`, otherwise
 /// `odt.unix_timestamp()`. Because `floor = ceil` under `new_left`,
-/// callers reading `OFDTSECS.floor(odt)` get the **rounded-up**
+/// callers reading `OFDTSECS.ceil(odt)` get the **rounded-up**
 /// answer, not the truncated one (`unix_timestamp()` is itself
 /// `floor`-shaped in the `time` crate). Callers needing the
 /// truncating direction can compute `odt.unix_timestamp()` directly.
@@ -234,7 +234,7 @@ pub const OFDTNANO: Conn<Extended<OffsetDateTime>, i128> = {
 /// let mid = OffsetDateTime::UNIX_EPOCH + Duration::nanoseconds(1);
 /// assert_eq!(OFDTSECS.ceil(Extended::Finite(mid)), 1);
 /// ```
-pub const OFDTSECS: Conn<Extended<OffsetDateTime>, i64> = {
+pub const OFDTSECS: crate::conn::ConnL<Extended<OffsetDateTime>, i64> = {
     fn ceil(o: Extended<OffsetDateTime>) -> i64 {
         let min_s = utc_min_s();
         let max_s = utc_max_s();
@@ -280,12 +280,14 @@ pub const OFDTSECS: Conn<Extended<OffsetDateTime>, i64> = {
         }
     }
 
-    Conn::new_left(ceil, inner)
+    Conn::new_l(ceil, inner)
 };
 
 #[cfg(test)]
 mod ofdt_tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::prop::arb::{
         arb_extended_offset_dt, arb_offset_dt, arb_unix_nanos_in_range, arb_unix_secs_in_range,
     };
@@ -402,8 +404,8 @@ mod ofdt_tests {
         assert_eq!(OFDTNANO.ceil(Extended::PosInf), max_ns + 1);
         assert_eq!(OFDTNANO.ceil(Extended::NegInf), i128::MIN);
         // `new_left` wires `floor = ceil` structurally.
-        assert_eq!(OFDTNANO.floor(Extended::PosInf), max_ns + 1);
-        assert_eq!(OFDTNANO.floor(Extended::NegInf), i128::MIN);
+        assert_eq!(OFDTNANO.ceil(Extended::PosInf), max_ns + 1);
+        assert_eq!(OFDTNANO.ceil(Extended::NegInf), i128::MIN);
     }
 
     // ── OFDTSECS spot checks ────────────────────────────────────
@@ -440,8 +442,8 @@ mod ofdt_tests {
         assert_eq!(OFDTSECS.ceil(Extended::PosInf), max_s + 1);
         assert_eq!(OFDTSECS.ceil(Extended::NegInf), i64::MIN);
         // `new_left` wires `floor = ceil` structurally.
-        assert_eq!(OFDTSECS.floor(Extended::PosInf), max_s + 1);
-        assert_eq!(OFDTSECS.floor(Extended::NegInf), i64::MIN);
+        assert_eq!(OFDTSECS.ceil(Extended::PosInf), max_s + 1);
+        assert_eq!(OFDTSECS.ceil(Extended::NegInf), i64::MIN);
     }
 
     // ── Galois law battery — OFDTNANO (one-sided L) ────────────
@@ -449,37 +451,32 @@ mod ofdt_tests {
     proptest! {
         #[test]
         fn ofdtnano_galois_l(o in arb_extended_offset_dt(), b in any::<i128>()) {
-            prop_assert!(conn_laws::conn_galois_l(&OFDTNANO, o, b));
-        }
-
-        #[test]
-        fn ofdtnano_floor_le_ceil(o in arb_extended_offset_dt()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&OFDTNANO, o));
+            prop_assert!(conn_laws::galois_l(&OFDTNANO, o, b));
         }
 
         #[test]
         fn ofdtnano_closure_l(o in arb_extended_offset_dt()) {
-            prop_assert!(conn_laws::conn_closure_l(&OFDTNANO, o));
+            prop_assert!(conn_laws::closure_l(&OFDTNANO, o));
         }
 
         #[test]
         fn ofdtnano_kernel_l(b in any::<i128>()) {
-            prop_assert!(conn_laws::conn_kernel_l(&OFDTNANO, b));
+            prop_assert!(conn_laws::kernel_l(&OFDTNANO, b));
         }
 
         #[test]
         fn ofdtnano_monotone_l(a in arb_extended_offset_dt(), b in arb_extended_offset_dt()) {
-            prop_assert!(conn_laws::conn_monotone_l(&OFDTNANO, a, b));
+            prop_assert!(conn_laws::monotone_l(&OFDTNANO, a, b));
         }
 
         #[test]
         fn ofdtnano_idempotent(o in arb_extended_offset_dt()) {
-            prop_assert!(conn_laws::conn_idempotent(&OFDTNANO, o));
+            prop_assert!(conn_laws::idempotent(&OFDTNANO, o));
         }
 
         #[test]
         fn ofdtnano_roundtrip_ceil(b in arb_unix_nanos_in_range()) {
-            prop_assert!(conn_laws::conn_roundtrip_ceil(&OFDTNANO, b));
+            prop_assert!(conn_laws::roundtrip_ceil(&OFDTNANO, b));
         }
     }
 
@@ -488,37 +485,32 @@ mod ofdt_tests {
     proptest! {
         #[test]
         fn ofdtsecs_galois_l(o in arb_extended_offset_dt(), b in any::<i64>()) {
-            prop_assert!(conn_laws::conn_galois_l(&OFDTSECS, o, b));
-        }
-
-        #[test]
-        fn ofdtsecs_floor_le_ceil(o in arb_extended_offset_dt()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&OFDTSECS, o));
+            prop_assert!(conn_laws::galois_l(&OFDTSECS, o, b));
         }
 
         #[test]
         fn ofdtsecs_closure_l(o in arb_extended_offset_dt()) {
-            prop_assert!(conn_laws::conn_closure_l(&OFDTSECS, o));
+            prop_assert!(conn_laws::closure_l(&OFDTSECS, o));
         }
 
         #[test]
         fn ofdtsecs_kernel_l(b in any::<i64>()) {
-            prop_assert!(conn_laws::conn_kernel_l(&OFDTSECS, b));
+            prop_assert!(conn_laws::kernel_l(&OFDTSECS, b));
         }
 
         #[test]
         fn ofdtsecs_monotone_l(a in arb_extended_offset_dt(), b in arb_extended_offset_dt()) {
-            prop_assert!(conn_laws::conn_monotone_l(&OFDTSECS, a, b));
+            prop_assert!(conn_laws::monotone_l(&OFDTSECS, a, b));
         }
 
         #[test]
         fn ofdtsecs_idempotent(o in arb_extended_offset_dt()) {
-            prop_assert!(conn_laws::conn_idempotent(&OFDTSECS, o));
+            prop_assert!(conn_laws::idempotent(&OFDTSECS, o));
         }
 
         #[test]
         fn ofdtsecs_roundtrip_ceil(b in arb_unix_secs_in_range()) {
-            prop_assert!(conn_laws::conn_roundtrip_ceil(&OFDTSECS, b));
+            prop_assert!(conn_laws::roundtrip_ceil(&OFDTSECS, b));
         }
     }
 }

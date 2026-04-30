@@ -32,15 +32,25 @@ nz_int_ext!(I032N032, i32, NonZeroI32);
 // ── §3 cross-crate iso: FixedI32<U0> ↔ i32 ─────────────────────────
 
 /// `FixedI32<U0> ↔ i32` — Q32.0 lossless iso. Degenerate Galois.
-pub const Q000I032: Conn<FixedI32<U0>, i32> = {
-    fn forward(q: FixedI32<U0>) -> i32 {
+pub struct Q000I032;
+
+impl Q000I032 {
+    const fn forward(q: FixedI32<U0>) -> i32 {
         q.to_bits()
     }
-    fn back(i: i32) -> FixedI32<U0> {
+    const fn back(i: i32) -> FixedI32<U0> {
         FixedI32::<U0>::from_bits(i)
     }
-    Conn::new_iso(forward, back)
-};
+}
+
+impl crate::conn::ViewL<FixedI32<U0>, i32> for Q000I032 {
+    const L: crate::conn::ConnL<FixedI32<U0>, i32> =
+        crate::conn::Conn::new_l(Q000I032::forward, Q000I032::back);
+}
+impl crate::conn::ViewR<FixedI32<U0>, i32> for Q000I032 {
+    const R: crate::conn::ConnR<FixedI32<U0>, i32> =
+        crate::conn::Conn::new_r(Q000I032::back, Q000I032::forward);
+}
 
 // ── §4 Q-format ladder over `FixedI32<Frac>` ────────────────────────
 
@@ -62,47 +72,57 @@ macro_rules! fix_fix_i32 {
             stringify!($CoarseFrac),
             ">` frac-level convert (i32-backed)."
         )]
-        pub const $const_name: Conn<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> = {
+        pub struct $const_name;
+
+        impl $const_name {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
             // i64 covers SHIFT ∈ [1, 32]: 1 << 32 fits, and
             // i32::MAX × (1 << 32) ≈ 2^63 < i64::MAX.
-            const RATIO: i64 = 1_i64 << SHIFT;
+            const RATIO: i64 = 1_i64 << Self::SHIFT;
             const FINE_MIN: i32 = i32::MIN;
             const FINE_MAX: i32 = i32::MAX;
 
-            fn ceil(x: FixedI32<$FineFrac>) -> FixedI32<$CoarseFrac> {
-                if x.to_bits() == FINE_MIN {
+            const fn _ceil(x: FixedI32<$FineFrac>) -> FixedI32<$CoarseFrac> {
+                if x.to_bits() == Self::FINE_MIN {
                     return FixedI32::<$CoarseFrac>::from_bits(i32::MIN);
                 }
                 let bits = x.to_bits() as i64;
-                let q = bits.div_euclid(RATIO);
-                let r = bits.rem_euclid(RATIO);
+                let q = bits.div_euclid(Self::RATIO);
+                let r = bits.rem_euclid(Self::RATIO);
                 let res = if r != 0 { q + 1 } else { q };
                 FixedI32::from_bits(res as i32)
             }
 
-            fn inner(x: FixedI32<$CoarseFrac>) -> FixedI32<$FineFrac> {
-                let res = (x.to_bits() as i64) * RATIO;
-                let saturated = if res > FINE_MAX as i64 {
-                    FINE_MAX
-                } else if res < FINE_MIN as i64 {
-                    FINE_MIN
+            const fn _inner(x: FixedI32<$CoarseFrac>) -> FixedI32<$FineFrac> {
+                let res = (x.to_bits() as i64) * Self::RATIO;
+                let saturated = if res > Self::FINE_MAX as i64 {
+                    Self::FINE_MAX
+                } else if res < Self::FINE_MIN as i64 {
+                    Self::FINE_MIN
                 } else {
                     res as i32
                 };
                 FixedI32::from_bits(saturated)
             }
 
-            fn floor(x: FixedI32<$FineFrac>) -> FixedI32<$CoarseFrac> {
-                if x.to_bits() == FINE_MAX {
+            const fn _floor(x: FixedI32<$FineFrac>) -> FixedI32<$CoarseFrac> {
+                if x.to_bits() == Self::FINE_MAX {
                     return FixedI32::<$CoarseFrac>::from_bits(i32::MAX);
                 }
-                let res = (x.to_bits() as i64).div_euclid(RATIO);
+                let res = (x.to_bits() as i64).div_euclid(Self::RATIO);
                 FixedI32::from_bits(res as i32)
             }
+        }
 
-            Conn::new(ceil, inner, floor)
-        };
+        impl $crate::conn::ViewL<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> for $const_name {
+            const L: $crate::conn::ConnL<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> =
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        }
+
+        impl $crate::conn::ViewR<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> for $const_name {
+            const R: $crate::conn::ConnR<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> =
+                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
+        }
     };
 }
 
@@ -130,6 +150,8 @@ fix_fix_i32!(Q032Q024, U32, U24);
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
@@ -220,50 +242,50 @@ mod tests {
                     fn galois_l(f in any::<i32>(), b in any::<i32>()) {
                         let fine = FixedI32::<$FineFrac>::from_bits(f);
                         let coarse = FixedI32::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::conn_galois_l(&$conn, fine, coarse));
+                        prop_assert!(conn_laws::galois_l(&$conn::L, fine, coarse));
                     }
                     #[test]
                     fn galois_r(f in any::<i32>(), b in any::<i32>()) {
                         let fine = FixedI32::<$FineFrac>::from_bits(f);
                         let coarse = FixedI32::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::conn_galois_r(&$conn, fine, coarse));
+                        prop_assert!(conn_laws::galois_r(&$conn::R, fine, coarse));
                     }
                     #[test]
                     fn monotone_l(f1 in any::<i32>(), f2 in any::<i32>()) {
                         let f1 = FixedI32::<$FineFrac>::from_bits(f1);
                         let f2 = FixedI32::<$FineFrac>::from_bits(f2);
-                        prop_assert!(conn_laws::conn_monotone_l(&$conn, f1, f2));
+                        prop_assert!(conn_laws::monotone_l(&$conn::L, f1, f2));
                     }
                     #[test]
                     fn monotone_r(b1 in any::<i32>(), b2 in any::<i32>()) {
                         let b1 = FixedI32::<$CoarseFrac>::from_bits(b1);
                         let b2 = FixedI32::<$CoarseFrac>::from_bits(b2);
-                        prop_assert!(conn_laws::conn_monotone_r(&$conn, b1, b2));
+                        prop_assert!(conn_laws::monotone_r(&$conn::R, b1, b2));
                     }
                     #[test]
                     fn closure_l(f in any::<i32>()) {
                         let fine = FixedI32::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::conn_closure_l(&$conn, fine));
+                        prop_assert!(conn_laws::closure_l(&$conn::L, fine));
                     }
                     #[test]
                     fn closure_r(f in any::<i32>()) {
                         let fine = FixedI32::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::conn_closure_r(&$conn, fine));
+                        prop_assert!(conn_laws::closure_r(&$conn::R, fine));
                     }
                     #[test]
                     fn kernel_l(b in any::<i32>()) {
                         let c = FixedI32::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::conn_kernel_l(&$conn, c));
+                        prop_assert!(conn_laws::kernel_l(&$conn::L, c));
                     }
                     #[test]
                     fn kernel_r(b in any::<i32>()) {
                         let c = FixedI32::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::conn_kernel_r(&$conn, c));
+                        prop_assert!(conn_laws::kernel_r(&$conn::R, c));
                     }
                     #[test]
                     fn idempotent(f in any::<i32>()) {
                         let fine = FixedI32::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::conn_idempotent(&$conn, fine));
+                        prop_assert!(conn_laws::idempotent(&$conn::L, fine));
                     }
                 }
             }

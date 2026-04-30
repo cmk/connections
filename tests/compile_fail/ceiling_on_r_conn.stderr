@@ -1,0 +1,5 @@
+error[E0432]: unresolved import `connections::conn::ceiling`
+ --> tests/compile_fail/ceiling_on_r_conn.rs:4:38
+  |
+4 | use connections::conn::{Conn, ConnR, ceiling};
+  |                                      ^^^^^^^ no `ceiling` in `conn`

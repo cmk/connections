@@ -10,7 +10,7 @@ use time::Date;
 /// `Extended<Date> → i32` — the proleptic-Gregorian Julian-day
 /// connection.
 ///
-/// One-sided left-Galois Conn (`Conn::new_left(ceil, inner)`):
+/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`):
 /// `inner: i32 → Extended<Date>` saturates `i32` values outside
 /// `[Date::MIN.to_julian_day(), Date::MAX.to_julian_day()]` onto
 /// `Extended::NegInf` / `Extended::PosInf`, which makes `inner`
@@ -37,7 +37,7 @@ use time::Date;
 /// // Out-of-range julian day saturates to PosInf.
 /// assert_eq!(DATEJDAY.inner(i32::MAX), Extended::PosInf);
 /// ```
-pub const DATEJDAY: Conn<Extended<Date>, i32> = {
+pub const DATEJDAY: crate::conn::ConnL<Extended<Date>, i32> = {
     const MIN_JD: i32 = Date::MIN.to_julian_day();
     const MAX_JD: i32 = Date::MAX.to_julian_day();
 
@@ -64,12 +64,14 @@ pub const DATEJDAY: Conn<Extended<Date>, i32> = {
         }
     }
 
-    Conn::new_left(ceil, inner)
+    Conn::new_l(ceil, inner)
 };
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::prop::arb::{arb_date, arb_extended_date, arb_jd_in_range};
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -146,8 +148,8 @@ mod tests {
         assert_eq!(DATEJDAY.ceil(Extended::NegInf), i32::MIN);
         assert_eq!(DATEJDAY.ceil(Extended::PosInf), MAX_JD + 1);
         // `new_left` wires `floor = ceil` structurally.
-        assert_eq!(DATEJDAY.floor(Extended::NegInf), i32::MIN);
-        assert_eq!(DATEJDAY.floor(Extended::PosInf), MAX_JD + 1);
+        assert_eq!(DATEJDAY.ceil(Extended::NegInf), i32::MIN);
+        assert_eq!(DATEJDAY.ceil(Extended::PosInf), MAX_JD + 1);
     }
 
     // ── DATEJDAY Galois law battery (one-sided L) ───────────────
@@ -159,37 +161,32 @@ mod tests {
     proptest! {
         #[test]
         fn galois_l(d in arb_extended_date(), b in any::<i32>()) {
-            prop_assert!(conn_laws::conn_galois_l(&DATEJDAY, d, b));
-        }
-
-        #[test]
-        fn floor_le_ceil(d in arb_extended_date()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&DATEJDAY, d));
+            prop_assert!(conn_laws::galois_l(&DATEJDAY, d, b));
         }
 
         #[test]
         fn closure_l(d in arb_extended_date()) {
-            prop_assert!(conn_laws::conn_closure_l(&DATEJDAY, d));
+            prop_assert!(conn_laws::closure_l(&DATEJDAY, d));
         }
 
         #[test]
         fn kernel_l(b in any::<i32>()) {
-            prop_assert!(conn_laws::conn_kernel_l(&DATEJDAY, b));
+            prop_assert!(conn_laws::kernel_l(&DATEJDAY, b));
         }
 
         #[test]
         fn monotone_l(a in arb_extended_date(), b in arb_extended_date()) {
-            prop_assert!(conn_laws::conn_monotone_l(&DATEJDAY, a, b));
+            prop_assert!(conn_laws::monotone_l(&DATEJDAY, a, b));
         }
 
         #[test]
         fn idempotent(d in arb_extended_date()) {
-            prop_assert!(conn_laws::conn_idempotent(&DATEJDAY, d));
+            prop_assert!(conn_laws::idempotent(&DATEJDAY, d));
         }
 
         #[test]
         fn roundtrip_ceil(b in arb_jd_in_range()) {
-            prop_assert!(conn_laws::conn_roundtrip_ceil(&DATEJDAY, b));
+            prop_assert!(conn_laws::roundtrip_ceil(&DATEJDAY, b));
         }
     }
 }

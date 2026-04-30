@@ -12,7 +12,7 @@ use time::Time;
 
 /// `Extended<Time> → i64` — clock time ↔ nanoseconds-since-midnight.
 ///
-/// One-sided left-Galois Conn (`Conn::new_left(ceil, inner)`):
+/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`):
 /// `inner: i64 → Extended<Time>` saturates `i64` values outside
 /// `[0, 86_400 × 10⁹)` onto `Extended::NegInf` / `Extended::PosInf`,
 /// which makes `inner` non-order-reflecting at the synthetic
@@ -49,7 +49,7 @@ use time::Time;
 /// assert_eq!(TIMENANO.inner(-1), Extended::NegInf);
 /// assert_eq!(TIMENANO.inner(86_400_000_000_000), Extended::PosInf);
 /// ```
-pub const TIMENANO: Conn<Extended<Time>, i64> = {
+pub const TIMENANO: crate::conn::ConnL<Extended<Time>, i64> = {
     const NS_PER_HOUR: i64 = 3_600_000_000_000;
     const NS_PER_MIN: i64 = 60_000_000_000;
     const NS_PER_SEC: i64 = 1_000_000_000;
@@ -89,14 +89,14 @@ pub const TIMENANO: Conn<Extended<Time>, i64> = {
         }
     }
 
-    Conn::new_left(ceil, inner)
+    Conn::new_l(ceil, inner)
 };
 
 /// `Extended<Time> → i64` — clock time ↔ whole seconds since
 /// midnight, rounding sub-second fractions up to the next whole
 /// second.
 ///
-/// One-sided left-Galois Conn (`Conn::new_left(ceil, inner)`). Two
+/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`). Two
 /// reasons it can't ship as a full triple:
 ///
 /// - `inner` saturates out-of-range `i64` values to
@@ -110,7 +110,7 @@ pub const TIMENANO: Conn<Extended<Time>, i64> = {
 /// **Behavioral note on rounding:** `ceil(Finite(t)) = whole_sec(t) +
 /// 1` when `t.nanosecond() != 0`, otherwise `whole_sec(t)`. Because
 /// `floor = ceil` under `new_left`, callers reading
-/// `TIMESECS.floor(t)` get the **rounded-up** answer, not a truncated
+/// `TIMESECS.ceil(t)` get the **rounded-up** answer, not a truncated
 /// one. Callers needing the dual rounding direction can compute it
 /// explicitly: `ceil(t) - (t.nanosecond() != 0) as i64`. (See Plan 27
 /// deferred work for a possible future paired-Conn split.)
@@ -135,7 +135,7 @@ pub const TIMENANO: Conn<Extended<Time>, i64> = {
 ///
 /// assert_eq!(TIMESECS.inner(43_200), Extended::Finite(noon));
 /// ```
-pub const TIMESECS: Conn<Extended<Time>, i64> = {
+pub const TIMESECS: crate::conn::ConnL<Extended<Time>, i64> = {
     const SECS_MAX: i64 = 86_400 - 1;
 
     fn whole_sec(t: Time) -> i64 {
@@ -171,12 +171,14 @@ pub const TIMESECS: Conn<Extended<Time>, i64> = {
         }
     }
 
-    Conn::new_left(ceil, inner)
+    Conn::new_l(ceil, inner)
 };
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::prop::arb::{arb_extended_time, arb_ns_in_range, arb_secs_in_range, arb_time};
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -255,8 +257,8 @@ mod tests {
             assert_eq!(TIMENANO.ceil(Extended::NegInf), i64::MIN);
             assert_eq!(TIMENANO.ceil(Extended::PosInf), NS_MAX + 1);
             // `new_left` wires `floor = ceil` structurally.
-            assert_eq!(TIMENANO.floor(Extended::NegInf), i64::MIN);
-            assert_eq!(TIMENANO.floor(Extended::PosInf), NS_MAX + 1);
+            assert_eq!(TIMENANO.ceil(Extended::NegInf), i64::MIN);
+            assert_eq!(TIMENANO.ceil(Extended::PosInf), NS_MAX + 1);
         }
 
         // ── Galois law battery (one-sided L) ────────────────────
@@ -264,37 +266,32 @@ mod tests {
         proptest! {
             #[test]
             fn galois_l(t in arb_extended_time(), b in any::<i64>()) {
-                prop_assert!(conn_laws::conn_galois_l(&TIMENANO, t, b));
-            }
-
-            #[test]
-            fn floor_le_ceil(t in arb_extended_time()) {
-                prop_assert!(conn_laws::conn_floor_le_ceil(&TIMENANO, t));
+                prop_assert!(conn_laws::galois_l(&TIMENANO, t, b));
             }
 
             #[test]
             fn closure_l(t in arb_extended_time()) {
-                prop_assert!(conn_laws::conn_closure_l(&TIMENANO, t));
+                prop_assert!(conn_laws::closure_l(&TIMENANO, t));
             }
 
             #[test]
             fn kernel_l(b in any::<i64>()) {
-                prop_assert!(conn_laws::conn_kernel_l(&TIMENANO, b));
+                prop_assert!(conn_laws::kernel_l(&TIMENANO, b));
             }
 
             #[test]
             fn monotone_l(a in arb_extended_time(), b in arb_extended_time()) {
-                prop_assert!(conn_laws::conn_monotone_l(&TIMENANO, a, b));
+                prop_assert!(conn_laws::monotone_l(&TIMENANO, a, b));
             }
 
             #[test]
             fn idempotent(t in arb_extended_time()) {
-                prop_assert!(conn_laws::conn_idempotent(&TIMENANO, t));
+                prop_assert!(conn_laws::idempotent(&TIMENANO, t));
             }
 
             #[test]
             fn roundtrip_ceil(b in arb_ns_in_range()) {
-                prop_assert!(conn_laws::conn_roundtrip_ceil(&TIMENANO, b));
+                prop_assert!(conn_laws::roundtrip_ceil(&TIMENANO, b));
             }
         }
     }
@@ -325,7 +322,7 @@ mod tests {
             // second. floor (= ceil structurally) returns the same.
             let one_ns_after_noon = Time::from_hms_nano(12, 0, 0, 1).unwrap();
             assert_eq!(TIMESECS.ceil(Extended::Finite(one_ns_after_noon)), 43_201);
-            assert_eq!(TIMESECS.floor(Extended::Finite(one_ns_after_noon)), 43_201);
+            assert_eq!(TIMESECS.ceil(Extended::Finite(one_ns_after_noon)), 43_201);
         }
 
         #[test]
@@ -334,7 +331,7 @@ mod tests {
             // marker on the rung side); floor = ceil under new_left.
             let last = Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap();
             assert_eq!(TIMESECS.ceil(Extended::Finite(last)), 86_400);
-            assert_eq!(TIMESECS.floor(Extended::Finite(last)), 86_400);
+            assert_eq!(TIMESECS.ceil(Extended::Finite(last)), 86_400);
         }
 
         #[test]
@@ -344,8 +341,8 @@ mod tests {
             assert_eq!(TIMESECS.ceil(Extended::NegInf), i64::MIN);
             assert_eq!(TIMESECS.ceil(Extended::PosInf), 86_400);
             // `new_left` wires `floor = ceil` structurally.
-            assert_eq!(TIMESECS.floor(Extended::NegInf), i64::MIN);
-            assert_eq!(TIMESECS.floor(Extended::PosInf), 86_400);
+            assert_eq!(TIMESECS.ceil(Extended::NegInf), i64::MIN);
+            assert_eq!(TIMESECS.ceil(Extended::PosInf), 86_400);
         }
 
         // ── Galois law battery (one-sided L) ────────────────────
@@ -353,37 +350,32 @@ mod tests {
         proptest! {
             #[test]
             fn galois_l(t in arb_extended_time(), b in any::<i64>()) {
-                prop_assert!(conn_laws::conn_galois_l(&TIMESECS, t, b));
-            }
-
-            #[test]
-            fn floor_le_ceil(t in arb_extended_time()) {
-                prop_assert!(conn_laws::conn_floor_le_ceil(&TIMESECS, t));
+                prop_assert!(conn_laws::galois_l(&TIMESECS, t, b));
             }
 
             #[test]
             fn closure_l(t in arb_extended_time()) {
-                prop_assert!(conn_laws::conn_closure_l(&TIMESECS, t));
+                prop_assert!(conn_laws::closure_l(&TIMESECS, t));
             }
 
             #[test]
             fn kernel_l(b in any::<i64>()) {
-                prop_assert!(conn_laws::conn_kernel_l(&TIMESECS, b));
+                prop_assert!(conn_laws::kernel_l(&TIMESECS, b));
             }
 
             #[test]
             fn monotone_l(a in arb_extended_time(), b in arb_extended_time()) {
-                prop_assert!(conn_laws::conn_monotone_l(&TIMESECS, a, b));
+                prop_assert!(conn_laws::monotone_l(&TIMESECS, a, b));
             }
 
             #[test]
             fn idempotent(t in arb_extended_time()) {
-                prop_assert!(conn_laws::conn_idempotent(&TIMESECS, t));
+                prop_assert!(conn_laws::idempotent(&TIMESECS, t));
             }
 
             #[test]
             fn roundtrip_ceil(b in arb_secs_in_range()) {
-                prop_assert!(conn_laws::conn_roundtrip_ceil(&TIMESECS, b));
+                prop_assert!(conn_laws::roundtrip_ceil(&TIMESECS, b));
             }
         }
     }

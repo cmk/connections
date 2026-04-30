@@ -24,10 +24,12 @@
 //! use connections::prop::conn;
 //!
 //! // Spot check: F064F032 satisfies the Galois adjoint law over a
-//! // representative pair.
+//! // representative pair. F064F032 is now a triple-marker unit
+//! // struct; reach for its L-view via the ViewL impl.
+//! use connections::conn::ViewL;
 //! let a = ExtendedFloat::Extend(1.5_f64);
 //! let b = ExtendedFloat::Extend(1.5_f32);
-//! assert!(conn::conn_galois_l(&F064F032, a, b));
+//! assert!(conn::galois_l(&F064F032::L, a, b));
 //! ```
 //!
 //! With the `testing` feature enabled, downstream proptest blocks
@@ -45,7 +47,7 @@
 //!         a in arb::arb_f64(),
 //!         b in arb::arb_f32(),
 //!     ) {
-//!         prop_assert!(conn::conn_galois_l(
+//!         prop_assert!(conn::galois_l(
 //!             &F064F032,
 //!             ExtendedFloat::Extend(a),
 //!             ExtendedFloat::Extend(b),

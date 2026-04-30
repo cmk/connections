@@ -4,6 +4,8 @@
 //! binary stays small — same precedent as
 //! `tests/conn_fixed_u<width>_galois.rs`.
 
+#[allow(unused_imports)]
+use connections::conn::{ViewL, ViewR};
 use connections::fixed::u8::*;
 use proptest::prelude::*;
 
@@ -16,7 +18,7 @@ use proptest::prelude::*;
 // thread on MR !27 for the worked counter-example at
 // `(a = i32::MIN, b = i8::MIN)`.
 macro_rules! single_sided_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 

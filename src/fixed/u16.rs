@@ -47,15 +47,25 @@ nz_uint_ext!(U016N016, u16, NonZeroU16);
 // ── §3 cross-crate iso: FixedU16<U0> ↔ u16 ─────────────────────────
 
 /// `FixedU16<U0> ↔ u16` — Q16.0 unsigned lossless iso. Degenerate Galois.
-pub const Q000U016: Conn<FixedU16<U0>, u16> = {
-    fn forward(q: FixedU16<U0>) -> u16 {
+pub struct Q000U016;
+
+impl Q000U016 {
+    const fn forward(q: FixedU16<U0>) -> u16 {
         q.to_bits()
     }
-    fn back(i: u16) -> FixedU16<U0> {
+    const fn back(i: u16) -> FixedU16<U0> {
         FixedU16::<U0>::from_bits(i)
     }
-    Conn::new_iso(forward, back)
-};
+}
+
+impl crate::conn::ViewL<FixedU16<U0>, u16> for Q000U016 {
+    const L: crate::conn::ConnL<FixedU16<U0>, u16> =
+        crate::conn::Conn::new_l(Q000U016::forward, Q000U016::back);
+}
+impl crate::conn::ViewR<FixedU16<U0>, u16> for Q000U016 {
+    const R: crate::conn::ConnR<FixedU16<U0>, u16> =
+        crate::conn::Conn::new_r(Q000U016::back, Q000U016::forward);
+}
 
 // ── §4 Q-format ladder over `FixedU16<Frac>` ────────────────────────
 
@@ -79,45 +89,55 @@ macro_rules! fix_fix_u16 {
             stringify!($CoarseFrac),
             ">` frac-level convert (u16-backed)."
         )]
-        pub const $const_name: Conn<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> = {
+        pub struct $const_name;
+
+        impl $const_name {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
             // u32 covers SHIFT ∈ [1, 16]: 1 << 16 = 65 536 fits, and
             // u16::MAX × (1 << 16) = 4 294 836 225 < u32::MAX, so the
             // multiplication in `inner` cannot overflow u32 before the
             // saturating clamp.
-            const RATIO: u32 = 1_u32 << SHIFT;
+            const RATIO: u32 = 1_u32 << Self::SHIFT;
             const FINE_MAX: u16 = u16::MAX;
 
-            fn ceil(x: FixedU16<$FineFrac>) -> FixedU16<$CoarseFrac> {
+            const fn _ceil(x: FixedU16<$FineFrac>) -> FixedU16<$CoarseFrac> {
                 let bits = x.to_bits() as u32;
-                let q = bits / RATIO;
-                let r = bits % RATIO;
-                // `res ≤ ⌈u16::MAX / 2⌉ = 32_768` since RATIO ≥ 2;
+                let q = bits / Self::RATIO;
+                let r = bits % Self::RATIO;
+                // `res ≤ ⌈u16::MAX / 2⌉ = 32_768` since Self::RATIO ≥ 2;
                 // the `as u16` cast is lossless.
                 let res = if r != 0 { q + 1 } else { q };
                 FixedU16::from_bits(res as u16)
             }
 
-            fn inner(x: FixedU16<$CoarseFrac>) -> FixedU16<$FineFrac> {
-                let res = (x.to_bits() as u32) * RATIO;
-                let saturated = if res > FINE_MAX as u32 {
-                    FINE_MAX
+            const fn _inner(x: FixedU16<$CoarseFrac>) -> FixedU16<$FineFrac> {
+                let res = (x.to_bits() as u32) * Self::RATIO;
+                let saturated = if res > Self::FINE_MAX as u32 {
+                    Self::FINE_MAX
                 } else {
                     res as u16
                 };
                 FixedU16::from_bits(saturated)
             }
 
-            fn floor(x: FixedU16<$FineFrac>) -> FixedU16<$CoarseFrac> {
-                if x.to_bits() == FINE_MAX {
+            const fn _floor(x: FixedU16<$FineFrac>) -> FixedU16<$CoarseFrac> {
+                if x.to_bits() == Self::FINE_MAX {
                     return FixedU16::<$CoarseFrac>::from_bits(u16::MAX);
                 }
-                let res = (x.to_bits() as u32) / RATIO;
+                let res = (x.to_bits() as u32) / Self::RATIO;
                 FixedU16::from_bits(res as u16)
             }
+        }
 
-            Conn::new(ceil, inner, floor)
-        };
+        impl $crate::conn::ViewL<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> for $const_name {
+            const L: $crate::conn::ConnL<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> =
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        }
+
+        impl $crate::conn::ViewR<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> for $const_name {
+            const R: $crate::conn::ConnR<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> =
+                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
+        }
     };
 }
 
@@ -158,6 +178,8 @@ fix_fix_u16!(Q016Q015, U16, U15);
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
 
     // ── §1 std-int spot checks (merged from former int/u16.rs) ─────
 

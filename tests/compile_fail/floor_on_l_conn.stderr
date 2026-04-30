@@ -1,0 +1,5 @@
+error[E0432]: unresolved import `connections::conn::floor`
+ --> tests/compile_fail/floor_on_l_conn.rs:4:38
+  |
+4 | use connections::conn::{Conn, ConnL, floor};
+  |                                      ^^^^^ no `floor` in `conn`

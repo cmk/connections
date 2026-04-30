@@ -1,0 +1,15 @@
+error[E0308]: mismatched types
+  --> tests/compile_fail/galois_r_on_l_conn.rs:10:22
+   |
+10 |     let _ = galois_r(&L_CONN, 0_i32, 0_i32);
+   |             -------- ^^^^^^^ expected `&Conn<i32, i32, R>`, found `&Conn<i32, i32>`
+   |             |
+   |             arguments to this function are incorrect
+   |
+   = note: expected reference `&Conn<i32, i32, R>`
+              found reference `&Conn<i32, i32, L>`
+note: function defined here
+  --> src/prop/conn.rs
+   |
+   | pub fn galois_r<A: Copy + Eq + PartialOrd, B: Copy + Eq + PartialOrd>(
+   |        ^^^^^^^^

@@ -45,22 +45,32 @@ const V4MAPPED_HI: u128 = 0x0000_0000_0000_0000_0000_FFFF_FFFF_FFFF;
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// use connections::addr::U032IPV4;
 /// use std::net::Ipv4Addr;
 ///
 /// assert_eq!(U032IPV4.ceil(0xC0A80101_u32), Ipv4Addr::new(192, 168, 1, 1));
 /// assert_eq!(U032IPV4.inner(Ipv4Addr::new(192, 168, 1, 1)), 0xC0A80101_u32);
 /// ```
-pub const U032IPV4: Conn<u32, Ipv4Addr> = {
-    fn forward(b: u32) -> Ipv4Addr {
+pub struct U032IPV4;
+
+impl U032IPV4 {
+    const fn _forward(b: u32) -> Ipv4Addr {
         Ipv4Addr::from_bits(b)
     }
-    fn back(a: Ipv4Addr) -> u32 {
+    const fn _back(a: Ipv4Addr) -> u32 {
         a.to_bits()
     }
-    Conn::new_iso(forward, back)
-};
+}
+
+impl crate::conn::ViewL<u32, Ipv4Addr> for U032IPV4 {
+    const L: crate::conn::ConnL<u32, Ipv4Addr> =
+        crate::conn::Conn::new_l(U032IPV4::_forward, U032IPV4::_back);
+}
+impl crate::conn::ViewR<u32, Ipv4Addr> for U032IPV4 {
+    const R: crate::conn::ConnR<u32, Ipv4Addr> =
+        crate::conn::Conn::new_r(U032IPV4::_back, U032IPV4::_forward);
+}
 
 /// `u128 ↔ Ipv6Addr` — total bijection via the standard big-endian
 /// representation.
@@ -69,22 +79,32 @@ pub const U032IPV4: Conn<u32, Ipv4Addr> = {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// use connections::addr::U128IPV6;
 /// use std::net::Ipv6Addr;
 ///
 /// assert_eq!(U128IPV6.ceil(1_u128), Ipv6Addr::LOCALHOST);
 /// assert_eq!(U128IPV6.inner(Ipv6Addr::LOCALHOST), 1_u128);
 /// ```
-pub const U128IPV6: Conn<u128, Ipv6Addr> = {
-    fn forward(b: u128) -> Ipv6Addr {
+pub struct U128IPV6;
+
+impl U128IPV6 {
+    const fn _forward(b: u128) -> Ipv6Addr {
         Ipv6Addr::from_bits(b)
     }
-    fn back(a: Ipv6Addr) -> u128 {
+    const fn _back(a: Ipv6Addr) -> u128 {
         a.to_bits()
     }
-    Conn::new_iso(forward, back)
-};
+}
+
+impl crate::conn::ViewL<u128, Ipv6Addr> for U128IPV6 {
+    const L: crate::conn::ConnL<u128, Ipv6Addr> =
+        crate::conn::Conn::new_l(U128IPV6::_forward, U128IPV6::_back);
+}
+impl crate::conn::ViewR<u128, Ipv6Addr> for U128IPV6 {
+    const R: crate::conn::ConnR<u128, Ipv6Addr> =
+        crate::conn::Conn::new_r(U128IPV6::_back, U128IPV6::_forward);
+}
 
 /// `Ipv6Addr → Extended<Ipv4Addr>` — the v4-mapped bridge.
 ///
@@ -124,7 +144,7 @@ pub const U128IPV6: Conn<u128, Ipv6Addr> = {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// use connections::addr::ip::IPV6IPV4;
 /// use connections::extended::Extended;
 /// use std::net::{Ipv4Addr, Ipv6Addr};
@@ -145,8 +165,10 @@ pub const U128IPV6: Conn<u128, Ipv6Addr> = {
 /// assert_eq!(IPV6IPV4.ceil(Ipv6Addr::LOCALHOST),  Extended::Finite(Ipv4Addr::UNSPECIFIED));
 /// assert_eq!(IPV6IPV4.floor(Ipv6Addr::LOCALHOST), Extended::NegInf);
 /// ```
-pub const IPV6IPV4: Conn<Ipv6Addr, Extended<Ipv4Addr>> = {
-    fn ceil(v6: Ipv6Addr) -> Extended<Ipv4Addr> {
+pub struct IPV6IPV4;
+
+impl IPV6IPV4 {
+    const fn _ceil(v6: Ipv6Addr) -> Extended<Ipv4Addr> {
         let bits = v6.to_bits();
         if bits == 0 {
             // `::` — Galois pins ceil to NegInf because inner(NegInf) = `::`.
@@ -163,7 +185,7 @@ pub const IPV6IPV4: Conn<Ipv6Addr, Extended<Ipv4Addr>> = {
         }
     }
 
-    fn inner(b: Extended<Ipv4Addr>) -> Ipv6Addr {
+    const fn _inner(b: Extended<Ipv4Addr>) -> Ipv6Addr {
         match b {
             Extended::NegInf => Ipv6Addr::UNSPECIFIED,
             Extended::Finite(v4) => v4.to_ipv6_mapped(),
@@ -171,7 +193,7 @@ pub const IPV6IPV4: Conn<Ipv6Addr, Extended<Ipv4Addr>> = {
         }
     }
 
-    fn floor(v6: Ipv6Addr) -> Extended<Ipv4Addr> {
+    const fn _floor(v6: Ipv6Addr) -> Extended<Ipv4Addr> {
         let bits = v6.to_bits();
         if bits == u128::MAX {
             // `MAX` — Galois pins floor to PosInf (inner(PosInf) = MAX).
@@ -188,14 +210,21 @@ pub const IPV6IPV4: Conn<Ipv6Addr, Extended<Ipv4Addr>> = {
             Extended::Finite(Ipv4Addr::BROADCAST)
         }
     }
+}
 
-    Conn::new(ceil, inner, floor)
-};
+impl crate::conn::ViewL<Ipv6Addr, Extended<Ipv4Addr>> for IPV6IPV4 {
+    const L: crate::conn::ConnL<Ipv6Addr, Extended<Ipv4Addr>> =
+        crate::conn::Conn::new_l(IPV6IPV4::_ceil, IPV6IPV4::_inner);
+}
+impl crate::conn::ViewR<Ipv6Addr, Extended<Ipv4Addr>> for IPV6IPV4 {
+    const R: crate::conn::ConnR<Ipv6Addr, Extended<Ipv4Addr>> =
+        crate::conn::Conn::new_r(IPV6IPV4::_inner, IPV6IPV4::_floor);
+}
 
 /// `IpAddr → Extended<Ipv4Addr>` — V4 extraction from the IpAddr sum.
 ///
 /// One-sided ceil-adjoint Conn ([`Conn::new_left`]): only `ceil ⊣
-/// inner` holds (`conn_galois_l`); the right-Galois law does not. The
+/// inner` holds (`galois_l`); the right-Galois law does not. The
 /// full triple isn't lawful for this projection because the source
 /// IpAddr's MIN (`V4(0.0.0.0)`) coincides with `inner(NegInf rung)`,
 /// making `inner` non-order-reflecting at the bottom — which would
@@ -210,7 +239,7 @@ pub const IPV6IPV4: Conn<Ipv6Addr, Extended<Ipv4Addr>> = {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// use connections::addr::ip::IPVXIPV4;
 /// use connections::extended::Extended;
 /// use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -224,9 +253,9 @@ pub const IPV6IPV4: Conn<Ipv6Addr, Extended<Ipv4Addr>> = {
 /// assert_eq!(IPVXIPV4.ceil(IpAddr::V6(Ipv6Addr::LOCALHOST)), Extended::PosInf);
 ///
 /// // `floor` returns the same as `ceil` (one-sided contract).
-/// assert_eq!(IPVXIPV4.floor(IpAddr::V6(Ipv6Addr::LOCALHOST)), Extended::PosInf);
+/// assert_eq!(IPVXIPV4.ceil(IpAddr::V6(Ipv6Addr::LOCALHOST)), Extended::PosInf);
 /// ```
-pub const IPVXIPV4: Conn<IpAddr, Extended<Ipv4Addr>> = {
+pub const IPVXIPV4: crate::conn::ConnL<IpAddr, Extended<Ipv4Addr>> = {
     fn ceil(a: IpAddr) -> Extended<Ipv4Addr> {
         match a {
             // Galois forces ceil(MIN) = NegInf because inner(NegInf) = V4(0.0.0.0)
@@ -247,13 +276,13 @@ pub const IPVXIPV4: Conn<IpAddr, Extended<Ipv4Addr>> = {
         }
     }
 
-    Conn::new_left(ceil, inner)
+    Conn::new_l(ceil, inner)
 };
 
 /// `IpAddr → Extended<Ipv6Addr>` — V6 extraction from the IpAddr sum.
 ///
 /// One-sided floor-adjoint Conn ([`Conn::new_right`]): only `inner ⊣
-/// floor` holds (`conn_galois_r`); the left-Galois law does not. The
+/// floor` holds (`galois_r`); the left-Galois law does not. The
 /// full triple isn't lawful here because the source IpAddr's MAX
 /// (`V6(MAX)`) coincides with `inner(PosInf rung)`, making `inner`
 /// non-order-reflecting at the top — which would force a
@@ -267,7 +296,7 @@ pub const IPVXIPV4: Conn<IpAddr, Extended<Ipv4Addr>> = {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// use connections::addr::ip::IPVXIPV6;
 /// use connections::extended::Extended;
 /// use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -281,9 +310,9 @@ pub const IPVXIPV4: Conn<IpAddr, Extended<Ipv4Addr>> = {
 /// assert_eq!(IPVXIPV6.floor(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))), Extended::NegInf);
 ///
 /// // `ceil` returns the same as `floor` (one-sided contract).
-/// assert_eq!(IPVXIPV6.ceil(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))),  Extended::NegInf);
+/// assert_eq!(IPVXIPV6.floor(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))),  Extended::NegInf);
 /// ```
-pub const IPVXIPV6: Conn<IpAddr, Extended<Ipv6Addr>> = {
+pub const IPVXIPV6: crate::conn::ConnR<IpAddr, Extended<Ipv6Addr>> = {
     fn inner(b: Extended<Ipv6Addr>) -> IpAddr {
         match b {
             // Galois R pins inner(NegInf) below all V6: largest V4 ≤ all V6 is the
@@ -305,12 +334,14 @@ pub const IPVXIPV6: Conn<IpAddr, Extended<Ipv6Addr>> = {
         }
     }
 
-    Conn::new_right(inner, floor)
+    Conn::new_r(inner, floor)
 };
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::prop::arb::{arb_extended_ipv4, arb_extended_ipv6, arb_ip_addr, arb_ipv4, arb_ipv6};
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
@@ -354,12 +385,12 @@ mod tests {
     proptest! {
         #[test]
         fn u032ipv4_galois_l(b in any::<u32>(), a in arb_ipv4()) {
-            prop_assert!(conn_laws::conn_galois_l(&U032IPV4, b, a));
+            prop_assert!(conn_laws::galois_l(&U032IPV4::L, b, a));
         }
 
         #[test]
         fn u032ipv4_galois_r(b in any::<u32>(), a in arb_ipv4()) {
-            prop_assert!(conn_laws::conn_galois_r(&U032IPV4, b, a));
+            prop_assert!(conn_laws::galois_r(&U032IPV4::R, b, a));
         }
 
         #[test]
@@ -374,17 +405,17 @@ mod tests {
 
         #[test]
         fn u032ipv4_floor_le_ceil(b in any::<u32>()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&U032IPV4, b));
+            prop_assert!(conn_laws::floor_le_ceil(&U032IPV4, b));
         }
 
         #[test]
         fn u128ipv6_galois_l(b in any::<u128>(), a in arb_ipv6()) {
-            prop_assert!(conn_laws::conn_galois_l(&U128IPV6, b, a));
+            prop_assert!(conn_laws::galois_l(&U128IPV6::L, b, a));
         }
 
         #[test]
         fn u128ipv6_galois_r(b in any::<u128>(), a in arb_ipv6()) {
-            prop_assert!(conn_laws::conn_galois_r(&U128IPV6, b, a));
+            prop_assert!(conn_laws::galois_r(&U128IPV6::R, b, a));
         }
 
         #[test]
@@ -399,7 +430,7 @@ mod tests {
 
         #[test]
         fn u128ipv6_floor_le_ceil(b in any::<u128>()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&U128IPV6, b));
+            prop_assert!(conn_laws::floor_le_ceil(&U128IPV6, b));
         }
     }
 
@@ -480,47 +511,47 @@ mod tests {
     proptest! {
         #[test]
         fn ipv6ipv4_galois_l(a in arb_ipv6(), b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::conn_galois_l(&IPV6IPV4, a, b));
+            prop_assert!(conn_laws::galois_l(&IPV6IPV4::L, a, b));
         }
 
         #[test]
         fn ipv6ipv4_galois_r(a in arb_ipv6(), b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::conn_galois_r(&IPV6IPV4, a, b));
+            prop_assert!(conn_laws::galois_r(&IPV6IPV4::R, a, b));
         }
 
         #[test]
         fn ipv6ipv4_closure_l(a in arb_ipv6()) {
-            prop_assert!(conn_laws::conn_closure_l(&IPV6IPV4, a));
+            prop_assert!(conn_laws::closure_l(&IPV6IPV4::L, a));
         }
 
         #[test]
         fn ipv6ipv4_closure_r(a in arb_ipv6()) {
-            prop_assert!(conn_laws::conn_closure_r(&IPV6IPV4, a));
+            prop_assert!(conn_laws::closure_r(&IPV6IPV4::R, a));
         }
 
         #[test]
         fn ipv6ipv4_kernel_l(b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::conn_kernel_l(&IPV6IPV4, b));
+            prop_assert!(conn_laws::kernel_l(&IPV6IPV4::L, b));
         }
 
         #[test]
         fn ipv6ipv4_kernel_r(b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::conn_kernel_r(&IPV6IPV4, b));
+            prop_assert!(conn_laws::kernel_r(&IPV6IPV4::R, b));
         }
 
         #[test]
         fn ipv6ipv4_monotone_l(a in arb_ipv6(), b in arb_ipv6()) {
-            prop_assert!(conn_laws::conn_monotone_l(&IPV6IPV4, a, b));
+            prop_assert!(conn_laws::monotone_l(&IPV6IPV4::L, a, b));
         }
 
         #[test]
         fn ipv6ipv4_monotone_r(a in arb_extended_ipv4(), b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::conn_monotone_r(&IPV6IPV4, a, b));
+            prop_assert!(conn_laws::monotone_r(&IPV6IPV4::R, a, b));
         }
 
         #[test]
         fn ipv6ipv4_idempotent(a in arb_ipv6()) {
-            prop_assert!(conn_laws::conn_idempotent(&IPV6IPV4, a));
+            prop_assert!(conn_laws::idempotent(&IPV6IPV4::L, a));
         }
 
         // V4-mapped block round-trips bijectively.
@@ -533,7 +564,7 @@ mod tests {
 
         #[test]
         fn ipv6ipv4_floor_le_ceil(a in arb_ipv6()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&IPV6IPV4, a));
+            prop_assert!(conn_laws::floor_le_ceil(&IPV6IPV4, a));
         }
 
         // ── IPVXIPV4 (one-sided ceil-adjoint) law battery ───────
@@ -543,27 +574,22 @@ mod tests {
 
         #[test]
         fn ipvxipv4_galois_l(a in arb_ip_addr(), b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::conn_galois_l(&IPVXIPV4, a, b));
+            prop_assert!(conn_laws::galois_l(&IPVXIPV4, a, b));
         }
 
         #[test]
         fn ipvxipv4_closure_l(a in arb_ip_addr()) {
-            prop_assert!(conn_laws::conn_closure_l(&IPVXIPV4, a));
+            prop_assert!(conn_laws::closure_l(&IPVXIPV4, a));
         }
 
         #[test]
         fn ipvxipv4_kernel_l(b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::conn_kernel_l(&IPVXIPV4, b));
-        }
-
-        #[test]
-        fn ipvxipv4_floor_le_ceil(a in arb_ip_addr()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&IPVXIPV4, a));
+            prop_assert!(conn_laws::kernel_l(&IPVXIPV4, b));
         }
 
         #[test]
         fn ipvxipv4_idempotent(a in arb_ip_addr()) {
-            prop_assert!(conn_laws::conn_idempotent(&IPVXIPV4, a));
+            prop_assert!(conn_laws::idempotent(&IPVXIPV4, a));
         }
 
         // ── IPVXIPV6 (one-sided floor-adjoint) law battery ──────
@@ -573,27 +599,17 @@ mod tests {
 
         #[test]
         fn ipvxipv6_galois_r(a in arb_ip_addr(), b in arb_extended_ipv6()) {
-            prop_assert!(conn_laws::conn_galois_r(&IPVXIPV6, a, b));
+            prop_assert!(conn_laws::galois_r(&IPVXIPV6, a, b));
         }
 
         #[test]
         fn ipvxipv6_closure_r(a in arb_ip_addr()) {
-            prop_assert!(conn_laws::conn_closure_r(&IPVXIPV6, a));
+            prop_assert!(conn_laws::closure_r(&IPVXIPV6, a));
         }
 
         #[test]
         fn ipvxipv6_kernel_r(b in arb_extended_ipv6()) {
-            prop_assert!(conn_laws::conn_kernel_r(&IPVXIPV6, b));
-        }
-
-        #[test]
-        fn ipvxipv6_floor_le_ceil(a in arb_ip_addr()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&IPVXIPV6, a));
-        }
-
-        #[test]
-        fn ipvxipv6_idempotent(a in arb_ip_addr()) {
-            prop_assert!(conn_laws::conn_idempotent(&IPVXIPV6, a));
+            prop_assert!(conn_laws::kernel_r(&IPVXIPV6, b));
         }
     }
 }

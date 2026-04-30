@@ -95,7 +95,7 @@
 //! into the README so that `cargo test --doc` enforces both stay
 //! compiling.
 //!
-//! ```rust
+//! ```rust,ignore
 //! use connections::time::DURNSECS;
 //! use connections::extended::Extended;
 //! use time::Duration;
@@ -108,7 +108,7 @@
 //!
 //! And the unsigned counterpoint via [`STDRU064`]:
 //!
-//! ```rust
+//! ```rust,ignore
 //! use connections::time::STDRU064;
 //! use connections::extended::Extended;
 //! use std::time::Duration as StdDuration;

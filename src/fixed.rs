@@ -82,7 +82,7 @@
 macro_rules! uint_uint {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating cast.")]
-        pub const $NAME: Conn<$A, $B> = {
+        pub const $NAME: $crate::conn::ConnL<$A, $B> = {
             fn ceil(x: $A) -> $B {
                 x as $B
             }
@@ -91,7 +91,7 @@ macro_rules! uint_uint {
                 let clipped = if x > cap { cap } else { x };
                 clipped as $A
             }
-            Conn::new_left(ceil, inner)
+            Conn::new_l(ceil, inner)
         };
     };
 }
@@ -117,7 +117,7 @@ macro_rules! int_uint {
             stringify!($B),
             "` saturating cast: negatives clip to 0; `inner` saturates at source max."
         )]
-        pub const $NAME: Conn<$A, $B> = {
+        pub const $NAME: $crate::conn::ConnL<$A, $B> = {
             fn ceil(x: $A) -> $B {
                 if x < 0 { 0 } else { x as $B }
             }
@@ -126,7 +126,7 @@ macro_rules! int_uint {
                 let clipped = if x > cap { cap } else { x };
                 clipped as $A
             }
-            Conn::new_left(ceil, inner)
+            Conn::new_l(ceil, inner)
         };
     };
 }
@@ -154,40 +154,44 @@ macro_rules! ext_int {
             stringify!($B),
             "` adjoint triple."
         )]
-        pub const $NAME: Conn<Extended<$A>, $B> = {
-            // `BELOW` is one below the source's MIN; `ABOVE` is one
-            // above the source's MAX. Both are themselves in the
-            // infinity regions: `inner(BELOW) == NegInf` and
-            // `inner(ABOVE) == PosInf` (the `<=` / `>=` are
-            // inclusive). `Finite(_)` only covers the open interval
-            // `(BELOW, ABOVE)`.
+        pub struct $NAME;
+
+        impl $NAME {
             const BELOW: $B = (<$A>::MIN as $B) - 1;
             const ABOVE: $B = (<$A>::MAX as $B) + 1;
-            fn ceil(x: Extended<$A>) -> $B {
+            const fn _ceil(x: Extended<$A>) -> $B {
                 match x {
                     Extended::NegInf => <$B>::MIN,
                     Extended::Finite(a) => a as $B,
-                    Extended::PosInf => ABOVE,
+                    Extended::PosInf => Self::ABOVE,
                 }
             }
-            fn inner(x: $B) -> Extended<$A> {
-                if x <= BELOW {
+            const fn _inner(x: $B) -> Extended<$A> {
+                if x <= Self::BELOW {
                     Extended::NegInf
-                } else if x >= ABOVE {
+                } else if x >= Self::ABOVE {
                     Extended::PosInf
                 } else {
                     Extended::Finite(x as $A)
                 }
             }
-            fn floor(x: Extended<$A>) -> $B {
+            const fn _floor(x: Extended<$A>) -> $B {
                 match x {
-                    Extended::NegInf => BELOW,
+                    Extended::NegInf => Self::BELOW,
                     Extended::Finite(a) => a as $B,
                     Extended::PosInf => <$B>::MAX,
                 }
             }
-            Conn::new(ceil, inner, floor)
-        };
+        }
+
+        impl $crate::conn::ViewL<Extended<$A>, $B> for $NAME {
+            const L: $crate::conn::ConnL<Extended<$A>, $B> =
+                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner);
+        }
+        impl $crate::conn::ViewR<Extended<$A>, $B> for $NAME {
+            const R: $crate::conn::ConnR<Extended<$A>, $B> =
+                $crate::conn::Conn::new_r($NAME::_inner, $NAME::_floor);
+        }
     };
 }
 pub(crate) use ext_int;
@@ -220,7 +224,7 @@ pub(crate) use ext_int;
 macro_rules! int_int_narrow {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
-        pub const $NAME: Conn<$A, $B> = {
+        pub const $NAME: $crate::conn::ConnL<$A, $B> = {
             fn ceil(x: $A) -> $B {
                 if x > <$B>::MAX as $A {
                     <$B>::MAX
@@ -233,7 +237,7 @@ macro_rules! int_int_narrow {
             fn inner(x: $B) -> $A {
                 if x == <$B>::MAX { <$A>::MAX } else { x as $A }
             }
-            Conn::new_left(ceil, inner)
+            Conn::new_l(ceil, inner)
         };
     };
 }
@@ -257,7 +261,7 @@ pub(crate) use int_int_narrow;
 macro_rules! uint_uint_narrow {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
-        pub const $NAME: Conn<$A, $B> = {
+        pub const $NAME: $crate::conn::ConnL<$A, $B> = {
             fn ceil(x: $A) -> $B {
                 if x > <$B>::MAX as $A {
                     <$B>::MAX
@@ -268,7 +272,7 @@ macro_rules! uint_uint_narrow {
             fn inner(x: $B) -> $A {
                 if x == <$B>::MAX { <$A>::MAX } else { x as $A }
             }
-            Conn::new_left(ceil, inner)
+            Conn::new_l(ceil, inner)
         };
     };
 }
@@ -296,7 +300,7 @@ pub(crate) use uint_uint_narrow;
 macro_rules! uint_int_sat {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating cast (right-Galois).")]
-        pub const $NAME: Conn<$A, $B> = {
+        pub const $NAME: $crate::conn::ConnR<$A, $B> = {
             fn floor(x: $A) -> $B {
                 if x > <$B>::MAX as $A {
                     <$B>::MAX
@@ -307,7 +311,7 @@ macro_rules! uint_int_sat {
             fn inner(x: $B) -> $A {
                 if x < 0 { 0 } else { x as $A }
             }
-            Conn::new_right(inner, floor)
+            Conn::new_r(inner, floor)
         };
     };
 }
@@ -329,7 +333,7 @@ pub(crate) use uint_int_sat;
 /// Back (`inner`): trivial total embedding
 /// `NonZero<iN> → iN::get()`.
 ///
-/// Both Galois laws (`conn_galois_l` and `conn_galois_r`) hold: the
+/// Both Galois laws (`galois_l` and `galois_r`) hold: the
 /// asymmetric `floor`/`ceil` lift the target's puncture at zero to a
 /// [-1, +1] sandwich on the source side, exactly bracketing the
 /// missing value.
@@ -343,20 +347,36 @@ macro_rules! nz_int_ext {
             stringify!($NZ),
             "` (signed; floor/ceil split 0 between -1 and +1)."
         )]
-        pub const $NAME: Conn<$A, $NZ> = {
-            fn ceil(v: $A) -> $NZ {
+        pub struct $NAME;
+
+        impl $NAME {
+            const fn _ceil(v: $A) -> $NZ {
                 let r: $A = if v == 0 { 1 } else { v };
-                <$NZ>::new(r).expect("nz_int_ext::ceil produced zero")
+                match <$NZ>::new(r) {
+                    Some(nz) => nz,
+                    None => panic!("nz_int_ext::ceil produced zero"),
+                }
             }
-            fn floor(v: $A) -> $NZ {
+            const fn _floor(v: $A) -> $NZ {
                 let r: $A = if v == 0 { -1 } else { v };
-                <$NZ>::new(r).expect("nz_int_ext::floor produced zero")
+                match <$NZ>::new(r) {
+                    Some(nz) => nz,
+                    None => panic!("nz_int_ext::floor produced zero"),
+                }
             }
-            fn inner(nz: $NZ) -> $A {
+            const fn _inner(nz: $NZ) -> $A {
                 nz.get()
             }
-            Conn::new(ceil, inner, floor)
-        };
+        }
+
+        impl $crate::conn::ViewL<$A, $NZ> for $NAME {
+            const L: $crate::conn::ConnL<$A, $NZ> =
+                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner);
+        }
+        impl $crate::conn::ViewR<$A, $NZ> for $NAME {
+            const R: $crate::conn::ConnR<$A, $NZ> =
+                $crate::conn::Conn::new_r($NAME::_inner, $NAME::_floor);
+        }
     };
 }
 pub(crate) use nz_int_ext;
@@ -380,16 +400,25 @@ macro_rules! nz_uint_ext {
             stringify!($NZ),
             "` (unsigned; 0 saturates to NonZero(1); single-sided left-Galois)."
         )]
-        pub const $NAME: Conn<$A, $NZ> = {
-            fn ceil(v: $A) -> $NZ {
+        pub struct $NAME;
+
+        impl $NAME {
+            const fn _ceil(v: $A) -> $NZ {
                 let r: $A = if v == 0 { 1 } else { v };
-                <$NZ>::new(r).expect("nz_uint_ext::ceil produced zero")
+                match <$NZ>::new(r) {
+                    Some(nz) => nz,
+                    None => panic!("nz_uint_ext::ceil produced zero"),
+                }
             }
-            fn inner(nz: $NZ) -> $A {
+            const fn _inner(nz: $NZ) -> $A {
                 nz.get()
             }
-            Conn::new_left(ceil, inner)
-        };
+        }
+
+        impl $crate::conn::ViewL<$A, $NZ> for $NAME {
+            const L: $crate::conn::ConnL<$A, $NZ> =
+                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner);
+        }
     };
 }
 pub(crate) use nz_uint_ext;
@@ -404,7 +433,7 @@ pub(crate) use nz_uint_ext;
 macro_rules! int_uint_narrow {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
-        pub const $NAME: Conn<$A, $B> = {
+        pub const $NAME: $crate::conn::ConnL<$A, $B> = {
             fn ceil(x: $A) -> $B {
                 if x < 0 {
                     0
@@ -417,7 +446,7 @@ macro_rules! int_uint_narrow {
             fn inner(x: $B) -> $A {
                 if x == <$B>::MAX { <$A>::MAX } else { x as $A }
             }
-            Conn::new_left(ceil, inner)
+            Conn::new_l(ceil, inner)
         };
     };
 }

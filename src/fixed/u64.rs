@@ -31,15 +31,25 @@ nz_uint_ext!(U064N064, u64, NonZeroU64);
 // ── §3 cross-crate iso: FixedU64<U0> ↔ u64 ─────────────────────────
 
 /// `FixedU64<U0> ↔ u64` — Q64.0 unsigned lossless iso. Degenerate Galois.
-pub const Q000U064: Conn<FixedU64<U0>, u64> = {
-    fn forward(q: FixedU64<U0>) -> u64 {
+pub struct Q000U064;
+
+impl Q000U064 {
+    const fn forward(q: FixedU64<U0>) -> u64 {
         q.to_bits()
     }
-    fn back(i: u64) -> FixedU64<U0> {
+    const fn back(i: u64) -> FixedU64<U0> {
         FixedU64::<U0>::from_bits(i)
     }
-    Conn::new_iso(forward, back)
-};
+}
+
+impl crate::conn::ViewL<FixedU64<U0>, u64> for Q000U064 {
+    const L: crate::conn::ConnL<FixedU64<U0>, u64> =
+        crate::conn::Conn::new_l(Q000U064::forward, Q000U064::back);
+}
+impl crate::conn::ViewR<FixedU64<U0>, u64> for Q000U064 {
+    const R: crate::conn::ConnR<FixedU64<U0>, u64> =
+        crate::conn::Conn::new_r(Q000U064::back, Q000U064::forward);
+}
 
 // ── §4 Q-format ladder over `FixedU64<Frac>` ────────────────────────
 
@@ -62,43 +72,53 @@ macro_rules! fix_fix_u64 {
             stringify!($CoarseFrac),
             ">` frac-level convert (u64-backed)."
         )]
-        pub const $const_name: Conn<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>> = {
+        pub struct $const_name;
+
+        impl $const_name {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
             // u128 covers SHIFT ∈ [1, 64]: 1 << 64 fits, and
             // u64::MAX × (1 << 64) ≈ 2^128 − 2^64 < u128::MAX.
-            const RATIO: u128 = 1_u128 << SHIFT;
+            const RATIO: u128 = 1_u128 << Self::SHIFT;
             const FINE_MAX: u64 = u64::MAX;
 
-            fn ceil(x: FixedU64<$FineFrac>) -> FixedU64<$CoarseFrac> {
+            const fn _ceil(x: FixedU64<$FineFrac>) -> FixedU64<$CoarseFrac> {
                 let bits = x.to_bits() as u128;
-                let q = bits / RATIO;
-                let r = bits % RATIO;
-                // `res ≤ ⌈u64::MAX / 2⌉ = 2^63` since RATIO ≥ 2;
+                let q = bits / Self::RATIO;
+                let r = bits % Self::RATIO;
+                // `res ≤ ⌈u64::MAX / 2⌉ = 2^63` since Self::RATIO ≥ 2;
                 // the `as u64` cast is lossless.
                 let res = if r != 0 { q + 1 } else { q };
                 FixedU64::from_bits(res as u64)
             }
 
-            fn inner(x: FixedU64<$CoarseFrac>) -> FixedU64<$FineFrac> {
-                let res = (x.to_bits() as u128) * RATIO;
-                let saturated = if res > FINE_MAX as u128 {
-                    FINE_MAX
+            const fn _inner(x: FixedU64<$CoarseFrac>) -> FixedU64<$FineFrac> {
+                let res = (x.to_bits() as u128) * Self::RATIO;
+                let saturated = if res > Self::FINE_MAX as u128 {
+                    Self::FINE_MAX
                 } else {
                     res as u64
                 };
                 FixedU64::from_bits(saturated)
             }
 
-            fn floor(x: FixedU64<$FineFrac>) -> FixedU64<$CoarseFrac> {
-                if x.to_bits() == FINE_MAX {
+            const fn _floor(x: FixedU64<$FineFrac>) -> FixedU64<$CoarseFrac> {
+                if x.to_bits() == Self::FINE_MAX {
                     return FixedU64::<$CoarseFrac>::from_bits(u64::MAX);
                 }
-                let res = (x.to_bits() as u128) / RATIO;
+                let res = (x.to_bits() as u128) / Self::RATIO;
                 FixedU64::from_bits(res as u64)
             }
+        }
 
-            Conn::new(ceil, inner, floor)
-        };
+        impl $crate::conn::ViewL<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>> for $const_name {
+            const L: $crate::conn::ConnL<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>> =
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        }
+
+        impl $crate::conn::ViewR<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>> for $const_name {
+            const R: $crate::conn::ConnR<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>> =
+                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
+        }
     };
 }
 
@@ -132,6 +152,8 @@ fix_fix_u64!(Q064Q063, U64, U63);
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
 
     // ── §1 std-int spot checks (merged from former int/u64.rs) ─────
 

@@ -5,6 +5,8 @@
 //! battery. T3 (I→I narrowing) and T5 (U→I non-widening) commits
 //! append additional invocations to this file.
 
+#[allow(unused_imports)]
+use connections::conn::{ViewL, ViewR};
 use connections::extended::Extended;
 use connections::fixed::i16::*;
 use proptest::prelude::*;
@@ -31,7 +33,7 @@ arb_ext!(arb_ext_i8, i8);
 arb_ext!(arb_ext_u8, u8);
 
 macro_rules! ext_int_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 
@@ -85,7 +87,7 @@ ext_int_props!(u008i016, U008I016, arb_ext_u8(), any::<i16>());
 // `galois_lower` intentionally omitted; see
 // `tests/conn_std_u8_galois.rs`.
 macro_rules! single_sided_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 
@@ -125,7 +127,7 @@ single_sided_props!(i128i016, I128I016, any::<i128>(), any::<i16>());
 
 // §3 U→I non-widening — single-sided right-Galois.
 macro_rules! single_sided_right_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 

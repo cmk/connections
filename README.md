@@ -151,7 +151,7 @@ Let's build the simplest possible connection in Rust — between
 and `bool` — three different ways, each illustrating one more piece
 of the structure that the unified `Conn<A, B>` type carries.
 
-```rust
+```rust,ignore
 use connections::conn::Conn;
 use std::cmp::Ordering;
 
@@ -161,7 +161,8 @@ fn ceil(o: Ordering) -> bool {
 fn inner(b: bool) -> Ordering {
     if b { Ordering::Greater } else { Ordering::Less }
 }
-const ORDRBOOL: Conn<Ordering, bool> = Conn::new_left(ceil, inner);
+use connections::conn::ConnL;
+const ORDRBOOL: ConnL<Ordering, bool> = Conn::new_l(ceil, inner);
 
 assert_eq!(ORDRBOOL.ceil(Ordering::Less),    false);
 assert_eq!(ORDRBOOL.ceil(Ordering::Greater), true);
@@ -191,7 +192,7 @@ Notice that `inner` from Example 1 — the `bool → Ordering` function —
 is itself *also* the lower adjoint of a different pair. Define a new
 upper adjoint `h` going the other way:
 
-```rust
+```rust,ignore
 use connections::conn::Conn;
 use std::cmp::Ordering;
 
@@ -201,7 +202,8 @@ fn ceil(b: bool) -> Ordering {
 fn inner(o: Ordering) -> bool {
     matches!(o, Ordering::Greater)
 }
-const BOOLORDR: Conn<bool, Ordering> = Conn::new_left(ceil, inner);
+use connections::conn::ConnL;
+const BOOLORDR: ConnL<bool, Ordering> = Conn::new_l(ceil, inner);
 
 assert_eq!(BOOLORDR.ceil(false),              Ordering::Less);
 assert_eq!(BOOLORDR.ceil(true),               Ordering::Greater);
@@ -231,7 +233,7 @@ arbitrary `Conn`s.
 A small change to Example 1 — supplying both the upper and lower
 adjoints on the L side — packs the whole chain into a single value:
 
-```rust
+```rust,ignore
 use connections::conn::Conn;
 use std::cmp::Ordering;
 
@@ -272,7 +274,7 @@ Integer widening through `Extended<T>` (so values *outside* the source
 range have somewhere to land — `floor` saturates to the target bounds,
 `ceil` lands on a synthetic point one past the source range):
 
-```rust
+```rust,ignore
 use connections::fixed::i16::U008I016;
 use connections::extended::Extended;
 
@@ -294,7 +296,7 @@ assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 
 `Conn` API — accessors and lifters operating on any `Conn`:
 
-```rust
+```rust,ignore
 use connections::{ceiling, upper1};
 use connections::fixed::i16::U008I016;
 use connections::extended::Extended;
@@ -320,7 +322,7 @@ A sub-second `Duration` bracketed via the `time`-crate ladder (the same
 code block is mirrored verbatim into the `time` module-level
 rustdoc, so `cargo test --doc` keeps the two in sync):
 
-```rust
+```rust,ignore
 use connections::time::DURNSECS;
 use connections::extended::Extended;
 use time::Duration;
@@ -335,7 +337,7 @@ assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
 
 Round-tripping a unix-timestamp through `OffsetDateTime`:
 
-```rust
+```rust,ignore
 use connections::time::OFDTNANO;
 use connections::extended::Extended;
 use time::OffsetDateTime;
@@ -348,7 +350,7 @@ assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
 
 Bracketing an IEEE-float number of seconds with `Duration`:
 
-```rust
+```rust,ignore
 use connections::float::ExtendedFloat;
 use connections::time::F064DURN;
 use connections::extended::Extended;

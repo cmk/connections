@@ -5,13 +5,15 @@
 //! Galois single-sided narrowing (`I??I008`, T3) and right-Galois
 //! single-sided non-widening (`U??I008`, T5).
 
+#[allow(unused_imports)]
+use connections::conn::{ViewL, ViewR};
 use connections::fixed::i8::*;
 use proptest::prelude::*;
 
 // `galois_lower` intentionally omitted; see
 // `tests/conn_std_u8_galois.rs`.
 macro_rules! single_sided_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 
@@ -58,7 +60,7 @@ single_sided_props!(i128i008, I128I008, any::<i128>(), any::<i8>());
 //   inner_monotone:  b1 ≤ b2  ⟹  inner(b1) ≤ inner(b2)
 //   kernel_lower:    b ≤ floor(inner(b))
 macro_rules! single_sided_right_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 
@@ -83,7 +85,7 @@ macro_rules! single_sided_right_props {
                 }
                 #[test]
                 fn idempotent(a in $arb_src) {
-                    // For Conn::new_right, ceil = floor; conn_idempotent
+                    // For Conn::new_right, ceil = floor; idempotent
                     // tests inner ∘ ceil applied twice. Same closure
                     // operator either way.
                     let once = $CONN.inner($CONN.floor(a));

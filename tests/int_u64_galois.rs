@@ -1,13 +1,15 @@
 //! Galois-law proptest battery for `conn::std::u64`. Integration
 //! test — see `tests/conn_std_u8_galois.rs` for rationale.
 
+#[allow(unused_imports)]
+use connections::conn::{ViewL, ViewR};
 use connections::fixed::u64::*;
 use proptest::prelude::*;
 
 // `galois_lower` intentionally omitted; see
 // `tests/conn_std_u8_galois.rs`.
 macro_rules! single_sided_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 

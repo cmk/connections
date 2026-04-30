@@ -6,6 +6,8 @@
 //! → right wins), `F064F032` lives here rather than under `f64`.
 
 use super::{ExtendedFloat, F032, F064, def_walk_helpers, shift32, widen_f32_f64};
+#[cfg(test)]
+#[allow(unused_imports)]
 use crate::conn::Conn;
 
 def_walk_helpers!(f64_f32_walks, f64, f32, shift32, widen_f32_f64);
@@ -21,30 +23,40 @@ def_walk_helpers!(f64_f32_walks, f64, f32, shift32, widen_f32_f64);
 /// `ExtendedFloat::Bot` / `Top` are preserved on both sides;
 /// `Extend(NaN)` flows through unchanged because the `Extend(NaN) →
 /// Extend(NaN as f32)` cast is bit-preserving for NaN.
-pub const F064F032: Conn<F064, F032> = {
-    fn ceil(x: F064) -> F032 {
+pub struct F064F032;
+
+impl F064F032 {
+    fn _ceil(x: F064) -> F032 {
         match x {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
             ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f64_f32(v)),
         }
     }
-    fn inner(y: F032) -> F064 {
+    fn _inner(y: F032) -> F064 {
         match y {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
             ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f64),
         }
     }
-    fn floor(x: F064) -> F032 {
+    fn _floor(x: F064) -> F032 {
         match x {
             ExtendedFloat::Bot => ExtendedFloat::Bot,
             ExtendedFloat::Top => ExtendedFloat::Top,
             ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f64_f32(v)),
         }
     }
-    Conn::new(ceil, inner, floor)
-};
+}
+
+impl crate::conn::ViewL<F064, F032> for F064F032 {
+    const L: crate::conn::ConnL<F064, F032> =
+        crate::conn::Conn::new_l(F064F032::_ceil, F064F032::_inner);
+}
+impl crate::conn::ViewR<F064, F032> for F064F032 {
+    const R: crate::conn::ConnR<F064, F032> =
+        crate::conn::Conn::new_r(F064F032::_inner, F064F032::_floor);
+}
 
 // All `<=` and `==` comparisons in the helpers below operate on
 // values that the early `is_nan()` checks have already filtered to
@@ -89,6 +101,8 @@ fn floor_f64_f32(x: f64) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::prop::arb::{arb_f32, arb_f64};
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
@@ -185,52 +199,52 @@ mod tests {
 
         #[test]
         fn galois_l(a in ef64(), b in ef32()) {
-            prop_assert!(conn_laws::conn_galois_l(&F064F032, a, b));
+            prop_assert!(conn_laws::galois_l(&F064F032::L, a, b));
         }
 
         #[test]
         fn galois_r(a in ef64(), b in ef32()) {
-            prop_assert!(conn_laws::conn_galois_r(&F064F032, a, b));
+            prop_assert!(conn_laws::galois_r(&F064F032::R, a, b));
         }
 
         #[test]
         fn closure_l(a in ef64()) {
-            prop_assert!(conn_laws::conn_closure_l(&F064F032, a));
+            prop_assert!(conn_laws::closure_l(&F064F032::L, a));
         }
 
         #[test]
         fn closure_r(a in ef64()) {
-            prop_assert!(conn_laws::conn_closure_r(&F064F032, a));
+            prop_assert!(conn_laws::closure_r(&F064F032::R, a));
         }
 
         #[test]
         fn kernel_l(b in ef32()) {
-            prop_assert!(conn_laws::conn_kernel_l(&F064F032, b));
+            prop_assert!(conn_laws::kernel_l(&F064F032::L, b));
         }
 
         #[test]
         fn kernel_r(b in ef32()) {
-            prop_assert!(conn_laws::conn_kernel_r(&F064F032, b));
+            prop_assert!(conn_laws::kernel_r(&F064F032::R, b));
         }
 
         #[test]
         fn monotone_l(a1 in ef64(), a2 in ef64()) {
-            prop_assert!(conn_laws::conn_monotone_l(&F064F032, a1, a2));
+            prop_assert!(conn_laws::monotone_l(&F064F032::L, a1, a2));
         }
 
         #[test]
         fn monotone_r(b1 in ef32(), b2 in ef32()) {
-            prop_assert!(conn_laws::conn_monotone_r(&F064F032, b1, b2));
+            prop_assert!(conn_laws::monotone_r(&F064F032::R, b1, b2));
         }
 
         #[test]
         fn idempotent(a in ef64()) {
-            prop_assert!(conn_laws::conn_idempotent(&F064F032, a));
+            prop_assert!(conn_laws::idempotent(&F064F032::L, a));
         }
 
         #[test]
         fn floor_le_ceil(a in ef64()) {
-            prop_assert!(conn_laws::conn_floor_le_ceil(&F064F032, a));
+            prop_assert!(conn_laws::floor_le_ceil(&F064F032, a));
         }
 
         // The four walk helpers should converge in ≤ 2 ULP corrections
@@ -263,7 +277,7 @@ mod tests {
             prop_assert!(steps <= 2, "f64_f32_walks::ascend/descend_to_floor took {steps} steps on x={x}");
         }
 
-        // `conn_ulp_bound` is intentionally omitted for `F064F032`.
+        // `ulp_bound` is intentionally omitted for `F064F032`.
         // The predicate's `rung: F where F: Fn(B) -> i64` extractor
         // is documented (`laws.rs:439-447`) as "specific to integer-
         // tier connections (the rung types have an i64 payload)".

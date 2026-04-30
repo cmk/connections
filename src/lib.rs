@@ -106,12 +106,12 @@
 //! two or more `Conn` consts into a fresh `Conn<Src, Dst>`:
 //!
 //! ```rust,no_run
-//! use connections::compose;
-//! use connections::conn::Conn;
+//! use connections::compose_l;
+//! use connections::conn::{Conn, ConnL};
 //!
-//! // Three-step compose: id ∘ id ∘ id = id (any Conn type works).
-//! const ID_I32: Conn<i32, i32> = Conn::identity();
-//! const COMPOSED: Conn<i32, i32> = compose!(ID_I32, ID_I32, ID_I32);
+//! // Three-step compose at the L-side: id ∘ id ∘ id = id.
+//! const ID_I32: ConnL<i32, i32> = Conn::identity();
+//! const COMPOSED: ConnL<i32, i32> = compose_l!(ID_I32, ID_I32, ID_I32);
 //! ```
 //!
 //! Source/destination types come from the binding annotation;
@@ -171,10 +171,15 @@ pub mod time;
 // rather than silent misbehavior — but prefer named imports
 // (`use connections::{ceiling, floor};`) over globs to make the
 // origin explicit.
-pub use conn::{
-    ceiling, ceiling1, ceiling2, floor, floor1, floor2, interval, lower, lower1, lower2, median,
-    midpoint, round, round1, round2, truncate, truncate1, truncate2, upper, upper1, upper2,
-};
+// Two-sided helpers (Triple-bound) re-exported at the crate root.
+// One-sided ops (`ceiling` / `upper` / `floor` / `lower` and their
+// `1` / `2` lifters) are now inherent methods on `Conn<_, _, L>` /
+// `Conn<_, _, R>`, accessed via `c.ceiling(x)` etc.
+pub use conn::{interval, median, midpoint, round, round1, round2, truncate, truncate1, truncate2};
+
+// Method-extension traits — re-export so `use connections::*` brings
+// `.ceil()` / `.inner()` / `.floor()` into scope for triple markers.
+pub use conn::{Triple, ViewL, ViewR};
 
 // Property predicates (`prop::conn`, `prop::lattice`) and proptest
 // strategies (`prop::arb`) for downstream crates that want to drive

@@ -1,6 +1,8 @@
 //! Galois-law proptest battery for `conn::std::i128`. Integration
 //! test — see `tests/conn_std_u8_galois.rs` for rationale.
 
+#[allow(unused_imports)]
+use connections::conn::{ViewL, ViewR};
 use connections::extended::Extended;
 use connections::fixed::i128::*;
 use proptest::prelude::*;
@@ -29,7 +31,7 @@ arb_ext!(arb_ext_u32, u32);
 arb_ext!(arb_ext_u64, u64);
 
 macro_rules! ext_int_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 
@@ -87,7 +89,7 @@ ext_int_props!(u064i128, U064I128, arb_ext_u64(), any::<i128>());
 
 // §3 U→I non-widening — single-sided right-Galois.
 macro_rules! single_sided_right_props {
-    ($mod_name:ident, $CONN:expr, $arb_src:expr, $arb_tgt:expr) => {
+    ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {
             use super::*;
 

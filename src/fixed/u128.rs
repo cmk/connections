@@ -35,15 +35,25 @@ nz_uint_ext!(U128N128, u128, NonZeroU128);
 // ── §3 cross-crate iso: FixedU128<U0> ↔ u128 ───────────────────────
 
 /// `FixedU128<U0> ↔ u128` — Q128.0 unsigned lossless iso. Degenerate Galois.
-pub const Q000U128: Conn<FixedU128<U0>, u128> = {
-    fn forward(q: FixedU128<U0>) -> u128 {
+pub struct Q000U128;
+
+impl Q000U128 {
+    const fn forward(q: FixedU128<U0>) -> u128 {
         q.to_bits()
     }
-    fn back(i: u128) -> FixedU128<U0> {
+    const fn back(i: u128) -> FixedU128<U0> {
         FixedU128::<U0>::from_bits(i)
     }
-    Conn::new_iso(forward, back)
-};
+}
+
+impl crate::conn::ViewL<FixedU128<U0>, u128> for Q000U128 {
+    const L: crate::conn::ConnL<FixedU128<U0>, u128> =
+        crate::conn::Conn::new_l(Q000U128::forward, Q000U128::back);
+}
+impl crate::conn::ViewR<FixedU128<U0>, u128> for Q000U128 {
+    const R: crate::conn::ConnR<FixedU128<U0>, u128> =
+        crate::conn::Conn::new_r(Q000U128::back, Q000U128::forward);
+}
 
 // ── §4 Q-format ladder over `FixedU128<Frac>` ───────────────────────
 
@@ -64,23 +74,25 @@ macro_rules! fix_fix_u128 {
             stringify!($CoarseFrac),
             ">` frac-level convert (u128-backed)."
         )]
-        pub const $const_name: Conn<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> = {
+        pub struct $const_name;
+
+        impl $const_name {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
-            // For SHIFT < 128, RATIO = 2^SHIFT fits in u128. For
+            // For SHIFT < 128, Self::RATIO = 2^SHIFT fits in u128. For
             // SHIFT == 128 the shift is degenerate — `1_u128.checked_shl(128)`
             // returns None, and we route through the `None` arms below
             // for the Q128Q000 endpoint.
-            const RATIO: Option<u128> = 1_u128.checked_shl(SHIFT);
+            const RATIO: Option<u128> = 1_u128.checked_shl(Self::SHIFT);
             const FINE_MAX: u128 = u128::MAX;
 
-            fn ceil(x: FixedU128<$FineFrac>) -> FixedU128<$CoarseFrac> {
+            const fn _ceil(x: FixedU128<$FineFrac>) -> FixedU128<$CoarseFrac> {
                 let bits = x.to_bits();
-                match RATIO {
+                match Self::RATIO {
                     Some(r) => {
                         let q = bits / r;
                         // `q + 1` cannot overflow u128: `r ≥ 2` (the
                         // `Some` arm requires SHIFT ∈ [1, 127], so
-                        // RATIO ∈ [2, 2^127]), and `bits ≤ u128::MAX`,
+                        // Self::RATIO ∈ [2, 2^127]), and `bits ≤ u128::MAX`,
                         // so `q ≤ ⌊u128::MAX / 2⌋ = 2^127 − 1`. Hence
                         // `q + 1 ≤ 2^127 < u128::MAX`.
                         let res = if bits % r != 0 { q + 1 } else { q };
@@ -99,38 +111,46 @@ macro_rules! fix_fix_u128 {
                 }
             }
 
-            fn inner(x: FixedU128<$CoarseFrac>) -> FixedU128<$FineFrac> {
+            const fn _inner(x: FixedU128<$CoarseFrac>) -> FixedU128<$FineFrac> {
                 let bits = x.to_bits();
-                let saturated = match RATIO {
+                let saturated = match Self::RATIO {
                     Some(r) => match bits.checked_mul(r) {
                         Some(v) => v,
-                        None => FINE_MAX,
+                        None => Self::FINE_MAX,
                     },
                     None => {
                         // SHIFT == 128: bits × 2^128 only fits when bits = 0.
-                        if bits == 0 { 0 } else { FINE_MAX }
+                        if bits == 0 { 0 } else { Self::FINE_MAX }
                     }
                 };
                 FixedU128::from_bits(saturated)
             }
 
-            fn floor(x: FixedU128<$FineFrac>) -> FixedU128<$CoarseFrac> {
-                if x.to_bits() == FINE_MAX {
+            const fn _floor(x: FixedU128<$FineFrac>) -> FixedU128<$CoarseFrac> {
+                if x.to_bits() == Self::FINE_MAX {
                     return FixedU128::<$CoarseFrac>::from_bits(u128::MAX);
                 }
                 let bits = x.to_bits();
-                match RATIO {
+                match Self::RATIO {
                     Some(r) => FixedU128::from_bits(bits / r),
                     None => {
                         // SHIFT == 128. floor(bits / 2^128) = 0 for all
-                        // bits ∈ u128 (FINE_MAX already short-circuited).
+                        // bits ∈ u128 (Self::FINE_MAX already short-circuited).
                         FixedU128::from_bits(0)
                     }
                 }
             }
+        }
 
-            Conn::new(ceil, inner, floor)
-        };
+        impl $crate::conn::ViewL<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> for $const_name {
+            const L: $crate::conn::ConnL<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> =
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        }
+
+        impl $crate::conn::ViewR<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> for $const_name {
+            const R: $crate::conn::ConnR<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> =
+                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
+        }
     };
 }
 
@@ -164,6 +184,8 @@ fix_fix_u128!(Q128Q127, U128, U127);
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
 
     // ── §1 std-int spot checks (merged from former int/u128.rs) ────
 

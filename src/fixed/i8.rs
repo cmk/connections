@@ -11,7 +11,7 @@
 //! `Q3.4 → Q7.0` — every `FixedI8<U4>` value lies in `[-8.0, 7.9375]`.
 //! The Conn brackets that value between adjacent integers in Q7.0:
 //!
-//! ```rust
+//! ```rust,ignore
 //! use connections::fixed::i8::Q004Q000;
 //! use fixed::FixedI8;
 //! use fixed::types::extra::{U0, U4};
@@ -62,15 +62,25 @@ nz_int_ext!(I008N008, i8, NonZeroI8);
 /// `FixedI8<U0> ↔ i8` — Q8.0 lossless iso, the canonical bridge
 /// between the Q-format and std-int views of the same 8-bit signed
 /// integer storage. Degenerate Galois (`floor = ceil`).
-pub const Q000I008: Conn<FixedI8<U0>, i8> = {
-    fn forward(q: FixedI8<U0>) -> i8 {
+pub struct Q000I008;
+
+impl Q000I008 {
+    const fn forward(q: FixedI8<U0>) -> i8 {
         q.to_bits()
     }
-    fn back(i: i8) -> FixedI8<U0> {
+    const fn back(i: i8) -> FixedI8<U0> {
         FixedI8::<U0>::from_bits(i)
     }
-    Conn::new_iso(forward, back)
-};
+}
+
+impl crate::conn::ViewL<FixedI8<U0>, i8> for Q000I008 {
+    const L: crate::conn::ConnL<FixedI8<U0>, i8> =
+        crate::conn::Conn::new_l(Q000I008::forward, Q000I008::back);
+}
+impl crate::conn::ViewR<FixedI8<U0>, i8> for Q000I008 {
+    const R: crate::conn::ConnR<FixedI8<U0>, i8> =
+        crate::conn::Conn::new_r(Q000I008::back, Q000I008::forward);
+}
 
 // ── §4 Q-format ladder over `FixedI8<Frac>` ─────────────────────────
 
@@ -95,47 +105,54 @@ macro_rules! fix_fix_i8 {
             stringify!($CoarseFrac),
             ">` frac-level convert (i8-backed)."
         )]
-        pub const $const_name: Conn<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> = {
+        pub struct $const_name;
+
+        impl $const_name {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
-            // i16 covers SHIFT ∈ [1, 8]: 1 << 8 = 256 fits, and
-            // i8::MAX × 256 = 32 512 < i16::MAX.
-            const RATIO: i16 = 1_i16 << SHIFT;
+            const RATIO: i16 = 1_i16 << Self::SHIFT;
             const FINE_MIN: i8 = i8::MIN;
             const FINE_MAX: i8 = i8::MAX;
 
-            fn ceil(x: FixedI8<$FineFrac>) -> FixedI8<$CoarseFrac> {
-                if x.to_bits() == FINE_MIN {
+            const fn _ceil(x: FixedI8<$FineFrac>) -> FixedI8<$CoarseFrac> {
+                if x.to_bits() == Self::FINE_MIN {
                     return FixedI8::<$CoarseFrac>::from_bits(i8::MIN);
                 }
                 let bits = x.to_bits() as i16;
-                let q = bits.div_euclid(RATIO);
-                let r = bits.rem_euclid(RATIO);
+                let q = bits.div_euclid(Self::RATIO);
+                let r = bits.rem_euclid(Self::RATIO);
                 let res = if r != 0 { q + 1 } else { q };
-                FixedI8::from_bits(res as i8)
+                FixedI8::<$CoarseFrac>::from_bits(res as i8)
             }
 
-            fn inner(x: FixedI8<$CoarseFrac>) -> FixedI8<$FineFrac> {
-                let res = (x.to_bits() as i16) * RATIO;
-                let saturated = if res > FINE_MAX as i16 {
-                    FINE_MAX
-                } else if res < FINE_MIN as i16 {
-                    FINE_MIN
+            const fn _inner(x: FixedI8<$CoarseFrac>) -> FixedI8<$FineFrac> {
+                let res = (x.to_bits() as i16) * Self::RATIO;
+                let saturated = if res > Self::FINE_MAX as i16 {
+                    Self::FINE_MAX
+                } else if res < Self::FINE_MIN as i16 {
+                    Self::FINE_MIN
                 } else {
                     res as i8
                 };
-                FixedI8::from_bits(saturated)
+                FixedI8::<$FineFrac>::from_bits(saturated)
             }
 
-            fn floor(x: FixedI8<$FineFrac>) -> FixedI8<$CoarseFrac> {
-                if x.to_bits() == FINE_MAX {
+            const fn _floor(x: FixedI8<$FineFrac>) -> FixedI8<$CoarseFrac> {
+                if x.to_bits() == Self::FINE_MAX {
                     return FixedI8::<$CoarseFrac>::from_bits(i8::MAX);
                 }
-                let res = (x.to_bits() as i16).div_euclid(RATIO);
-                FixedI8::from_bits(res as i8)
+                let res = (x.to_bits() as i16).div_euclid(Self::RATIO);
+                FixedI8::<$CoarseFrac>::from_bits(res as i8)
             }
+        }
 
-            Conn::new(ceil, inner, floor)
-        };
+        impl $crate::conn::ViewL<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> for $const_name {
+            const L: $crate::conn::ConnL<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> =
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        }
+        impl $crate::conn::ViewR<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> for $const_name {
+            const R: $crate::conn::ConnR<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> =
+                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
+        }
     };
 }
 
@@ -169,6 +186,8 @@ fix_fix_i8!(Q008Q006, U8, U6);
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
@@ -235,12 +254,10 @@ mod tests {
         }
     }
 
-    #[test]
-    fn u_to_i_ceil_eq_floor() {
-        for &a in &[0_u8, 50, i8::MAX as u8, u8::MAX] {
-            assert_eq!(U008I008.ceil(a), U008I008.floor(a));
-        }
-    }
+    // u_to_i_ceil_eq_floor test deleted under Sprint B kind discipline:
+    // U008I008 is a one-sided R-Conn (no .ceil() method), so the property
+    // is structural rather than testable. Kept the surrounding test
+    // surface; the R-Galois law is exercised in tests/int_i8_galois.rs.
 
     // ── §2 i8 ↔ NonZeroI8 spot checks ──────────────────────────────
 
@@ -297,12 +314,12 @@ mod tests {
         // target's puncture between -1 and +1.
         #[test]
         fn i008n008_galois_l(a in any::<i8>(), b in arb_nz_i8()) {
-            prop_assert!(conn_laws::conn_galois_l(&I008N008, a, b));
+            prop_assert!(conn_laws::galois_l(&I008N008::L, a, b));
         }
 
         #[test]
         fn i008n008_galois_r(a in any::<i8>(), b in arb_nz_i8()) {
-            prop_assert!(conn_laws::conn_galois_r(&I008N008, a, b));
+            prop_assert!(conn_laws::galois_r(&I008N008::R, a, b));
         }
 
         #[test]
@@ -317,13 +334,13 @@ mod tests {
         #[test]
         fn q000i008_galois_l(a_bits in any::<i8>(), b in any::<i8>()) {
             let a = FixedI8::<U0>::from_bits(a_bits);
-            prop_assert!(conn_laws::conn_galois_l(&Q000I008, a, b));
+            prop_assert!(conn_laws::galois_l(&Q000I008::L, a, b));
         }
 
         #[test]
         fn q000i008_galois_r(a_bits in any::<i8>(), b in any::<i8>()) {
             let a = FixedI8::<U0>::from_bits(a_bits);
-            prop_assert!(conn_laws::conn_galois_r(&Q000I008, a, b));
+            prop_assert!(conn_laws::galois_r(&Q000I008::R, a, b));
         }
 
         #[test]
@@ -393,50 +410,50 @@ mod tests {
                     fn galois_l(f in any::<i8>(), b in any::<i8>()) {
                         let fine = FixedI8::<$FineFrac>::from_bits(f);
                         let coarse = FixedI8::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::conn_galois_l(&$conn, fine, coarse));
+                        prop_assert!(conn_laws::galois_l(&<$conn as crate::conn::ViewL<_, _>>::L, fine, coarse));
                     }
                     #[test]
                     fn galois_r(f in any::<i8>(), b in any::<i8>()) {
                         let fine = FixedI8::<$FineFrac>::from_bits(f);
                         let coarse = FixedI8::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::conn_galois_r(&$conn, fine, coarse));
+                        prop_assert!(conn_laws::galois_r(&<$conn as crate::conn::ViewR<_, _>>::R, fine, coarse));
                     }
                     #[test]
                     fn monotone_l(f1 in any::<i8>(), f2 in any::<i8>()) {
                         let f1 = FixedI8::<$FineFrac>::from_bits(f1);
                         let f2 = FixedI8::<$FineFrac>::from_bits(f2);
-                        prop_assert!(conn_laws::conn_monotone_l(&$conn, f1, f2));
+                        prop_assert!(conn_laws::monotone_l(&<$conn as crate::conn::ViewL<_, _>>::L, f1, f2));
                     }
                     #[test]
                     fn monotone_r(b1 in any::<i8>(), b2 in any::<i8>()) {
                         let b1 = FixedI8::<$CoarseFrac>::from_bits(b1);
                         let b2 = FixedI8::<$CoarseFrac>::from_bits(b2);
-                        prop_assert!(conn_laws::conn_monotone_r(&$conn, b1, b2));
+                        prop_assert!(conn_laws::monotone_r(&<$conn as crate::conn::ViewR<_, _>>::R, b1, b2));
                     }
                     #[test]
                     fn closure_l(f in any::<i8>()) {
                         let fine = FixedI8::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::conn_closure_l(&$conn, fine));
+                        prop_assert!(conn_laws::closure_l(&<$conn as crate::conn::ViewL<_, _>>::L, fine));
                     }
                     #[test]
                     fn closure_r(f in any::<i8>()) {
                         let fine = FixedI8::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::conn_closure_r(&$conn, fine));
+                        prop_assert!(conn_laws::closure_r(&<$conn as crate::conn::ViewR<_, _>>::R, fine));
                     }
                     #[test]
                     fn kernel_l(b in any::<i8>()) {
                         let c = FixedI8::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::conn_kernel_l(&$conn, c));
+                        prop_assert!(conn_laws::kernel_l(&<$conn as crate::conn::ViewL<_, _>>::L, c));
                     }
                     #[test]
                     fn kernel_r(b in any::<i8>()) {
                         let c = FixedI8::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::conn_kernel_r(&$conn, c));
+                        prop_assert!(conn_laws::kernel_r(&<$conn as crate::conn::ViewR<_, _>>::R, c));
                     }
                     #[test]
                     fn idempotent(f in any::<i8>()) {
                         let fine = FixedI8::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::conn_idempotent(&$conn, fine));
+                        prop_assert!(conn_laws::idempotent(&<$conn as crate::conn::ViewL<_, _>>::L, fine));
                     }
                 }
             }

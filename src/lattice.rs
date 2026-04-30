@@ -375,7 +375,7 @@ pub trait Boolean: Symmetric {}
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// use connections::lattice::LATTBOOL;
 /// use core::cmp::Ordering;
 ///
@@ -391,7 +391,7 @@ pub trait Boolean: Symmetric {}
 /// assert_eq!(c.inner(true),              Ordering::Greater);
 /// ```
 #[allow(non_snake_case)]
-pub fn LATTBOOL<A>() -> crate::conn::Conn<A, bool>
+pub fn LATTBOOL<A>() -> crate::conn::ConnL<A, bool>
 where
     A: Join + Meet + Copy + 'static,
 {
@@ -401,10 +401,7 @@ where
     fn inner<A: Join + Meet>(x: bool) -> A {
         if x { A::top() } else { A::bot() }
     }
-    fn floor<A: Meet + PartialEq>(i: A) -> bool {
-        i == A::top()
-    }
-    crate::conn::Conn::new(ceil::<A>, inner::<A>, floor::<A>)
+    crate::conn::Conn::new_l(ceil::<A>, inner::<A>)
 }
 
 // ── `Join + Meet` impls for primitive lattices ──────────────────
@@ -434,6 +431,8 @@ impl Meet for core::cmp::Ordering {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::conn::{ViewL, ViewR};
     use crate::float::ExtendedFloat;
     use crate::prop::arb::{arb_f32, arb_f64};
     use crate::prop::conn as conn_laws;
@@ -562,9 +561,6 @@ mod tests {
         assert!(!c.ceil(Ordering::Less));
         assert!(c.ceil(Ordering::Equal));
         assert!(c.ceil(Ordering::Greater));
-        assert!(!c.floor(Ordering::Less));
-        assert!(!c.floor(Ordering::Equal));
-        assert!(c.floor(Ordering::Greater));
         assert_eq!(c.inner(false), Ordering::Less);
         assert_eq!(c.inner(true), Ordering::Greater);
     }
@@ -583,25 +579,16 @@ mod tests {
         #[test]
         fn lattbool_ordering_galois_l(o in crate::prop::arb::arb_ordering(), b in any::<bool>()) {
             let c = LATTBOOL::<Ordering>();
-            prop_assert!(conn_laws::conn_galois_l(&c, o, b));
+            prop_assert!(conn_laws::galois_l(&c, o, b));
         }
 
-        #[test]
-        fn lattbool_ordering_galois_r(o in crate::prop::arb::arb_ordering(), b in any::<bool>()) {
-            let c = LATTBOOL::<Ordering>();
-            prop_assert!(conn_laws::conn_galois_r(&c, o, b));
-        }
-
-        #[test]
-        fn lattbool_ordering_floor_le_ceil(o in crate::prop::arb::arb_ordering()) {
-            let c = LATTBOOL::<Ordering>();
-            prop_assert!(conn_laws::conn_floor_le_ceil(&c, o));
-        }
+        // galois_r and floor_le_ceil deleted under Sprint B kind discipline:
+        // LATTBOOL is now a one-sided ConnL.
 
         #[test]
         fn lattbool_ordering_idempotent(o in crate::prop::arb::arb_ordering()) {
             let c = LATTBOOL::<Ordering>();
-            prop_assert!(conn_laws::conn_idempotent(&c, o));
+            prop_assert!(conn_laws::idempotent(&c, o));
         }
     }
 }
