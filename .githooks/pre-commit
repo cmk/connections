@@ -22,8 +22,10 @@
 #     agent-invoked Bash calls in any worktree, terminal commits,
 #     IDE commits, all paths.
 #
-# This file is the unbypassable safety net at commit time. Activate
-# it on a fresh clone with:
+# This file is the unbypassable safety net at commit time. See
+# `.githooks/pre-push` for the once-per-push partner that runs
+# heavier checks (e.g. `cargo doc`) too expensive for every commit.
+# Activate both on a fresh clone with:
 #
 #     git config core.hooksPath .githooks
 #

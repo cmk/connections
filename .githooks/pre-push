@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# .githooks/pre-push — git-side pre-push gate.
+#
+# Companion to `.githooks/pre-commit` that runs once per push instead
+# of once per commit. The pre-commit hook chain (fmt, PII, README
+# mirror, test, clippy) catches per-commit drift; this hook adds the
+# checks that are too expensive to run on every commit but cheap
+# enough to run once before the work leaves the laptop.
+#
+# Currently runs:
+#
+#   1. cargo doc --no-deps --document-private-items
+#      with `RUSTDOCFLAGS=-D warnings` — fails on broken intra-doc
+#      links and rustdoc warnings. Mirrors the CI `doc:` job in
+#      `.gitlab-ci.yml`. CI catches these on MR pipelines and
+#      post-merge main, but mid-sprint feature-branch pushes don't
+#      trigger an MR pipeline, so accumulated link rot can land
+#      unnoticed until an MR is opened. Running locally before push
+#      closes that gap.
+#
+# Activate alongside pre-commit via:
+#
+#     git config core.hooksPath .githooks
+#
+# Bypass with `--no-verify` only when explicitly authorized.
+#
+# Exit codes follow git convention: nonzero blocks the push.
+
+set -euo pipefail
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+# 1. cargo doc — blocking. Catches broken intra-doc links and rustdoc
+#    warnings before they reach CI. Mirrors the `.gitlab-ci.yml` doc:
+#    job's invocation so the local check and CI agree.
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features testing --document-private-items

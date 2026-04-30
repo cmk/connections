@@ -310,9 +310,10 @@ owns the regression. Before the next push/merge, collapse fixups via
 that temporarily broke the build. `/sprint-review` runs this check
 automatically at Step 0.
 
-### Pre-commit hooks
+### Pre-commit / pre-push hooks
 
-Two complementary layers guard every commit:
+Two complementary layers guard every commit, plus a once-per-push
+layer for heavier checks:
 
 **Layer 1 — Claude Code `PreToolUse`** (`.claude/settings.json`):
 fires on agent-invoked Bash calls matching `git commit*`. Catches
@@ -332,13 +333,25 @@ invoked: chained `git add && git commit`, agent-invoked Bash calls in
 any worktree, terminal commits, IDE commits, all paths. This is the
 unbypassable safety net.
 
-Activate Layer 2 on a fresh clone:
+**Layer 3 — Git `pre-push`** (`.githooks/pre-push`): fires once per
+`git push`, before any refs are sent to the remote. Runs checks too
+expensive to gate every commit but cheap once a sprint:
+
+1. `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features testing
+   --document-private-items` — fails on broken intra-doc links and
+   rustdoc warnings. Mirrors the CI `doc:` job. CI catches these on
+   MR pipelines and post-merge `main`, but mid-sprint feature-branch
+   pushes don't trigger an MR pipeline, so accumulated link rot can
+   land unnoticed until an MR is opened. Running locally before push
+   closes that gap.
+
+Activate Layers 2 and 3 on a fresh clone:
 
 ```
 git config core.hooksPath .githooks
 ```
 
-Both layers run the same check chain, in order. Every step is
+Layers 1 and 2 run the same check chain, in order. Every step is
 blocking — the chain short-circuits on the first failure and the
 commit is aborted:
 
@@ -354,8 +367,8 @@ commit is aborted:
 4. `cargo test --workspace --quiet`.
 5. `cargo clippy --all-targets --quiet -- -D warnings`.
 
-`/sprint-review` is the manual quality gate; both hook layers are
-the automated ones. Never bypass with `--no-verify` unless Chris
+`/sprint-review` is the manual quality gate; all three hook layers
+are the automated ones. Never bypass with `--no-verify` unless Chris
 explicitly authorizes it.
 
 ### Commands (`.claude/commands/`)
