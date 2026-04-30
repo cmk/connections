@@ -69,16 +69,17 @@ clippy:
 doc:
   stage: check
   # Catch broken intra-doc links and rustdoc warnings before docs.rs
-  # builds the published release. `--features testing` matches the
-  # docs.rs config in Cargo.toml so feature-gated items (property::arb)
-  # render the same way locally as on docs.rs. Cannot use
-  # `--all-features` here: the `f16` feature activates
+  # builds the published release. The feature set
+  # `testing,macros` matches the docs.rs config in Cargo.toml so
+  # feature-gated items (`prop::arb`, `connections::macros`) render
+  # the same way locally as on docs.rs. Cannot use `--all-features`
+  # here: the `f16` feature activates
   # `#![cfg_attr(feature = "f16", feature(f16))]`, a nightly-only
   # attribute that errors on this CI image's stable rustc.
   variables:
     RUSTDOCFLAGS: "-D warnings"
   script:
-    - cargo doc --no-deps --features testing --document-private-items
+    - cargo doc --no-deps --features testing,macros --document-private-items
   # Gate doc to MR pipelines + post-merge main runs. Mid-sprint pushes
   # to a feature branch with no MR open don't need doc validation
   # (rustdoc warnings won't have shifted between sibling commits).
@@ -230,14 +231,15 @@ claude-review:
 # that the Pages root URL lands on the crate index. Resulting URL:
 # `https://<group>.gitlab.io/<project>/connections/`.
 #
-# `--features testing` matches the docs.rs config in Cargo.toml so the
-# Pages build renders the same surface as the published docs (in
-# particular `connections::prop::arb`). The `f16` feature stays off
-# because it requires nightly; users wanting that path build locally.
+# `--features testing,macros` matches the docs.rs config in Cargo.toml
+# so the Pages build renders the same surface as the published docs
+# (in particular `connections::prop::arb` and `connections::macros`).
+# The `f16` feature stays off because it requires nightly; users
+# wanting that path build locally.
 pages:
   stage: deploy
   script:
-    - cargo doc --no-deps --features testing
+    - cargo doc --no-deps --features testing,macros
     - rm -rf public
     - mv target/doc public
     - echo '<meta http-equiv="refresh" content="0; url=connections/">' > public/index.html
