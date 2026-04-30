@@ -190,58 +190,14 @@ mod tests {
 
     // ── Property tests ─────────────────────────────────────────────
 
+    crate::law_battery! {
+        mod laws,
+        conn: F064F032,
+        fine:   ef64(),
+        coarse: ef32(),
+    }
+
     proptest! {
-        #![proptest_config(ProptestConfig {
-            cases: 256,
-            max_shrink_iters: 200,
-            .. ProptestConfig::default()
-        })]
-
-        #[test]
-        fn galois_l(a in ef64(), b in ef32()) {
-            prop_assert!(conn_laws::galois_l(&F064F032::L, a, b));
-        }
-
-        #[test]
-        fn galois_r(a in ef64(), b in ef32()) {
-            prop_assert!(conn_laws::galois_r(&F064F032::R, a, b));
-        }
-
-        #[test]
-        fn closure_l(a in ef64()) {
-            prop_assert!(conn_laws::closure_l(&F064F032::L, a));
-        }
-
-        #[test]
-        fn closure_r(a in ef64()) {
-            prop_assert!(conn_laws::closure_r(&F064F032::R, a));
-        }
-
-        #[test]
-        fn kernel_l(b in ef32()) {
-            prop_assert!(conn_laws::kernel_l(&F064F032::L, b));
-        }
-
-        #[test]
-        fn kernel_r(b in ef32()) {
-            prop_assert!(conn_laws::kernel_r(&F064F032::R, b));
-        }
-
-        #[test]
-        fn monotone_l(a1 in ef64(), a2 in ef64()) {
-            prop_assert!(conn_laws::monotone_l(&F064F032::L, a1, a2));
-        }
-
-        #[test]
-        fn monotone_r(b1 in ef32(), b2 in ef32()) {
-            prop_assert!(conn_laws::monotone_r(&F064F032::R, b1, b2));
-        }
-
-        #[test]
-        fn idempotent(a in ef64()) {
-            prop_assert!(conn_laws::idempotent(&F064F032::L, a));
-        }
-
         #[test]
         fn floor_le_ceil(a in ef64()) {
             prop_assert!(conn_laws::floor_le_ceil(&F064F032, a));

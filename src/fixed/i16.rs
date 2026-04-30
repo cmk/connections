@@ -179,7 +179,6 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use crate::conn::{ViewL, ViewR};
-    use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
     // ── §1 std-int spot checks (merged from former int/i16.rs) ─────
@@ -342,75 +341,19 @@ mod tests {
     // (`Conn::new_l` / `Conn::new_r`) so `floor_le_ceil` holds
     // structurally. Until then, the test is omitted here to avoid
     // failing CI on a pre-existing issue.
+    // 15 conns × 9 properties = 135 generated proptests, via the
+    // shared `crate::law_battery!` macro (Plan 31 T2).
     macro_rules! props_for_pair {
         ($mod_name:ident, $conn:ident, $FineFrac:ty, $CoarseFrac:ty) => {
-            mod $mod_name {
-                use super::*;
-
-                proptest! {
-                    #[test]
-                    fn galois_l(f in any::<i16>(), b in any::<i16>()) {
-                        let fine = FixedI16::<$FineFrac>::from_bits(f);
-                        let coarse = FixedI16::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::galois_l(&$conn::L, fine, coarse));
-                    }
-
-                    #[test]
-                    fn galois_r(f in any::<i16>(), b in any::<i16>()) {
-                        let fine = FixedI16::<$FineFrac>::from_bits(f);
-                        let coarse = FixedI16::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::galois_r(&$conn::R, fine, coarse));
-                    }
-
-                    #[test]
-                    fn monotone_l(f1 in any::<i16>(), f2 in any::<i16>()) {
-                        let f1 = FixedI16::<$FineFrac>::from_bits(f1);
-                        let f2 = FixedI16::<$FineFrac>::from_bits(f2);
-                        prop_assert!(conn_laws::monotone_l(&$conn::L, f1, f2));
-                    }
-
-                    #[test]
-                    fn monotone_r(b1 in any::<i16>(), b2 in any::<i16>()) {
-                        let b1 = FixedI16::<$CoarseFrac>::from_bits(b1);
-                        let b2 = FixedI16::<$CoarseFrac>::from_bits(b2);
-                        prop_assert!(conn_laws::monotone_r(&$conn::R, b1, b2));
-                    }
-
-                    #[test]
-                    fn closure_l(f in any::<i16>()) {
-                        let fine = FixedI16::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::closure_l(&$conn::L, fine));
-                    }
-
-                    #[test]
-                    fn closure_r(f in any::<i16>()) {
-                        let fine = FixedI16::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::closure_r(&$conn::R, fine));
-                    }
-
-                    #[test]
-                    fn kernel_l(b in any::<i16>()) {
-                        let c = FixedI16::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::kernel_l(&$conn::L, c));
-                    }
-
-                    #[test]
-                    fn kernel_r(b in any::<i16>()) {
-                        let c = FixedI16::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::kernel_r(&$conn::R, c));
-                    }
-
-                    #[test]
-                    fn idempotent(f in any::<i16>()) {
-                        let fine = FixedI16::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::idempotent(&$conn::L, fine));
-                    }
-                }
+            $crate::law_battery! {
+                mod $mod_name,
+                conn: $conn,
+                fine:   any::<i16>().prop_map(FixedI16::<$FineFrac>::from_bits),
+                coarse: any::<i16>().prop_map(FixedI16::<$CoarseFrac>::from_bits),
             }
         };
     }
 
-    // 15 conns × 9 properties = 135 generated proptests.
     props_for_pair!(q002q000, Q002Q000, U2, U0);
     props_for_pair!(q004q000, Q004Q000, U4, U0);
     props_for_pair!(q008q000, Q008Q000, U8, U0);

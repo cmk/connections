@@ -4,72 +4,19 @@
 //! u128 generators are expensive; case count capped to 64 (same
 //! precedent as `conn::fixed::i128`).
 
-#[allow(unused_imports)]
-use connections::conn::{ViewL, ViewR};
 use connections::fixed::u128::*;
-use connections::prop::conn as conn_laws;
 use fixed::FixedU128;
 use fixed::types::extra::{U0, U16, U32, U64, U96, U127, U128};
 use proptest::prelude::*;
 
 macro_rules! props_for_pair {
     ($mod_name:ident, $conn:ident, $FineFrac:ty, $CoarseFrac:ty) => {
-        mod $mod_name {
-            use super::*;
-
-            proptest! {
-                #![proptest_config(ProptestConfig::with_cases(64))]
-
-                #[test]
-                fn galois_l(f in any::<u128>(), b in any::<u128>()) {
-                    let fine = FixedU128::<$FineFrac>::from_bits(f);
-                    let coarse = FixedU128::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::galois_l(&<$conn as connections::conn::ViewL<_, _>>::L, fine, coarse));
-                }
-                #[test]
-                fn galois_r(f in any::<u128>(), b in any::<u128>()) {
-                    let fine = FixedU128::<$FineFrac>::from_bits(f);
-                    let coarse = FixedU128::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::galois_r(&<$conn as connections::conn::ViewR<_, _>>::R, fine, coarse));
-                }
-                #[test]
-                fn monotone_l(f1 in any::<u128>(), f2 in any::<u128>()) {
-                    let f1 = FixedU128::<$FineFrac>::from_bits(f1);
-                    let f2 = FixedU128::<$FineFrac>::from_bits(f2);
-                    prop_assert!(conn_laws::monotone_l(&<$conn as connections::conn::ViewL<_, _>>::L, f1, f2));
-                }
-                #[test]
-                fn monotone_r(b1 in any::<u128>(), b2 in any::<u128>()) {
-                    let b1 = FixedU128::<$CoarseFrac>::from_bits(b1);
-                    let b2 = FixedU128::<$CoarseFrac>::from_bits(b2);
-                    prop_assert!(conn_laws::monotone_r(&<$conn as connections::conn::ViewR<_, _>>::R, b1, b2));
-                }
-                #[test]
-                fn closure_l(f in any::<u128>()) {
-                    let fine = FixedU128::<$FineFrac>::from_bits(f);
-                    prop_assert!(conn_laws::closure_l(&<$conn as connections::conn::ViewL<_, _>>::L, fine));
-                }
-                #[test]
-                fn closure_r(f in any::<u128>()) {
-                    let fine = FixedU128::<$FineFrac>::from_bits(f);
-                    prop_assert!(conn_laws::closure_r(&<$conn as connections::conn::ViewR<_, _>>::R, fine));
-                }
-                #[test]
-                fn kernel_l(b in any::<u128>()) {
-                    let c = FixedU128::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::kernel_l(&<$conn as connections::conn::ViewL<_, _>>::L, c));
-                }
-                #[test]
-                fn kernel_r(b in any::<u128>()) {
-                    let c = FixedU128::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::kernel_r(&<$conn as connections::conn::ViewR<_, _>>::R, c));
-                }
-                #[test]
-                fn idempotent(f in any::<u128>()) {
-                    let fine = FixedU128::<$FineFrac>::from_bits(f);
-                    prop_assert!(conn_laws::idempotent(&<$conn as connections::conn::ViewL<_, _>>::L, fine));
-                }
-            }
+        connections::law_battery! {
+            mod $mod_name,
+            conn: $conn,
+            fine:   any::<u128>().prop_map(FixedU128::<$FineFrac>::from_bits),
+            coarse: any::<u128>().prop_map(FixedU128::<$CoarseFrac>::from_bits),
+            cases: 64,
         }
     };
 }

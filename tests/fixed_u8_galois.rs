@@ -11,70 +11,18 @@
 //! Spot tests stay collocated with the source in
 //! `src/conn/fixed/u8.rs` — they're cheap to compile.
 
-#[allow(unused_imports)]
-use connections::conn::{ViewL, ViewR};
 use connections::fixed::u8::*;
-use connections::prop::conn as conn_laws;
 use fixed::FixedU8;
 use fixed::types::extra::{U0, U1, U2, U3, U4, U6, U7, U8};
 use proptest::prelude::*;
 
 macro_rules! props_for_pair {
     ($mod_name:ident, $conn:ident, $FineFrac:ty, $CoarseFrac:ty) => {
-        mod $mod_name {
-            use super::*;
-
-            proptest! {
-                #[test]
-                fn galois_l(f in any::<u8>(), b in any::<u8>()) {
-                    let fine = FixedU8::<$FineFrac>::from_bits(f);
-                    let coarse = FixedU8::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::galois_l(&<$conn as connections::conn::ViewL<_, _>>::L, fine, coarse));
-                }
-                #[test]
-                fn galois_r(f in any::<u8>(), b in any::<u8>()) {
-                    let fine = FixedU8::<$FineFrac>::from_bits(f);
-                    let coarse = FixedU8::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::galois_r(&<$conn as connections::conn::ViewR<_, _>>::R, fine, coarse));
-                }
-                #[test]
-                fn monotone_l(f1 in any::<u8>(), f2 in any::<u8>()) {
-                    let f1 = FixedU8::<$FineFrac>::from_bits(f1);
-                    let f2 = FixedU8::<$FineFrac>::from_bits(f2);
-                    prop_assert!(conn_laws::monotone_l(&<$conn as connections::conn::ViewL<_, _>>::L, f1, f2));
-                }
-                #[test]
-                fn monotone_r(b1 in any::<u8>(), b2 in any::<u8>()) {
-                    let b1 = FixedU8::<$CoarseFrac>::from_bits(b1);
-                    let b2 = FixedU8::<$CoarseFrac>::from_bits(b2);
-                    prop_assert!(conn_laws::monotone_r(&<$conn as connections::conn::ViewR<_, _>>::R, b1, b2));
-                }
-                #[test]
-                fn closure_l(f in any::<u8>()) {
-                    let fine = FixedU8::<$FineFrac>::from_bits(f);
-                    prop_assert!(conn_laws::closure_l(&<$conn as connections::conn::ViewL<_, _>>::L, fine));
-                }
-                #[test]
-                fn closure_r(f in any::<u8>()) {
-                    let fine = FixedU8::<$FineFrac>::from_bits(f);
-                    prop_assert!(conn_laws::closure_r(&<$conn as connections::conn::ViewR<_, _>>::R, fine));
-                }
-                #[test]
-                fn kernel_l(b in any::<u8>()) {
-                    let c = FixedU8::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::kernel_l(&<$conn as connections::conn::ViewL<_, _>>::L, c));
-                }
-                #[test]
-                fn kernel_r(b in any::<u8>()) {
-                    let c = FixedU8::<$CoarseFrac>::from_bits(b);
-                    prop_assert!(conn_laws::kernel_r(&<$conn as connections::conn::ViewR<_, _>>::R, c));
-                }
-                #[test]
-                fn idempotent(f in any::<u8>()) {
-                    let fine = FixedU8::<$FineFrac>::from_bits(f);
-                    prop_assert!(conn_laws::idempotent(&<$conn as connections::conn::ViewL<_, _>>::L, fine));
-                }
-            }
+        connections::law_battery! {
+            mod $mod_name,
+            conn: $conn,
+            fine:   any::<u8>().prop_map(FixedU8::<$FineFrac>::from_bits),
+            coarse: any::<u8>().prop_map(FixedU8::<$CoarseFrac>::from_bits),
         }
     };
 }

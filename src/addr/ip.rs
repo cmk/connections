@@ -378,53 +378,27 @@ mod tests {
 
     // ── Galois law batteries ────────────────────────────────────
     //
-    // Both Conns are total bijections (`new_iso`), so both Galois
+    // Both Conns are total bijections (`iso!`), so both Galois
     // laws hold trivially and `inner` round-trips both directions.
+
+    crate::law_battery! {
+        mod u032ipv4_laws,
+        conn: U032IPV4,
+        fine:   any::<u32>(),
+        coarse: arb_ipv4(),
+    }
+
+    crate::law_battery! {
+        mod u128ipv6_laws,
+        conn: U128IPV6,
+        fine:   any::<u128>(),
+        coarse: arb_ipv6(),
+    }
 
     proptest! {
         #[test]
-        fn u032ipv4_galois_l(b in any::<u32>(), a in arb_ipv4()) {
-            prop_assert!(conn_laws::galois_l(&U032IPV4::L, b, a));
-        }
-
-        #[test]
-        fn u032ipv4_galois_r(b in any::<u32>(), a in arb_ipv4()) {
-            prop_assert!(conn_laws::galois_r(&U032IPV4::R, b, a));
-        }
-
-        #[test]
-        fn u032ipv4_round_trip_b(b in any::<u32>()) {
-            prop_assert_eq!(U032IPV4.inner(U032IPV4.ceil(b)), b);
-        }
-
-        #[test]
-        fn u032ipv4_round_trip_a(a in arb_ipv4()) {
-            prop_assert_eq!(U032IPV4.ceil(U032IPV4.inner(a)), a);
-        }
-
-        #[test]
         fn u032ipv4_floor_le_ceil(b in any::<u32>()) {
             prop_assert!(conn_laws::floor_le_ceil(&U032IPV4, b));
-        }
-
-        #[test]
-        fn u128ipv6_galois_l(b in any::<u128>(), a in arb_ipv6()) {
-            prop_assert!(conn_laws::galois_l(&U128IPV6::L, b, a));
-        }
-
-        #[test]
-        fn u128ipv6_galois_r(b in any::<u128>(), a in arb_ipv6()) {
-            prop_assert!(conn_laws::galois_r(&U128IPV6::R, b, a));
-        }
-
-        #[test]
-        fn u128ipv6_round_trip_b(b in any::<u128>()) {
-            prop_assert_eq!(U128IPV6.inner(U128IPV6.ceil(b)), b);
-        }
-
-        #[test]
-        fn u128ipv6_round_trip_a(a in arb_ipv6()) {
-            prop_assert_eq!(U128IPV6.ceil(U128IPV6.inner(a)), a);
         }
 
         #[test]
@@ -507,52 +481,14 @@ mod tests {
 
     // ── IPV6IPV4 Galois law battery ─────────────────────────────
 
+    crate::law_battery! {
+        mod ipv6ipv4_laws,
+        conn: IPV6IPV4,
+        fine:   arb_ipv6(),
+        coarse: arb_extended_ipv4(),
+    }
+
     proptest! {
-        #[test]
-        fn ipv6ipv4_galois_l(a in arb_ipv6(), b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::galois_l(&IPV6IPV4::L, a, b));
-        }
-
-        #[test]
-        fn ipv6ipv4_galois_r(a in arb_ipv6(), b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::galois_r(&IPV6IPV4::R, a, b));
-        }
-
-        #[test]
-        fn ipv6ipv4_closure_l(a in arb_ipv6()) {
-            prop_assert!(conn_laws::closure_l(&IPV6IPV4::L, a));
-        }
-
-        #[test]
-        fn ipv6ipv4_closure_r(a in arb_ipv6()) {
-            prop_assert!(conn_laws::closure_r(&IPV6IPV4::R, a));
-        }
-
-        #[test]
-        fn ipv6ipv4_kernel_l(b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::kernel_l(&IPV6IPV4::L, b));
-        }
-
-        #[test]
-        fn ipv6ipv4_kernel_r(b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::kernel_r(&IPV6IPV4::R, b));
-        }
-
-        #[test]
-        fn ipv6ipv4_monotone_l(a in arb_ipv6(), b in arb_ipv6()) {
-            prop_assert!(conn_laws::monotone_l(&IPV6IPV4::L, a, b));
-        }
-
-        #[test]
-        fn ipv6ipv4_monotone_r(a in arb_extended_ipv4(), b in arb_extended_ipv4()) {
-            prop_assert!(conn_laws::monotone_r(&IPV6IPV4::R, a, b));
-        }
-
-        #[test]
-        fn ipv6ipv4_idempotent(a in arb_ipv6()) {
-            prop_assert!(conn_laws::idempotent(&IPV6IPV4::L, a));
-        }
-
         // V4-mapped block round-trips bijectively.
         #[test]
         fn ipv6ipv4_v4_round_trip(v4 in arb_ipv4()) {
@@ -566,10 +502,11 @@ mod tests {
             prop_assert!(conn_laws::floor_le_ceil(&IPV6IPV4, a));
         }
 
-        // ── IPVXIPV4 (one-sided ceil-adjoint) law battery ───────
+        // ── IPVXIPV4 (one-sided ceil-adjoint, bare ConnL) ───────
         //
         // new_left contract: Galois L holds, Galois R does not.
-        // floor_le_ceil holds trivially (floor = ceil structurally).
+        // IPVXIPV4 is a bare `pub const ConnL` (not a triple marker),
+        // so it's tested directly here rather than via law_battery!.
 
         #[test]
         fn ipvxipv4_galois_l(a in arb_ip_addr(), b in arb_extended_ipv4()) {
@@ -591,10 +528,7 @@ mod tests {
             prop_assert!(conn_laws::idempotent(&IPVXIPV4, a));
         }
 
-        // ── IPVXIPV6 (one-sided floor-adjoint) law battery ──────
-        //
-        // new_right contract: Galois R holds, Galois L does not.
-        // floor_le_ceil holds trivially (ceil = floor structurally).
+        // ── IPVXIPV6 (one-sided floor-adjoint, bare ConnR) ──────
 
         #[test]
         fn ipvxipv6_galois_r(a in arb_ip_addr(), b in arb_extended_ipv6()) {

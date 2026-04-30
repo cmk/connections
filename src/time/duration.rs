@@ -268,52 +268,14 @@ mod tests {
 
     // ── DURNSECS Galois law battery ─────────────────────────────
 
+    crate::law_battery! {
+        mod durnsecs_laws,
+        conn: DURNSECS,
+        fine:   arb_duration(),
+        coarse: arb_extended_i64(),
+    }
+
     proptest! {
-        #[test]
-        fn galois_l(d in arb_duration(), b in arb_extended_i64()) {
-            prop_assert!(conn_laws::galois_l(&DURNSECS::L, d, b));
-        }
-
-        #[test]
-        fn galois_r(d in arb_duration(), b in arb_extended_i64()) {
-            prop_assert!(conn_laws::galois_r(&DURNSECS::R, d, b));
-        }
-
-        #[test]
-        fn closure_l(d in arb_duration()) {
-            prop_assert!(conn_laws::closure_l(&DURNSECS::L, d));
-        }
-
-        #[test]
-        fn closure_r(d in arb_duration()) {
-            prop_assert!(conn_laws::closure_r(&DURNSECS::R, d));
-        }
-
-        #[test]
-        fn kernel_l(b in arb_extended_i64()) {
-            prop_assert!(conn_laws::kernel_l(&DURNSECS::L, b));
-        }
-
-        #[test]
-        fn kernel_r(b in arb_extended_i64()) {
-            prop_assert!(conn_laws::kernel_r(&DURNSECS::R, b));
-        }
-
-        #[test]
-        fn monotone_l(a in arb_duration(), b in arb_duration()) {
-            prop_assert!(conn_laws::monotone_l(&DURNSECS::L, a, b));
-        }
-
-        #[test]
-        fn monotone_r(a in arb_extended_i64(), b in arb_extended_i64()) {
-            prop_assert!(conn_laws::monotone_r(&DURNSECS::R, a, b));
-        }
-
-        #[test]
-        fn idempotent(d in arb_duration()) {
-            prop_assert!(conn_laws::idempotent(&DURNSECS::L, d));
-        }
-
         // ulp_bound: extractor flattens NegInf→i64::MIN,
         // PosInf→i64::MAX. At Duration::MAX/MIN both ceil and
         // floor saturate to the same sentinel (diff = 0); on
@@ -1081,8 +1043,6 @@ mod float_durn_tests {
         arb_extended_duration_bounded_f32, arb_extended_duration_bounded_f64, extended_float_f32,
         extended_float_f64,
     };
-    use crate::prop::conn as conn_laws;
-    use proptest::prelude::*;
 
     // ── F064DURN spot checks ────────────────────────────────────
 
@@ -1231,112 +1191,22 @@ mod float_durn_tests {
     // at |x| ≤ 1e9 s the f64 ULP is ≈ 1.2e-7 s ≈ 119 ns, so each walk
     // terminates in ≤ ~120 steps.
 
-    proptest! {
-        #![proptest_config(ProptestConfig {
-            cases: 64,
-            max_shrink_iters: 200,
-            .. ProptestConfig::default()
-        })]
-
-        #[test]
-        fn f64_galois_l(a in extended_float_f64(), b in arb_extended_duration_bounded_f64()) {
-            prop_assert!(conn_laws::galois_l(&F064DURN::L, a, b));
-        }
-
-        #[test]
-        fn f64_galois_r(a in extended_float_f64(), b in arb_extended_duration_bounded_f64()) {
-            prop_assert!(conn_laws::galois_r(&F064DURN::R, a, b));
-        }
-
-        #[test]
-        fn f64_closure_l(a in extended_float_f64()) {
-            prop_assert!(conn_laws::closure_l(&F064DURN::L, a));
-        }
-
-        #[test]
-        fn f64_closure_r(a in extended_float_f64()) {
-            prop_assert!(conn_laws::closure_r(&F064DURN::R, a));
-        }
-
-        #[test]
-        fn f64_kernel_l(b in arb_extended_duration_bounded_f64()) {
-            prop_assert!(conn_laws::kernel_l(&F064DURN::L, b));
-        }
-
-        #[test]
-        fn f64_kernel_r(b in arb_extended_duration_bounded_f64()) {
-            prop_assert!(conn_laws::kernel_r(&F064DURN::R, b));
-        }
-
-        #[test]
-        fn f64_monotone_l(a1 in extended_float_f64(), a2 in extended_float_f64()) {
-            prop_assert!(conn_laws::monotone_l(&F064DURN::L, a1, a2));
-        }
-
-        #[test]
-        fn f64_monotone_r(b1 in arb_extended_duration_bounded_f64(), b2 in arb_extended_duration_bounded_f64()) {
-            prop_assert!(conn_laws::monotone_r(&F064DURN::R, b1, b2));
-        }
-
-        #[test]
-        fn f64_idempotent(a in extended_float_f64()) {
-            prop_assert!(conn_laws::idempotent(&F064DURN::L, a));
-        }
+    crate::law_battery! {
+        mod f064durn_laws,
+        conn: F064DURN,
+        fine:   extended_float_f64(),
+        coarse: arb_extended_duration_bounded_f64(),
+        cases: 64,
     }
 
     // ── Galois law battery — F032DURN ──────────────────────────
 
-    proptest! {
-        #![proptest_config(ProptestConfig {
-            cases: 64,
-            max_shrink_iters: 200,
-            .. ProptestConfig::default()
-        })]
-
-        #[test]
-        fn f32_galois_l(a in extended_float_f32(), b in arb_extended_duration_bounded_f32()) {
-            prop_assert!(conn_laws::galois_l(&F032DURN::L, a, b));
-        }
-
-        #[test]
-        fn f32_galois_r(a in extended_float_f32(), b in arb_extended_duration_bounded_f32()) {
-            prop_assert!(conn_laws::galois_r(&F032DURN::R, a, b));
-        }
-
-        #[test]
-        fn f32_closure_l(a in extended_float_f32()) {
-            prop_assert!(conn_laws::closure_l(&F032DURN::L, a));
-        }
-
-        #[test]
-        fn f32_closure_r(a in extended_float_f32()) {
-            prop_assert!(conn_laws::closure_r(&F032DURN::R, a));
-        }
-
-        #[test]
-        fn f32_kernel_l(b in arb_extended_duration_bounded_f32()) {
-            prop_assert!(conn_laws::kernel_l(&F032DURN::L, b));
-        }
-
-        #[test]
-        fn f32_kernel_r(b in arb_extended_duration_bounded_f32()) {
-            prop_assert!(conn_laws::kernel_r(&F032DURN::R, b));
-        }
-
-        #[test]
-        fn f32_monotone_l(a1 in extended_float_f32(), a2 in extended_float_f32()) {
-            prop_assert!(conn_laws::monotone_l(&F032DURN::L, a1, a2));
-        }
-
-        #[test]
-        fn f32_monotone_r(b1 in arb_extended_duration_bounded_f32(), b2 in arb_extended_duration_bounded_f32()) {
-            prop_assert!(conn_laws::monotone_r(&F032DURN::R, b1, b2));
-        }
-
-        #[test]
-        fn f32_idempotent(a in extended_float_f32()) {
-            prop_assert!(conn_laws::idempotent(&F032DURN::L, a));
-        }
+    crate::law_battery! {
+        mod f032durn_laws,
+        conn: F032DURN,
+        fine:   extended_float_f32(),
+        coarse: arb_extended_duration_bounded_f32(),
+        cases: 64,
     }
 }
 
@@ -1429,97 +1299,21 @@ mod stdr_tests {
 
     // ── STDRU064 / STDRU128 Galois law battery ──────────────────
 
+    crate::law_battery! {
+        mod stdru064_laws,
+        conn: STDRU064,
+        fine:   arb_extended_std_duration(),
+        coarse: arb_extended_u64(),
+    }
+
+    crate::law_battery! {
+        mod stdru128_laws,
+        conn: STDRU128,
+        fine:   arb_extended_std_duration(),
+        coarse: arb_extended_stdr_nanos_in_range(),
+    }
+
     proptest! {
-        #[test]
-        fn stdru064_galois_l(d in arb_extended_std_duration(), b in arb_extended_u64()) {
-            prop_assert!(conn_laws::galois_l(&STDRU064::L, d, b));
-        }
-
-        #[test]
-        fn stdru064_galois_r(d in arb_extended_std_duration(), b in arb_extended_u64()) {
-            prop_assert!(conn_laws::galois_r(&STDRU064::R, d, b));
-        }
-
-        #[test]
-        fn stdru064_closure_l(d in arb_extended_std_duration()) {
-            prop_assert!(conn_laws::closure_l(&STDRU064::L, d));
-        }
-
-        #[test]
-        fn stdru064_closure_r(d in arb_extended_std_duration()) {
-            prop_assert!(conn_laws::closure_r(&STDRU064::R, d));
-        }
-
-        #[test]
-        fn stdru064_kernel_l(b in arb_extended_u64()) {
-            prop_assert!(conn_laws::kernel_l(&STDRU064::L, b));
-        }
-
-        #[test]
-        fn stdru064_kernel_r(b in arb_extended_u64()) {
-            prop_assert!(conn_laws::kernel_r(&STDRU064::R, b));
-        }
-
-        #[test]
-        fn stdru064_monotone_l(a in arb_extended_std_duration(), b in arb_extended_std_duration()) {
-            prop_assert!(conn_laws::monotone_l(&STDRU064::L, a, b));
-        }
-
-        #[test]
-        fn stdru064_monotone_r(a in arb_extended_u64(), b in arb_extended_u64()) {
-            prop_assert!(conn_laws::monotone_r(&STDRU064::R, a, b));
-        }
-
-        #[test]
-        fn stdru064_idempotent(d in arb_extended_std_duration()) {
-            prop_assert!(conn_laws::idempotent(&STDRU064::L, d));
-        }
-
-        #[test]
-        fn stdru128_galois_l(d in arb_extended_std_duration(), b in arb_extended_stdr_nanos_in_range()) {
-            prop_assert!(conn_laws::galois_l(&STDRU128::L, d, b));
-        }
-
-        #[test]
-        fn stdru128_galois_r(d in arb_extended_std_duration(), b in arb_extended_stdr_nanos_in_range()) {
-            prop_assert!(conn_laws::galois_r(&STDRU128::R, d, b));
-        }
-
-        #[test]
-        fn stdru128_closure_l(d in arb_extended_std_duration()) {
-            prop_assert!(conn_laws::closure_l(&STDRU128::L, d));
-        }
-
-        #[test]
-        fn stdru128_closure_r(d in arb_extended_std_duration()) {
-            prop_assert!(conn_laws::closure_r(&STDRU128::R, d));
-        }
-
-        #[test]
-        fn stdru128_kernel_l(b in arb_extended_stdr_nanos_in_range()) {
-            prop_assert!(conn_laws::kernel_l(&STDRU128::L, b));
-        }
-
-        #[test]
-        fn stdru128_kernel_r(b in arb_extended_stdr_nanos_in_range()) {
-            prop_assert!(conn_laws::kernel_r(&STDRU128::R, b));
-        }
-
-        #[test]
-        fn stdru128_monotone_l(a in arb_extended_std_duration(), b in arb_extended_std_duration()) {
-            prop_assert!(conn_laws::monotone_l(&STDRU128::L, a, b));
-        }
-
-        #[test]
-        fn stdru128_monotone_r(a in arb_extended_stdr_nanos_in_range(), b in arb_extended_stdr_nanos_in_range()) {
-            prop_assert!(conn_laws::monotone_r(&STDRU128::R, a, b));
-        }
-
-        #[test]
-        fn stdru128_idempotent(d in arb_extended_std_duration()) {
-            prop_assert!(conn_laws::idempotent(&STDRU128::L, d));
-        }
-
         // STDRU128 is a bijection on the representable Finite range
         // — for any rung n ≤ MAX.as_nanos(), `ceil(inner(Finite(n)))
         // == Finite(n)`. Above the range, `inner` saturates and the
@@ -1654,57 +1448,28 @@ mod stdr_tests {
 
     // ── F064STDR / F032STDR Galois law battery ──────────────────
 
+    crate::law_battery! {
+        mod f064stdr_laws,
+        conn: F064STDR,
+        fine:   extended_float_f64(),
+        coarse: arb_extended_std_duration_bounded_f64(),
+        cases: 64,
+    }
+
+    crate::law_battery! {
+        mod f032stdr_laws,
+        conn: F032STDR,
+        fine:   extended_float_f32(),
+        coarse: arb_extended_std_duration_bounded_f32(),
+        cases: 64,
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig {
             cases: 64,
             max_shrink_iters: 200,
             .. ProptestConfig::default()
         })]
-
-        #[test]
-        fn f64_stdr_galois_l(a in extended_float_f64(), b in arb_extended_std_duration_bounded_f64()) {
-            prop_assert!(conn_laws::galois_l(&F064STDR::L, a, b));
-        }
-
-        #[test]
-        fn f64_stdr_galois_r(a in extended_float_f64(), b in arb_extended_std_duration_bounded_f64()) {
-            prop_assert!(conn_laws::galois_r(&F064STDR::R, a, b));
-        }
-
-        #[test]
-        fn f64_stdr_closure_l(a in extended_float_f64()) {
-            prop_assert!(conn_laws::closure_l(&F064STDR::L, a));
-        }
-
-        #[test]
-        fn f64_stdr_closure_r(a in extended_float_f64()) {
-            prop_assert!(conn_laws::closure_r(&F064STDR::R, a));
-        }
-
-        #[test]
-        fn f64_stdr_kernel_l(b in arb_extended_std_duration_bounded_f64()) {
-            prop_assert!(conn_laws::kernel_l(&F064STDR::L, b));
-        }
-
-        #[test]
-        fn f64_stdr_kernel_r(b in arb_extended_std_duration_bounded_f64()) {
-            prop_assert!(conn_laws::kernel_r(&F064STDR::R, b));
-        }
-
-        #[test]
-        fn f64_stdr_monotone_l(a1 in extended_float_f64(), a2 in extended_float_f64()) {
-            prop_assert!(conn_laws::monotone_l(&F064STDR::L, a1, a2));
-        }
-
-        #[test]
-        fn f64_stdr_monotone_r(b1 in arb_extended_std_duration_bounded_f64(), b2 in arb_extended_std_duration_bounded_f64()) {
-            prop_assert!(conn_laws::monotone_r(&F064STDR::R, b1, b2));
-        }
-
-        #[test]
-        fn f64_stdr_idempotent(a in extended_float_f64()) {
-            prop_assert!(conn_laws::idempotent(&F064STDR::L, a));
-        }
 
         // Negative finite inputs project to ZERO under ceil — Galois-
         // forced because the unsigned rung has no representative below
@@ -1720,9 +1485,6 @@ mod stdr_tests {
         // and the f64 plateau around `v` brackets `d`. ceil walks down to
         // the smallest plateau member, floor walks up to the largest;
         // both endpoints widen back to exactly `v` and bracket `d`.
-        // Exercises the `def_walk_helpers!`-emitted ULP loops at every
-        // magnitude up to 10⁹ s where the plateau widens from a single
-        // ns at low magnitudes to ~220 ns at the bound.
         #[test]
         fn f64_stdr_plateau(s in 0_u64..=1_000_000_000_u64) {
             let d = StdDuration::from_secs(s);
@@ -1737,51 +1499,6 @@ mod stdr_tests {
             } else {
                 panic!("expected Finite ceil/floor at v={v}");
             }
-        }
-
-        #[test]
-        fn f32_stdr_galois_l(a in extended_float_f32(), b in arb_extended_std_duration_bounded_f32()) {
-            prop_assert!(conn_laws::galois_l(&F032STDR::L, a, b));
-        }
-
-        #[test]
-        fn f32_stdr_galois_r(a in extended_float_f32(), b in arb_extended_std_duration_bounded_f32()) {
-            prop_assert!(conn_laws::galois_r(&F032STDR::R, a, b));
-        }
-
-        #[test]
-        fn f32_stdr_closure_l(a in extended_float_f32()) {
-            prop_assert!(conn_laws::closure_l(&F032STDR::L, a));
-        }
-
-        #[test]
-        fn f32_stdr_closure_r(a in extended_float_f32()) {
-            prop_assert!(conn_laws::closure_r(&F032STDR::R, a));
-        }
-
-        #[test]
-        fn f32_stdr_kernel_l(b in arb_extended_std_duration_bounded_f32()) {
-            prop_assert!(conn_laws::kernel_l(&F032STDR::L, b));
-        }
-
-        #[test]
-        fn f32_stdr_kernel_r(b in arb_extended_std_duration_bounded_f32()) {
-            prop_assert!(conn_laws::kernel_r(&F032STDR::R, b));
-        }
-
-        #[test]
-        fn f32_stdr_monotone_l(a1 in extended_float_f32(), a2 in extended_float_f32()) {
-            prop_assert!(conn_laws::monotone_l(&F032STDR::L, a1, a2));
-        }
-
-        #[test]
-        fn f32_stdr_monotone_r(b1 in arb_extended_std_duration_bounded_f32(), b2 in arb_extended_std_duration_bounded_f32()) {
-            prop_assert!(conn_laws::monotone_r(&F032STDR::R, b1, b2));
-        }
-
-        #[test]
-        fn f32_stdr_idempotent(a in extended_float_f32()) {
-            prop_assert!(conn_laws::idempotent(&F032STDR::L, a));
         }
     }
 }

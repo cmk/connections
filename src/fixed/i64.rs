@@ -146,7 +146,6 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use crate::conn::{ViewL, ViewR};
-    use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
     // ── §1 std-int spot checks (merged from former int/i64.rs) ─────
@@ -215,71 +214,20 @@ mod tests {
         assert_eq!(Q032Q016.floor(fmax), FixedI64::<U16>::from_bits(i64::MAX));
     }
 
-    // See `super::i16::tests::props_for_pair!` for design rationale.
-    // i64 generators are expensive; cap proptest case count to 64.
+    // 15 conns × 9 properties = 135 generated proptests (64 cases each)
+    // — i64 generators are expensive, so cap via `cases: 64`.
     macro_rules! props_for_pair {
         ($mod_name:ident, $conn:ident, $FineFrac:ty, $CoarseFrac:ty) => {
-            mod $mod_name {
-                use super::*;
-
-                proptest! {
-                    #![proptest_config(ProptestConfig::with_cases(64))]
-
-                    #[test]
-                    fn galois_l(f in any::<i64>(), b in any::<i64>()) {
-                        let fine = FixedI64::<$FineFrac>::from_bits(f);
-                        let coarse = FixedI64::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::galois_l(&$conn::L, fine, coarse));
-                    }
-                    #[test]
-                    fn galois_r(f in any::<i64>(), b in any::<i64>()) {
-                        let fine = FixedI64::<$FineFrac>::from_bits(f);
-                        let coarse = FixedI64::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::galois_r(&$conn::R, fine, coarse));
-                    }
-                    #[test]
-                    fn monotone_l(f1 in any::<i64>(), f2 in any::<i64>()) {
-                        let f1 = FixedI64::<$FineFrac>::from_bits(f1);
-                        let f2 = FixedI64::<$FineFrac>::from_bits(f2);
-                        prop_assert!(conn_laws::monotone_l(&$conn::L, f1, f2));
-                    }
-                    #[test]
-                    fn monotone_r(b1 in any::<i64>(), b2 in any::<i64>()) {
-                        let b1 = FixedI64::<$CoarseFrac>::from_bits(b1);
-                        let b2 = FixedI64::<$CoarseFrac>::from_bits(b2);
-                        prop_assert!(conn_laws::monotone_r(&$conn::R, b1, b2));
-                    }
-                    #[test]
-                    fn closure_l(f in any::<i64>()) {
-                        let fine = FixedI64::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::closure_l(&$conn::L, fine));
-                    }
-                    #[test]
-                    fn closure_r(f in any::<i64>()) {
-                        let fine = FixedI64::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::closure_r(&$conn::R, fine));
-                    }
-                    #[test]
-                    fn kernel_l(b in any::<i64>()) {
-                        let c = FixedI64::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::kernel_l(&$conn::L, c));
-                    }
-                    #[test]
-                    fn kernel_r(b in any::<i64>()) {
-                        let c = FixedI64::<$CoarseFrac>::from_bits(b);
-                        prop_assert!(conn_laws::kernel_r(&$conn::R, c));
-                    }
-                    #[test]
-                    fn idempotent(f in any::<i64>()) {
-                        let fine = FixedI64::<$FineFrac>::from_bits(f);
-                        prop_assert!(conn_laws::idempotent(&$conn::L, fine));
-                    }
-                }
+            $crate::law_battery! {
+                mod $mod_name,
+                conn: $conn,
+                fine:   any::<i64>().prop_map(FixedI64::<$FineFrac>::from_bits),
+                coarse: any::<i64>().prop_map(FixedI64::<$CoarseFrac>::from_bits),
+                cases: 64,
             }
         };
     }
 
-    // 15 conns × 9 properties = 135 generated proptests (64 cases each).
     props_for_pair!(q008q000, Q008Q000, U8, U0);
     props_for_pair!(q016q000, Q016Q000, U16, U0);
     props_for_pair!(q032q000, Q032Q000, U32, U0);

@@ -81,6 +81,14 @@ pub fn roundtrip_ceil<A: Copy, B: Copy + Eq>(c: &Conn<A, B, L>, b: B) -> bool {
     c.ceiling(c.upper(b)) == b
 }
 
+/// Iso forward round-trip (L): `inner(ceil(a)) == a`. Holds for
+/// any L-Conn that is also an iso (no information lost on the
+/// `A → B` side); only needs `A: Eq`, so usable on types that
+/// don't impl `Ord`.
+pub fn iso_roundtrip_l<A: Copy + Eq, B: Copy>(c: &Conn<A, B, L>, a: A) -> bool {
+    c.upper(c.ceiling(a)) == a
+}
+
 // ── R-side predicates ─────────────────────────────────────────────────
 
 /// Galois law (right): `inner(b) ≤ a ⟺ b ≤ floor(a)`.
@@ -311,4 +319,272 @@ where
     let lhs = crate::conn::median(t, crate::conn::median(t, x, w, y), w, z);
     let rhs = crate::conn::median(t, x, w, crate::conn::median(t, y, w, z));
     lhs == rhs
+}
+
+// ── law_battery! macro ──────────────────────────────────────────────
+//
+// Generates the standard property-test battery for a `Conn` marker
+// inside a fresh `mod $mod_name` block. Subsumes the per-host-type
+// `props_for_pair!` macros that lived in `src/fixed/i*.rs` and the
+// hand-rolled blocks in `unix.rs`, `time/duration.rs`, `addr/ip.rs`,
+// `char.rs`, `float/f32.rs`, etc. (Plan 31 T2.)
+
+/// Generate a property-test battery for an adjoint-triple marker.
+///
+/// Each invocation emits `mod $mod_name { ... }` containing the
+/// requested subset of the standard property checks:
+///
+/// | Subset (`subset:` flag) | Tests emitted | Trait bounds on `A` / `B` |
+/// |-------------------------|---------------|---------------------------|
+/// | `full` (default)        | `galois_l`, `galois_r`, `closure_l`, `closure_r`, `kernel_l`, `kernel_r`, `monotone_l`, `monotone_r`, `idempotent` | `A`, `B`: `Copy + Eq + PartialOrd` |
+/// | `l_only`                | `galois_l`, `closure_l`, `kernel_l`, `monotone_l`, `idempotent`                                                       | same |
+/// | `r_only`                | `galois_r`, `closure_r`, `kernel_r`, `monotone_r`                                                                     | same |
+/// | `iso_only`              | `idempotent`, `iso_roundtrip_l`, `roundtrip_ceil`                                                                     | `A`: `Copy + Eq`; `B`: `Copy + Eq` (no `Ord` required) |
+///
+/// `cases: N` optionally overrides the proptest case count
+/// (default: 256, the proptest default; set to 64 for expensive
+/// generators like full-range `i128`).
+///
+/// ```ignore
+/// connections::law_battery! {
+///     mod q008q000,
+///     conn: Q008Q000,
+///     fine:   any::<i8>().prop_map(FixedI8::<U8>::from_bits),
+///     coarse: any::<i8>().prop_map(FixedI8::<U0>::from_bits),
+/// }
+///
+/// connections::law_battery! {
+///     mod uuid_iso,
+///     conn: UUIDU032,
+///     fine:   arb_uid(),
+///     coarse: any::<u32>(),
+///     subset: iso_only,
+/// }
+/// ```
+#[macro_export]
+macro_rules! law_battery {
+    // ── Public top-level arms (forward to internal @batch arms) ──
+
+    // full (default), no cases override
+    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr $(,)?) => {
+        $crate::law_battery!(@batch full, $m, $c, $f, $cs,
+            ::proptest::test_runner::Config::default());
+    };
+    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, cases: $n:expr $(,)?) => {
+        $crate::law_battery!(@batch full, $m, $c, $f, $cs,
+            ::proptest::test_runner::Config { cases: $n,
+                .. ::proptest::test_runner::Config::default() });
+    };
+
+    // l_only
+    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: l_only $(,)?) => {
+        $crate::law_battery!(@batch l_only, $m, $c, $f, $cs,
+            ::proptest::test_runner::Config::default());
+    };
+    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: l_only,
+     cases: $n:expr $(,)?) => {
+        $crate::law_battery!(@batch l_only, $m, $c, $f, $cs,
+            ::proptest::test_runner::Config { cases: $n,
+                .. ::proptest::test_runner::Config::default() });
+    };
+
+    // r_only
+    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: r_only $(,)?) => {
+        $crate::law_battery!(@batch r_only, $m, $c, $f, $cs,
+            ::proptest::test_runner::Config::default());
+    };
+    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: r_only,
+     cases: $n:expr $(,)?) => {
+        $crate::law_battery!(@batch r_only, $m, $c, $f, $cs,
+            ::proptest::test_runner::Config { cases: $n,
+                .. ::proptest::test_runner::Config::default() });
+    };
+
+    // iso_only
+    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: iso_only $(,)?) => {
+        $crate::law_battery!(@batch iso_only, $m, $c, $f, $cs,
+            ::proptest::test_runner::Config::default());
+    };
+    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: iso_only,
+     cases: $n:expr $(,)?) => {
+        $crate::law_battery!(@batch iso_only, $m, $c, $f, $cs,
+            ::proptest::test_runner::Config { cases: $n,
+                .. ::proptest::test_runner::Config::default() });
+    };
+
+    // ── Internal @batch arms ──
+
+    (@batch full, $m:ident, $c:ty, $f:expr, $cs:expr, $cfg:expr) => {
+        mod $m {
+            #[allow(unused_imports)]
+            use super::*;
+            #[allow(unused_imports)]
+            use ::proptest::prelude::*;
+            ::proptest::proptest! {
+                #![proptest_config($cfg)]
+                #[test]
+                fn galois_l(a in $f, b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::galois_l(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, a, b));
+                }
+                #[test]
+                fn galois_r(a in $f, b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::galois_r(
+                            &<$c as $crate::conn::ViewR<_, _>>::R, a, b));
+                }
+                #[test]
+                fn closure_l(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::closure_l(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                }
+                #[test]
+                fn closure_r(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::closure_r(
+                            &<$c as $crate::conn::ViewR<_, _>>::R, a));
+                }
+                #[test]
+                fn kernel_l(b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::kernel_l(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, b));
+                }
+                #[test]
+                fn kernel_r(b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::kernel_r(
+                            &<$c as $crate::conn::ViewR<_, _>>::R, b));
+                }
+                #[test]
+                fn monotone_l(a1 in $f, a2 in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::monotone_l(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, a1, a2));
+                }
+                #[test]
+                fn monotone_r(b1 in $cs, b2 in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::monotone_r(
+                            &<$c as $crate::conn::ViewR<_, _>>::R, b1, b2));
+                }
+                #[test]
+                fn idempotent(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::idempotent(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                }
+            }
+        }
+    };
+
+    (@batch l_only, $m:ident, $c:ty, $f:expr, $cs:expr, $cfg:expr) => {
+        mod $m {
+            #[allow(unused_imports)]
+            use super::*;
+            #[allow(unused_imports)]
+            use ::proptest::prelude::*;
+            ::proptest::proptest! {
+                #![proptest_config($cfg)]
+                #[test]
+                fn galois_l(a in $f, b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::galois_l(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, a, b));
+                }
+                #[test]
+                fn closure_l(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::closure_l(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                }
+                #[test]
+                fn kernel_l(b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::kernel_l(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, b));
+                }
+                #[test]
+                fn monotone_l(a1 in $f, a2 in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::monotone_l(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, a1, a2));
+                }
+                #[test]
+                fn idempotent(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::idempotent(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                }
+            }
+        }
+    };
+
+    (@batch r_only, $m:ident, $c:ty, $f:expr, $cs:expr, $cfg:expr) => {
+        mod $m {
+            #[allow(unused_imports)]
+            use super::*;
+            #[allow(unused_imports)]
+            use ::proptest::prelude::*;
+            ::proptest::proptest! {
+                #![proptest_config($cfg)]
+                #[test]
+                fn galois_r(a in $f, b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::galois_r(
+                            &<$c as $crate::conn::ViewR<_, _>>::R, a, b));
+                }
+                #[test]
+                fn closure_r(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::closure_r(
+                            &<$c as $crate::conn::ViewR<_, _>>::R, a));
+                }
+                #[test]
+                fn kernel_r(b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::kernel_r(
+                            &<$c as $crate::conn::ViewR<_, _>>::R, b));
+                }
+                #[test]
+                fn monotone_r(b1 in $cs, b2 in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::monotone_r(
+                            &<$c as $crate::conn::ViewR<_, _>>::R, b1, b2));
+                }
+            }
+        }
+    };
+
+    (@batch iso_only, $m:ident, $c:ty, $f:expr, $cs:expr, $cfg:expr) => {
+        mod $m {
+            #[allow(unused_imports)]
+            use super::*;
+            #[allow(unused_imports)]
+            use ::proptest::prelude::*;
+            ::proptest::proptest! {
+                #![proptest_config($cfg)]
+                #[test]
+                fn idempotent(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::idempotent(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                }
+                #[test]
+                fn iso_roundtrip_l(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::iso_roundtrip_l(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                }
+                #[test]
+                fn roundtrip_ceil(b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::roundtrip_ceil(
+                            &<$c as $crate::conn::ViewL<_, _>>::L, b));
+                }
+            }
+        }
+    };
 }

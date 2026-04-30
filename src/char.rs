@@ -191,52 +191,17 @@ mod tests {
 
     // ── Property tests ─────────────────────────────────────────────
 
+    crate::law_battery! {
+        mod laws,
+        conn: U032CHAR,
+        fine:   arb_extended_u32(),
+        coarse: arb_extended_char(),
+    }
+
+    // `floor_le_ceil` isn't part of the law_battery!(full) set
+    // (Triple-bound rather than per-side) — kept as a standalone
+    // proptest below.
     proptest! {
-        #[test]
-        fn galois_l(a in arb_extended_u32(), b in arb_extended_char()) {
-            prop_assert!(conn_laws::galois_l(&U032CHAR::L, a, b));
-        }
-
-        #[test]
-        fn galois_r(a in arb_extended_u32(), b in arb_extended_char()) {
-            prop_assert!(conn_laws::galois_r(&U032CHAR::R, a, b));
-        }
-
-        #[test]
-        fn closure_l(a in arb_extended_u32()) {
-            prop_assert!(conn_laws::closure_l(&U032CHAR::L, a));
-        }
-
-        #[test]
-        fn closure_r(a in arb_extended_u32()) {
-            prop_assert!(conn_laws::closure_r(&U032CHAR::R, a));
-        }
-
-        #[test]
-        fn kernel_l(b in arb_extended_char()) {
-            prop_assert!(conn_laws::kernel_l(&U032CHAR::L, b));
-        }
-
-        #[test]
-        fn kernel_r(b in arb_extended_char()) {
-            prop_assert!(conn_laws::kernel_r(&U032CHAR::R, b));
-        }
-
-        #[test]
-        fn monotone_l(a1 in arb_extended_u32(), a2 in arb_extended_u32()) {
-            prop_assert!(conn_laws::monotone_l(&U032CHAR::L, a1, a2));
-        }
-
-        #[test]
-        fn monotone_r(b1 in arb_extended_char(), b2 in arb_extended_char()) {
-            prop_assert!(conn_laws::monotone_r(&U032CHAR::R, b1, b2));
-        }
-
-        #[test]
-        fn idempotent(a in arb_extended_u32()) {
-            prop_assert!(conn_laws::idempotent(&U032CHAR::L, a));
-        }
-
         #[test]
         fn floor_le_ceil(a in arb_extended_u32()) {
             prop_assert!(conn_laws::floor_le_ceil(&U032CHAR, a));
