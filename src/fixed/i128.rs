@@ -40,8 +40,6 @@
 //! same construction as the smaller modules.
 
 use super::{ext_int, nz_int_ext, uint_int_sat};
-#[allow(unused_imports)]
-use crate::extended::Extended;
 use ::fixed::FixedI128;
 use ::fixed::types::extra::{U0, U16, U32, U64, U96, U128, Unsigned};
 use core::num::NonZeroI128;
@@ -223,6 +221,7 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use crate::conn::{ViewL, ViewR};
+    use crate::extended::Extended;
     use proptest::prelude::*;
 
     // ── §1 std-int spot checks (merged from former int/i128.rs) ────

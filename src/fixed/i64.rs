@@ -5,8 +5,6 @@
 //! design (this module mirrors it with `i64` inner / `i128` widening).
 
 use super::{ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
-#[allow(unused_imports)]
-use crate::extended::Extended;
 use ::fixed::FixedI64;
 use ::fixed::types::extra::{U0, U8, U16, U32, U48, U64, Unsigned};
 use core::num::NonZeroI64;
@@ -146,6 +144,7 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use crate::conn::{ViewL, ViewR};
+    use crate::extended::Extended;
     use proptest::prelude::*;
 
     // ── §1 std-int spot checks (merged from former int/i64.rs) ─────

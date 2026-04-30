@@ -31,3 +31,4 @@ scripts/__pycache__/
 CLAUDE.md.bak.*
 PROJECT.md.bak.*
 *.md.bak.*
+.claude/scheduled_tasks.lock

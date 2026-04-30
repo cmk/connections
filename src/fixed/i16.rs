@@ -2,7 +2,7 @@
 //!
 //! For each ordered pair `(FineFrac, CoarseFrac)` from the level set
 //! `{0, 2, 4, 8, 12, 16}` with `FineFrac > CoarseFrac`, a
-//! [`Conn`]`<FixedI16<U_fine>, FixedI16<U_coarse>>` constant
+//! [`Conn`](crate::conn::Conn)`<FixedI16<U_fine>, FixedI16<U_coarse>>` constant
 //! `F<dd>F<dd>` (zero-padded) provides the adjoint triple
 //! `ceil ⊣ inner ⊣ floor`:
 //!
@@ -29,10 +29,6 @@
 //! that make Galois L and R individually hold at the extremes.
 
 use super::{ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
-#[allow(unused_imports)]
-use crate::conn::Conn;
-#[allow(unused_imports)]
-use crate::extended::Extended;
 use ::fixed::FixedI16;
 use ::fixed::types::extra::{U0, U2, U4, U8, U12, U16, Unsigned};
 use core::num::NonZeroI16;
@@ -181,6 +177,7 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use crate::conn::{ViewL, ViewR};
+    use crate::extended::Extended;
     use proptest::prelude::*;
 
     // ── §1 std-int spot checks (merged from former int/i16.rs) ─────
