@@ -731,53 +731,49 @@ fn stdru128_inner(b: Extended<u128>) -> Extended<StdDuration> {
     }
 }
 
-fn stdru128_floor(d: Extended<StdDuration>) -> Extended<u128> {
-    stdru128_ceil(d)
-}
-
-crate::triple! {
-    /// `Extended<StdDuration> → Extended<u128>` — unsigned time span ↔
-    /// nanoseconds.
-    ///
-    /// On the Finite slot this is a bijection: `floor = ceil = Finite(d
-    /// .as_nanos())` and `inner` round-trips back exactly. The widest
-    /// `StdDuration` is `MAX`, whose `as_nanos()` is well within `u128`
-    /// (≈ 1.84×10²⁸ vs `u128::MAX` ≈ 3.4×10³⁸), so no rung-side overflow
-    /// is possible from a Finite source.
-    ///
-    /// Inputs `Finite(n)` with `n > StdDuration::MAX.as_nanos()` clamp to
-    /// `Finite(StdDuration::MAX)` on `inner` (Galois pins this to the
-    /// largest representative ≤ the synthetic top).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use connections::conn::{ViewL, ViewR};
-    /// use connections::time::STDRU128;
-    /// use connections::extended::Extended;
-    /// use std::time::Duration as StdDuration;
-    ///
-    /// let one_and_a_half = StdDuration::from_nanos(1_500_000_000);
-    /// assert_eq!(STDRU128.ceil(Extended::Finite(one_and_a_half)),
-    ///            Extended::Finite(1_500_000_000_u128));
-    /// assert_eq!(STDRU128.floor(Extended::Finite(one_and_a_half)),
-    ///            Extended::Finite(1_500_000_000_u128));
-    ///
-    /// // `inner` is exact on the representable range and round-trips both ways.
-    /// let n = 1_500_000_000_u128;
-    /// assert_eq!(STDRU128.inner(Extended::Finite(n)),
-    ///            Extended::Finite(StdDuration::from_nanos(n as u64)));
-    ///
-    /// // Above StdDuration::MAX.as_nanos(), inner saturates.
-    /// assert_eq!(STDRU128.inner(Extended::Finite(u128::MAX)),
-    ///            Extended::Finite(StdDuration::MAX));
-    /// ```
-    pub STDRU128 : Extended<StdDuration> => Extended<u128> {
-        ceil:  stdru128_ceil,
-        inner: stdru128_inner,
-        floor: stdru128_floor,
-    }
-}
+/// `Extended<StdDuration> → Extended<u128>` — unsigned time span ↔
+/// nanoseconds (left-Galois).
+///
+/// On the Finite range `[0, StdDuration::MAX.as_nanos()]` this is a
+/// bijection: `ceil(Finite(d)) = Finite(d.as_nanos())` and `inner`
+/// round-trips back exactly. The widest `StdDuration` is `MAX`, whose
+/// `as_nanos()` is well within `u128` (≈ 1.84×10²⁸ vs `u128::MAX` ≈
+/// 3.4×10³⁸), so no rung-side overflow is possible from a Finite source.
+///
+/// Inputs `Finite(n)` with `n > StdDuration::MAX.as_nanos()` clamp to
+/// `Finite(StdDuration::MAX)` on `inner` (Galois pins this to the
+/// largest representative ≤ the synthetic top).
+///
+/// **One-sided.** Shipped as `ConnL` rather than a `triple!` marker
+/// because `inner` collapses the entire above-max plateau
+/// (`Finite(n > max_nanos)`) onto `Finite(StdDuration::MAX)` and so is
+/// not order-reflecting; the L-Galois adjunction `ceil ⊣ inner` holds
+/// on the full domain, but no `floor` function admits the dual
+/// adjunction `inner ⊣ floor` simultaneously. See `doc/design.md` and
+/// Plan 32 for the rounding-sandwich derivation.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::time::STDRU128;
+/// use connections::extended::Extended;
+/// use std::time::Duration as StdDuration;
+///
+/// let one_and_a_half = StdDuration::from_nanos(1_500_000_000);
+/// assert_eq!(STDRU128.ceiling(Extended::Finite(one_and_a_half)),
+///            Extended::Finite(1_500_000_000_u128));
+///
+/// // `inner` is exact on the representable range and round-trips back.
+/// let n = 1_500_000_000_u128;
+/// assert_eq!(STDRU128.upper(Extended::Finite(n)),
+///            Extended::Finite(StdDuration::from_nanos(n as u64)));
+///
+/// // Above StdDuration::MAX.as_nanos(), inner saturates to MAX.
+/// assert_eq!(STDRU128.upper(Extended::Finite(u128::MAX)),
+///            Extended::Finite(StdDuration::MAX));
+/// ```
+pub const STDRU128: crate::conn::ConnL<Extended<StdDuration>, Extended<u128>> =
+    crate::conn::Conn::new_l(stdru128_ceil, stdru128_inner);
 
 fn f064stdr_ceil(x: F064) -> Extended<StdDuration> {
     let v = match x {
@@ -1184,7 +1180,7 @@ mod stdr_tests {
     use crate::conn::{ViewL, ViewR};
     use crate::prop::arb::{
         arb_extended_std_duration, arb_extended_std_duration_bounded_f32,
-        arb_extended_std_duration_bounded_f64, arb_extended_stdr_nanos_in_range, arb_extended_u64,
+        arb_extended_std_duration_bounded_f64, arb_extended_u64, arb_extended_u128,
         extended_float_f32, extended_float_f64,
     };
     use crate::prop::conn as conn_laws;
@@ -1224,13 +1220,12 @@ mod stdr_tests {
         assert_eq!(STDRU064.inner(Extended::PosInf), Extended::PosInf);
     }
 
-    // ── STDRU128 spot checks ────────────────────────────────────
+    // ── STDRU128 spot checks (ConnL — no `.floor()` method) ──────
 
     #[test]
     fn stdru128_one_and_a_half() {
         let d = Extended::Finite(StdDuration::from_nanos(1_500_000_000));
         assert_eq!(STDRU128.ceil(d), Extended::Finite(1_500_000_000_u128));
-        assert_eq!(STDRU128.floor(d), Extended::Finite(1_500_000_000_u128));
     }
 
     #[test]
@@ -1238,7 +1233,6 @@ mod stdr_tests {
         let m = Extended::Finite(StdDuration::MAX);
         let m_nanos = StdDuration::MAX.as_nanos();
         assert_eq!(STDRU128.ceil(m), Extended::Finite(m_nanos));
-        assert_eq!(STDRU128.floor(m), Extended::Finite(m_nanos));
     }
 
     #[test]
@@ -1262,6 +1256,28 @@ mod stdr_tests {
         assert_eq!(STDRU128.inner(Extended::PosInf), Extended::PosInf);
     }
 
+    // Boundary kernel_l checks: with stdru128 demoted to ConnL, the
+    // L-side adjunction holds on the FULL `Extended<u128>` rung
+    // (including `Finite(n > max_nanos)` where the prior `triple!`
+    // shape silently broke `kernel_r`). Pin those boundaries here
+    // so future regressions surface immediately.
+    #[test]
+    fn stdru128_kernel_l_at_above_max_boundary() {
+        let max_nanos = StdDuration::MAX.as_nanos();
+        for b in [
+            Extended::Finite(0_u128),
+            Extended::Finite(max_nanos),
+            Extended::Finite(max_nanos + 1),
+            Extended::Finite(u128::MAX),
+        ] {
+            assert!(
+                conn_laws::kernel_l(&STDRU128, b),
+                "kernel_l violated at b = {:?}",
+                b
+            );
+        }
+    }
+
     // ── STDRU064 / STDRU128 Galois law battery ──────────────────
 
     crate::law_battery! {
@@ -1271,22 +1287,47 @@ mod stdr_tests {
         coarse: arb_extended_u64(),
     }
 
-    crate::law_battery! {
-        mod stdru128_laws,
-        conn: STDRU128,
-        fine:   arb_extended_std_duration(),
-        coarse: arb_extended_stdr_nanos_in_range(),
-    }
-
+    // STDRU128 is now ConnL — exercise L-side laws over the FULL
+    // Extended<u128> rung (no in-range filter). The `coarse` strategy
+    // `arb_extended_u128()` includes `Finite(u128::MAX)`, which under
+    // the prior `triple!` shape would have surfaced a `kernel_r`
+    // violation. With ConnL, only L-side laws apply and they hold on
+    // the full domain. Pattern matches TIMENANO/OFDTNANO (bare ConnL
+    // const, hand-rolled proptest! since law_battery! is marker-only).
     proptest! {
-        // STDRU128 is a bijection on the representable Finite range
-        // — for any rung n ≤ MAX.as_nanos(), `ceil(inner(Finite(n)))
-        // == Finite(n)`. Above the range, `inner` saturates and the
-        // round-trip drops back to MAX.as_nanos().
+        #[test]
+        fn stdru128_galois_l(d in arb_extended_std_duration(), b in arb_extended_u128()) {
+            prop_assert!(conn_laws::galois_l(&STDRU128, d, b));
+        }
+
+        #[test]
+        fn stdru128_closure_l(d in arb_extended_std_duration()) {
+            prop_assert!(conn_laws::closure_l(&STDRU128, d));
+        }
+
+        #[test]
+        fn stdru128_kernel_l(b in arb_extended_u128()) {
+            prop_assert!(conn_laws::kernel_l(&STDRU128, b));
+        }
+
+        #[test]
+        fn stdru128_monotone_l(a in arb_extended_std_duration(),
+                               b in arb_extended_std_duration()) {
+            prop_assert!(conn_laws::monotone_l(&STDRU128, a, b));
+        }
+
+        #[test]
+        fn stdru128_idempotent(d in arb_extended_std_duration()) {
+            prop_assert!(conn_laws::idempotent(&STDRU128, d));
+        }
+
+        // Bijection on the representable Finite range — for any rung
+        // n ≤ MAX.as_nanos(), `ceil(inner(Finite(n))) == Finite(n)`.
+        // (No `roundtrip_floor` test: STDRU128 is ConnL, so
+        // `.floor()` doesn't exist.)
         #[test]
         fn stdru128_round_trip(n in 0_u128..=StdDuration::MAX.as_nanos()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&STDRU128::L, Extended::Finite(n)));
-            prop_assert!(conn_laws::roundtrip_floor(&STDRU128::R, Extended::Finite(n)));
+            prop_assert!(conn_laws::roundtrip_ceil(&STDRU128, Extended::Finite(n)));
         }
     }
 
