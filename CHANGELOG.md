@@ -12,6 +12,55 @@ cumulative in-development state.
 
 ## [Unreleased]
 
+### Added (Plan 33 — `order_reflecting` predicate + audit cleanup)
+
+- **`prop::conn::order_reflecting`** — new triple-bound predicate
+  asserting `inner(b1) ≤ inner(b2) ⟹ b1 ≤ b2`. This is the load-
+  bearing property `floor_le_ceil` is a corollary of (per the
+  necessity / sufficiency proofs in the README's *Why one-sided?*
+  section). Quantifying over `(b1, b2) ∈ B²` doubles proptest's
+  surface area vs `floor_le_ceil`, catching boundary violations the
+  rounding-sandwich check misses when source-side strategies under-
+  sample extremes — the failure mode that hid the Haskell `f09sys`
+  bug for years. Wired into `law_battery!`'s `full` arm so every
+  current and future triple marker exercises it without per-site
+  opt-in.
+- **README *Why one-sided?* section expanded** with explicit
+  step-by-step proof chains for both directions of the equivalence,
+  a sharpened counterexample that derives `ceil(a) = b₁` /
+  `floor(a) = b₃` from L/R-Galois, and the categorical statement
+  (`g` fully faithful ⟺ `h ≤ f` in an adjoint triple).
+- **`F032F016` / `F064F016`** — added `order_reflecting` proptest
+  invocations to their hand-rolled batteries (these float Conns
+  carry custom proptest config and don't go through `law_battery!`).
+- Symmetric `f032_floor_nan` / `f064_floor_nan` spot tests in
+  `src/float/f16.rs` (companions to existing `*_ceil_nan`).
+- Definition-site `# Examples` doctest for `F064F032` in
+  `src/float/f32.rs` (mirrors the existing `F032F016` / `F064F016`
+  doctests).
+- `sovxsov6_idempotent_r` proptest in `src/addr/socket.rs`
+  (companion to `sovxsov4_idempotent`).
+
+### Changed (Plan 33 docs/cleanup)
+
+- `prop::conn::floor_le_ceil` doccomment now points at
+  `order_reflecting` as the *cause*; rounding sandwich is the
+  user-facing fast signal.
+- README cross-references from Examples 3 (`triple!` introduction)
+  and 6 (`Conn` API tour with the demoted `U008I016`) back into
+  *Why one-sided?* so readers hit the math when they meet the API.
+- `SOVXSOV6.inner(NegInf)` doc reasoning rewritten — value is
+  unchanged, the prior wording inverted the R-Galois derivation.
+- Five stale `tests/conn_fixed_u*_galois.rs` filename references
+  in `src/fixed/u{8,16,32,64,128}.rs` corrected to the actual
+  `tests/fixed_u*_galois.rs` paths (filenames lost their `conn_`
+  prefix in an earlier sprint; the source comments rotted).
+- `U008N008` test cleanup — dropped duplicated `.ceil()` lines in
+  `u008n008_zero_saturates_to_one`, `u008n008_nonzero_round_trip`,
+  and `u008n008_inner_then_ceil_recovers_nonzero` (artifacts of
+  Plan 32's NonZero ConnL demotion that left dead assertions).
+  Also dropped the misleading "floor = ceil" comment.
+
 ### Changed (Plan 32 — `floor_le_ceil` cleanup, breaking)
 
 - **Demoted ~140 connections from `triple!` to `Conn::new_l`** because
