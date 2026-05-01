@@ -19,7 +19,37 @@ ext_int!(U016I032, u16, i32);
 int_int_narrow!(I064I032, i64, i32);
 int_int_narrow!(I128I032, i128, i32);
 
-uint_int_sat!(U032I032, u32, i32);
+uint_int_sat!(
+    ///
+    /// # Example: `u32` PID → `i32` (libc `pid_t`)
+    ///
+    /// `std::process::id()` returns a `u32`, but `libc::pid_t = i32`.
+    /// A naïve `pid_u32 as i32` cast wraps for any `u32 > i32::MAX` —
+    /// silently turning a sentinel value into a negative PID.
+    /// [`U032I032.floor`](crate::conn::Conn::floor) saturates to
+    /// `i32::MAX` instead, preserving the R-Galois `inner ⊣ floor`
+    /// law:
+    ///
+    /// ```rust
+    /// use connections::conn::ViewR;
+    /// use connections::fixed::i32::U032I032;
+    ///
+    /// // Mid-range u32 PIDs that fit in i32 pass through.
+    /// assert_eq!(U032I032.floor(1_u32),               1_i32);
+    /// assert_eq!(U032I032.floor(i32::MAX as u32),     i32::MAX);
+    ///
+    /// // Anything above i32::MAX saturates — never wraps to negative.
+    /// assert_eq!(U032I032.floor((i32::MAX as u32) + 1), i32::MAX);
+    /// assert_eq!(U032I032.floor(u32::MAX),              i32::MAX);
+    ///
+    /// // Round-trip: i32 → u32 saturates negatives to 0 (the largest
+    /// // u32 satisfying inner(b) ≤ a for any a < 0).
+    /// assert_eq!(U032I032.inner(-1),       0_u32);
+    /// assert_eq!(U032I032.inner(0),        0_u32);
+    /// assert_eq!(U032I032.inner(i32::MAX), i32::MAX as u32);
+    /// ```
+    U032I032, u32, i32
+);
 uint_int_sat!(U064I032, u64, i32);
 uint_int_sat!(U128I032, u128, i32);
 

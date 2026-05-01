@@ -304,8 +304,9 @@ pub(crate) use uint_uint_narrow;
 /// `i_M::MAX`.
 #[cfg_attr(feature = "macros", macro_export)]
 macro_rules! uint_int_sat {
-    ($NAME:ident, $A:ty, $B:ty) => {
+    ($(#[$attr:meta])* $NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating cast (right-Galois).")]
+        $(#[$attr])*
         pub const $NAME: $crate::conn::ConnR<$A, $B> = {
             fn floor(x: $A) -> $B {
                 if x > <$B>::MAX as $A {
