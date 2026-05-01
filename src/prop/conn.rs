@@ -173,13 +173,46 @@ pub fn roundtrip_floor<A: Copy, B: Copy + Eq>(c: &Conn<A, B, R>, b: B) -> bool {
 /// third is L-Galois `ceil(a) ≤ b ⟺ a ≤ inner(b)` with the given
 /// hypothesis. So `x ≤ y`.
 ///
-/// Required for every marker shipping both `ViewL` and `ViewR`. Built
-/// into the `law_battery!` `full` subset (Plan 32).
+/// Required for every marker shipping both `ViewL` and `ViewR`. The
+/// `law_battery!` `full` subset enforces both this and its cause —
+/// see [`order_reflecting`] for the load-bearing predicate. This
+/// predicate is the user-facing fast signal (single quantifier over
+/// `A`); `order_reflecting` quantifies over `B²` and thus catches
+/// boundary violations with twice the proptest surface area.
 pub fn floor_le_ceil<T, A: Copy, B: Copy + PartialOrd>(_t: &T, a: A) -> bool
 where
     T: Triple<A, B>,
 {
     <T as ViewR<A, B>>::R.floor(a) <= <T as ViewL<A, B>>::L.ceiling(a)
+}
+
+/// `inner(b1) ≤ inner(b2) ⟹ b1 ≤ b2` — `inner` is order-reflecting.
+///
+/// **The defining property of an adjoint triple.** Given the per-side
+/// L/R Galois laws, this is equivalent to [`floor_le_ceil`] (see that
+/// predicate's doc for both directions of the proof). Order-reflection
+/// is the *cause*; the rounding sandwich is the *corollary*.
+///
+/// Quantifying over `(b1, b2) ∈ B²` gives a proptest twice the surface
+/// area of [`floor_le_ceil`] (which only sees `a ∈ A`), so this catches
+/// boundary violations the rounding-sandwich check would miss when the
+/// source-side strategy under-samples extremes — the failure mode that
+/// hid the Haskell `f09sys` bug for years.
+///
+/// `inner` is taken from the L view (`<T as ViewL>::L.upper`); for a
+/// true triple `<T as ViewL>::L.upper == <T as ViewR>::R.lower` by
+/// construction (same function pointer), so the choice of view is
+/// arbitrary.
+pub fn order_reflecting<T, A, B>(_t: &T, b1: B, b2: B) -> bool
+where
+    T: Triple<A, B>,
+    A: Copy + PartialOrd,
+    B: Copy + PartialOrd,
+{
+    let conn_l = <T as ViewL<A, B>>::L;
+    let a1 = conn_l.upper(b1);
+    let a2 = conn_l.upper(b2);
+    if a1 <= a2 { b1 <= b2 } else { true }
 }
 
 /// ULP-bound: `ceil(a) - floor(a) ≤ 1` under a caller-provided
@@ -492,18 +525,33 @@ macro_rules! law_battery {
                         $crate::prop::conn::idempotent(
                             &<$c as $crate::conn::ViewL<_, _>>::L, a));
                 }
-                // (Plan 32) `floor_le_ceil` is a triple-only law: it
-                // holds iff `inner` is order-reflecting (equivalently,
-                // iff this is a true adjoint triple). Required for any
-                // marker shipping both `ViewL` and `ViewR`. Inlined
-                // here (rather than calling `prop::conn::floor_le_ceil`)
-                // because the function is `Triple`-bound on a marker
-                // instance, while the macro carries `$c:ty` as a type.
+                // (Plan 32) `floor_le_ceil` is a triple-only law: the
+                // user-facing fast signal that the rounding sandwich
+                // holds at every `a`. Inlined here (rather than calling
+                // `prop::conn::floor_le_ceil`) because the function is
+                // `Triple`-bound on a marker instance, while the macro
+                // carries `$c:ty` as a type.
                 #[test]
                 fn floor_le_ceil(a in $f) {
                     let lo = <$c as $crate::conn::ViewR<_, _>>::R.floor(a);
                     let hi = <$c as $crate::conn::ViewL<_, _>>::L.ceiling(a);
                     ::proptest::prop_assert!(lo <= hi);
+                }
+                // (Plan 33) `order_reflecting` is the *cause* of which
+                // `floor_le_ceil` is the corollary: `inner(b1) ≤ inner(b2)
+                // ⟹ b1 ≤ b2`. Quantifying over `(b1, b2) ∈ B²` gives
+                // proptest twice the surface area of `floor_le_ceil`,
+                // catching boundary violations the rounding sandwich
+                // misses when source-side strategies under-sample
+                // extremes. Same inlining rationale as `floor_le_ceil`.
+                #[test]
+                fn order_reflecting(b1 in $cs, b2 in $cs) {
+                    let conn_l = <$c as $crate::conn::ViewL<_, _>>::L;
+                    let a1 = conn_l.upper(b1);
+                    let a2 = conn_l.upper(b2);
+                    if a1 <= a2 {
+                        ::proptest::prop_assert!(b1 <= b2);
+                    }
                 }
             }
         }
