@@ -149,16 +149,17 @@ mod tests {
 
     // ── §1 std-int spot checks (merged from former int/i64.rs) ─────
 
+    // (Plan 32) `floor` arms removed; `ext_int!` is now ConnL.
     #[test]
-    fn i032i064_extends_to_one_below_above() {
-        assert_eq!(I032I064.floor(Extended::NegInf), (i32::MIN as i64) - 1);
+    fn i032i064_extends_to_one_above() {
         assert_eq!(I032I064.ceil(Extended::PosInf), (i32::MAX as i64) + 1);
+        assert_eq!(I032I064.ceil(Extended::NegInf), i64::MIN);
     }
 
     #[test]
     fn u032i064_extends_to_one_above() {
         assert_eq!(U032I064.ceil(Extended::PosInf), 4_294_967_296);
-        assert_eq!(U032I064.floor(Extended::NegInf), -1);
+        assert_eq!(U032I064.ceil(Extended::NegInf), i64::MIN);
     }
 
     #[test]

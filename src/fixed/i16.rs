@@ -191,11 +191,8 @@ mod tests {
         assert_eq!(I008I016.ceil(Extended::Finite(i8::MAX)), 127);
     }
 
-    #[test]
-    fn i008i016_floor_at_boundaries() {
-        assert_eq!(I008I016.floor(Extended::NegInf), -129);
-        assert_eq!(I008I016.floor(Extended::PosInf), i16::MAX);
-    }
+    // (Plan 32) `i008i016_floor_at_boundaries` removed: `ext_int!`
+    // is now ConnL, no `.floor()` method.
 
     #[test]
     fn i008i016_inner_partitions_target_range() {
@@ -216,12 +213,7 @@ mod tests {
         assert_eq!(U008I016.ceil(Extended::Finite(255)), 255);
     }
 
-    #[test]
-    fn u008i016_floor_at_boundaries() {
-        assert_eq!(U008I016.floor(Extended::NegInf), -1);
-        assert_eq!(U008I016.floor(Extended::PosInf), i16::MAX);
-        assert_eq!(U008I016.floor(Extended::Finite(255)), 255);
-    }
+    // (Plan 32) `u008i016_floor_at_boundaries` removed: ConnL only.
 
     #[test]
     fn u008i016_inner_partitions_target_range() {

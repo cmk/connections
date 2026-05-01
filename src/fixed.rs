@@ -134,7 +134,7 @@ macro_rules! int_uint {
 }
 pub(crate) use int_uint;
 
-/// `Conn<Extended<$A>, $B>` widening with Extended source.
+/// `Conn<Extended<$A>, $B>` widening with Extended source (left-Galois).
 /// Covers both `I??I??` (signed widening) and `U??I??`
 /// (unsigned-into-signed widening) — the body is identical, only
 /// the source's `MIN`/`MAX` differ.
@@ -146,6 +146,13 @@ pub(crate) use int_uint;
 /// - `<$B>::MIN < BELOW` and `<$B>::MAX > ABOVE` (i.e. target has
 ///   room beyond the source range so saturation values are
 ///   distinct).
+///
+/// **One-sided.** `_inner` collapses every rung value `≤ BELOW` onto
+/// `Extended::NegInf` and every rung value `≥ ABOVE` onto
+/// `Extended::PosInf` — non-injective at the saturation regions, so
+/// not order-reflecting, so no true adjoint triple exists. The
+/// L-Galois adjunction `ceil ⊣ inner` holds on the full domain;
+/// shipped as `ConnL` accordingly. (Plan 32.)
 #[cfg_attr(feature = "macros", macro_export)]
 macro_rules! ext_int {
     ($NAME:ident, $A:ty, $B:ty) => {
@@ -155,7 +162,7 @@ macro_rules! ext_int {
             stringify!($A),
             "> → ",
             stringify!($B),
-            "` adjoint triple."
+            "` left-Galois widening."
         )]
         pub struct $NAME;
 
@@ -178,22 +185,11 @@ macro_rules! ext_int {
                     $crate::extended::Extended::Finite(x as $A)
                 }
             }
-            const fn _floor(x: $crate::extended::Extended<$A>) -> $B {
-                match x {
-                    $crate::extended::Extended::NegInf => Self::BELOW,
-                    $crate::extended::Extended::Finite(a) => a as $B,
-                    $crate::extended::Extended::PosInf => <$B>::MAX,
-                }
-            }
         }
 
         impl $crate::conn::ViewL<$crate::extended::Extended<$A>, $B> for $NAME {
             const L: $crate::conn::ConnL<$crate::extended::Extended<$A>, $B> =
                 $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner);
-        }
-        impl $crate::conn::ViewR<$crate::extended::Extended<$A>, $B> for $NAME {
-            const R: $crate::conn::ConnR<$crate::extended::Extended<$A>, $B> =
-                $crate::conn::Conn::new_r($NAME::_inner, $NAME::_floor);
         }
     };
 }

@@ -293,27 +293,33 @@ in scope.
 ### Example 4
 
 Integer widening through `Extended<T>` (so values *outside* the source
-range have somewhere to land — `floor` saturates to the target bounds,
-`ceil` lands on a synthetic point one past the source range):
+range have somewhere to land — `ceil` saturates infinities to "one
+past the source" sentinels in the target, `inner` rounds back to the
+nearest in-range source value or out to a synthetic infinity):
 
 ```rust
-use connections::conn::{ViewL, ViewR};
+use connections::conn::ViewL;
 use connections::fixed::i16::U008I016;
 use connections::extended::Extended;
 
 // Finite passes through.
 assert_eq!(U008I016.ceil(Extended::Finite(200_u8)), 200_i16);
 
-// `floor` saturates the infinities to target bounds.
-assert_eq!(U008I016.floor(Extended::PosInf), i16::MAX);
+// `ceil(NegInf)` saturates to the target's MIN; `ceil(PosInf)` lands
+// on the "one past source" marker.
 assert_eq!(U008I016.ceil(Extended::NegInf),  i16::MIN);
-
-// `ceil(PosInf)` and `floor(NegInf)` land on the "one past source"
-// markers — distinct from the target bounds, so `inner` can recover
-// PosInf/NegInf round-trip.
 assert_eq!(U008I016.ceil(Extended::PosInf),  256_i16);   // u8::MAX + 1
-assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
+
+// `inner` partitions the target: above-source rung values collapse
+// to the synthetic PosInf source.
+assert_eq!(U008I016.inner(256_i16),  Extended::PosInf);
+assert_eq!(U008I016.inner(i16::MAX), Extended::PosInf);
 ```
+
+This Conn ships as `ConnL` (left-Galois only) — its `inner` is
+non-injective on `[256, i16::MAX]` (the entire above-source plateau
+collapses to `Extended::PosInf`), so it can't be a true adjoint
+triple. See *Why one-sided?* below for the math.
 
 ### Example 5
 
