@@ -720,7 +720,10 @@ macro_rules! def_walk_helpers {
             /// Walk up (toward +∞) while `widen(z) <= x` still holds.
             // (Plan 32) Currently unused: the `*_floor` functions that
             // called these were dropped along with the float↔duration
-            // ConnL demotion. Kept in the macro for downstream users.
+            // ConnL demotion. `pub(super)` only — kept inside the macro
+            // expansion so a future reinstatement of a per-rung floor
+            // walker in the same module doesn't have to re-derive the
+            // shift loop.
             #[allow(dead_code)]
             pub(super) fn ascend_to_floor(start: $dst, x: $src) -> ($dst, u32) {
                 let mut z = start;

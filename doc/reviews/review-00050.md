@@ -245,3 +245,50 @@ TODOs.
    `src/float.rs` at line 722 says "Kept in the macro for downstream
    users" but the visibility is `pub(super)`. Correct the rationale
    or remove the functions if no in-crate user is planned.
+
+<!-- glab-id: 3306658218 -->
+<!-- glab-discussion: 359c516542fba54a4158338eb7d9b7bd2c15071d -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `CHANGELOG.md:25` (2026-05-01 11:03 UTC) [open]
+
+**[must-fix]** The CHANGELOG reads "20 widening Conns" but the entry text immediately following it says "14 widening Conns" (visible in the diff context and confirmed by counting the enumerated list: I008I016 through U064I128 = 20 names). The local review in `doc/reviews/review-00050.md` already flagged this as a must-fix: "The list immediately following names 20 Conns; the plan also says '14 invocations' which is inconsistent with the code." Shipping a CHANGELOG with a wrong migration count misleads downstream callers who are trying to identify affected call sites.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3306658231 -->
+<!-- glab-discussion: 72c3d66bc4bebc0be345ab2ebda360299cceb78e -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/float.rs:722` (2026-05-01 11:03 UTC) [open]
+
+**[follow-up]** The comment on `ascend_to_floor` / `descend_to_floor` says "Kept in the macro for downstream users", but both functions are `pub(super)` — invisible outside the module they expand into. The only callers (`f*durn_floor`, `f*stdr_floor`) were deleted in this MR, so these functions are now truly dead code. The comment gives an incorrect rationale for suppressing the lint; either remove the functions or correct the comment to say why they are being retained (e.g., reserved for future re-enablement within the same crate).
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3306658250 -->
+<!-- glab-discussion: 9874a747b216a4636649eb0d26c20fed94c5e485 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 — (2026-05-01 11:03 UTC) [open]
+
+**[follow-up]** `tests/int_i16_galois.rs:48` — The plan's Verification table requires five L-side laws for every `ext_int!` Conn: `galois_l`, `closure_l`, `kernel_l`, `monotone_l`, `idempotent`. The `ext_int_props!` macro here (and its copies in `int_i32_galois.rs`, `int_i64_galois.rs`, `int_i128_galois.rs`) tests `galois_upper`, `closure_upper`, `ceil_monotone`, `inner_monotone`, `kernel_upper`, `idempotent` — but the renamed property is `closure_upper`, not `closure_l`, and `monotone_l` (monotonicity of `ceil`) is present as `ceil_monotone`. The gap vs the Verification table is that the five `fix_fix_*!` families use `law_battery!` with `subset: l_only` which includes all five named properties, while `ext_int!` uses this bespoke macro — creating a coverage asymmetry that makes the test suite harder to audit.
+
+*(inline anchor rejected by GitLab: 400)*
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3306664869 -->
+<!-- glab-discussion: 359c516542fba54a4158338eb7d9b7bd2c15071d -->
+#### ↳ cmk (2026-05-01 11:07 UTC) [open]
+
+The CHANGELOG already reads "20 widening Conns" — the number was corrected in commit 9ac9e6c on this branch (`14 → 20`). The "14" you're seeing is in the local-review section of `doc/reviews/review-00050.md`, which is the audit trail of the review that *flagged* the count error, not a current claim about the codebase.
+
+<!-- glab-id: 3306665099 -->
+<!-- glab-discussion: 72c3d66bc4bebc0be345ab2ebda360299cceb78e -->
+#### ↳ cmk (2026-05-01 11:07 UTC) [open]
+
+Fixed in commit 1d8f492 — comment now says the `pub(super)` retention is to avoid re-deriving the shift loop if a same-module floor walker is reintroduced, rather than the inaccurate "downstream users" rationale.
+
+<!-- glab-id: 3306665861 -->
+<!-- glab-discussion: 9874a747b216a4636649eb0d26c20fed94c5e485 -->
+#### ↳ cmk (2026-05-01 11:08 UTC) [open]
+
+The missing property was added as `closure_upper` in commit 33d3d9e across all four `tests/int_i*_galois.rs`. The `*_upper` / `*_lower` suffix matches the existing convention inside `ext_int_props!` (`galois_upper`, `kernel_upper`, `ceil_monotone`); using `closure_l` here would create intra-macro inconsistency to fix inter-macro inconsistency. Renaming the whole `ext_int_props!` family to `_l`/`_r` suffixes to match `law_battery!` is a defensible follow-up, but out of scope for this MR.
