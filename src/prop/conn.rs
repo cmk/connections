@@ -157,8 +157,24 @@ pub fn roundtrip_floor<A: Copy, B: Copy + Eq>(c: &Conn<A, B, R>, b: B) -> bool {
 
 // ── Triple-bound predicates ──────────────────────────────────────────
 
-/// `floor(a) ≤ ceil(a)` — the rounding-sandwich. Required for every
-/// shipped triple.
+/// `floor(a) ≤ ceil(a)` — the rounding-sandwich.
+///
+/// **Necessary and sufficient for a true adjoint triple.** Equivalent
+/// to: `inner` is order-reflecting (`inner(x) ≤ inner(y) ⟹ x ≤ y`).
+///
+/// Sufficiency: from the closure laws `inner(floor(a)) ≤ a ≤ inner(ceil(a))`,
+/// transitivity gives `inner(floor(a)) ≤ inner(ceil(a))`, and
+/// order-reflection of `inner` lifts this to `floor(a) ≤ ceil(a)`.
+///
+/// Necessity: assume `floor(a) ≤ ceil(a)` for every `a`. Take
+/// `x, y ∈ B` with `inner(x) ≤ inner(y)`. Then
+/// `x ≤ floor(inner(x)) ≤ ceil(inner(x)) ≤ y` — first step is
+/// `inner ⊣ floor` kernel, second is the assumption at `a = inner(x)`,
+/// third is L-Galois `ceil(a) ≤ b ⟺ a ≤ inner(b)` with the given
+/// hypothesis. So `x ≤ y`.
+///
+/// Required for every marker shipping both `ViewL` and `ViewR`. Built
+/// into the `law_battery!` `full` subset (Plan 32).
 pub fn floor_le_ceil<T, A: Copy, B: Copy + PartialOrd>(_t: &T, a: A) -> bool
 where
     T: Triple<A, B>,
@@ -475,6 +491,19 @@ macro_rules! law_battery {
                     ::proptest::prop_assert!(
                         $crate::prop::conn::idempotent(
                             &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                }
+                // (Plan 32) `floor_le_ceil` is a triple-only law: it
+                // holds iff `inner` is order-reflecting (equivalently,
+                // iff this is a true adjoint triple). Required for any
+                // marker shipping both `ViewL` and `ViewR`. Inlined
+                // here (rather than calling `prop::conn::floor_le_ceil`)
+                // because the function is `Triple`-bound on a marker
+                // instance, while the macro carries `$c:ty` as a type.
+                #[test]
+                fn floor_le_ceil(a in $f) {
+                    let lo = <$c as $crate::conn::ViewR<_, _>>::R.floor(a);
+                    let hi = <$c as $crate::conn::ViewL<_, _>>::L.ceiling(a);
+                    ::proptest::prop_assert!(lo <= hi);
                 }
             }
         }

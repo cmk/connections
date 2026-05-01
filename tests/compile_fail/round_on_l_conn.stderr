@@ -8,13 +8,13 @@ error[E0277]: the trait bound `Conn<i32, i32>: Triple<_, _>` is not satisfied
    |
    = help: the following other types implement trait `ViewL<A, B>`:
              `DURNSECS` implements `ViewL<time::duration::Duration, Extended<i64>>`
-             `F032DURN` implements `ViewL<ExtendedFloat<f32>, Extended<time::duration::Duration>>`
-             `F032STDR` implements `ViewL<ExtendedFloat<f32>, Extended<Duration>>`
-             `F064DURN` implements `ViewL<ExtendedFloat<f64>, Extended<time::duration::Duration>>`
              `F064F032` implements `ViewL<ExtendedFloat<f64>, ExtendedFloat<f32>>`
-             `F064STDR` implements `ViewL<ExtendedFloat<f64>, Extended<Duration>>`
              `I008I016` implements `ViewL<Extended<i8>, i16>`
              `I008I032` implements `ViewL<Extended<i8>, i32>`
+             `I008I064` implements `ViewL<Extended<i8>, i64>`
+             `I008I128` implements `ViewL<Extended<i8>, i128>`
+             `I008N008` implements `ViewL<i8, NonZero<i8>>`
+             `I016I032` implements `ViewL<Extended<i16>, i32>`
            and $N others
    = note: required for `Conn<i32, i32>` to implement `Triple<_, _>`
 note: required by a bound in `connections::round`
@@ -36,13 +36,13 @@ error[E0277]: the trait bound `Conn<i32, i32>: Triple<_, _>` is not satisfied
    |
    = help: the following other types implement trait `ViewR<A, B>`:
              `DURNSECS` implements `ViewR<time::duration::Duration, Extended<i64>>`
-             `F032DURN` implements `ViewR<ExtendedFloat<f32>, Extended<time::duration::Duration>>`
-             `F032STDR` implements `ViewR<ExtendedFloat<f32>, Extended<Duration>>`
-             `F064DURN` implements `ViewR<ExtendedFloat<f64>, Extended<time::duration::Duration>>`
              `F064F032` implements `ViewR<ExtendedFloat<f64>, ExtendedFloat<f32>>`
-             `F064STDR` implements `ViewR<ExtendedFloat<f64>, Extended<Duration>>`
              `I008N008` implements `ViewR<i8, NonZero<i8>>`
              `I016N016` implements `ViewR<i16, NonZero<i16>>`
+             `I032N032` implements `ViewR<i32, NonZero<i32>>`
+             `I064N064` implements `ViewR<i64, NonZero<i64>>`
+             `I128N128` implements `ViewR<i128, NonZero<i128>>`
+             `IPV6IPV4` implements `ViewR<Ipv6Addr, Extended<Ipv4Addr>>`
            and $N others
    = note: required for `Conn<i32, i32>` to implement `Triple<_, _>`
 note: required by a bound in `connections::round`

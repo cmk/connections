@@ -408,24 +408,26 @@ assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
 
 ### Example 9
 
-Bracketing an IEEE-float number of seconds with `Duration`:
+Rounding an IEEE-float number of seconds up to a `Duration`:
 
 ```rust
-use connections::conn::{ViewL, ViewR};
+use connections::conn::ViewL;
 use connections::float::ExtendedFloat;
 use connections::time::F064DURN;
 use connections::extended::Extended;
 use time::Duration;
 
 let half_sec = ExtendedFloat::Extend(0.5_f64);
-assert_eq!(F064DURN.ceil(half_sec),  Extended::Finite(Duration::milliseconds(500)));
-assert_eq!(F064DURN.floor(half_sec), Extended::Finite(Duration::milliseconds(500)));
+assert_eq!(F064DURN.ceil(half_sec), Extended::Finite(Duration::milliseconds(500)));
 
-// f64 NaN: ceil → +∞, floor → -∞ (forced by `Top > Extend(NaN) > Bot`).
+// f64 NaN: ceil → +∞ (forced by `Top > Extend(NaN) > Bot`).
 let nan = ExtendedFloat::Extend(f64::NAN);
-assert_eq!(F064DURN.ceil(nan),  Extended::PosInf);
-assert_eq!(F064DURN.floor(nan), Extended::NegInf);
+assert_eq!(F064DURN.ceil(nan), Extended::PosInf);
 ```
+
+`F064DURN` is `ConnL` (left-Galois only) — `inner` collapses every f64
+plateau (multiple `Duration`s map to the same `f64`) so it isn't
+order-reflecting and no true triple exists. See *Why one-sided?* below.
 
 ### Example 10
 

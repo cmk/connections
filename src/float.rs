@@ -718,6 +718,10 @@ macro_rules! def_walk_helpers {
             }
 
             /// Walk up (toward +∞) while `widen(z) <= x` still holds.
+            // (Plan 32) Currently unused: the `*_floor` functions that
+            // called these were dropped along with the float↔duration
+            // ConnL demotion. Kept in the macro for downstream users.
+            #[allow(dead_code)]
             pub(super) fn ascend_to_floor(start: $dst, x: $src) -> ($dst, u32) {
                 let mut z = start;
                 let mut steps = 0;
@@ -736,6 +740,7 @@ macro_rules! def_walk_helpers {
             }
 
             /// Walk down (toward -∞) until `widen(z) <= x`.
+            #[allow(dead_code)]
             pub(super) fn descend_to_floor(start: $dst, x: $src) -> ($dst, u32) {
                 let mut z = start;
                 let mut steps = 0;
