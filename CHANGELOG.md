@@ -22,7 +22,7 @@ cumulative in-development state.
   docstring), and these connections violate it at the saturation
   boundary. Affected:
   - **`STDRU128`** (`time::Duration` ↔ unsigned u128 nanoseconds)
-  - **`ext_int!` family** (14 widening Conns: `I008I016`, `U008I016`,
+  - **`ext_int!` family** (20 widening Conns: `I008I016`, `U008I016`,
     `I008I032`, `U008I032`, `I016I032`, `U016I032`, `I008I064`,
     `U008I064`, `I016I064`, `U016I064`, `I032I064`, `U032I064`,
     `I008I128`, `U008I128`, `I016I128`, `U016I128`, `I032I128`,
