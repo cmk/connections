@@ -13,7 +13,7 @@
   `Q004Q000.round(7.9375) = 127`).
 - This MR demotes **~140 connections** whose `inner` is non-injective from
   `triple!` to `Conn::new_l`, splits across 5 commits (T1 STDRU128 = 1 Conn;
-  T2 `ext_int!` macro = 14 widening Conns; T3 `fix_fix_*!` macros across 9
+  T2 `ext_int!` macro = 20 widening Conns; T3 `fix_fix_*!` macros across 9
   host-type modules = ~119 Q-format Conns; T4–T5 the four float↔duration
   Conns the strengthened battery surfaced as latent failures; T6 docs).
 - Strengthens `prop::conn::law_battery!`'s `full` subset to require

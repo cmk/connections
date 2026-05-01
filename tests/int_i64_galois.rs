@@ -40,6 +40,10 @@ macro_rules! ext_int_props {
                     prop_assert_eq!($CONN.ceil(a) <= b, a <= $CONN.inner(b));
                 }
                 #[test]
+                fn closure_upper(a in $arb_src) {
+                    prop_assert!(a <= $CONN.inner($CONN.ceil(a)));
+                }
+                #[test]
                 fn ceil_monotone(a1 in $arb_src, a2 in $arb_src) {
                     let (lo, hi) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
                     prop_assert!($CONN.ceil(lo) <= $CONN.ceil(hi));

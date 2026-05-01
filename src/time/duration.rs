@@ -936,6 +936,14 @@ mod float_durn_tests {
             prop_assert!(float_durn_conn_laws::kernel_l(&F064DURN, b));
         }
         #[test]
+        fn f064durn_monotone_l(a1 in extended_float_f64(), a2 in extended_float_f64()) {
+            prop_assert!(float_durn_conn_laws::monotone_l(&F064DURN, a1, a2));
+        }
+        #[test]
+        fn f064durn_idempotent(a in extended_float_f64()) {
+            prop_assert!(float_durn_conn_laws::idempotent_l(&F064DURN, a));
+        }
+        #[test]
         fn f032durn_galois_l(a in extended_float_f32(),
                              b in arb_extended_duration_bounded_f32()) {
             prop_assert!(float_durn_conn_laws::galois_l(&F032DURN, a, b));
@@ -947,6 +955,14 @@ mod float_durn_tests {
         #[test]
         fn f032durn_kernel_l(b in arb_extended_duration_bounded_f32()) {
             prop_assert!(float_durn_conn_laws::kernel_l(&F032DURN, b));
+        }
+        #[test]
+        fn f032durn_monotone_l(a1 in extended_float_f32(), a2 in extended_float_f32()) {
+            prop_assert!(float_durn_conn_laws::monotone_l(&F032DURN, a1, a2));
+        }
+        #[test]
+        fn f032durn_idempotent(a in extended_float_f32()) {
+            prop_assert!(float_durn_conn_laws::idempotent_l(&F032DURN, a));
         }
     }
 }
@@ -1208,6 +1224,14 @@ mod stdr_tests {
             prop_assert!(conn_laws::kernel_l(&F064STDR, b));
         }
         #[test]
+        fn f064stdr_monotone_l(a1 in extended_float_f64(), a2 in extended_float_f64()) {
+            prop_assert!(conn_laws::monotone_l(&F064STDR, a1, a2));
+        }
+        #[test]
+        fn f064stdr_idempotent(a in extended_float_f64()) {
+            prop_assert!(conn_laws::idempotent_l(&F064STDR, a));
+        }
+        #[test]
         fn f032stdr_galois_l(a in extended_float_f32(),
                              b in arb_extended_std_duration_bounded_f32()) {
             prop_assert!(conn_laws::galois_l(&F032STDR, a, b));
@@ -1219,6 +1243,14 @@ mod stdr_tests {
         #[test]
         fn f032stdr_kernel_l(b in arb_extended_std_duration_bounded_f32()) {
             prop_assert!(conn_laws::kernel_l(&F032STDR, b));
+        }
+        #[test]
+        fn f032stdr_monotone_l(a1 in extended_float_f32(), a2 in extended_float_f32()) {
+            prop_assert!(conn_laws::monotone_l(&F032STDR, a1, a2));
+        }
+        #[test]
+        fn f032stdr_idempotent(a in extended_float_f32()) {
+            prop_assert!(conn_laws::idempotent_l(&F032STDR, a));
         }
     }
 
