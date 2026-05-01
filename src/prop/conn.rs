@@ -326,8 +326,8 @@ where
 // Generates the standard property-test battery for a `Conn` marker
 // inside a fresh `mod $mod_name` block. Subsumes the per-host-type
 // `props_for_pair!` macros that lived in `src/fixed/i*.rs` and the
-// hand-rolled blocks in `unix.rs`, `time/duration.rs`, `addr/ip.rs`,
-// `char.rs`, `float/f32.rs`, etc. (Plan 31 T2.)
+// hand-rolled blocks in `time/duration.rs`, `addr/ip.rs`, `char.rs`,
+// `float/f32.rs`, etc. (Plan 31 T2.)
 
 /// Generate a property-test battery for an adjoint-triple marker.
 ///
@@ -354,10 +354,10 @@ where
 /// }
 ///
 /// connections::law_battery! {
-///     mod uuid_iso,
-///     conn: UUIDU032,
-///     fine:   arb_uid(),
-///     coarse: any::<u32>(),
+///     mod q000i032_iso,
+///     conn: Q000I032,
+///     fine:   any::<i32>().prop_map(FixedI32::<U0>::from_bits),
+///     coarse: any::<i32>(),
 ///     subset: iso_only,
 /// }
 /// ```
