@@ -215,7 +215,7 @@ mod tests {
     }
 
     // The Galois proptest battery (189 generated tests across 21
-    // ordered pairs) lives in `tests/conn_fixed_u32_galois.rs` —
+    // ordered pairs) lives in `tests/fixed_u32_galois.rs` —
     // hosting it as an integration test keeps the lib-test rustc
     // invocation under CI's container memory budget.
 }

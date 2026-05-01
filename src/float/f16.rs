@@ -398,6 +398,14 @@ mod tests {
     }
 
     #[test]
+    fn f032_floor_nan() {
+        match F032F016.floor(ExtendedFloat::Extend(f32::NAN)) {
+            ExtendedFloat::Extend(v) => assert!(v.is_nan()),
+            _ => panic!("expected Extend(NaN)"),
+        }
+    }
+
+    #[test]
     fn f032_pos_inf_preserved() {
         assert_eq!(
             F032F016.ceil(ExtendedFloat::Extend(f32::INFINITY)),
@@ -441,6 +449,14 @@ mod tests {
     #[test]
     fn f064_ceil_nan() {
         match F064F016.ceil(ExtendedFloat::Extend(f64::NAN)) {
+            ExtendedFloat::Extend(v) => assert!(v.is_nan()),
+            _ => panic!("expected Extend(NaN)"),
+        }
+    }
+
+    #[test]
+    fn f064_floor_nan() {
+        match F064F016.floor(ExtendedFloat::Extend(f64::NAN)) {
             ExtendedFloat::Extend(v) => assert!(v.is_nan()),
             _ => panic!("expected Extend(NaN)"),
         }
@@ -532,6 +548,11 @@ mod tests {
             prop_assert!(conn_laws::floor_le_ceil(&F032F016, a));
         }
 
+        #[test]
+        fn f032_order_reflecting(b1 in ef16(), b2 in ef16()) {
+            prop_assert!(conn_laws::order_reflecting(&F032F016, b1, b2));
+        }
+
         // The four walk helpers must converge in ≤ 2 ULP corrections
         // on the f16 side. RNE narrowing places `est = x as f16`
         // within 1 ULP of the true ceil/floor; saturation boundaries
@@ -611,6 +632,11 @@ mod tests {
         #[test]
         fn f064_floor_le_ceil(a in ef64()) {
             prop_assert!(conn_laws::floor_le_ceil(&F064F016, a));
+        }
+
+        #[test]
+        fn f064_order_reflecting(b1 in ef16(), b2 in ef16()) {
+            prop_assert!(conn_laws::order_reflecting(&F064F016, b1, b2));
         }
 
         #[test]

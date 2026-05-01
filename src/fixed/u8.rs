@@ -230,10 +230,9 @@ mod tests {
 
     #[test]
     fn u008n008_zero_saturates_to_one() {
-        // Unsigned: there is no NonZero ≤ 0; 0 saturates to NonZero(1).
-        // floor = ceil because new_left collapses both adjoints.
+        // Unsigned: there is no NonZero ≤ 0; 0 saturates to NonZero(1)
+        // (the smallest representable NonZero in the L-Galois sense).
         let one = NonZeroU8::new(1).unwrap();
-        assert_eq!(U008N008.ceil(0_u8), one);
         assert_eq!(U008N008.ceil(0_u8), one);
     }
 
@@ -241,7 +240,6 @@ mod tests {
     fn u008n008_nonzero_round_trip() {
         for &v in &[1, 50, u8::MAX] {
             let nz = NonZeroU8::new(v).unwrap();
-            assert_eq!(U008N008.ceil(v), nz);
             assert_eq!(U008N008.ceil(v), nz);
         }
     }
@@ -287,7 +285,6 @@ mod tests {
 
         #[test]
         fn u008n008_inner_then_ceil_recovers_nonzero(nz in arb_nz_u8()) {
-            prop_assert_eq!(U008N008.ceil(U008N008.inner(nz)), nz);
             prop_assert_eq!(U008N008.ceil(U008N008.inner(nz)), nz);
         }
 
@@ -376,7 +373,7 @@ mod tests {
     }
 
     // The Galois proptest battery (252 generated tests across 28
-    // ordered pairs) lives in `tests/conn_fixed_u08_galois.rs` —
+    // ordered pairs) lives in `tests/fixed_u8_galois.rs` —
     // hosting it as an integration test keeps the lib-test rustc
     // invocation under CI's container memory budget.
 }

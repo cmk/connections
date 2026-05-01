@@ -46,6 +46,31 @@ crate::triple! {
     /// `ExtendedFloat::Bot` / `Top` are preserved on both sides;
     /// `Extend(NaN)` flows through unchanged because the `Extend(NaN) →
     /// Extend(NaN as f32)` cast is bit-preserving for NaN.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::float::f32::F064F032;
+    /// use connections::float::ExtendedFloat;
+    ///
+    /// // π is not exactly representable in either f32 or f64.
+    /// // ceil walks up to the smallest f32 whose f64 embedding ≥ π;
+    /// // floor walks down to the largest f32 whose f64 embedding ≤ π.
+    /// let pi_f64 = ExtendedFloat::Extend(core::f64::consts::PI);
+    /// let lo = F064F032.floor(pi_f64);
+    /// let hi = F064F032.ceil(pi_f64);
+    /// assert!(matches!(lo, ExtendedFloat::Extend(_)));
+    /// assert!(matches!(hi, ExtendedFloat::Extend(_)));
+    /// // Embedding the bracket back to f64 sandwiches the original.
+    /// let lo_back = F064F032.inner(lo);
+    /// let hi_back = F064F032.inner(hi);
+    /// assert!(lo_back <= pi_f64 && pi_f64 <= hi_back);
+    ///
+    /// // Sentinel pass-through.
+    /// assert_eq!(F064F032.ceil(ExtendedFloat::Bot), ExtendedFloat::Bot);
+    /// assert_eq!(F064F032.floor(ExtendedFloat::Top), ExtendedFloat::Top);
+    /// ```
     pub F064F032 : F064 => F032 {
         ceil:  f064f032_ceil,
         inner: f064f032_inner,

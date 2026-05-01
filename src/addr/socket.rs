@@ -129,8 +129,10 @@ pub const SOVXSOV4: crate::conn::ConnL<SocketAddr, Extended<SocketAddrV4>> = {
 pub const SOVXSOV6: crate::conn::ConnR<SocketAddr, Extended<SocketAddrV6>> = {
     fn inner(b: Extended<SocketAddrV6>) -> SocketAddr {
         match b {
-            // Galois R pins inner(NegInf) below all V6: largest V4 ≤ all V6 is the
-            // source MIN, V4(0.0.0.0:0) (since Rust's SocketAddr puts V4 < V6).
+            // R-Galois `inner(b) ≤ a ⟺ b ≤ floor(a)` with b = NegInf forces
+            // inner(NegInf) ≤ a for every source a. The smallest source value
+            // satisfying that is the source MIN, V4(0.0.0.0:0) (since Rust's
+            // SocketAddr orders V4 < V6).
             Extended::NegInf => SocketAddr::V4(SOV4_MIN),
             Extended::Finite(v6) => SocketAddr::V6(v6),
             Extended::PosInf => SocketAddr::V6(sov6_max()),
@@ -206,6 +208,11 @@ mod tests {
         #[test]
         fn sovxsov6_kernel_r(b in arb_extended_socket_addr_v6()) {
             prop_assert!(conn_laws::kernel_r(&SOVXSOV6, b));
+        }
+
+        #[test]
+        fn sovxsov6_idempotent_r(b in arb_extended_socket_addr_v6()) {
+            prop_assert!(conn_laws::idempotent_r(&SOVXSOV6, b));
         }
     }
 }
