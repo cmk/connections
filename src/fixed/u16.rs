@@ -112,24 +112,12 @@ macro_rules! fix_fix_u16 {
                 };
                 FixedU16::from_bits(saturated)
             }
-
-            const fn _floor(x: FixedU16<$FineFrac>) -> FixedU16<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MAX {
-                    return FixedU16::<$CoarseFrac>::from_bits(u16::MAX);
-                }
-                let res = (x.to_bits() as u32) / Self::RATIO;
-                FixedU16::from_bits(res as u16)
-            }
         }
 
+        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
         impl $crate::conn::ViewL<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> for $const_name {
             const L: $crate::conn::ConnL<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> =
                 $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
-        }
-
-        impl $crate::conn::ViewR<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> for $const_name {
-            const R: $crate::conn::ConnR<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> =
-                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
         }
     };
 }
@@ -235,9 +223,8 @@ mod tests {
         let q15 = FixedU16::<U15>::from_bits(16384);
         let q16 = Q016Q015.inner(q15);
         assert_eq!(q16, FixedU16::<U16>::from_bits(32768));
-        // RATIO=2 is exact: ceil/floor agree.
+        // RATIO=2 exact: ceil round-trips. (Plan 32: ConnL only.)
         assert_eq!(Q016Q015.ceil(q16), q15);
-        assert_eq!(Q016Q015.floor(q16), q15);
     }
 
     /// 14-bit MIDI control value packed in u16 as Q2.14: the
@@ -252,18 +239,16 @@ mod tests {
 
     #[test]
     fn spot_q008q004_on_grid() {
-        // 1.5 in Q8.8 (bits 0x0180 = 384) — exactly representable in Q12.4.
+        // 1.5 in Q8.8 (bits 384) — exactly representable in Q12.4.
         let q88 = FixedU16::<U8>::from_bits(384);
-        assert_eq!(Q008Q004.floor(q88), FixedU16::<U4>::from_bits(24));
         assert_eq!(Q008Q004.ceil(q88), FixedU16::<U4>::from_bits(24));
         assert_eq!(Q008Q004.inner(FixedU16::<U4>::from_bits(24)), q88);
     }
 
     #[test]
     fn spot_q008q004_off_grid() {
-        // 1.398... (bits 358) — between Q12.4 grid points 22 and 23.
+        // 1.398... (bits 358) — Q12.4 ceil rounds up to 23.
         let off = FixedU16::<U8>::from_bits(358);
-        assert_eq!(Q008Q004.floor(off), FixedU16::<U4>::from_bits(22));
         assert_eq!(Q008Q004.ceil(off), FixedU16::<U4>::from_bits(23));
     }
 
@@ -287,13 +272,7 @@ mod tests {
 
     #[test]
     fn spot_boundary_fixups() {
-        // Fine::MAX boundary fixup on Q008Q004 (RATIO = 16). At the
-        // saturation plateau (where inner saturates at u16::MAX),
-        // floor must return Coarse::MAX = u16::MAX so the Galois law
-        // `inner(b) ≤ a ⟺ b ≤ floor(a)` holds.
-        let fmax = FixedU16::<U8>::from_bits(u16::MAX);
-        assert_eq!(Q008Q004.floor(fmax), FixedU16::<U4>::from_bits(u16::MAX));
-        // No FINE_MIN fixup needed for unsigned.
+        // (Plan 32: floor removed.) No FINE_MIN fixup for unsigned.
         let fmin = FixedU16::<U8>::from_bits(0);
         assert_eq!(Q008Q004.ceil(fmin), FixedU16::<U4>::from_bits(0));
     }

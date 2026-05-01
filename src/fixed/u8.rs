@@ -113,24 +113,12 @@ macro_rules! fix_fix_u8 {
                 };
                 FixedU8::from_bits(saturated)
             }
-
-            const fn _floor(x: FixedU8<$FineFrac>) -> FixedU8<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MAX {
-                    return FixedU8::<$CoarseFrac>::from_bits(u8::MAX);
-                }
-                let res = (x.to_bits() as u16) / Self::RATIO;
-                FixedU8::from_bits(res as u8)
-            }
         }
 
+        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
         impl $crate::conn::ViewL<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> for $const_name {
             const L: $crate::conn::ConnL<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> =
                 $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
-        }
-
-        impl $crate::conn::ViewR<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> for $const_name {
-            const R: $crate::conn::ConnR<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> =
-                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
         }
     };
 }
@@ -335,10 +323,8 @@ mod tests {
         let velocity_64 = FixedU8::<U7>::from_bits(64);
         let pixel = Q008Q007.inner(velocity_64);
         assert_eq!(pixel, FixedU8::<U8>::from_bits(128));
-        // Round-trip Q0.8 → Q1.7 via ceil/floor (RATIO = 2 is exact
-        // on multiples of 2, so they agree).
+        // Round-trip Q0.8 → Q1.7 via ceil. (Plan 32: ConnL only.)
         assert_eq!(Q008Q007.ceil(pixel), velocity_64);
-        assert_eq!(Q008Q007.floor(pixel), velocity_64);
     }
 
     /// MIDI max velocity 127 (= 127/128 = 0.992... in Q1.7) embeds
@@ -351,9 +337,8 @@ mod tests {
 
     #[test]
     fn spot_q004q000_on_grid() {
-        // 1.5 in Q4.4 (bits 24) — exactly representable in Q8.0 by 1 or 2.
+        // 1.5 in Q4.4 (bits 24) — Q8.0 ceil rounds up to 2.
         let q44 = FixedU8::<U4>::from_bits(24);
-        assert_eq!(Q004Q000.floor(q44), FixedU8::<U0>::from_bits(1));
         assert_eq!(Q004Q000.ceil(q44), FixedU8::<U0>::from_bits(2));
         assert_eq!(
             Q004Q000.inner(FixedU8::<U0>::from_bits(1)),
@@ -381,17 +366,13 @@ mod tests {
 
     #[test]
     fn spot_boundary_fixups() {
-        // Fine::MAX boundary fixup exercised on Q004Q000 (RATIO = 16).
-        // floor(u8::MAX) returns Coarse::MAX (= u8::MAX) so the Galois
-        // law `inner(b) ≤ a ⟺ b ≤ floor(a)` holds at the saturation
-        // plateau (where inner saturates at u8::MAX).
-        let fmax = FixedU8::<U4>::from_bits(u8::MAX);
-        assert_eq!(Q004Q000.floor(fmax), FixedU8::<U0>::from_bits(u8::MAX));
-        // No FINE_MIN fixup needed: u8::MIN = 0; ceil(0) = 0 falls out of
-        // the natural division (0 / 16 = 0, remainder 0).
+        // (Plan 32: floor removed — the Fine::MAX `floor` fixup that
+        // returned `Coarse::MAX` was the source of the
+        // `floor_le_ceil` violation that demoted these to ConnL.)
+        // No FINE_MIN fixup needed: u8::MIN = 0; ceil(0) = 0 falls out
+        // of the natural division (0 / 16 = 0, remainder 0).
         let fmin = FixedU8::<U4>::from_bits(0);
         assert_eq!(Q004Q000.ceil(fmin), FixedU8::<U0>::from_bits(0));
-        assert_eq!(Q004Q000.floor(fmin), FixedU8::<U0>::from_bits(0));
     }
 
     // The Galois proptest battery (252 generated tests across 28

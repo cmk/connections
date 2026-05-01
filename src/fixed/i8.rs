@@ -9,27 +9,29 @@
 //! # Examples
 //!
 //! `Q3.4 → Q7.0` — every `FixedI8<U4>` value lies in `[-8.0, 7.9375]`.
-//! The Conn brackets that value between adjacent integers in Q7.0:
+//! The Conn rounds that value up to the next integer in Q7.0:
 //!
 //! ```rust
-//! use connections::conn::{ViewL, ViewR};  // brings .ceil/.inner/.floor in via default methods
+//! use connections::conn::ViewL;  // brings .ceil/.inner in via default methods
 //! use connections::fixed::i8::Q004Q000;
 //! use fixed::FixedI8;
 //! use fixed::types::extra::{U0, U4};
 //!
-//! // 1.5 in Q3.4 (raw bits `0b00011000` = 24) brackets to integers
-//! // 1 and 2 in Q7.0:
+//! // 1.5 in Q3.4 (raw bits 24) ceils up to integer 2 in Q7.0.
 //! let q34 = FixedI8::<U4>::from_bits(24);
-//! assert_eq!(Q004Q000.floor(q34), FixedI8::<U0>::from_bits(1));
-//! assert_eq!(Q004Q000.ceil(q34),  FixedI8::<U0>::from_bits(2));
+//! assert_eq!(Q004Q000.ceil(q34), FixedI8::<U0>::from_bits(2));
 //!
 //! // `inner` widens 1 in Q7.0 back to its Q3.4 representation
-//! // (raw bits `0b00010000` = 16):
+//! // (raw bits 16):
 //! assert_eq!(
 //!     Q004Q000.inner(FixedI8::<U0>::from_bits(1)),
 //!     FixedI8::<U4>::from_bits(16),
 //! );
 //! ```
+//!
+//! These Conns are `ConnL` (left-Galois only) — `inner` saturates the
+//! Coarse plateau onto Fine::MAX/MIN, so it isn't order-reflecting and
+//! no true adjoint triple exists. See Plan 32 / `doc/design.md`.
 
 use super::{int_int_narrow, nz_int_ext, uint_int_sat};
 use ::fixed::FixedI8;
@@ -129,23 +131,18 @@ macro_rules! fix_fix_i8 {
                 };
                 FixedI8::<$FineFrac>::from_bits(saturated)
             }
-
-            const fn _floor(x: FixedI8<$FineFrac>) -> FixedI8<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MAX {
-                    return FixedI8::<$CoarseFrac>::from_bits(i8::MAX);
-                }
-                let res = (x.to_bits() as i16).div_euclid(Self::RATIO);
-                FixedI8::<$CoarseFrac>::from_bits(res as i8)
-            }
         }
 
+        // (Plan 32) ConnL only: `_inner` saturates the Coarse plateau
+        // onto FINE_MAX/MIN — non-injective, so no true triple
+        // exists. The L-Galois adjunction `ceil ⊣ inner` holds; the
+        // R-side `inner ⊣ floor` would require an `_inner` that's
+        // simultaneously order-reflecting, which can't be satisfied
+        // when the Coarse range exceeds Fine range. Shipped as
+        // ConnL accordingly.
         impl $crate::conn::ViewL<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> for $const_name {
             const L: $crate::conn::ConnL<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> =
                 $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
-        }
-        impl $crate::conn::ViewR<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> for $const_name {
-            const R: $crate::conn::ConnR<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> =
-                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
         }
     };
 }
@@ -349,9 +346,8 @@ mod tests {
 
     #[test]
     fn spot_q004q000_on_grid() {
-        // 1.5 in Q4.4 (bits 24) — exactly representable in Q8.0 by 1 or 2.
+        // 1.5 in Q4.4 (bits 24) — Q8.0 ceil rounds up to 2.
         let q44 = FixedI8::<U4>::from_bits(24);
-        assert_eq!(Q004Q000.floor(q44), FixedI8::<U0>::from_bits(1));
         assert_eq!(Q004Q000.ceil(q44), FixedI8::<U0>::from_bits(2));
         assert_eq!(
             Q004Q000.inner(FixedI8::<U0>::from_bits(1)),
@@ -362,7 +358,6 @@ mod tests {
     #[test]
     fn spot_q004q000_negative() {
         let q44 = FixedI8::<U4>::from_bits(-24);
-        assert_eq!(Q004Q000.floor(q44), FixedI8::<U0>::from_bits(-2));
         assert_eq!(Q004Q000.ceil(q44), FixedI8::<U0>::from_bits(-1));
     }
 
@@ -386,15 +381,17 @@ mod tests {
 
     #[test]
     fn spot_boundary_fixups() {
-        // Fine::MIN/MAX boundary fixups exercised on Q004Q000 (RATIO = 16).
+        // Fine::MIN boundary fixup exercised on Q004Q000 (RATIO = 16).
+        // (Plan 32: `floor` no longer exists; the Fine::MAX `floor`
+        // fixup that previously asserted `Coarse::MAX` was removed
+        // along with the broken `floor_le_ceil` it created.)
         let fmin = FixedI8::<U4>::from_bits(i8::MIN);
-        let fmax = FixedI8::<U4>::from_bits(i8::MAX);
         assert_eq!(Q004Q000.ceil(fmin), FixedI8::<U0>::from_bits(i8::MIN));
-        assert_eq!(Q004Q000.floor(fmax), FixedI8::<U0>::from_bits(i8::MAX));
     }
 
-    // 21 conns × 9 properties = 189 generated proptests, via the
-    // shared `crate::law_battery!` macro (Plan 31 T2).
+    // 21 conns × 5 properties = 105 generated proptests, via the
+    // shared `crate::law_battery!` macro. (Plan 32 demoted these
+    // Conns from triple to ConnL — `subset: l_only`.)
     macro_rules! props_for_pair {
         ($mod_name:ident, $conn:ident, $FineFrac:ty, $CoarseFrac:ty) => {
             $crate::law_battery! {
@@ -402,6 +399,7 @@ mod tests {
                 conn: $conn,
                 fine:   any::<i8>().prop_map(FixedI8::<$FineFrac>::from_bits),
                 coarse: any::<i8>().prop_map(FixedI8::<$CoarseFrac>::from_bits),
+                subset: l_only,
             }
         };
     }

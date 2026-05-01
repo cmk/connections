@@ -96,24 +96,12 @@ macro_rules! fix_fix_i64 {
                 };
                 FixedI64::from_bits(saturated)
             }
-
-            const fn _floor(x: FixedI64<$FineFrac>) -> FixedI64<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MAX {
-                    return FixedI64::<$CoarseFrac>::from_bits(i64::MAX);
-                }
-                let res = (x.to_bits() as i128).div_euclid(Self::RATIO);
-                FixedI64::from_bits(res as i64)
-            }
         }
 
+        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
         impl $crate::conn::ViewL<FixedI64<$FineFrac>, FixedI64<$CoarseFrac>> for $const_name {
             const L: $crate::conn::ConnL<FixedI64<$FineFrac>, FixedI64<$CoarseFrac>> =
                 $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
-        }
-
-        impl $crate::conn::ViewR<FixedI64<$FineFrac>, FixedI64<$CoarseFrac>> for $const_name {
-            const R: $crate::conn::ConnR<FixedI64<$FineFrac>, FixedI64<$CoarseFrac>> =
-                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
         }
     };
 }
@@ -183,9 +171,9 @@ mod tests {
     #[test]
     fn spot_q032q016_on_grid() {
         // 1.5 in Q32.32 (bits = 1.5 × 2^32) round-trips through Q48.16.
+        // (Plan 32: ConnL only.)
         let bits_3232: i64 = 3 << 31;
         let q3232 = FixedI64::<U32>::from_bits(bits_3232);
-        assert_eq!(Q032Q016.floor(q3232), FixedI64::<U16>::from_bits(3 << 15));
         assert_eq!(Q032Q016.ceil(q3232), FixedI64::<U16>::from_bits(3 << 15));
     }
 
@@ -208,10 +196,9 @@ mod tests {
 
     #[test]
     fn spot_boundary_fixups() {
+        // Fine::MIN ceil fixup. (Plan 32: floor removed.)
         let fmin = FixedI64::<U32>::from_bits(i64::MIN);
-        let fmax = FixedI64::<U32>::from_bits(i64::MAX);
         assert_eq!(Q032Q016.ceil(fmin), FixedI64::<U16>::from_bits(i64::MIN));
-        assert_eq!(Q032Q016.floor(fmax), FixedI64::<U16>::from_bits(i64::MAX));
     }
 
     // 15 conns × 9 properties = 135 generated proptests (64 cases each)
@@ -223,6 +210,7 @@ mod tests {
                 conn: $conn,
                 fine:   any::<i64>().prop_map(FixedI64::<$FineFrac>::from_bits),
                 coarse: any::<i64>().prop_map(FixedI64::<$CoarseFrac>::from_bits),
+                subset: l_only,
                 cases: 64,
             }
         };

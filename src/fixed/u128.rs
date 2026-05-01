@@ -118,31 +118,12 @@ macro_rules! fix_fix_u128 {
                 };
                 FixedU128::from_bits(saturated)
             }
-
-            const fn _floor(x: FixedU128<$FineFrac>) -> FixedU128<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MAX {
-                    return FixedU128::<$CoarseFrac>::from_bits(u128::MAX);
-                }
-                let bits = x.to_bits();
-                match Self::RATIO {
-                    Some(r) => FixedU128::from_bits(bits / r),
-                    None => {
-                        // SHIFT == 128. floor(bits / 2^128) = 0 for all
-                        // bits ∈ u128 (Self::FINE_MAX already short-circuited).
-                        FixedU128::from_bits(0)
-                    }
-                }
-            }
         }
 
+        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
         impl $crate::conn::ViewL<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> for $const_name {
             const L: $crate::conn::ConnL<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> =
                 $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
-        }
-
-        impl $crate::conn::ViewR<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> for $const_name {
-            const R: $crate::conn::ConnR<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> =
-                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
         }
     };
 }
@@ -222,19 +203,7 @@ mod tests {
             Q128Q000.ceil(FixedU128::<U128>::from_bits(1)),
             FixedU128::<U0>::from_bits(1),
         );
-        // floor: every non-MAX bit pattern → 0; MAX takes the boundary fixup.
-        assert_eq!(
-            Q128Q000.floor(FixedU128::<U128>::from_bits(0)),
-            FixedU128::<U0>::from_bits(0),
-        );
-        assert_eq!(
-            Q128Q000.floor(FixedU128::<U128>::from_bits(1)),
-            FixedU128::<U0>::from_bits(0),
-        );
-        assert_eq!(
-            Q128Q000.floor(FixedU128::<U128>::from_bits(u128::MAX)),
-            FixedU128::<U0>::from_bits(u128::MAX),
-        );
+        // (Plan 32: floor truth-table rows removed.)
     }
 
     /// Q1.127 (the canonical 128-bit normalised amplitude) → Q0.128:
@@ -246,13 +215,11 @@ mod tests {
         let q128 = Q128Q127.inner(q127);
         assert_eq!(q128, FixedU128::<U128>::from_bits(1 << 127));
         assert_eq!(Q128Q127.ceil(q128), q127);
-        assert_eq!(Q128Q127.floor(q128), q127);
     }
 
     #[test]
     fn spot_boundary_fixups() {
-        let fmax = FixedU128::<U128>::from_bits(u128::MAX);
-        assert_eq!(Q128Q064.floor(fmax), FixedU128::<U64>::from_bits(u128::MAX),);
+        // (Plan 32: floor removed.)
         let fmin = FixedU128::<U128>::from_bits(0);
         assert_eq!(Q128Q064.ceil(fmin), FixedU128::<U64>::from_bits(0));
     }

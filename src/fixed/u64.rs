@@ -93,24 +93,12 @@ macro_rules! fix_fix_u64 {
                 };
                 FixedU64::from_bits(saturated)
             }
-
-            const fn _floor(x: FixedU64<$FineFrac>) -> FixedU64<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MAX {
-                    return FixedU64::<$CoarseFrac>::from_bits(u64::MAX);
-                }
-                let res = (x.to_bits() as u128) / Self::RATIO;
-                FixedU64::from_bits(res as u64)
-            }
         }
 
+        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
         impl $crate::conn::ViewL<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>> for $const_name {
             const L: $crate::conn::ConnL<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>> =
                 $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
-        }
-
-        impl $crate::conn::ViewR<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>> for $const_name {
-            const R: $crate::conn::ConnR<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>> =
-                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
         }
     };
 }
@@ -187,15 +175,12 @@ mod tests {
         let q64 = Q064Q063.inner(q63);
         assert_eq!(q64, FixedU64::<U64>::from_bits(1 << 63));
         assert_eq!(Q064Q063.ceil(q64), q63);
-        assert_eq!(Q064Q063.floor(q64), q63);
     }
 
     #[test]
     fn spot_q032q016_on_grid() {
-        // 1.5 in Q32.32 (bits = 1.5 × 2^32 = 6442450944);
-        // same in Q48.16 is bits 98304.
+        // 1.5 in Q32.32; same in Q48.16 is bits 98304.
         let q3232 = FixedU64::<U32>::from_bits(6_442_450_944);
-        assert_eq!(Q032Q016.floor(q3232), FixedU64::<U16>::from_bits(98304));
         assert_eq!(Q032Q016.ceil(q3232), FixedU64::<U16>::from_bits(98304));
         assert_eq!(Q032Q016.inner(FixedU64::<U16>::from_bits(98304)), q3232);
     }
@@ -221,26 +206,12 @@ mod tests {
             Q064Q000.ceil(FixedU64::<U64>::from_bits(1)),
             FixedU64::<U0>::from_bits(1),
         );
-        // floor: any Fine bit pattern below FINE_MAX → 0; FINE_MAX
-        // takes the boundary fixup and returns Coarse::MAX.
-        assert_eq!(
-            Q064Q000.floor(FixedU64::<U64>::from_bits(0)),
-            FixedU64::<U0>::from_bits(0),
-        );
-        assert_eq!(
-            Q064Q000.floor(FixedU64::<U64>::from_bits(1)),
-            FixedU64::<U0>::from_bits(0),
-        );
-        assert_eq!(
-            Q064Q000.floor(FixedU64::<U64>::from_bits(u64::MAX)),
-            FixedU64::<U0>::from_bits(u64::MAX),
-        );
+        // (Plan 32: floor truth-table rows removed.)
     }
 
     #[test]
     fn spot_boundary_fixups() {
-        let fmax = FixedU64::<U32>::from_bits(u64::MAX);
-        assert_eq!(Q032Q016.floor(fmax), FixedU64::<U16>::from_bits(u64::MAX));
+        // (Plan 32: floor removed.)
         let fmin = FixedU64::<U32>::from_bits(0);
         assert_eq!(Q032Q016.ceil(fmin), FixedU64::<U16>::from_bits(0));
     }

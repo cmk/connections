@@ -125,27 +125,12 @@ macro_rules! fix_fix_i16 {
                 };
                 FixedI16::from_bits(saturated)
             }
-
-            const fn _floor(x: FixedI16<$FineFrac>) -> FixedI16<$CoarseFrac> {
-                // Mirror of the ceil fixup: every Coarse value c ≥
-                // i16::MAX/Self::RATIO + 1 saturates inner to Fine::MAX. The
-                // Galois law requires floor(Fine::MAX) = Coarse::MAX.
-                if x.to_bits() == Self::FINE_MAX {
-                    return FixedI16::<$CoarseFrac>::from_bits(i16::MAX);
-                }
-                let res = (x.to_bits() as i32).div_euclid(Self::RATIO);
-                FixedI16::from_bits(res as i16)
-            }
         }
 
+        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
         impl $crate::conn::ViewL<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>> for $const_name {
             const L: $crate::conn::ConnL<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>> =
                 $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
-        }
-
-        impl $crate::conn::ViewR<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>> for $const_name {
-            const R: $crate::conn::ConnR<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>> =
-                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
         }
     };
 }
@@ -258,9 +243,8 @@ mod tests {
 
     #[test]
     fn spot_q008q004_on_grid() {
-        // 1.5 in Q8.8 (bits 0x0180 = 384) — exactly representable in Q12.4.
+        // 1.5 in Q8.8 (bits 384) — exactly representable in Q12.4.
         let q88 = FixedI16::<U8>::from_bits(384);
-        assert_eq!(Q008Q004.floor(q88), FixedI16::<U4>::from_bits(24));
         assert_eq!(Q008Q004.ceil(q88), FixedI16::<U4>::from_bits(24));
         assert_eq!(Q008Q004.inner(FixedI16::<U4>::from_bits(24)), q88);
     }
@@ -269,36 +253,30 @@ mod tests {
     fn spot_q008q004_off_grid_positive() {
         // 1.3984375 (bits 358) — between Q12.4 grid points 22 and 23.
         let off = FixedI16::<U8>::from_bits(358);
-        assert_eq!(Q008Q004.floor(off), FixedI16::<U4>::from_bits(22));
         assert_eq!(Q008Q004.ceil(off), FixedI16::<U4>::from_bits(23));
     }
 
     #[test]
     fn spot_q008q004_off_grid_negative() {
-        // -1.3984375 (bits -358). div_euclid rounds toward −∞;
-        // rem_euclid is non-negative, so ceil = floor + 1.
+        // -1.3984375 (bits -358). div_euclid + rem_euclid → ceil rounds up.
         let neg = FixedI16::<U8>::from_bits(-358);
-        assert_eq!(Q008Q004.floor(neg), FixedI16::<U4>::from_bits(-23));
         assert_eq!(Q008Q004.ceil(neg), FixedI16::<U4>::from_bits(-22));
     }
 
     #[test]
     fn spot_q008q004_saturation_boundary() {
-        // Fine::MAX (bits 32767) ceils up to Coarse(2048) = value 128.0
-        // — fits in Coarse i16 range. inner(2048) saturates to Fine::MAX.
+        // Fine::MAX (bits 32767) ceils up to Coarse(2048) = value 128.0.
+        // (Plan 32) `floor` removed: the FINE_MAX `floor` fixup
+        // returning `Coarse::MAX` was the source of the
+        // `floor_le_ceil` violation that demoted these to ConnL.
         let fmax = FixedI16::<U8>::from_bits(i16::MAX);
         assert_eq!(Q008Q004.ceil(fmax), FixedI16::<U4>::from_bits(2048));
         assert_eq!(Q008Q004.inner(FixedI16::<U4>::from_bits(2048)), fmax);
 
-        // Fine::MAX is in the saturation plateau: floor returns Coarse::MAX,
-        // not the bit-math value 2047.
-        assert_eq!(Q008Q004.floor(fmax), FixedI16::<U4>::from_bits(i16::MAX));
-
-        // Symmetric on the negative side: Fine::MIN is itself a plateau
-        // member; ceil returns Coarse::MIN, not bit-math -2048.
+        // Fine::MIN ceils to Coarse::MIN (the FINE_MIN ceil fixup is
+        // still needed for galois_l, kept in the macro).
         let fmin = FixedI16::<U8>::from_bits(i16::MIN);
         assert_eq!(Q008Q004.ceil(fmin), FixedI16::<U4>::from_bits(i16::MIN));
-        assert_eq!(Q008Q004.floor(fmin), FixedI16::<U4>::from_bits(-2048));
     }
 
     #[test]
@@ -341,6 +319,7 @@ mod tests {
                 conn: $conn,
                 fine:   any::<i16>().prop_map(FixedI16::<$FineFrac>::from_bits),
                 coarse: any::<i16>().prop_map(FixedI16::<$CoarseFrac>::from_bits),
+                subset: l_only,
             }
         };
     }

@@ -161,36 +161,12 @@ macro_rules! fix_fix_i128 {
                 };
                 FixedI128::from_bits(saturated)
             }
-
-            const fn _floor(x: FixedI128<$FineFrac>) -> FixedI128<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MAX {
-                    return FixedI128::<$CoarseFrac>::from_bits(i128::MAX);
-                }
-                let bits = x.to_bits();
-                match Self::RATIO {
-                    Some(r) => FixedI128::from_bits(bits.div_euclid(r)),
-                    None => {
-                        // SHIFT == 128. floor(bits / 2^128):
-                        //   bits ≥ 0 → 0; bits < 0 → -1 (Self::FINE_MAX
-                        //   already short-circuited).
-                        if bits < 0 {
-                            FixedI128::from_bits(-1)
-                        } else {
-                            FixedI128::from_bits(0)
-                        }
-                    }
-                }
-            }
         }
 
+        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
         impl $crate::conn::ViewL<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>> for $const_name {
             const L: $crate::conn::ConnL<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>> =
                 $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
-        }
-
-        impl $crate::conn::ViewR<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>> for $const_name {
-            const R: $crate::conn::ConnR<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>> =
-                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
         }
     };
 }
@@ -285,32 +261,7 @@ mod tests {
             Q128Q000.ceil(FixedI128::<U128>::from_bits(i128::MIN)),
             FixedI128::<U0>::from_bits(i128::MIN),
         );
-        // floor: negative inputs round down to -1; non-negative (and
-        // non-MAX) round to 0; MAX takes the i128::MAX boundary fixup.
-        assert_eq!(
-            Q128Q000.floor(FixedI128::<U128>::from_bits(0)),
-            FixedI128::<U0>::from_bits(0),
-        );
-        assert_eq!(
-            Q128Q000.floor(FixedI128::<U128>::from_bits(1)),
-            FixedI128::<U0>::from_bits(0),
-        );
-        assert_eq!(
-            Q128Q000.floor(FixedI128::<U128>::from_bits(-1)),
-            FixedI128::<U0>::from_bits(-1),
-        );
-        assert_eq!(
-            Q128Q000.floor(FixedI128::<U128>::from_bits(i128::MAX)),
-            FixedI128::<U0>::from_bits(i128::MAX),
-        );
-        // Per the truth table, `floor(FINE_MIN)` falls into the
-        // degenerate `bits < 0` branch (the FINE_MAX guard does not
-        // fire) and returns -1. Pin this explicitly so the regression
-        // is exhaustive across all 9 truth-table rows.
-        assert_eq!(
-            Q128Q000.floor(FixedI128::<U128>::from_bits(i128::MIN)),
-            FixedI128::<U0>::from_bits(-1),
-        );
+        // (Plan 32) `floor` truth-table rows removed: ConnL only.
     }
 
     #[test]
@@ -329,11 +280,9 @@ mod tests {
 
     #[test]
     fn spot_boundary_fixups() {
-        // Fine::MIN/MAX boundary fixups — exercised on Q128Q064 (SHIFT=64).
+        // Fine::MIN ceil fixup. (Plan 32: floor removed.)
         let fmin = FixedI128::<U128>::from_bits(i128::MIN);
-        let fmax = FixedI128::<U128>::from_bits(i128::MAX);
         assert_eq!(Q128Q064.ceil(fmin), FixedI128::<U64>::from_bits(i128::MIN));
-        assert_eq!(Q128Q064.floor(fmax), FixedI128::<U64>::from_bits(i128::MAX));
     }
 
     /// Inner-saturation regression: for non-degenerate pairs where the
@@ -365,6 +314,7 @@ mod tests {
                 conn: $conn,
                 fine:   any::<i128>().prop_map(FixedI128::<$FineFrac>::from_bits),
                 coarse: any::<i128>().prop_map(FixedI128::<$CoarseFrac>::from_bits),
+                subset: l_only,
                 cases: 64,
             }
         };

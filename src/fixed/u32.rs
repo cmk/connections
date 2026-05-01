@@ -93,24 +93,12 @@ macro_rules! fix_fix_u32 {
                 };
                 FixedU32::from_bits(saturated)
             }
-
-            const fn _floor(x: FixedU32<$FineFrac>) -> FixedU32<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MAX {
-                    return FixedU32::<$CoarseFrac>::from_bits(u32::MAX);
-                }
-                let res = (x.to_bits() as u64) / Self::RATIO;
-                FixedU32::from_bits(res as u32)
-            }
         }
 
+        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
         impl $crate::conn::ViewL<FixedU32<$FineFrac>, FixedU32<$CoarseFrac>> for $const_name {
             const L: $crate::conn::ConnL<FixedU32<$FineFrac>, FixedU32<$CoarseFrac>> =
                 $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
-        }
-
-        impl $crate::conn::ViewR<FixedU32<$FineFrac>, FixedU32<$CoarseFrac>> for $const_name {
-            const R: $crate::conn::ConnR<FixedU32<$FineFrac>, FixedU32<$CoarseFrac>> =
-                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
         }
     };
 }
@@ -196,14 +184,12 @@ mod tests {
         let q32 = Q032Q031.inner(q31);
         assert_eq!(q32, FixedU32::<U32>::from_bits(1 << 31));
         assert_eq!(Q032Q031.ceil(q32), q31);
-        assert_eq!(Q032Q031.floor(q32), q31);
     }
 
     #[test]
     fn spot_q016q008_on_grid() {
-        // 1.5 in Q16.16 (bits = 1.5 × 2^16 = 98304); same in Q24.8 is bits 384.
+        // 1.5 in Q16.16 (bits = 98304); same in Q24.8 is bits 384.
         let q1616 = FixedU32::<U16>::from_bits(98304);
-        assert_eq!(Q016Q008.floor(q1616), FixedU32::<U8>::from_bits(384));
         assert_eq!(Q016Q008.ceil(q1616), FixedU32::<U8>::from_bits(384));
         assert_eq!(Q016Q008.inner(FixedU32::<U8>::from_bits(384)), q1616);
     }
@@ -223,8 +209,7 @@ mod tests {
 
     #[test]
     fn spot_boundary_fixups() {
-        let fmax = FixedU32::<U16>::from_bits(u32::MAX);
-        assert_eq!(Q016Q008.floor(fmax), FixedU32::<U8>::from_bits(u32::MAX));
+        // (Plan 32: floor removed.)
         let fmin = FixedU32::<U16>::from_bits(0);
         assert_eq!(Q016Q008.ceil(fmin), FixedU32::<U8>::from_bits(0));
     }

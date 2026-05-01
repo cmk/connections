@@ -16,6 +16,7 @@ macro_rules! props_for_pair {
             conn: $conn,
             fine:   any::<u128>().prop_map(FixedU128::<$FineFrac>::from_bits),
             coarse: any::<u128>().prop_map(FixedU128::<$CoarseFrac>::from_bits),
+            subset: l_only,
             cases: 64,
         }
     };

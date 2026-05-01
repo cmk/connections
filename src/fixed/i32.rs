@@ -126,24 +126,12 @@ macro_rules! fix_fix_i32 {
                 };
                 FixedI32::from_bits(saturated)
             }
-
-            const fn _floor(x: FixedI32<$FineFrac>) -> FixedI32<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MAX {
-                    return FixedI32::<$CoarseFrac>::from_bits(i32::MAX);
-                }
-                let res = (x.to_bits() as i64).div_euclid(Self::RATIO);
-                FixedI32::from_bits(res as i32)
-            }
         }
 
+        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
         impl $crate::conn::ViewL<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> for $const_name {
             const L: $crate::conn::ConnL<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> =
                 $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
-        }
-
-        impl $crate::conn::ViewR<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> for $const_name {
-            const R: $crate::conn::ConnR<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> =
-                $crate::conn::Conn::new_r($const_name::_inner, $const_name::_floor);
         }
     };
 }
@@ -221,9 +209,8 @@ mod tests {
     #[test]
     fn spot_q016q008_on_grid() {
         // 1.5 in Q16.16 (bits = 1.5 × 2^16 = 98304); same value in Q24.8
-        // is bits 384.
+        // is bits 384. (ConnL: ceil only; floor removed in Plan 32.)
         let q1616 = FixedI32::<U16>::from_bits(98304);
-        assert_eq!(Q016Q008.floor(q1616), FixedI32::<U8>::from_bits(384));
         assert_eq!(Q016Q008.ceil(q1616), FixedI32::<U8>::from_bits(384));
         assert_eq!(Q016Q008.inner(FixedI32::<U8>::from_bits(384)), q1616);
     }
@@ -247,10 +234,10 @@ mod tests {
 
     #[test]
     fn spot_boundary_fixups() {
+        // Fine::MIN ceil fixup. (Plan 32: Fine::MAX `floor` fixup
+        // gone with the ConnL demotion.)
         let fmin = FixedI32::<U16>::from_bits(i32::MIN);
-        let fmax = FixedI32::<U16>::from_bits(i32::MAX);
         assert_eq!(Q016Q008.ceil(fmin), FixedI32::<U8>::from_bits(i32::MIN));
-        assert_eq!(Q016Q008.floor(fmax), FixedI32::<U8>::from_bits(i32::MAX));
     }
 
     // 15 conns × 9 properties = 135 generated proptests, via the
@@ -262,6 +249,7 @@ mod tests {
                 conn: $conn,
                 fine:   any::<i32>().prop_map(FixedI32::<$FineFrac>::from_bits),
                 coarse: any::<i32>().prop_map(FixedI32::<$CoarseFrac>::from_bits),
+                subset: l_only,
             }
         };
     }
