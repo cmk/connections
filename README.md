@@ -112,6 +112,50 @@ Two-sided helpers (`round`, `truncate`, …) bind on the
 The struct is `Copy`, `const`-constructible, heap-free, and the crate
 is `#![forbid(unsafe_code)]`.
 
+### Why one-sided?
+
+A `Conn<A, B, K>` ships with exactly one direction: `ConnL` exposes
+`.ceil()` (round up) and `.upper()` (embed); `ConnR` exposes `.floor()`
+(round down) and `.lower()` (embed). To get **both** directions plus
+the two-sided helpers (`round`, `truncate`, …) you ship a triple
+marker. But there's a hard mathematical condition that decides whether
+a (source, rung) pair admits a true triple at all:
+
+> **The middle adjoint `inner` must be order-reflecting.**
+> Equivalently, `floor(a) ≤ ceil(a)` must hold for every `a`.
+
+Both directions of the equivalence are elementary applications of the
+adjunction laws. Sufficiency: combine the two closure laws
+`inner(floor(a)) ≤ a ≤ inner(ceil(a))` and lift through the
+order-embedding `inner`. Necessity: assume `floor(a) ≤ ceil(a)`
+everywhere, take `x, y` with `inner(x) ≤ inner(y)`, and chain
+`x ≤ floor(inner(x)) ≤ ceil(inner(x)) ≤ y` via the kernel of `inner ⊣
+floor`, the assumption at `a = inner(x)`, and L-Galois at `b = y`.
+
+When `inner` **isn't** order-reflecting — for example because the rung
+`B` has more values than the source `A` can represent and the
+saturation arms collapse a plateau — there is **no** `floor` function
+that satisfies the rounding sandwich without breaking one of the
+per-side Galois laws. A counterexample: take `A = {a}` (one element)
+and `B = {b₁ < b₂ < b₃}`, with `inner(b) = a` for every `b` (the
+constant map — monotone, but maximally non-injective). Then L-Galois
+forces `ceil(a) = b₁` (the minimum of B) and R-Galois forces
+`floor(a) = b₃` (the maximum). Both per-side adjunctions hold and the
+"triple" looks well-typed, but `floor(a) = b₃ > b₁ = ceil(a)`.
+
+Worse, `round(a)` (which compares `inner(floor(a))` and
+`inner(ceil(a))` to pick the closer endpoint) inherits the inverted
+bracket and returns whichever endpoint sits "closer" — which can be
+wildly wrong. So **a connection that fails the rounding sandwich isn't
+just an academic foul; the two-sided helpers actively misbehave on it**.
+
+Where the underlying types make a true triple impossible, this crate
+ships `ConnL` (or `ConnR`) instead. Calling `.floor()` on the
+demoted forms is a compile error — explicit, not a wrong answer at
+runtime. The `prop::conn::law_battery!` `full` subset enforces
+`floor_le_ceil` so future triple markers can't silently re-introduce
+the flaw.
+
 ## Quick tour
 
 **Connection Families:**

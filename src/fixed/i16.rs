@@ -2,31 +2,27 @@
 //!
 //! For each ordered pair `(FineFrac, CoarseFrac)` from the level set
 //! `{0, 2, 4, 8, 12, 16}` with `FineFrac > CoarseFrac`, a
-//! [`Conn`](crate::conn::Conn)`<FixedI16<U_fine>, FixedI16<U_coarse>>` constant
-//! `F<dd>F<dd>` (zero-padded) provides the adjoint triple
-//! `ceil ⊣ inner ⊣ floor`:
+//! [`Conn`](crate::conn::Conn)`L<FixedI16<U_fine>, FixedI16<U_coarse>>`
+//! constant `Q<dd>Q<dd>` (zero-padded) provides the left-Galois pair
+//! `ceil ⊣ inner`:
 //!
 //! - `ceil:  Fine → Coarse` smallest `c` with `inner(c) ≥ f`
 //! - `inner: Coarse → Fine`  bit-shift left by `(FineFrac − CoarseFrac)`,
 //!   saturating at `Fine::{MIN, MAX}`
-//! - `floor: Fine → Coarse` largest `c` with `inner(c) ≤ f`
 //!
-//! All three are **total** (every input has a defined output) and the
-//! five Galois axioms — adjointness in both halves, closure, kernel,
-//! `inner` monotonicity — hold for every input. See `doc/design.md`
-//! § "The rounding-sandwich property and full-triple lawfulness" for
-//! the reasoning behind the design.
+//! Both functions are **total**. The four L-side Galois axioms
+//! (adjointness, closure, kernel, monotonicity) hold for every input.
 //!
-//! `inner` is **not** injective: any Coarse value where `|c.bits *
-//! RATIO|` exceeds `i16::MAX` saturates to `Fine::{MIN, MAX}`,
-//! collapsing a plateau of Coarse values onto a single Fine value.
-//! As a consequence `floor(a) ≤ ceil(a)` is violated at the saturation
-//! boundary — a known lawfulness gap shipped here ahead of the Plan 27
-//! audit, which converts these Conns to one-sided
-//! (`Conn::new_l` / `Conn::new_r`) so the rounding sandwich
-//! holds structurally. `ceil` and `floor` carry boundary fixups
-//! (`ceil(Fine::MIN) = Coarse::MIN`, `floor(Fine::MAX) = Coarse::MAX`)
-//! that make Galois L and R individually hold at the extremes.
+//! **Why one-sided?** `inner` is **not** injective: any Coarse value
+//! where `|c.bits * RATIO|` exceeds `i16::MAX` saturates to
+//! `Fine::{MIN, MAX}`, collapsing a plateau of Coarse values onto a
+//! single Fine value. Per the equivalence `inner order-reflecting ⟺
+//! floor ≤ ceil`, no `floor` function can satisfy the rounding
+//! sandwich at the plateau without breaking one of the per-side
+//! Galois laws. Plan 32 demoted these from `triple!` to `Conn::new_l`
+//! to remove the lie. `ceil` retains the FINE_MIN boundary fixup
+//! (`ceil(Fine::MIN) = Coarse::MIN`) needed for galois_l at the
+//! lower extreme.
 
 use super::{ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
 use ::fixed::FixedI16;

@@ -12,6 +12,40 @@ cumulative in-development state.
 
 ## [Unreleased]
 
+### Changed (Plan 32 — `floor_le_ceil` cleanup, breaking)
+
+- **Demoted ~140 connections from `triple!` to `Conn::new_l`** because
+  their `inner` is non-injective (and therefore not order-reflecting),
+  so they aren't true adjoint triples in the categorical sense:
+  `floor(a) ≤ ceil(a)` is a necessary-and-sufficient consequence of
+  `inner` being an order-embedding (proof in `prop::conn::floor_le_ceil`
+  docstring), and these connections violate it at the saturation
+  boundary. Affected:
+  - **`STDRU128`** (`time::Duration` ↔ unsigned u128 nanoseconds)
+  - **`ext_int!` family** (14 widening Conns: `I008I016`, `U008I016`,
+    `I008I032`, `U008I032`, `I016I032`, `U016I032`, `I008I064`,
+    `U008I064`, `I016I064`, `U016I064`, `I032I064`, `U032I064`,
+    `I008I128`, `U008I128`, `I016I128`, `U016I128`, `I032I128`,
+    `U032I128`, `I064I128`, `U064I128`)
+  - **`fix_fix_*!` family** (~119 Q-format Conns across i8/i16/i32/
+    i64/i128 and u8/u16/u32/u64/u128 host types)
+  - **`F064DURN`, `F032DURN`, `F064STDR`, `F032STDR`** (float ↔
+    duration: f64/f32 plateaus collapse multiple Durations onto the
+    same float)
+
+  **Migration**: callers of `.floor()` on any of the above will see
+  compile errors (the method literally doesn't exist on `ConnL`).
+  Either use `.ceil()` (which round-trips through `inner` as
+  documented), or hand-compute the round-down direction via
+  arithmetic, or open an issue for a paired `*CEIL`/`*FLOOR`
+  alternative.
+- **Strengthened `prop::conn::law_battery!`'s `full` subset to require
+  `floor_le_ceil`.** Previously `full` covered the eight per-side
+  Galois laws plus `idempotent`; now it also enforces the rounding
+  sandwich. This makes the test suite refuse to ship triple markers
+  that aren't true adjoint triples — closing the door on the latent-
+  bug shape that motivated this entire sprint.
+
 ### Changed
 
 - **Folded `connections::int::*` into `connections::fixed::*`.** Every
