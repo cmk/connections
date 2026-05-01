@@ -128,6 +128,8 @@ primitives (interpreted as Q*N*.0), and `core::num::NonZero<T>`
 | Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) | `fixed::{i8,…,i128, u8,…,u128}` |
 | Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) and the `std::time::Duration` family (`STDRU064`, `STDRU128`, `F064STDR`, `F032STDR`) for users on `std::time` | `time` |
+| `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
+| `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
 
 Constant-name prefixes are letter-disambiguated: `Q` for Q-format
 wrappers (sign and host bit-width come from the module path), `I`/`U`

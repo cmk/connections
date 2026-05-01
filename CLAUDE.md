@@ -72,7 +72,7 @@ letter / digit shapes:
 | `A123` form    | 1       | 3      | `F064`       | most families: `F`, `I`, `U`, `Q`, `N`, `S`       |
 | `AB12` form    | 2       | 2      | `FD12`       | reserved — last used by the (lifted-out) decimal `FD<dd>` family; available for future 2-letter-prefix families |
 | `ABC1` form    | 3       | 1      | `FDX1`       | reserved — no current uses                        |
-| `ABCD` form    | 4       | 0      | `DURN`       | domain-mnemonic families: `time` (`DURNSECS`, `DATEJDAY`, `TIMENANO`, `OFDTNANO`, `OFDTSECS`, `PDTMDATE`, …) |
+| `ABCD` form    | 4       | 0      | `DURN`       | domain-mnemonic families: `time` (`DURNSECS`, `DATEJDAY`, `TIMENANO`, `OFDTNANO`, `OFDTSECS`, `PDTMDATE`, …); `addr` (`IPV4`, `IPV6`, `IPVX`, `SOV4`, `SOV6`, `SOVX`); `char` (`CHAR`) |
 
 The two sides may pick **independently**: a Conn that bridges two
 families with different prefix lengths is allowed and expected.
@@ -103,6 +103,7 @@ Canonical examples:
 | `A123X456`           | `Q008Q004`    | `FixedI8<U8>` → `FixedI8<U4>` in `fixed::i8` (Q0.8 → Q4.4)  |
 | `A123X456`           | `Q000I008`    | `FixedI8<U0>` → `i8` in `fixed::i8` (cross-crate iso)       |
 | `A123X456`           | `I008N008`    | `i8` → `NonZeroI8` in `fixed::i8`                           |
+| `A123X456` (1L+3D both) | `U032CHAR` | `Extended<u32>` → `Extended<char>` (codepoint projection)   |
 | `ABCDXYZW` (4L+0D both) | `DURNSECS` | `Duration` → `Extended<i64>` (whole seconds)                |
 
 Hard rules:
@@ -140,7 +141,9 @@ Per-domain Conn families:
 | `fixed`   | `fixed`, `std` (i8…u128), `core::num` (NonZero) | `i8.rs`–`i128.rs`, `u8.rs`–`u128.rs` (per-destination type) |
 | `time`    | `time`, `std::time`                        | `clock.rs`, `date.rs`, `datetime.rs`, `duration.rs`, `offset.rs` |
 | `float`   | (this crate)                               | `ExtendedFloat<T>` + IEEE narrowing Conns; submodules `f32.rs` (target `F032`) and `f16.rs` (target `F016`, gated on `f16` cargo feature → nightly required) |
-| `conn`    | (this crate)                               | The `Conn<A, B>` type, the `compose!` macro, free fns operating on a `Conn` (`ceiling`, `floor`, `upper`, `lower`, `maximize`, `minimize`, `median`, `round`, `truncate`, lifters), and `Conn::new` / `new_left` / `new_right` / `new_iso` constructors |
+| `addr`    | `std::net`                                 | `ip.rs`, `socket.rs` |
+| `char`    | `core` (primitive)                         | `char.rs` (`U032CHAR` codepoint projection)                |
+| `conn`    | (this crate)                               | The `Conn<A, B, K>` type, the `compose!` / `triple!` macros, free fns operating on a `Conn` (`round`, `truncate`, `interval`, `midpoint`, `median`, lifters), and `Conn::new_l` / `new_r` constructors |
 
 **Modules are keyed by host crate by default**, except where a single
 domain is meaningfully shared across crates. `time/` is the worked
