@@ -2,6 +2,8 @@
 
 [![CI](https://gitlab.com/cmk/connections/badges/main/pipeline.svg)](https://gitlab.com/cmk/connections/-/pipelines)
 
+Read the docs [here](https://cmk.gitlab.io/connections/).
+
 Galois connections as first-class Rust values. Use them to cast lawfully
 between numeric types, expose ceiling/floor/inner alongside each other on
 the same value, and compose ladders of conversions whose round-trip
