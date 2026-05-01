@@ -315,6 +315,34 @@ assert_eq!(U008I016.floor(Extended::NegInf), -1_i16);    // u8::MIN - 1
 
 ### Example 5
 
+Saturating an unsigned width-equal cast — the motivating use case
+behind a real-world unix PID. `std::process::id()` returns a `u32`,
+but `libc::pid_t = i32`, so a naïve `pid_u32 as i32` cast wraps for
+any `u32 > i32::MAX` — silently turning a sentinel-shaped value
+into a negative PID. `U032I032.floor` saturates to `i32::MAX`
+instead, preserving the R-Galois `inner ⊣ floor` law:
+
+```rust
+use connections::conn::ViewR;
+use connections::fixed::i32::U032I032;
+
+// Mid-range u32 PIDs that fit in i32 pass through.
+assert_eq!(U032I032.floor(1_u32),               1_i32);
+assert_eq!(U032I032.floor(i32::MAX as u32),     i32::MAX);
+
+// Anything above i32::MAX saturates — never wraps to negative.
+assert_eq!(U032I032.floor((i32::MAX as u32) + 1), i32::MAX);
+assert_eq!(U032I032.floor(u32::MAX),              i32::MAX);
+
+// Round-trip: i32 → u32 saturates negatives to 0 (the largest
+// u32 satisfying inner(b) ≤ a for any a < 0).
+assert_eq!(U032I032.inner(-1),       0_u32);
+assert_eq!(U032I032.inner(0),        0_u32);
+assert_eq!(U032I032.inner(i32::MAX), i32::MAX as u32);
+```
+
+### Example 6
+
 `Conn` API — accessors and lifters operating on any `Conn`:
 
 ```rust
@@ -338,7 +366,7 @@ assert_eq!(
 );
 ```
 
-### Example 6
+### Example 7
 
 A sub-second `Duration` bracketed via the `time`-crate ladder (the same
 code block is mirrored verbatim into the `time` module-level
@@ -356,7 +384,7 @@ assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
 assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
 ```
 
-### Example 7
+### Example 8
 
 Round-tripping a unix-timestamp through `OffsetDateTime`:
 
@@ -370,7 +398,7 @@ assert_eq!(OFDTNANO.inner(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
 assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
 ```
 
-### Example 5
+### Example 9
 
 Bracketing an IEEE-float number of seconds with `Duration`:
 
@@ -391,7 +419,7 @@ assert_eq!(F064DURN.ceil(nan),  Extended::PosInf);
 assert_eq!(F064DURN.floor(nan), Extended::NegInf);
 ```
 
-### Example 8
+### Example 10
 
 A direct `f64 → f16` narrowing — wrapped with `ExtendedFloat` so it
 satisfies `Eq + PartialOrd` and flows through the law machinery.
