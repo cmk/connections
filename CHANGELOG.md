@@ -43,6 +43,17 @@ cumulative in-development state.
 
 ### Changed (Plan 33 docs/cleanup)
 
+- **Boundary-biased every Q-format proptest strategy.** All
+  `props_for_pair!` macros (5 inline in `src/fixed/i{8,16,32,64,
+  128}.rs`, 5 in `tests/fixed_u{8,16,32,64,128}_galois.rs`) used
+  `any::<TN>().prop_map(...)` — uniform sampling over the full bit-
+  space, which never hits MIN/MAX for TN ≥ 16 bits in any reasonable
+  case-count. Replaced with `prop_oneof![1=>MIN, 1=>MAX, 1=>0|1,
+  8=>any]` per CLAUDE.md's strategy guidance. The Plan 32 saturation-
+  plateau bugs were caught by manual trace, not by these proptests;
+  with the fix, any future regression surfaces at CI. This also makes
+  the `order_reflecting` predicate (above) properly exercise the
+  boundary that was its raison d'être.
 - `prop::conn::floor_le_ceil` doccomment now points at
   `order_reflecting` as the *cause*; rounding sandwich is the
   user-facing fast signal.

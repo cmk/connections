@@ -208,8 +208,18 @@ mod tests {
             $crate::law_battery! {
                 mod $mod_name,
                 conn: $conn,
-                fine:   any::<i64>().prop_map(FixedI64::<$FineFrac>::from_bits),
-                coarse: any::<i64>().prop_map(FixedI64::<$CoarseFrac>::from_bits),
+                fine:   prop_oneof![
+                    1 => Just(FixedI64::<$FineFrac>::from_bits(i64::MIN)),
+                    1 => Just(FixedI64::<$FineFrac>::from_bits(i64::MAX)),
+                    1 => Just(FixedI64::<$FineFrac>::from_bits(0)),
+                    8 => any::<i64>().prop_map(FixedI64::<$FineFrac>::from_bits),
+                ],
+                coarse: prop_oneof![
+                    1 => Just(FixedI64::<$CoarseFrac>::from_bits(i64::MIN)),
+                    1 => Just(FixedI64::<$CoarseFrac>::from_bits(i64::MAX)),
+                    1 => Just(FixedI64::<$CoarseFrac>::from_bits(0)),
+                    8 => any::<i64>().prop_map(FixedI64::<$CoarseFrac>::from_bits),
+                ],
                 subset: l_only,
                 cases: 64,
             }

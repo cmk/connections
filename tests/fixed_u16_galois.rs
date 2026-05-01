@@ -15,8 +15,18 @@ macro_rules! props_for_pair {
         connections::law_battery! {
             mod $mod_name,
             conn: $conn,
-            fine:   any::<u16>().prop_map(FixedU16::<$FineFrac>::from_bits),
-            coarse: any::<u16>().prop_map(FixedU16::<$CoarseFrac>::from_bits),
+            fine:   prop_oneof![
+                1 => Just(FixedU16::<$FineFrac>::from_bits(0)),
+                1 => Just(FixedU16::<$FineFrac>::from_bits(1)),
+                1 => Just(FixedU16::<$FineFrac>::from_bits(u16::MAX)),
+                8 => any::<u16>().prop_map(FixedU16::<$FineFrac>::from_bits),
+            ],
+            coarse: prop_oneof![
+                1 => Just(FixedU16::<$CoarseFrac>::from_bits(0)),
+                1 => Just(FixedU16::<$CoarseFrac>::from_bits(1)),
+                1 => Just(FixedU16::<$CoarseFrac>::from_bits(u16::MAX)),
+                8 => any::<u16>().prop_map(FixedU16::<$CoarseFrac>::from_bits),
+            ],
             subset: l_only,
         }
     };
