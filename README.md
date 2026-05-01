@@ -125,36 +125,74 @@ a (source, rung) pair admits a true triple at all:
 > Equivalently, `floor(a) ≤ ceil(a)` must hold for every `a`.
 
 Both directions of the equivalence are elementary applications of the
-adjunction laws. Sufficiency: combine the two closure laws
-`inner(floor(a)) ≤ a ≤ inner(ceil(a))` and lift through the
-order-embedding `inner`. Necessity: assume `floor(a) ≤ ceil(a)`
-everywhere, take `x, y` with `inner(x) ≤ inner(y)`, and chain
-`x ≤ floor(inner(x)) ≤ ceil(inner(x)) ≤ y` via the kernel of `inner ⊣
-floor`, the assumption at `a = inner(x)`, and L-Galois at `b = y`.
+adjunction laws. Both proofs use only L-Galois `f ⊣ g`, R-Galois
+`g ⊣ h`, monotonicity, and transitivity — no extra assumptions.
 
-When `inner` **isn't** order-reflecting — for example because the rung
-`B` has more values than the source `A` can represent and the
-saturation arms collapse a plateau — there is **no** `floor` function
-that satisfies the rounding sandwich without breaking one of the
-per-side Galois laws. A counterexample: take `A = {a}` (one element)
-and `B = {b₁ < b₂ < b₃}`, with `inner(b) = a` for every `b` (the
-constant map — monotone, but maximally non-injective). Then L-Galois
-forces `ceil(a) = b₁` (the minimum of B) and R-Galois forces
-`floor(a) = b₃` (the maximum). Both per-side adjunctions hold and the
-"triple" looks well-typed, but `floor(a) = b₃ > b₁ = ceil(a)`.
+**Sufficiency** (`inner` order-reflecting ⟹ `floor(a) ≤ ceil(a)`).
+Take any `a ∈ A`. The two closure laws give
 
-Worse, `round(a)` (which compares `inner(floor(a))` and
-`inner(ceil(a))` to pick the closer endpoint) inherits the inverted
-bracket and returns whichever endpoint sits "closer" — which can be
-wildly wrong. So **a connection that fails the rounding sandwich isn't
-just an academic foul; the two-sided helpers actively misbehave on it**.
+```text
+inner(floor(a)) ≤ a ≤ inner(ceil(a))
+```
 
-Where the underlying types make a true triple impossible, this crate
-ships `ConnL` (or `ConnR`) instead. Calling `.floor()` on the
-demoted forms is a compile error — explicit, not a wrong answer at
-runtime. The `prop::conn::law_battery!` `full` subset enforces
-`floor_le_ceil` so future triple markers can't silently re-introduce
-the flaw.
+so by transitivity `inner(floor(a)) ≤ inner(ceil(a))`. Since `inner`
+is order-reflecting, this lifts to `floor(a) ≤ ceil(a)`. ∎
+
+**Necessity** (`floor(a) ≤ ceil(a)` everywhere ⟹ `inner` order-reflecting).
+Take `x, y ∈ B` with `inner(x) ≤ inner(y)`. Chain:
+
+```text
+x ≤ floor(inner(x))     -- kernel of inner ⊣ floor, with b = x
+  ≤ ceil(inner(x))      -- assumption at a = inner(x)
+  ≤ y                   -- L-Galois ceil(a) ≤ b ⟺ a ≤ inner(b),
+                           with a = inner(x), b = y; the RHS
+                           inner(x) ≤ inner(y) is given
+```
+
+So `x ≤ y`. ∎
+
+(Categorically: in an adjoint triple `f ⊣ g ⊣ h` over posets, `g`
+fully faithful ⟺ counit of `g ⊣ h` is iso ⟺ unit of `f ⊣ g` is iso
+⟺ `h ≤ f`. The two displays above are that equivalence written for
+posets, where "fully faithful" reduces to "order-reflecting" and
+"iso" to "equality".)
+
+**Counterexample** — necessity is sharp. Let `A = {a}` (one element)
+and `B = {b₁ < b₂ < b₃}`, with `inner: B → A` the constant map
+(`inner(b) = a` for every `b` — monotone but maximally non-injective).
+Watch what the per-side Galois laws force:
+
+- L-Galois `ceil(a) ≤ b ⟺ a ≤ inner(b)`. The RHS reduces to `a ≤ a`,
+  which is always true, so `ceil(a) ≤ b` for *every* `b ∈ B`. The
+  smallest such `b` is `b₁`, so **`ceil(a) = b₁`**.
+- R-Galois `inner(b) ≤ a ⟺ b ≤ floor(a)`. The LHS reduces to `a ≤ a`,
+  always true, so `b ≤ floor(a)` for *every* `b`, giving
+  **`floor(a) = b₃`**.
+
+Both per-side adjunctions hold, every monotonicity check passes — and
+yet `floor(a) = b₃ > b₁ = ceil(a)`. The "triple" type-checks and the
+per-side laws are satisfied, but the rounding sandwich is *inverted*.
+
+The two-sided helpers inherit the inversion. `round(a)` compares
+`inner(floor(a)) = a` with `inner(ceil(a)) = a` to pick the closer
+endpoint, finds them equal, and falls through to `truncate`, which
+returns whichever side the source-zero rule selects — a value with no
+in-band signal that anything is wrong. **A connection that fails the
+rounding sandwich isn't an academic foul; the two-sided helpers
+actively misbehave on it.**
+
+Where the underlying types make a true triple impossible (the
+`STDRU128`-shaped saturation, the `ext_int!`-shaped Extended<>
+collapse, the `fix_fix_*!`-shaped Q-format plateau) this crate ships
+`ConnL` (or `ConnR`) instead. Calling `.floor()` on the demoted forms
+is a compile error — explicit, not a wrong answer at runtime. The
+`prop::conn::law_battery!` `full` subset enforces both
+[`order_reflecting`] (the load-bearing predicate) and its corollary
+[`floor_le_ceil`] so future triple markers can't silently re-introduce
+the flaw — a violation aborts `cargo test`, not a downstream caller.
+
+[`order_reflecting`]: https://docs.rs/connections/latest/connections/prop/conn/fn.order_reflecting.html
+[`floor_le_ceil`]: https://docs.rs/connections/latest/connections/prop/conn/fn.floor_le_ceil.html
 
 ## Quick tour
 
@@ -334,6 +372,10 @@ The default-method dispatch on `ViewL` / `ViewR` lets you call
 `.ceiling()` / `.floor()` on the marker directly when both traits are
 in scope.
 
+(`triple!` only ships a *true* adjoint triple — many natural cast
+families don't admit one. See [*Why one-sided?*](#why-one-sided) above
+for the necessary and sufficient condition.)
+
 ### Example 4
 
 Integer widening through `Extended<T>` (so values *outside* the source
@@ -417,6 +459,10 @@ assert_eq!(
     U008I016::L.upper(U008I016::L.ceiling(Extended::Finite(200_u8))),
 );
 ```
+
+(`U008I016` here is `ConnL`, not a triple — the `::L` projection is
+implicit. See [*Why one-sided?*](#why-one-sided) above for why most
+integer-widening casts of this shape can't ship as a triple.)
 
 ### Example 7
 
