@@ -114,6 +114,52 @@ pub(crate) use impl_float_ext;
 impl_float_ext!(f32);
 impl_float_ext!(f64);
 
+impl<T> ExtendedFloat<T> {
+    /// Catamorphism: collapse an `ExtendedFloat<T>` to a `U` by
+    /// supplying one value per variant.
+    ///
+    /// The Rust analogue of Haskell's
+    /// `extendedFloat :: ExtendedFloat a -> b -> b -> (a -> b) -> b`.
+    /// Argument order follows Rust's closure-last convention
+    /// (`Iterator::fold`, `Option::map_or`).
+    ///
+    /// Endpoint arms are evaluated eagerly. For lazy endpoints, see
+    /// [`ExtendedFloat::fold_with`].
+    ///
+    /// ```
+    /// use connections::float::ExtendedFloat;
+    ///
+    /// fn classify(x: ExtendedFloat<f64>) -> &'static str {
+    ///     x.fold("below", "above", |_| "in range")
+    /// }
+    /// assert_eq!(classify(ExtendedFloat::Bot), "below");
+    /// assert_eq!(classify(ExtendedFloat::Extend(1.5)), "in range");
+    /// assert_eq!(classify(ExtendedFloat::Top), "above");
+    /// ```
+    pub fn fold<U>(self, bot: U, top: U, f: impl FnOnce(T) -> U) -> U {
+        match self {
+            ExtendedFloat::Bot => bot,
+            ExtendedFloat::Extend(t) => f(t),
+            ExtendedFloat::Top => top,
+        }
+    }
+
+    /// Lazy variant of [`ExtendedFloat::fold`]: each arm is produced
+    /// on demand. Mirrors `Option::map_or_else`.
+    pub fn fold_with<U>(
+        self,
+        bot: impl FnOnce() -> U,
+        top: impl FnOnce() -> U,
+        f: impl FnOnce(T) -> U,
+    ) -> U {
+        match self {
+            ExtendedFloat::Bot => bot(),
+            ExtendedFloat::Extend(t) => f(t),
+            ExtendedFloat::Top => top(),
+        }
+    }
+}
+
 // ── Numeric impls for `ExtendedFloat<f32 | f64>`.
 //
 // `ExtendedFloat<T>` represents `Maybe R̄` — the extended real line
@@ -768,6 +814,85 @@ pub(crate) use def_walk_helpers;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prop::arb::extended_float_f64;
+    use proptest::prelude::*;
+    use std::cell::Cell;
+
+    // ── ExtendedFloat::fold / fold_with ────────────────────────────
+
+    #[test]
+    fn extfloat_fold_bot() {
+        assert_eq!(ExtendedFloat::<f64>::Bot.fold(-1, 1, |_| 0), -1);
+    }
+
+    #[test]
+    fn extfloat_fold_extend() {
+        assert_eq!(ExtendedFloat::Extend(3.0_f64).fold(-1, 1, |v| v as i32), 3);
+    }
+
+    #[test]
+    fn extfloat_fold_top() {
+        assert_eq!(ExtendedFloat::<f64>::Top.fold(-1, 1, |_| 0), 1);
+    }
+
+    #[test]
+    fn extfloat_fold_with_skips_unselected_arms() {
+        let variants: [ExtendedFloat<f64>; 3] = [
+            ExtendedFloat::Bot,
+            ExtendedFloat::Extend(2.5),
+            ExtendedFloat::Top,
+        ];
+        for x in variants {
+            let bot_called = Cell::new(false);
+            let top_called = Cell::new(false);
+            let ext_called = Cell::new(false);
+            let _ = x.fold_with(
+                || {
+                    bot_called.set(true);
+                    0i32
+                },
+                || {
+                    top_called.set(true);
+                    0
+                },
+                |_| {
+                    ext_called.set(true);
+                    0
+                },
+            );
+            match x {
+                ExtendedFloat::Bot => {
+                    assert!(bot_called.get());
+                    assert!(!top_called.get() && !ext_called.get());
+                }
+                ExtendedFloat::Extend(_) => {
+                    assert!(ext_called.get());
+                    assert!(!bot_called.get() && !top_called.get());
+                }
+                ExtendedFloat::Top => {
+                    assert!(top_called.get());
+                    assert!(!bot_called.get() && !ext_called.get());
+                }
+            }
+        }
+    }
+
+    proptest! {
+        // `fold_with (const gx) (const gy) f` agrees with
+        // `fold gx gy f`. Codomain is `i64` (via `to_bits`) so NaN
+        // doesn't break PartialEq on the result.
+        #[test]
+        fn extfloat_fold_with_const_agrees_with_fold(
+            x in extended_float_f64(),
+            gx in any::<i64>(),
+            gy in any::<i64>(),
+        ) {
+            let f = |v: f64| v.to_bits() as i64;
+            let lazy = x.fold_with(|| gx, || gy, f);
+            let strict = x.fold(gx, gy, f);
+            prop_assert_eq!(lazy, strict);
+        }
+    }
 
     // ── 32-bit ULP sanity ──────────────────────────────────────────
 
