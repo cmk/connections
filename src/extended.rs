@@ -62,8 +62,9 @@ impl<T> Extended<T> {
         }
     }
 
-    /// Lazy variant of [`Extended::fold`]: each arm is produced on
-    /// demand. Mirrors `Option::map_or_else`.
+    /// Lazy variant of [`Extended::fold`]: all three arms are wrapped
+    /// in [`FnOnce`] closures and only the matched arm is called.
+    /// Use when any endpoint default is expensive to compute.
     pub fn fold_with<U>(
         self,
         neg_inf: impl FnOnce() -> U,

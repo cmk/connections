@@ -114,6 +114,9 @@ pub(crate) use impl_float_ext;
 impl_float_ext!(f32);
 impl_float_ext!(f64);
 
+// Generic `impl<T>` block — the catamorphism extractors don't touch
+// inner-T arithmetic, so they live outside the per-T
+// `impl_float_arith!` macro below and apply to any `ExtendedFloat<T>`.
 impl<T> ExtendedFloat<T> {
     /// Catamorphism: collapse an `ExtendedFloat<T>` to a `U` by
     /// supplying one value per variant.
@@ -144,8 +147,9 @@ impl<T> ExtendedFloat<T> {
         }
     }
 
-    /// Lazy variant of [`ExtendedFloat::fold`]: each arm is produced
-    /// on demand. Mirrors `Option::map_or_else`.
+    /// Lazy variant of [`ExtendedFloat::fold`]: all three arms are
+    /// wrapped in [`FnOnce`] closures and only the matched arm is
+    /// called. Use when any endpoint default is expensive to compute.
     pub fn fold_with<U>(
         self,
         bot: impl FnOnce() -> U,
