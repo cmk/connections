@@ -703,13 +703,6 @@ macro_rules! iso {
 ///     }
 /// }
 /// ```
-///
-/// Expands to:
-///
-/// ```ignore
-/// pub const TIMENANO: ConnL<Extended<Time>, i64> =
-///     Conn::new_l(time_to_ns, ns_to_time);
-/// ```
 #[macro_export]
 macro_rules! conn_l {
     (
@@ -742,12 +735,6 @@ macro_rules! conn_l {
 ///         floor: i_to_u,
 ///     }
 /// }
-/// ```
-///
-/// Expands to:
-///
-/// ```ignore
-/// pub const UFOO: ConnR<u8, i8> = Conn::new_r(u_to_i, i_to_u);
 /// ```
 #[macro_export]
 macro_rules! conn_r {
