@@ -290,12 +290,14 @@ def cmd_run(args: argparse.Namespace) -> int:
     changed = changed_files_since_last(audit)
     if args.force:
         # Force mode: audit the full pathspec
-        changed = subprocess.run(
+        result = subprocess.run(
             ["git", "ls-files", "--", *audit.paths],
             capture_output=True,
             text=True,
             cwd=REPO_ROOT,
-        ).stdout.splitlines()
+            check=True,
+        )
+        changed = result.stdout.splitlines()
     elif not changed:
         print(f"audit_run.py: '{audit.name}' — no changed files since last run; skip")
         return 0
@@ -319,14 +321,26 @@ def cmd_cron_tick(_args: argparse.Namespace) -> int:
     if not due:
         # Silent on no-op days — cron mail stays quiet
         return 0
+    failures: list[tuple[str, BaseException]] = []
     for audit in due:
-        changed = changed_files_since_last(audit)
-        if not changed:
-            continue  # early-exit; nothing changed under audit's paths
-        print(f"audit_run.py: cron-tick running '{audit.name}'")
-        output = invoke_codex(audit, changed)
-        append_to_log(audit, output, today)
-        mark_audited(audit)
+        try:
+            changed = changed_files_since_last(audit)
+            if not changed:
+                continue  # early-exit; nothing changed under audit's paths
+            print(f"audit_run.py: cron-tick running '{audit.name}'")
+            output = invoke_codex(audit, changed)
+            append_to_log(audit, output, today)
+            mark_audited(audit)
+        except Exception as exc:
+            # Don't let one audit's failure suppress the rest of today's
+            # due audits. Collect and report at the end so cron mail
+            # surfaces failures while successful audits still get pinned.
+            print(f"audit_run.py: cron-tick '{audit.name}' failed: {exc}", file=sys.stderr)
+            failures.append((audit.name, exc))
+    if failures:
+        names = ", ".join(name for name, _ in failures)
+        print(f"audit_run.py: cron-tick completed with {len(failures)} failure(s): {names}", file=sys.stderr)
+        return 1
     return 0
 
 
