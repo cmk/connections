@@ -40,7 +40,6 @@
 //! );
 //! ```
 
-use crate::conn::Conn;
 use crate::extended::Extended;
 use time::{Date, OffsetDateTime, Time, UtcOffset};
 
@@ -117,171 +116,177 @@ fn utc_max_s() -> i64 {
 
 // ── OFDTNANO ─────────────────────────────────────────────────────
 
-/// `Extended<OffsetDateTime> → i128` — unix nanoseconds since
-/// `OffsetDateTime::UNIX_EPOCH`.
-///
-/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`):
-/// `inner: i128 → Extended<OffsetDateTime>` saturates out-of-range
-/// `i128` values onto `Extended::NegInf` / `Extended::PosInf`, which
-/// makes `inner` non-order-reflecting at the synthetic extremes. The
-/// constructor wires `floor = ceil` as a fn pointer so `floor(a) ≤
-/// ceil(a)` holds structurally over the full source domain.
-///
-/// Lossless across the full default-features OffsetDateTime range
-/// (year ±9999 ≈ ±3.16 × 10²⁰ ns, comfortably inside `i128`'s
-/// ±1.7 × 10³⁸ envelope). On the `Finite` portion this is an exact
-/// bijection on the instant.
-///
-/// Two OffsetDateTimes representing the same instant in different
-/// offsets compare equal under `time` 0.3's `PartialEq` and so map
-/// to the same `i128`. `inner` returns the UTC representative.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::time::OFDTNANO;
-/// use connections::extended::Extended;
-/// use time::OffsetDateTime;
-///
-/// assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
-/// assert_eq!(OFDTNANO.inner(1_000_000_000), Extended::Finite(
-///     OffsetDateTime::UNIX_EPOCH + time::Duration::seconds(1),
-/// ));
-///
-/// // Out-of-range nanoseconds saturate.
-/// assert_eq!(OFDTNANO.inner(i128::MAX), Extended::PosInf);
-/// ```
-pub const OFDTNANO: crate::conn::ConnL<Extended<OffsetDateTime>, i128> = {
-    fn ceil(o: Extended<OffsetDateTime>) -> i128 {
-        let min_ns = utc_min_ns();
-        let max_ns = utc_max_ns();
-        match o {
-            Extended::NegInf => i128::MIN,
-            Extended::Finite(odt) => {
-                let n = odt.unix_timestamp_nanos();
-                // OFDT's instant range exceeds the UTC range its rung
-                // covers; saturate the rung to ±(UTC_bounds ± 1) when
-                // the instant escapes via a non-UTC offset.
-                if n < min_ns {
-                    min_ns
-                } else if n > max_ns {
-                    max_ns + 1
-                } else {
-                    n
-                }
-            }
-            Extended::PosInf => max_ns + 1,
-        }
-    }
-
-    fn inner(n: i128) -> Extended<OffsetDateTime> {
-        let min_ns = utc_min_ns();
-        let max_ns = utc_max_ns();
-        if n < min_ns {
-            Extended::NegInf
-        } else if n > max_ns {
-            Extended::PosInf
-        } else {
-            match OffsetDateTime::from_unix_timestamp_nanos(n) {
-                Ok(odt) => Extended::Finite(odt),
-                Err(_) => unreachable!("n in [utc_min_ns, utc_max_ns]"),
+fn ofdtnano_ceil(o: Extended<OffsetDateTime>) -> i128 {
+    let min_ns = utc_min_ns();
+    let max_ns = utc_max_ns();
+    match o {
+        Extended::NegInf => i128::MIN,
+        Extended::Finite(odt) => {
+            let n = odt.unix_timestamp_nanos();
+            // OFDT's instant range exceeds the UTC range its rung
+            // covers; saturate the rung to ±(UTC_bounds ± 1) when
+            // the instant escapes via a non-UTC offset.
+            if n < min_ns {
+                min_ns
+            } else if n > max_ns {
+                max_ns + 1
+            } else {
+                n
             }
         }
+        Extended::PosInf => max_ns + 1,
     }
+}
 
-    Conn::new_l(ceil, inner)
-};
+fn ofdtnano_inner(n: i128) -> Extended<OffsetDateTime> {
+    let min_ns = utc_min_ns();
+    let max_ns = utc_max_ns();
+    if n < min_ns {
+        Extended::NegInf
+    } else if n > max_ns {
+        Extended::PosInf
+    } else {
+        match OffsetDateTime::from_unix_timestamp_nanos(n) {
+            Ok(odt) => Extended::Finite(odt),
+            Err(_) => unreachable!("n in [utc_min_ns, utc_max_ns]"),
+        }
+    }
+}
+
+crate::conn_l! {
+    /// `Extended<OffsetDateTime> → i128` — unix nanoseconds since
+    /// `OffsetDateTime::UNIX_EPOCH`.
+    ///
+    /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`):
+    /// `inner: i128 → Extended<OffsetDateTime>` saturates out-of-range
+    /// `i128` values onto `Extended::NegInf` / `Extended::PosInf`, which
+    /// makes `inner` non-order-reflecting at the synthetic extremes. The
+    /// constructor wires `floor = ceil` as a fn pointer so `floor(a) ≤
+    /// ceil(a)` holds structurally over the full source domain.
+    ///
+    /// Lossless across the full default-features OffsetDateTime range
+    /// (year ±9999 ≈ ±3.16 × 10²⁰ ns, comfortably inside `i128`'s
+    /// ±1.7 × 10³⁸ envelope). On the `Finite` portion this is an exact
+    /// bijection on the instant.
+    ///
+    /// Two OffsetDateTimes representing the same instant in different
+    /// offsets compare equal under `time` 0.3's `PartialEq` and so map
+    /// to the same `i128`. `inner` returns the UTC representative.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::time::OFDTNANO;
+    /// use connections::extended::Extended;
+    /// use time::OffsetDateTime;
+    ///
+    /// assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
+    /// assert_eq!(OFDTNANO.inner(1_000_000_000), Extended::Finite(
+    ///     OffsetDateTime::UNIX_EPOCH + time::Duration::seconds(1),
+    /// ));
+    ///
+    /// // Out-of-range nanoseconds saturate.
+    /// assert_eq!(OFDTNANO.inner(i128::MAX), Extended::PosInf);
+    /// ```
+    pub OFDTNANO : Extended<OffsetDateTime> => i128 {
+        ceil:  ofdtnano_ceil,
+        inner: ofdtnano_inner,
+    }
+}
 
 // ── OFDTSECS ─────────────────────────────────────────────────────
 
-/// `Extended<OffsetDateTime> → i64` — unix whole seconds since
-/// `OffsetDateTime::UNIX_EPOCH`, rounding sub-second fractions up to
-/// the next whole second.
-///
-/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`). Two
-/// reasons it can't ship as a full triple:
-///
-/// - `inner` saturates out-of-range `i64` values to
-///   `Extended::NegInf` / `Extended::PosInf`, making it non-order-
-///   reflecting at the synthetic source extremes.
-/// - On Finite sub-second inputs, the natural `ceil` (round up) and
-///   `floor` (truncate) differ; the constructor wires `floor = ceil`
-///   as a fn pointer so the law holds structurally.
-///
-/// **Behavioral note on rounding:** `ceil(Finite(odt))` =
-/// `odt.unix_timestamp() + 1` when `odt.nanosecond() != 0`, otherwise
-/// `odt.unix_timestamp()`. Because `floor = ceil` under `new_left`,
-/// callers reading `OFDTSECS.ceil(odt)` get the **rounded-up**
-/// answer, not the truncated one (`unix_timestamp()` is itself
-/// `floor`-shaped in the `time` crate). Callers needing the
-/// truncating direction can compute `odt.unix_timestamp()` directly.
-///
-/// `i64` is wide enough for the full OffsetDateTime range (`±3.16 ×
-/// 10¹¹` s, comfortably inside `i64`'s `±9.22 × 10¹⁸`), so the only
-/// saturation happens on the outer `Extended` source arms.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::time::OFDTSECS;
-/// use connections::extended::Extended;
-/// use time::{Duration, OffsetDateTime};
-///
-/// // Exact second.
-/// assert_eq!(OFDTSECS.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
-///
-/// // Sub-second past epoch: ceil rounds up.
-/// let mid = OffsetDateTime::UNIX_EPOCH + Duration::nanoseconds(1);
-/// assert_eq!(OFDTSECS.ceil(Extended::Finite(mid)), 1);
-/// ```
-pub const OFDTSECS: crate::conn::ConnL<Extended<OffsetDateTime>, i64> = {
-    fn ceil(o: Extended<OffsetDateTime>) -> i64 {
-        let min_s = utc_min_s();
-        let max_s = utc_max_s();
-        match o {
-            Extended::NegInf => i64::MIN,
-            Extended::Finite(odt) => {
-                let s = odt.unix_timestamp();
-                if s < min_s {
-                    // Instant below UTC range — smallest rung Finite
-                    // value is min_s.
-                    min_s
-                } else if s >= max_s {
-                    // Instant at or beyond UTC max: ceil bumps past
-                    // max_s into the saturation marker.
-                    if s > max_s || odt.nanosecond() != 0 {
-                        max_s + 1
-                    } else {
-                        max_s
-                    }
-                } else if odt.nanosecond() != 0 {
-                    // Sub-second past s — ceil rounds up by one.
-                    s + 1
+fn ofdtsecs_ceil(o: Extended<OffsetDateTime>) -> i64 {
+    let min_s = utc_min_s();
+    let max_s = utc_max_s();
+    match o {
+        Extended::NegInf => i64::MIN,
+        Extended::Finite(odt) => {
+            let s = odt.unix_timestamp();
+            if s < min_s {
+                // Instant below UTC range — smallest rung Finite
+                // value is min_s.
+                min_s
+            } else if s >= max_s {
+                // Instant at or beyond UTC max: ceil bumps past
+                // max_s into the saturation marker.
+                if s > max_s || odt.nanosecond() != 0 {
+                    max_s + 1
                 } else {
-                    s
+                    max_s
                 }
-            }
-            Extended::PosInf => max_s + 1,
-        }
-    }
-
-    fn inner(s: i64) -> Extended<OffsetDateTime> {
-        let min_s = utc_min_s();
-        let max_s = utc_max_s();
-        if s < min_s {
-            Extended::NegInf
-        } else if s > max_s {
-            Extended::PosInf
-        } else {
-            match OffsetDateTime::from_unix_timestamp(s) {
-                Ok(odt) => Extended::Finite(odt),
-                Err(_) => unreachable!("s in [utc_min_s, utc_max_s]"),
+            } else if odt.nanosecond() != 0 {
+                // Sub-second past s — ceil rounds up by one.
+                s + 1
+            } else {
+                s
             }
         }
+        Extended::PosInf => max_s + 1,
     }
+}
 
-    Conn::new_l(ceil, inner)
-};
+fn ofdtsecs_inner(s: i64) -> Extended<OffsetDateTime> {
+    let min_s = utc_min_s();
+    let max_s = utc_max_s();
+    if s < min_s {
+        Extended::NegInf
+    } else if s > max_s {
+        Extended::PosInf
+    } else {
+        match OffsetDateTime::from_unix_timestamp(s) {
+            Ok(odt) => Extended::Finite(odt),
+            Err(_) => unreachable!("s in [utc_min_s, utc_max_s]"),
+        }
+    }
+}
+
+crate::conn_l! {
+    /// `Extended<OffsetDateTime> → i64` — unix whole seconds since
+    /// `OffsetDateTime::UNIX_EPOCH`, rounding sub-second fractions up to
+    /// the next whole second.
+    ///
+    /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`). Two
+    /// reasons it can't ship as a full triple:
+    ///
+    /// - `inner` saturates out-of-range `i64` values to
+    ///   `Extended::NegInf` / `Extended::PosInf`, making it non-order-
+    ///   reflecting at the synthetic source extremes.
+    /// - On Finite sub-second inputs, the natural `ceil` (round up) and
+    ///   `floor` (truncate) differ; the constructor wires `floor = ceil`
+    ///   as a fn pointer so the law holds structurally.
+    ///
+    /// **Behavioral note on rounding:** `ceil(Finite(odt))` =
+    /// `odt.unix_timestamp() + 1` when `odt.nanosecond() != 0`, otherwise
+    /// `odt.unix_timestamp()`. Because `floor = ceil` under `new_left`,
+    /// callers reading `OFDTSECS.ceil(odt)` get the **rounded-up**
+    /// answer, not the truncated one (`unix_timestamp()` is itself
+    /// `floor`-shaped in the `time` crate). Callers needing the
+    /// truncating direction can compute `odt.unix_timestamp()` directly.
+    ///
+    /// `i64` is wide enough for the full OffsetDateTime range (`±3.16 ×
+    /// 10¹¹` s, comfortably inside `i64`'s `±9.22 × 10¹⁸`), so the only
+    /// saturation happens on the outer `Extended` source arms.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::time::OFDTSECS;
+    /// use connections::extended::Extended;
+    /// use time::{Duration, OffsetDateTime};
+    ///
+    /// // Exact second.
+    /// assert_eq!(OFDTSECS.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
+    ///
+    /// // Sub-second past epoch: ceil rounds up.
+    /// let mid = OffsetDateTime::UNIX_EPOCH + Duration::nanoseconds(1);
+    /// assert_eq!(OFDTSECS.ceil(Extended::Finite(mid)), 1);
+    /// ```
+    pub OFDTSECS : Extended<OffsetDateTime> => i64 {
+        ceil:  ofdtsecs_ceil,
+        inner: ofdtsecs_inner,
+    }
+}
 
 #[cfg(test)]
 mod ofdt_tests {

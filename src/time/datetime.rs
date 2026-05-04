@@ -3,76 +3,78 @@
 //! Hosts [`PDTMDATE`] — drops sub-day time fragments to a calendar-
 //! date rung.
 
-use crate::conn::Conn;
 use crate::extended::Extended;
 use time::{Date, PrimitiveDateTime, Time};
 
-/// `PrimitiveDateTime → Extended<Date>` — naive datetime ↔ calendar
-/// date, rounding sub-day fractions up to the next whole day.
-///
-/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`).
-/// `inner` is non-injective at the source extremes — both
-/// `inner(NegInf)` and `inner(Finite(Date::MIN))` decode to
-/// `PrimitiveDateTime::MIN` (per the `time` crate's representation),
-/// which makes `inner` non-order-reflecting on the rung side. The
-/// constructor wires `floor = ceil` as a fn pointer so `floor(a) ≤
-/// ceil(a)` holds structurally.
-///
-/// **Behavioral note on rounding:** `ceil(p) = Finite(p.date())` when
-/// `p.time() == MIDNIGHT`, otherwise `Finite(p.date().next_day())`
-/// (or `PosInf` if `p.date() == Date::MAX` and `p` carries a sub-day
-/// fraction). Because `floor = ceil` under `new_left`, callers
-/// reading `PDTMDATE.ceil(p)` get the **rounded-up** answer (next
-/// day), not the truncated `Finite(p.date())` they'd get under the
-/// previous full-triple. Callers needing the truncating direction
-/// can compute it explicitly: `Extended::Finite(p.date())` for `p !=
-/// PrimitiveDateTime::MAX`.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::time::PDTMDATE;
-/// use connections::extended::Extended;
-/// use time::{Date, Month, PrimitiveDateTime, Time};
-///
-/// let day = Date::from_calendar_date(2026, Month::April, 26).unwrap();
-///
-/// // Midnight: ceil resolves to the same day.
-/// let p_midnight = PrimitiveDateTime::new(day, Time::MIDNIGHT);
-/// assert_eq!(PDTMDATE.ceil(p_midnight), Extended::Finite(day));
-///
-/// // Any later time: ceil rolls forward to next day.
-/// let p_later = PrimitiveDateTime::new(day, Time::from_hms(0, 0, 1).unwrap());
-/// assert_eq!(PDTMDATE.ceil(p_later), Extended::Finite(day.next_day().unwrap()));
-///
-/// assert_eq!(PDTMDATE.inner(Extended::Finite(day)), p_midnight);
-/// ```
-pub const PDTMDATE: crate::conn::ConnL<PrimitiveDateTime, Extended<Date>> = {
-    fn ceil(p: PrimitiveDateTime) -> Extended<Date> {
-        if p.eq(&PrimitiveDateTime::MIN) {
-            return Extended::NegInf;
-        }
-        let d = p.date();
-        if p.time().eq(&Time::MIDNIGHT) {
-            return Extended::Finite(d);
-        }
-        // time() > MIDNIGHT — round up to the next day.
-        match d.next_day() {
-            Some(next) => Extended::Finite(next),
-            None => Extended::PosInf,
-        }
+fn pdtmdate_ceil(p: PrimitiveDateTime) -> Extended<Date> {
+    if p.eq(&PrimitiveDateTime::MIN) {
+        return Extended::NegInf;
     }
-
-    fn inner(b: Extended<Date>) -> PrimitiveDateTime {
-        match b {
-            Extended::NegInf => PrimitiveDateTime::MIN,
-            Extended::Finite(d) => PrimitiveDateTime::new(d, Time::MIDNIGHT),
-            Extended::PosInf => PrimitiveDateTime::MAX,
-        }
+    let d = p.date();
+    if p.time().eq(&Time::MIDNIGHT) {
+        return Extended::Finite(d);
     }
+    // time() > MIDNIGHT — round up to the next day.
+    match d.next_day() {
+        Some(next) => Extended::Finite(next),
+        None => Extended::PosInf,
+    }
+}
 
-    Conn::new_l(ceil, inner)
-};
+fn pdtmdate_inner(b: Extended<Date>) -> PrimitiveDateTime {
+    match b {
+        Extended::NegInf => PrimitiveDateTime::MIN,
+        Extended::Finite(d) => PrimitiveDateTime::new(d, Time::MIDNIGHT),
+        Extended::PosInf => PrimitiveDateTime::MAX,
+    }
+}
+
+crate::conn_l! {
+    /// `PrimitiveDateTime → Extended<Date>` — naive datetime ↔ calendar
+    /// date, rounding sub-day fractions up to the next whole day.
+    ///
+    /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`).
+    /// `inner` is non-injective at the source extremes — both
+    /// `inner(NegInf)` and `inner(Finite(Date::MIN))` decode to
+    /// `PrimitiveDateTime::MIN` (per the `time` crate's representation),
+    /// which makes `inner` non-order-reflecting on the rung side. The
+    /// constructor wires `floor = ceil` as a fn pointer so `floor(a) ≤
+    /// ceil(a)` holds structurally.
+    ///
+    /// **Behavioral note on rounding:** `ceil(p) = Finite(p.date())` when
+    /// `p.time() == MIDNIGHT`, otherwise `Finite(p.date().next_day())`
+    /// (or `PosInf` if `p.date() == Date::MAX` and `p` carries a sub-day
+    /// fraction). Because `floor = ceil` under `new_left`, callers
+    /// reading `PDTMDATE.ceil(p)` get the **rounded-up** answer (next
+    /// day), not the truncated `Finite(p.date())` they'd get under the
+    /// previous full-triple. Callers needing the truncating direction
+    /// can compute it explicitly: `Extended::Finite(p.date())` for `p !=
+    /// PrimitiveDateTime::MAX`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::time::PDTMDATE;
+    /// use connections::extended::Extended;
+    /// use time::{Date, Month, PrimitiveDateTime, Time};
+    ///
+    /// let day = Date::from_calendar_date(2026, Month::April, 26).unwrap();
+    ///
+    /// // Midnight: ceil resolves to the same day.
+    /// let p_midnight = PrimitiveDateTime::new(day, Time::MIDNIGHT);
+    /// assert_eq!(PDTMDATE.ceil(p_midnight), Extended::Finite(day));
+    ///
+    /// // Any later time: ceil rolls forward to next day.
+    /// let p_later = PrimitiveDateTime::new(day, Time::from_hms(0, 0, 1).unwrap());
+    /// assert_eq!(PDTMDATE.ceil(p_later), Extended::Finite(day.next_day().unwrap()));
+    ///
+    /// assert_eq!(PDTMDATE.inner(Extended::Finite(day)), p_midnight);
+    /// ```
+    pub PDTMDATE : PrimitiveDateTime => Extended<Date> {
+        ceil:  pdtmdate_ceil,
+        inner: pdtmdate_inner,
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -6,173 +6,177 @@
 //! - [`TIMESECS`] — whole seconds since midnight, with sub-second
 //!   rounding.
 
-use crate::conn::Conn;
 use crate::extended::Extended;
 use time::Time;
 
-/// `Extended<Time> → i64` — clock time ↔ nanoseconds-since-midnight.
-///
-/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`):
-/// `inner: i64 → Extended<Time>` saturates `i64` values outside
-/// `[0, 86_400 × 10⁹)` onto `Extended::NegInf` / `Extended::PosInf`,
-/// which makes `inner` non-order-reflecting at the synthetic
-/// extremes. The constructor wires `floor = ceil` as a fn pointer so
-/// `floor(a) ≤ ceil(a)` holds structurally over the full source
-/// domain.
-///
-/// On the `Finite` portion this is an exact bijection: every
-/// `Time` value corresponds to exactly one `i64` in
-/// `[0, 86_400 × 10⁹)`, and every such `i64` decodes to a unique
-/// `Time`. `Time` carries no finer-than-nanosecond fraction, so
-/// `ceil(Finite(t))` is exact.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::time::TIMENANO;
-/// use connections::extended::Extended;
-/// use time::Time;
-///
-/// assert_eq!(TIMENANO.ceil(Extended::Finite(Time::MIDNIGHT)), 0);
-/// assert_eq!(
-///     TIMENANO.ceil(Extended::Finite(
-///         Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap(),
-///     )),
-///     86_399_999_999_999,
-/// );
-/// assert_eq!(
-///     TIMENANO.inner(43_200_000_000_000),
-///     Extended::Finite(Time::from_hms(12, 0, 0).unwrap()),
-/// );
-///
-/// // Out-of-range nanoseconds saturate.
-/// assert_eq!(TIMENANO.inner(-1), Extended::NegInf);
-/// assert_eq!(TIMENANO.inner(86_400_000_000_000), Extended::PosInf);
-/// ```
-pub const TIMENANO: crate::conn::ConnL<Extended<Time>, i64> = {
-    const NS_PER_HOUR: i64 = 3_600_000_000_000;
-    const NS_PER_MIN: i64 = 60_000_000_000;
-    const NS_PER_SEC: i64 = 1_000_000_000;
-    const NS_MAX: i64 = 86_400 * NS_PER_SEC - 1;
+const NS_PER_HOUR: i64 = 3_600_000_000_000;
+const NS_PER_MIN: i64 = 60_000_000_000;
+const NS_PER_SEC: i64 = 1_000_000_000;
+const NS_MAX: i64 = 86_400 * NS_PER_SEC - 1;
+const SECS_MAX: i64 = 86_400 - 1;
 
-    fn time_to_ns(t: Time) -> i64 {
-        let (h, m, s, ns) = t.as_hms_nano();
-        h as i64 * NS_PER_HOUR + m as i64 * NS_PER_MIN + s as i64 * NS_PER_SEC + ns as i64
+fn time_to_ns(t: Time) -> i64 {
+    let (h, m, s, ns) = t.as_hms_nano();
+    h as i64 * NS_PER_HOUR + m as i64 * NS_PER_MIN + s as i64 * NS_PER_SEC + ns as i64
+}
+
+fn ns_to_time(ns: i64) -> Time {
+    let h = (ns / NS_PER_HOUR) as u8;
+    let m = ((ns / NS_PER_MIN) % 60) as u8;
+    let s = ((ns / NS_PER_SEC) % 60) as u8;
+    let n = (ns % NS_PER_SEC) as u32;
+    match Time::from_hms_nano(h, m, s, n) {
+        Ok(t) => t,
+        Err(_) => unreachable!("ns in [0, NS_MAX] decomposes to valid HMS-nano"),
     }
+}
 
-    fn ns_to_time(ns: i64) -> Time {
-        let h = (ns / NS_PER_HOUR) as u8;
-        let m = ((ns / NS_PER_MIN) % 60) as u8;
-        let s = ((ns / NS_PER_SEC) % 60) as u8;
-        let n = (ns % NS_PER_SEC) as u32;
-        match Time::from_hms_nano(h, m, s, n) {
-            Ok(t) => t,
-            Err(_) => unreachable!("ns in [0, NS_MAX] decomposes to valid HMS-nano"),
+fn timenano_ceil(t: Extended<Time>) -> i64 {
+    match t {
+        Extended::NegInf => i64::MIN,
+        Extended::Finite(time) => time_to_ns(time),
+        Extended::PosInf => NS_MAX + 1,
+    }
+}
+
+fn timenano_inner(ns: i64) -> Extended<Time> {
+    if ns < 0 {
+        Extended::NegInf
+    } else if ns > NS_MAX {
+        Extended::PosInf
+    } else {
+        Extended::Finite(ns_to_time(ns))
+    }
+}
+
+fn whole_sec(t: Time) -> i64 {
+    let (h, m, s, _ns) = t.as_hms_nano();
+    h as i64 * 3600 + m as i64 * 60 + s as i64
+}
+
+fn timesecs_ceil(t: Extended<Time>) -> i64 {
+    match t {
+        Extended::NegInf => i64::MIN,
+        Extended::Finite(time) => {
+            let s = whole_sec(time);
+            if time.nanosecond() != 0 { s + 1 } else { s }
+        }
+        Extended::PosInf => SECS_MAX + 1,
+    }
+}
+
+fn timesecs_inner(secs: i64) -> Extended<Time> {
+    if secs < 0 {
+        Extended::NegInf
+    } else if secs > SECS_MAX {
+        Extended::PosInf
+    } else {
+        let s = secs as u32;
+        let h = (s / 3600) as u8;
+        let m = ((s / 60) % 60) as u8;
+        let sec = (s % 60) as u8;
+        match Time::from_hms(h, m, sec) {
+            Ok(t) => Extended::Finite(t),
+            Err(_) => unreachable!("secs in [0, SECS_MAX] decomposes to valid HMS"),
         }
     }
+}
 
-    fn ceil(t: Extended<Time>) -> i64 {
-        match t {
-            Extended::NegInf => i64::MIN,
-            Extended::Finite(time) => time_to_ns(time),
-            Extended::PosInf => NS_MAX + 1,
-        }
+crate::conn_l! {
+    /// `Extended<Time> → i64` — clock time ↔ nanoseconds-since-midnight.
+    ///
+    /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`):
+    /// `inner: i64 → Extended<Time>` saturates `i64` values outside
+    /// `[0, 86_400 × 10⁹)` onto `Extended::NegInf` / `Extended::PosInf`,
+    /// which makes `inner` non-order-reflecting at the synthetic
+    /// extremes. The constructor wires `floor = ceil` as a fn pointer so
+    /// `floor(a) ≤ ceil(a)` holds structurally over the full source
+    /// domain.
+    ///
+    /// On the `Finite` portion this is an exact bijection: every
+    /// `Time` value corresponds to exactly one `i64` in
+    /// `[0, 86_400 × 10⁹)`, and every such `i64` decodes to a unique
+    /// `Time`. `Time` carries no finer-than-nanosecond fraction, so
+    /// `ceil(Finite(t))` is exact.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::time::TIMENANO;
+    /// use connections::extended::Extended;
+    /// use time::Time;
+    ///
+    /// assert_eq!(TIMENANO.ceil(Extended::Finite(Time::MIDNIGHT)), 0);
+    /// assert_eq!(
+    ///     TIMENANO.ceil(Extended::Finite(
+    ///         Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap(),
+    ///     )),
+    ///     86_399_999_999_999,
+    /// );
+    /// assert_eq!(
+    ///     TIMENANO.inner(43_200_000_000_000),
+    ///     Extended::Finite(Time::from_hms(12, 0, 0).unwrap()),
+    /// );
+    ///
+    /// // Out-of-range nanoseconds saturate.
+    /// assert_eq!(TIMENANO.inner(-1), Extended::NegInf);
+    /// assert_eq!(TIMENANO.inner(86_400_000_000_000), Extended::PosInf);
+    /// ```
+    pub TIMENANO : Extended<Time> => i64 {
+        ceil:  timenano_ceil,
+        inner: timenano_inner,
     }
+}
 
-    fn inner(ns: i64) -> Extended<Time> {
-        if ns < 0 {
-            Extended::NegInf
-        } else if ns > NS_MAX {
-            Extended::PosInf
-        } else {
-            Extended::Finite(ns_to_time(ns))
-        }
+crate::conn_l! {
+    /// `Extended<Time> → i64` — clock time ↔ whole seconds since
+    /// midnight, rounding sub-second fractions up to the next whole
+    /// second.
+    ///
+    /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`). Two
+    /// reasons it can't ship as a full triple:
+    ///
+    /// - `inner` saturates out-of-range `i64` values to
+    ///   `Extended::NegInf` / `Extended::PosInf`, making it non-order-
+    ///   reflecting at the synthetic source extremes.
+    /// - On Finite sub-second inputs, the natural `ceil` (round up) and
+    ///   `floor` (truncate) differ; a full triple would force `floor ≤
+    ///   ceil` to be re-derived per case, but the constructor wires
+    ///   `floor = ceil` as a fn pointer so the law holds structurally.
+    ///
+    /// **Behavioral note on rounding:** `ceil(Finite(t)) = whole_sec(t) +
+    /// 1` when `t.nanosecond() != 0`, otherwise `whole_sec(t)`. Because
+    /// `floor = ceil` under `new_left`, callers reading
+    /// `TIMESECS.ceil(t)` get the **rounded-up** answer, not a truncated
+    /// one. Callers needing the dual rounding direction can compute it
+    /// explicitly: `ceil(t) - (t.nanosecond() != 0) as i64`. (See Plan 27
+    /// deferred work for a possible future paired-Conn split.)
+    ///
+    /// `inner(secs)` = `Finite(Time::from_hms(...))` for `secs ∈ [0,
+    /// 86_400)`; out-of-range secs saturate to `±Inf`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::time::TIMESECS;
+    /// use connections::extended::Extended;
+    /// use time::Time;
+    ///
+    /// // Exact second: ceil recovers the full second count.
+    /// let noon = Time::from_hms(12, 0, 0).unwrap();
+    /// assert_eq!(TIMESECS.ceil(Extended::Finite(noon)), 43_200);
+    ///
+    /// // Sub-second: ceil rounds up (floor = ceil under new_left).
+    /// let mid_minute = Time::from_hms_nano(12, 0, 0, 1).unwrap();
+    /// assert_eq!(TIMESECS.ceil(Extended::Finite(mid_minute)), 43_201);
+    ///
+    /// assert_eq!(TIMESECS.inner(43_200), Extended::Finite(noon));
+    /// ```
+    pub TIMESECS : Extended<Time> => i64 {
+        ceil:  timesecs_ceil,
+        inner: timesecs_inner,
     }
-
-    Conn::new_l(ceil, inner)
-};
-
-/// `Extended<Time> → i64` — clock time ↔ whole seconds since
-/// midnight, rounding sub-second fractions up to the next whole
-/// second.
-///
-/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`). Two
-/// reasons it can't ship as a full triple:
-///
-/// - `inner` saturates out-of-range `i64` values to
-///   `Extended::NegInf` / `Extended::PosInf`, making it non-order-
-///   reflecting at the synthetic source extremes.
-/// - On Finite sub-second inputs, the natural `ceil` (round up) and
-///   `floor` (truncate) differ; a full triple would force `floor ≤
-///   ceil` to be re-derived per case, but the constructor wires
-///   `floor = ceil` as a fn pointer so the law holds structurally.
-///
-/// **Behavioral note on rounding:** `ceil(Finite(t)) = whole_sec(t) +
-/// 1` when `t.nanosecond() != 0`, otherwise `whole_sec(t)`. Because
-/// `floor = ceil` under `new_left`, callers reading
-/// `TIMESECS.ceil(t)` get the **rounded-up** answer, not a truncated
-/// one. Callers needing the dual rounding direction can compute it
-/// explicitly: `ceil(t) - (t.nanosecond() != 0) as i64`. (See Plan 27
-/// deferred work for a possible future paired-Conn split.)
-///
-/// `inner(secs)` = `Finite(Time::from_hms(...))` for `secs ∈ [0,
-/// 86_400)`; out-of-range secs saturate to `±Inf`.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::time::TIMESECS;
-/// use connections::extended::Extended;
-/// use time::Time;
-///
-/// // Exact second: ceil recovers the full second count.
-/// let noon = Time::from_hms(12, 0, 0).unwrap();
-/// assert_eq!(TIMESECS.ceil(Extended::Finite(noon)), 43_200);
-///
-/// // Sub-second: ceil rounds up (floor = ceil under new_left).
-/// let mid_minute = Time::from_hms_nano(12, 0, 0, 1).unwrap();
-/// assert_eq!(TIMESECS.ceil(Extended::Finite(mid_minute)), 43_201);
-///
-/// assert_eq!(TIMESECS.inner(43_200), Extended::Finite(noon));
-/// ```
-pub const TIMESECS: crate::conn::ConnL<Extended<Time>, i64> = {
-    const SECS_MAX: i64 = 86_400 - 1;
-
-    fn whole_sec(t: Time) -> i64 {
-        let (h, m, s, _ns) = t.as_hms_nano();
-        h as i64 * 3600 + m as i64 * 60 + s as i64
-    }
-
-    fn ceil(t: Extended<Time>) -> i64 {
-        match t {
-            Extended::NegInf => i64::MIN,
-            Extended::Finite(time) => {
-                let s = whole_sec(time);
-                if time.nanosecond() != 0 { s + 1 } else { s }
-            }
-            Extended::PosInf => SECS_MAX + 1,
-        }
-    }
-
-    fn inner(secs: i64) -> Extended<Time> {
-        if secs < 0 {
-            Extended::NegInf
-        } else if secs > SECS_MAX {
-            Extended::PosInf
-        } else {
-            let s = secs as u32;
-            let h = (s / 3600) as u8;
-            let m = ((s / 60) % 60) as u8;
-            let sec = (s % 60) as u8;
-            match Time::from_hms(h, m, sec) {
-                Ok(t) => Extended::Finite(t),
-                Err(_) => unreachable!("secs in [0, SECS_MAX] decomposes to valid HMS"),
-            }
-        }
-    }
-
-    Conn::new_l(ceil, inner)
-};
+}
 
 #[cfg(test)]
 mod tests {

@@ -3,69 +3,71 @@
 //! Hosts [`DATEJDAY`] — the proleptic-Gregorian Julian-day Conn over
 //! `Extended<Date>` and `i32`.
 
-use crate::conn::Conn;
 use crate::extended::Extended;
 use time::Date;
 
-/// `Extended<Date> → i32` — the proleptic-Gregorian Julian-day
-/// connection.
-///
-/// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`):
-/// `inner: i32 → Extended<Date>` saturates `i32` values outside
-/// `[Date::MIN.to_julian_day(), Date::MAX.to_julian_day()]` onto
-/// `Extended::NegInf` / `Extended::PosInf`, which makes `inner`
-/// non-order-reflecting at the synthetic extremes. The constructor
-/// wires `floor = ceil` as a fn pointer so `floor(a) ≤ ceil(a)`
-/// holds structurally over the full source domain.
-///
-/// On the `Finite` portion this is an exact bijection: for any
-/// `Date` `d`, `ceil(Finite(d)) == d.to_julian_day()`, and `inner`
-/// recovers `d` from its Julian day. `Date` admits no sub-day
-/// fraction, so `ceil` and `floor` agree on Finite inputs.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::time::DATEJDAY;
-/// use connections::extended::Extended;
-/// use time::{Date, Month};
-///
-/// let epoch = Date::from_calendar_date(1970, Month::January, 1).unwrap();
-/// assert_eq!(DATEJDAY.ceil(Extended::Finite(epoch)), 2_440_588);
-/// assert_eq!(DATEJDAY.inner(2_440_588), Extended::Finite(epoch));
-///
-/// // Out-of-range julian day saturates to PosInf.
-/// assert_eq!(DATEJDAY.inner(i32::MAX), Extended::PosInf);
-/// ```
-pub const DATEJDAY: crate::conn::ConnL<Extended<Date>, i32> = {
-    const MIN_JD: i32 = Date::MIN.to_julian_day();
-    const MAX_JD: i32 = Date::MAX.to_julian_day();
+const MIN_JD: i32 = Date::MIN.to_julian_day();
+const MAX_JD: i32 = Date::MAX.to_julian_day();
 
-    fn ceil(d: Extended<Date>) -> i32 {
-        match d {
-            // ceil(NegInf): smallest b with NegInf ≤ inner(b) — every b qualifies.
-            Extended::NegInf => i32::MIN,
-            Extended::Finite(date) => date.to_julian_day(),
-            // ceil(PosInf): smallest b with inner(b) = PosInf, i.e. b > MAX_JD.
-            Extended::PosInf => MAX_JD + 1,
+fn datejday_ceil(d: Extended<Date>) -> i32 {
+    match d {
+        // ceil(NegInf): smallest b with NegInf ≤ inner(b) — every b qualifies.
+        Extended::NegInf => i32::MIN,
+        Extended::Finite(date) => date.to_julian_day(),
+        // ceil(PosInf): smallest b with inner(b) = PosInf, i.e. b > MAX_JD.
+        Extended::PosInf => MAX_JD + 1,
+    }
+}
+
+fn datejday_inner(jd: i32) -> Extended<Date> {
+    if jd < MIN_JD {
+        Extended::NegInf
+    } else if jd > MAX_JD {
+        Extended::PosInf
+    } else {
+        match Date::from_julian_day(jd) {
+            Ok(d) => Extended::Finite(d),
+            Err(_) => unreachable!("jd in [MIN_JD, MAX_JD]"),
         }
     }
+}
 
-    fn inner(jd: i32) -> Extended<Date> {
-        if jd < MIN_JD {
-            Extended::NegInf
-        } else if jd > MAX_JD {
-            Extended::PosInf
-        } else {
-            match Date::from_julian_day(jd) {
-                Ok(d) => Extended::Finite(d),
-                Err(_) => unreachable!("jd in [MIN_JD, MAX_JD]"),
-            }
-        }
+crate::conn_l! {
+    /// `Extended<Date> → i32` — the proleptic-Gregorian Julian-day
+    /// connection.
+    ///
+    /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`):
+    /// `inner: i32 → Extended<Date>` saturates `i32` values outside
+    /// `[Date::MIN.to_julian_day(), Date::MAX.to_julian_day()]` onto
+    /// `Extended::NegInf` / `Extended::PosInf`, which makes `inner`
+    /// non-order-reflecting at the synthetic extremes. The constructor
+    /// wires `floor = ceil` as a fn pointer so `floor(a) ≤ ceil(a)`
+    /// holds structurally over the full source domain.
+    ///
+    /// On the `Finite` portion this is an exact bijection: for any
+    /// `Date` `d`, `ceil(Finite(d)) == d.to_julian_day()`, and `inner`
+    /// recovers `d` from its Julian day. `Date` admits no sub-day
+    /// fraction, so `ceil` and `floor` agree on Finite inputs.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::time::DATEJDAY;
+    /// use connections::extended::Extended;
+    /// use time::{Date, Month};
+    ///
+    /// let epoch = Date::from_calendar_date(1970, Month::January, 1).unwrap();
+    /// assert_eq!(DATEJDAY.ceil(Extended::Finite(epoch)), 2_440_588);
+    /// assert_eq!(DATEJDAY.inner(2_440_588), Extended::Finite(epoch));
+    ///
+    /// // Out-of-range julian day saturates to PosInf.
+    /// assert_eq!(DATEJDAY.inner(i32::MAX), Extended::PosInf);
+    /// ```
+    pub DATEJDAY : Extended<Date> => i32 {
+        ceil:  datejday_ceil,
+        inner: datejday_inner,
     }
-
-    Conn::new_l(ceil, inner)
-};
+}
 
 #[cfg(test)]
 mod tests {

@@ -310,6 +310,21 @@ assert_eq!(BOOLORDR.inner(Ordering::Equal),   false);
 assert_eq!(BOOLORDR.inner(Ordering::Greater), true);
 ```
 
+For one-sided Conns this crate ships the `conn_l!` / `conn_r!`
+declaration-form macros — they bottom out at `Conn::new_l` /
+`Conn::new_r` but use named-field syntax that matches `triple!` /
+`iso!` and removes the `(ceil, inner)` vs. `(inner, floor)`
+positional-argument footgun. The const above can be written:
+
+```rust,ignore
+conn_l! {
+    pub BOOLORDR : bool => Ordering {
+        ceil:  ceil,
+        inner: inner,
+    }
+}
+```
+
 The verification table is consistent again:
 
 | ceil/inner | `Less`  | `Equal` | `Greater` |

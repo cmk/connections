@@ -348,43 +348,47 @@ fn f064durn_inner(d: Extended<Duration>) -> F064 {
     }
 }
 
-/// `F064 → Extended<Duration>` — IEEE binary64 seconds ↔ Duration
-/// (left-Galois).
-///
-/// Walks happen on the Duration rung (1ns ULPs); the float side is
-/// the comparison frame. `inner(Finite(d))` widens via
-/// `Duration::as_seconds_f64()`, which is non-injective above
-/// |Duration| > 2⁵³ ns ≈ 104 days (multiple Durations map to the same
-/// f64). That non-injectivity → not order-reflecting → no true triple,
-/// so shipped as `ConnL`. (Plan 32.)
-///
-/// Saturation arms:
-/// - `ceil(Bot)` = `NegInf` (Bot is synthetic-below-everything).
-/// - `ceil(Top)` = `PosInf`.
-/// - `ceil(Extend(NaN))` = `PosInf` (under N5: NaN ≤ Top, Bot ≤ NaN,
-///   NaN incomparable with finite).
-/// - `ceil(Extend(+∞))` = `PosInf`. Symmetric for `-∞` →
-///   `Finite(Duration::MIN)`.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::time::F064DURN;
-/// use connections::float::ExtendedFloat;
-/// use connections::extended::Extended;
-/// use time::Duration;
-///
-/// // 0.5 seconds round-trips exactly.
-/// let half = ExtendedFloat::Extend(0.5_f64);
-/// assert_eq!(F064DURN.ceiling(half), Extended::Finite(Duration::milliseconds(500)));
-/// assert_eq!(F064DURN.upper(Extended::Finite(Duration::milliseconds(500))),
-///            ExtendedFloat::Extend(0.5));
-///
-/// // NaN saturates ceil to PosInf.
-/// assert_eq!(F064DURN.ceiling(ExtendedFloat::Extend(f64::NAN)), Extended::PosInf);
-/// ```
-pub const F064DURN: crate::conn::ConnL<F064, Extended<Duration>> =
-    crate::conn::Conn::new_l(f064durn_ceil, f064durn_inner);
+crate::conn_l! {
+    /// `F064 → Extended<Duration>` — IEEE binary64 seconds ↔ Duration
+    /// (left-Galois).
+    ///
+    /// Walks happen on the Duration rung (1ns ULPs); the float side is
+    /// the comparison frame. `inner(Finite(d))` widens via
+    /// `Duration::as_seconds_f64()`, which is non-injective above
+    /// |Duration| > 2⁵³ ns ≈ 104 days (multiple Durations map to the same
+    /// f64). That non-injectivity → not order-reflecting → no true triple,
+    /// so shipped as `ConnL`. (Plan 32.)
+    ///
+    /// Saturation arms:
+    /// - `ceil(Bot)` = `NegInf` (Bot is synthetic-below-everything).
+    /// - `ceil(Top)` = `PosInf`.
+    /// - `ceil(Extend(NaN))` = `PosInf` (under N5: NaN ≤ Top, Bot ≤ NaN,
+    ///   NaN incomparable with finite).
+    /// - `ceil(Extend(+∞))` = `PosInf`. Symmetric for `-∞` →
+    ///   `Finite(Duration::MIN)`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::time::F064DURN;
+    /// use connections::float::ExtendedFloat;
+    /// use connections::extended::Extended;
+    /// use time::Duration;
+    ///
+    /// // 0.5 seconds round-trips exactly.
+    /// let half = ExtendedFloat::Extend(0.5_f64);
+    /// assert_eq!(F064DURN.ceiling(half), Extended::Finite(Duration::milliseconds(500)));
+    /// assert_eq!(F064DURN.upper(Extended::Finite(Duration::milliseconds(500))),
+    ///            ExtendedFloat::Extend(0.5));
+    ///
+    /// // NaN saturates ceil to PosInf.
+    /// assert_eq!(F064DURN.ceiling(ExtendedFloat::Extend(f64::NAN)), Extended::PosInf);
+    /// ```
+    pub F064DURN : F064 => Extended<Duration> {
+        ceil:  f064durn_ceil,
+        inner: f064durn_inner,
+    }
+}
 
 fn f032durn_ceil(x: F032) -> Extended<Duration> {
     let v = match x {
@@ -432,31 +436,35 @@ fn f032durn_inner(d: Extended<Duration>) -> F032 {
     }
 }
 
-/// `F032 → Extended<Duration>` — IEEE binary32 seconds ↔ Duration
-/// (left-Galois).
-///
-/// Mirrors [`F064DURN`]'s shape with `f32` precision. The f32 plateau
-/// (range of Durations mapping to the same `f32`) is much wider than
-/// f64's: at magnitude ~1 s it is ~120 ns; at magnitude ~10³ s it is
-/// ~10⁵ ns. Inner is non-injective on every plateau → not order-
-/// reflecting → no true triple. Shipped as `ConnL`. (Plan 32.)
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::time::F032DURN;
-/// use connections::float::ExtendedFloat;
-/// use connections::extended::Extended;
-/// use time::Duration;
-///
-/// // 1.0 s in f32 ceils to the bottom of the f32 plateau covering 1.0.
-/// let one = ExtendedFloat::Extend(1.0_f32);
-/// if let Extended::Finite(c) = F032DURN.ceiling(one) {
-///     assert_eq!(c.as_seconds_f32(), 1.0_f32);
-/// }
-/// ```
-pub const F032DURN: crate::conn::ConnL<F032, Extended<Duration>> =
-    crate::conn::Conn::new_l(f032durn_ceil, f032durn_inner);
+crate::conn_l! {
+    /// `F032 → Extended<Duration>` — IEEE binary32 seconds ↔ Duration
+    /// (left-Galois).
+    ///
+    /// Mirrors [`F064DURN`]'s shape with `f32` precision. The f32 plateau
+    /// (range of Durations mapping to the same `f32`) is much wider than
+    /// f64's: at magnitude ~1 s it is ~120 ns; at magnitude ~10³ s it is
+    /// ~10⁵ ns. Inner is non-injective on every plateau → not order-
+    /// reflecting → no true triple. Shipped as `ConnL`. (Plan 32.)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::time::F032DURN;
+    /// use connections::float::ExtendedFloat;
+    /// use connections::extended::Extended;
+    /// use time::Duration;
+    ///
+    /// // 1.0 s in f32 ceils to the bottom of the f32 plateau covering 1.0.
+    /// let one = ExtendedFloat::Extend(1.0_f32);
+    /// if let Extended::Finite(c) = F032DURN.ceiling(one) {
+    ///     assert_eq!(c.as_seconds_f32(), 1.0_f32);
+    /// }
+    /// ```
+    pub F032DURN : F032 => Extended<Duration> {
+        ceil:  f032durn_ceil,
+        inner: f032durn_inner,
+    }
+}
 
 // ── std::time::Duration helpers ──────────────────────────────────
 
@@ -619,49 +627,53 @@ fn stdru128_inner(b: Extended<u128>) -> Extended<StdDuration> {
     }
 }
 
-/// `Extended<StdDuration> → Extended<u128>` — unsigned time span ↔
-/// nanoseconds (left-Galois).
-///
-/// On the Finite range `[0, StdDuration::MAX.as_nanos()]` this is a
-/// bijection: `ceil(Finite(d)) = Finite(d.as_nanos())` and `inner`
-/// round-trips back exactly. The widest `StdDuration` is `MAX`, whose
-/// `as_nanos()` is well within `u128` (≈ 1.84×10²⁸ vs `u128::MAX` ≈
-/// 3.4×10³⁸), so no rung-side overflow is possible from a Finite source.
-///
-/// Inputs `Finite(n)` with `n > StdDuration::MAX.as_nanos()` clamp to
-/// `Finite(StdDuration::MAX)` on `inner` (Galois pins this to the
-/// largest representative ≤ the synthetic top).
-///
-/// **One-sided.** Shipped as `ConnL` rather than a `triple!` marker
-/// because `inner` collapses the entire above-max plateau
-/// (`Finite(n > max_nanos)`) onto `Finite(StdDuration::MAX)` and so is
-/// not order-reflecting; the L-Galois adjunction `ceil ⊣ inner` holds
-/// on the full domain, but no `floor` function admits the dual
-/// adjunction `inner ⊣ floor` simultaneously. See `doc/design.md` and
-/// Plan 32 for the rounding-sandwich derivation.
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::time::STDRU128;
-/// use connections::extended::Extended;
-/// use std::time::Duration as StdDuration;
-///
-/// let one_and_a_half = StdDuration::from_nanos(1_500_000_000);
-/// assert_eq!(STDRU128.ceiling(Extended::Finite(one_and_a_half)),
-///            Extended::Finite(1_500_000_000_u128));
-///
-/// // `inner` is exact on the representable range and round-trips back.
-/// let n = 1_500_000_000_u128;
-/// assert_eq!(STDRU128.upper(Extended::Finite(n)),
-///            Extended::Finite(StdDuration::from_nanos(n as u64)));
-///
-/// // Above StdDuration::MAX.as_nanos(), inner saturates to MAX.
-/// assert_eq!(STDRU128.upper(Extended::Finite(u128::MAX)),
-///            Extended::Finite(StdDuration::MAX));
-/// ```
-pub const STDRU128: crate::conn::ConnL<Extended<StdDuration>, Extended<u128>> =
-    crate::conn::Conn::new_l(stdru128_ceil, stdru128_inner);
+crate::conn_l! {
+    /// `Extended<StdDuration> → Extended<u128>` — unsigned time span ↔
+    /// nanoseconds (left-Galois).
+    ///
+    /// On the Finite range `[0, StdDuration::MAX.as_nanos()]` this is a
+    /// bijection: `ceil(Finite(d)) = Finite(d.as_nanos())` and `inner`
+    /// round-trips back exactly. The widest `StdDuration` is `MAX`, whose
+    /// `as_nanos()` is well within `u128` (≈ 1.84×10²⁸ vs `u128::MAX` ≈
+    /// 3.4×10³⁸), so no rung-side overflow is possible from a Finite source.
+    ///
+    /// Inputs `Finite(n)` with `n > StdDuration::MAX.as_nanos()` clamp to
+    /// `Finite(StdDuration::MAX)` on `inner` (Galois pins this to the
+    /// largest representative ≤ the synthetic top).
+    ///
+    /// **One-sided.** Shipped as `ConnL` rather than a `triple!` marker
+    /// because `inner` collapses the entire above-max plateau
+    /// (`Finite(n > max_nanos)`) onto `Finite(StdDuration::MAX)` and so is
+    /// not order-reflecting; the L-Galois adjunction `ceil ⊣ inner` holds
+    /// on the full domain, but no `floor` function admits the dual
+    /// adjunction `inner ⊣ floor` simultaneously. See `doc/design.md` and
+    /// Plan 32 for the rounding-sandwich derivation.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::time::STDRU128;
+    /// use connections::extended::Extended;
+    /// use std::time::Duration as StdDuration;
+    ///
+    /// let one_and_a_half = StdDuration::from_nanos(1_500_000_000);
+    /// assert_eq!(STDRU128.ceiling(Extended::Finite(one_and_a_half)),
+    ///            Extended::Finite(1_500_000_000_u128));
+    ///
+    /// // `inner` is exact on the representable range and round-trips back.
+    /// let n = 1_500_000_000_u128;
+    /// assert_eq!(STDRU128.upper(Extended::Finite(n)),
+    ///            Extended::Finite(StdDuration::from_nanos(n as u64)));
+    ///
+    /// // Above StdDuration::MAX.as_nanos(), inner saturates to MAX.
+    /// assert_eq!(STDRU128.upper(Extended::Finite(u128::MAX)),
+    ///            Extended::Finite(StdDuration::MAX));
+    /// ```
+    pub STDRU128 : Extended<StdDuration> => Extended<u128> {
+        ceil:  stdru128_ceil,
+        inner: stdru128_inner,
+    }
+}
 
 fn f064stdr_ceil(x: F064) -> Extended<StdDuration> {
     let v = match x {
@@ -703,33 +715,37 @@ fn f064stdr_inner(d: Extended<StdDuration>) -> F064 {
     }
 }
 
-/// `F064 → Extended<StdDuration>` — IEEE binary64 seconds ↔
-/// `std::time::Duration` (left-Galois).
-///
-/// Mirrors [`F064DURN`]'s walk-on-rung shape with an unsigned rung.
-/// `inner` is non-injective on the f64 plateau (multiple StdDurations
-/// map to the same f64 above ~104 days), so not order-reflecting and
-/// no true triple. Shipped as `ConnL`. (Plan 32.)
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::time::F064STDR;
-/// use connections::float::ExtendedFloat;
-/// use connections::extended::Extended;
-/// use std::time::Duration as StdDuration;
-///
-/// // 0.5 s round-trips exactly.
-/// let half = ExtendedFloat::Extend(0.5_f64);
-/// assert_eq!(F064STDR.ceiling(half), Extended::Finite(StdDuration::from_millis(500)));
-///
-/// // Negative float: ceil saturates up to ZERO (unsigned rung has
-/// // no negative representative).
-/// let neg = ExtendedFloat::Extend(-0.5_f64);
-/// assert_eq!(F064STDR.ceiling(neg), Extended::Finite(StdDuration::ZERO));
-/// ```
-pub const F064STDR: crate::conn::ConnL<F064, Extended<StdDuration>> =
-    crate::conn::Conn::new_l(f064stdr_ceil, f064stdr_inner);
+crate::conn_l! {
+    /// `F064 → Extended<StdDuration>` — IEEE binary64 seconds ↔
+    /// `std::time::Duration` (left-Galois).
+    ///
+    /// Mirrors [`F064DURN`]'s walk-on-rung shape with an unsigned rung.
+    /// `inner` is non-injective on the f64 plateau (multiple StdDurations
+    /// map to the same f64 above ~104 days), so not order-reflecting and
+    /// no true triple. Shipped as `ConnL`. (Plan 32.)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::time::F064STDR;
+    /// use connections::float::ExtendedFloat;
+    /// use connections::extended::Extended;
+    /// use std::time::Duration as StdDuration;
+    ///
+    /// // 0.5 s round-trips exactly.
+    /// let half = ExtendedFloat::Extend(0.5_f64);
+    /// assert_eq!(F064STDR.ceiling(half), Extended::Finite(StdDuration::from_millis(500)));
+    ///
+    /// // Negative float: ceil saturates up to ZERO (unsigned rung has
+    /// // no negative representative).
+    /// let neg = ExtendedFloat::Extend(-0.5_f64);
+    /// assert_eq!(F064STDR.ceiling(neg), Extended::Finite(StdDuration::ZERO));
+    /// ```
+    pub F064STDR : F064 => Extended<StdDuration> {
+        ceil:  f064stdr_ceil,
+        inner: f064stdr_inner,
+    }
+}
 
 fn f032stdr_ceil(x: F032) -> Extended<StdDuration> {
     let v = match x {
@@ -768,29 +784,33 @@ fn f032stdr_inner(d: Extended<StdDuration>) -> F032 {
     }
 }
 
-/// `F032 → Extended<StdDuration>` — IEEE binary32 seconds ↔
-/// `std::time::Duration` (left-Galois).
-///
-/// Mirrors [`F064STDR`] with `f32` precision. The f32 plateau makes
-/// `inner` non-injective on every multi-Duration plateau, so no true
-/// triple. Shipped as `ConnL`. (Plan 32.)
-///
-/// # Examples
-///
-/// ```rust
-/// use connections::time::F032STDR;
-/// use connections::float::ExtendedFloat;
-/// use connections::extended::Extended;
-/// use std::time::Duration as StdDuration;
-///
-/// // 1.0 s in f32 ceils to the bottom of the f32 plateau covering 1.0.
-/// let one = ExtendedFloat::Extend(1.0_f32);
-/// if let Extended::Finite(c) = F032STDR.ceiling(one) {
-///     assert_eq!(c.as_secs_f32(), 1.0_f32);
-/// }
-/// ```
-pub const F032STDR: crate::conn::ConnL<F032, Extended<StdDuration>> =
-    crate::conn::Conn::new_l(f032stdr_ceil, f032stdr_inner);
+crate::conn_l! {
+    /// `F032 → Extended<StdDuration>` — IEEE binary32 seconds ↔
+    /// `std::time::Duration` (left-Galois).
+    ///
+    /// Mirrors [`F064STDR`] with `f32` precision. The f32 plateau makes
+    /// `inner` non-injective on every multi-Duration plateau, so no true
+    /// triple. Shipped as `ConnL`. (Plan 32.)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::time::F032STDR;
+    /// use connections::float::ExtendedFloat;
+    /// use connections::extended::Extended;
+    /// use std::time::Duration as StdDuration;
+    ///
+    /// // 1.0 s in f32 ceils to the bottom of the f32 plateau covering 1.0.
+    /// let one = ExtendedFloat::Extend(1.0_f32);
+    /// if let Extended::Finite(c) = F032STDR.ceiling(one) {
+    ///     assert_eq!(c.as_secs_f32(), 1.0_f32);
+    /// }
+    /// ```
+    pub F032STDR : F032 => Extended<StdDuration> {
+        ceil:  f032stdr_ceil,
+        inner: f032stdr_inner,
+    }
+}
 
 #[cfg(test)]
 mod float_durn_tests {

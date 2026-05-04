@@ -679,6 +679,91 @@ macro_rules! iso {
     };
 }
 
+/// Declaration-form macro: ship a one-sided left-Galois `Conn`
+/// (`ceil ⊣ inner`) as a `pub const` of type
+/// [`ConnL<A, B>`](crate::conn::ConnL).
+///
+/// Named-field syntax mirrors [`triple!`] / [`iso!`] and removes the
+/// argument-order footgun on [`Conn::new_l`]: the field labels make
+/// it impossible to swap `ceil` and `inner` accidentally (and the
+/// `_l` / `_r` macro-name split prevents picking the wrong kind).
+///
+/// Unlike [`triple!`], this macro emits the `Conn` value directly —
+/// not a marker struct with `ViewL` / `ViewR` impls — because no
+/// adjoint triple exists for one-sided connections. Use [`triple!`]
+/// when both `ceil` and `floor` are available and the inner
+/// embedding is order-reflecting; use this macro when only the
+/// left half of the adjunction holds.
+///
+/// ```ignore
+/// conn_l! {
+///     pub TIMENANO : Extended<Time> => i64 {
+///         ceil:  time_to_ns,
+///         inner: ns_to_time,
+///     }
+/// }
+/// ```
+///
+/// Expands to:
+///
+/// ```ignore
+/// pub const TIMENANO: ConnL<Extended<Time>, i64> =
+///     Conn::new_l(time_to_ns, ns_to_time);
+/// ```
+#[macro_export]
+macro_rules! conn_l {
+    (
+        $(#[$meta:meta])*
+        $vis:vis $name:ident : $A:ty => $B:ty {
+            ceil:  $ceil:expr,
+            inner: $inner:expr $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        $vis const $name: $crate::conn::ConnL<$A, $B> =
+            $crate::conn::Conn::new_l($ceil, $inner);
+    };
+}
+
+/// Declaration-form macro: ship a one-sided right-Galois `Conn`
+/// (`inner ⊣ floor`) as a `pub const` of type
+/// [`ConnR<A, B>`](crate::conn::ConnR).
+///
+/// Named-field syntax mirrors [`triple!`] / [`iso!`] and removes the
+/// argument-order footgun on [`Conn::new_r`] — whose positional
+/// shape `(inner, floor)` (mirroring Haskell's `CastR`) is the
+/// reverse of [`Conn::new_l`]'s `(ceil, inner)`. Field labels make
+/// the order self-documenting.
+///
+/// ```ignore
+/// conn_r! {
+///     pub UFOO : u8 => i8 {
+///         inner: u_to_i,
+///         floor: i_to_u,
+///     }
+/// }
+/// ```
+///
+/// Expands to:
+///
+/// ```ignore
+/// pub const UFOO: ConnR<u8, i8> = Conn::new_r(u_to_i, i_to_u);
+/// ```
+#[macro_export]
+macro_rules! conn_r {
+    (
+        $(#[$meta:meta])*
+        $vis:vis $name:ident : $A:ty => $B:ty {
+            inner: $inner:expr,
+            floor: $floor:expr $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        $vis const $name: $crate::conn::ConnR<$A, $B> =
+            $crate::conn::Conn::new_r($inner, $floor);
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -809,6 +894,57 @@ mod tests {
         // valid `const` expression.
         assert_eq!(COMPOSED_3WAY.ceiling(42_i32), 42_i32);
         assert_eq!(COMPOSED_3WAY.upper(7_i32), 7_i32);
+    }
+
+    // ── conn_l! / conn_r! macro instantiation (Plan 35) ──────────────
+
+    const fn _i64_to_i32(x: i64) -> i32 {
+        x as i32
+    }
+    const fn _i32_to_i64(x: i32) -> i64 {
+        x as i64
+    }
+
+    crate::conn_l! {
+        CONNLI64I32 : i64 => i32 {
+            ceil:  _i64_to_i32,
+            inner: _i32_to_i64,
+        }
+    }
+
+    crate::conn_r! {
+        CONNRI64I32 : i64 => i32 {
+            inner: _i32_to_i64,
+            floor: _i64_to_i32,
+        }
+    }
+
+    #[test]
+    fn conn_l_macro_expands_to_new_l() {
+        // Hand-written reference and the macro-built const must agree
+        // on both adjoint slots for representative inputs.
+        const REF: ConnL<i64, i32> = Conn::new_l(_i64_to_i32, _i32_to_i64);
+        for a in [i64::MIN, -1, 0, 1, 42, i64::MAX] {
+            assert_eq!(CONNLI64I32.ceiling(a), REF.ceiling(a));
+        }
+        for b in [i32::MIN, -1, 0, 1, 42, i32::MAX] {
+            assert_eq!(CONNLI64I32.upper(b), REF.upper(b));
+        }
+    }
+
+    #[test]
+    fn conn_r_macro_expands_to_new_r() {
+        // `Conn::new_r` argument order is `(inner, floor)` — the
+        // mirror of `new_l`'s `(ceil, inner)`. The macro reorders for
+        // the constructor; this test confirms slots match a hand-
+        // written reference.
+        const REF: ConnR<i64, i32> = Conn::new_r(_i32_to_i64, _i64_to_i32);
+        for a in [i64::MIN, -1, 0, 1, 42, i64::MAX] {
+            assert_eq!(CONNRI64I32.floor(a), REF.floor(a));
+        }
+        for b in [i32::MIN, -1, 0, 1, 42, i32::MAX] {
+            assert_eq!(CONNRI64I32.lower(b), REF.lower(b));
+        }
     }
 
     // ── swap_l / swap_r involution proptests ─────────────────────────
