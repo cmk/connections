@@ -115,9 +115,14 @@ macro_rules! fix_fix_u16 {
         }
 
         // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ViewL<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> for $const_name {
-            const L: $crate::conn::ConnL<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> =
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        impl $crate::conn::ConnL<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>> for $const_name {
+            #[inline]
+            fn conn_l(
+                &self,
+            ) -> $crate::conn::Conn<FixedU16<$FineFrac>, FixedU16<$CoarseFrac>, $crate::conn::L>
+            {
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
+            }
         }
     };
 }
@@ -160,7 +165,7 @@ fix_fix_u16!(Q016Q015, U16, U15);
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
 
     // ── §1 std-int spot checks (merged from former int/u16.rs) ─────
 
@@ -172,8 +177,8 @@ mod tests {
 
     #[test]
     fn u008u016_inner_saturates_at_source_max() {
-        assert_eq!(U008U016.inner(u16::MAX), u8::MAX);
-        assert_eq!(U008U016.inner(50), 50);
+        assert_eq!(U008U016.upper(u16::MAX), u8::MAX);
+        assert_eq!(U008U016.upper(50), 50);
     }
 
     #[test]
@@ -181,7 +186,7 @@ mod tests {
         for (a, b) in [(50i16, 100u16), (50i16, 49u16), (100i16, 100u16)] {
             assert_eq!(
                 I016U016.ceil(a) <= b,
-                a <= I016U016.inner(b),
+                a <= I016U016.upper(b),
                 "I016U016 galois_upper @ ({a}, {b})"
             );
         }
@@ -189,18 +194,18 @@ mod tests {
 
     #[test]
     fn i008u016_inner_saturates() {
-        assert_eq!(I008U016.inner(u16::MAX), i8::MAX);
-        assert_eq!(I008U016.inner(127), 127);
+        assert_eq!(I008U016.upper(u16::MAX), i8::MAX);
+        assert_eq!(I008U016.upper(127), 127);
     }
 
     #[test]
     fn u_to_u16_saturate_and_fixup() {
         assert_eq!(U032U016.ceil(u32::MAX), u16::MAX);
         assert_eq!(U128U016.ceil(u128::MAX), u16::MAX);
-        assert_eq!(U032U016.inner(u16::MAX), u32::MAX);
-        assert_eq!(U064U016.inner(u16::MAX), u64::MAX);
-        assert_eq!(U128U016.inner(u16::MAX), u128::MAX);
-        assert_eq!(U032U016.inner(60_000), 60_000_u32);
+        assert_eq!(U032U016.upper(u16::MAX), u32::MAX);
+        assert_eq!(U064U016.upper(u16::MAX), u64::MAX);
+        assert_eq!(U128U016.upper(u16::MAX), u128::MAX);
+        assert_eq!(U032U016.upper(60_000), 60_000_u32);
     }
 
     #[test]
@@ -209,8 +214,8 @@ mod tests {
         assert_eq!(I032U016.ceil(i32::MIN), 0);
         assert_eq!(I032U016.ceil(i32::MAX), u16::MAX);
         assert_eq!(I128U016.ceil(i128::MAX), u16::MAX);
-        assert_eq!(I032U016.inner(u16::MAX), i32::MAX);
-        assert_eq!(I128U016.inner(u16::MAX), i128::MAX);
+        assert_eq!(I032U016.upper(u16::MAX), i32::MAX);
+        assert_eq!(I128U016.upper(u16::MAX), i128::MAX);
     }
 
     // ── §4 Q-format spot checks ────────────────────────────────────
@@ -221,7 +226,7 @@ mod tests {
     #[test]
     fn spot_q15_audio_to_q16() {
         let q15 = FixedU16::<U15>::from_bits(16384);
-        let q16 = Q016Q015.inner(q15);
+        let q16 = Q016Q015.upper(q15);
         assert_eq!(q16, FixedU16::<U16>::from_bits(32768));
         // RATIO=2 exact: ceil round-trips. (Plan 32: ConnL only.)
         assert_eq!(Q016Q015.ceil(q16), q15);
@@ -233,7 +238,7 @@ mod tests {
     #[test]
     fn spot_q14_midi_to_q16() {
         let q14 = FixedU16::<U14>::from_bits(8192);
-        let q16 = Q016Q014.inner(q14);
+        let q16 = Q016Q014.upper(q14);
         assert_eq!(q16, FixedU16::<U16>::from_bits(32768));
     }
 
@@ -242,7 +247,7 @@ mod tests {
         // 1.5 in Q8.8 (bits 384) — exactly representable in Q12.4.
         let q88 = FixedU16::<U8>::from_bits(384);
         assert_eq!(Q008Q004.ceil(q88), FixedU16::<U4>::from_bits(24));
-        assert_eq!(Q008Q004.inner(FixedU16::<U4>::from_bits(24)), q88);
+        assert_eq!(Q008Q004.upper(FixedU16::<U4>::from_bits(24)), q88);
     }
 
     #[test]
@@ -257,15 +262,15 @@ mod tests {
         // SHIFT = 16, RATIO = 65 536. Every Coarse value with bits ≥ 1
         // saturates inner. Only Coarse(0) round-trips.
         assert_eq!(
-            Q016Q000.inner(FixedU16::<U0>::from_bits(0)),
+            Q016Q000.upper(FixedU16::<U0>::from_bits(0)),
             FixedU16::<U16>::from_bits(0),
         );
         assert_eq!(
-            Q016Q000.inner(FixedU16::<U0>::from_bits(1)),
+            Q016Q000.upper(FixedU16::<U0>::from_bits(1)),
             FixedU16::<U16>::from_bits(u16::MAX),
         );
         assert_eq!(
-            Q016Q000.inner(FixedU16::<U0>::from_bits(u16::MAX)),
+            Q016Q000.upper(FixedU16::<U0>::from_bits(u16::MAX)),
             FixedU16::<U16>::from_bits(u16::MAX),
         );
     }

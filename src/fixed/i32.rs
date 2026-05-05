@@ -31,7 +31,7 @@ uint_int_sat!(
     /// law:
     ///
     /// ```rust
-    /// use connections::conn::ViewR;
+    /// use connections::conn::ConnR;
     /// use connections::fixed::i32::U032I032;
     ///
     /// // Mid-range u32 PIDs that fit in i32 pass through.
@@ -44,9 +44,9 @@ uint_int_sat!(
     ///
     /// // Round-trip: i32 → u32 saturates negatives to 0 (the largest
     /// // u32 satisfying inner(b) ≤ a for any a < 0).
-    /// assert_eq!(U032I032.inner(-1),       0_u32);
-    /// assert_eq!(U032I032.inner(0),        0_u32);
-    /// assert_eq!(U032I032.inner(i32::MAX), i32::MAX as u32);
+    /// assert_eq!(U032I032.lower(-1),       0_u32);
+    /// assert_eq!(U032I032.lower(0),        0_u32);
+    /// assert_eq!(U032I032.lower(i32::MAX), i32::MAX as u32);
     /// ```
     U032I032, u32, i32
 );
@@ -129,9 +129,14 @@ macro_rules! fix_fix_i32 {
         }
 
         // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ViewL<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> for $const_name {
-            const L: $crate::conn::ConnL<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> =
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        impl $crate::conn::ConnL<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>> for $const_name {
+            #[inline]
+            fn conn_l(
+                &self,
+            ) -> $crate::conn::Conn<FixedI32<$FineFrac>, FixedI32<$CoarseFrac>, $crate::conn::L>
+            {
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
+            }
         }
     };
 }
@@ -161,7 +166,7 @@ fix_fix_i32!(Q032Q024, U32, U24);
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::extended::Extended;
     use proptest::prelude::*;
 
@@ -171,16 +176,16 @@ mod tests {
     fn i008i032_round_trip_at_finite_boundaries() {
         assert_eq!(I008I032.ceil(Extended::Finite(i8::MIN)), -128);
         assert_eq!(I008I032.ceil(Extended::Finite(i8::MAX)), 127);
-        assert_eq!(I008I032.inner(-128), Extended::Finite(i8::MIN));
-        assert_eq!(I008I032.inner(127), Extended::Finite(i8::MAX));
+        assert_eq!(I008I032.upper(-128), Extended::Finite(i8::MIN));
+        assert_eq!(I008I032.upper(127), Extended::Finite(i8::MAX));
     }
 
     #[test]
     fn u016i032_inner_partitions() {
-        assert_eq!(U016I032.inner(-1), Extended::NegInf);
-        assert_eq!(U016I032.inner(0), Extended::Finite(0));
-        assert_eq!(U016I032.inner(65_535), Extended::Finite(u16::MAX));
-        assert_eq!(U016I032.inner(65_536), Extended::PosInf);
+        assert_eq!(U016I032.upper(-1), Extended::NegInf);
+        assert_eq!(U016I032.upper(0), Extended::Finite(0));
+        assert_eq!(U016I032.upper(65_535), Extended::Finite(u16::MAX));
+        assert_eq!(U016I032.upper(65_536), Extended::PosInf);
     }
 
     #[test]
@@ -193,15 +198,15 @@ mod tests {
 
     #[test]
     fn i_to_i32_inner_fine_max_fixup() {
-        assert_eq!(I064I032.inner(i32::MAX), i64::MAX);
-        assert_eq!(I128I032.inner(i32::MAX), i128::MAX);
+        assert_eq!(I064I032.upper(i32::MAX), i64::MAX);
+        assert_eq!(I128I032.upper(i32::MAX), i128::MAX);
     }
 
     #[test]
     fn u_to_i32_neg_and_high() {
-        assert_eq!(U032I032.inner(-1), 0_u32);
+        assert_eq!(U032I032.lower(-1), 0_u32);
         assert_eq!(U064I032.floor(u64::MAX), i32::MAX);
-        assert_eq!(U128I032.inner(i32::MIN), 0_u128);
+        assert_eq!(U128I032.lower(i32::MIN), 0_u128);
     }
 
     // ── §4 Q-format spot checks ────────────────────────────────────
@@ -212,22 +217,22 @@ mod tests {
         // is bits 384. (ConnL: ceil only; floor removed in Plan 32.)
         let q1616 = FixedI32::<U16>::from_bits(98304);
         assert_eq!(Q016Q008.ceil(q1616), FixedI32::<U8>::from_bits(384));
-        assert_eq!(Q016Q008.inner(FixedI32::<U8>::from_bits(384)), q1616);
+        assert_eq!(Q016Q008.upper(FixedI32::<U8>::from_bits(384)), q1616);
     }
 
     #[test]
     fn spot_q032q000_degenerate() {
         // SHIFT = 32. Only Coarse(0) round-trips; ±1 saturates inner.
         assert_eq!(
-            Q032Q000.inner(FixedI32::<U0>::from_bits(0)),
+            Q032Q000.upper(FixedI32::<U0>::from_bits(0)),
             FixedI32::<U32>::from_bits(0),
         );
         assert_eq!(
-            Q032Q000.inner(FixedI32::<U0>::from_bits(1)),
+            Q032Q000.upper(FixedI32::<U0>::from_bits(1)),
             FixedI32::<U32>::from_bits(i32::MAX),
         );
         assert_eq!(
-            Q032Q000.inner(FixedI32::<U0>::from_bits(-1)),
+            Q032Q000.upper(FixedI32::<U0>::from_bits(-1)),
             FixedI32::<U32>::from_bits(i32::MIN),
         );
     }

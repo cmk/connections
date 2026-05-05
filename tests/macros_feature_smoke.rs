@@ -16,7 +16,7 @@ use connections::macros as _curated_namespace;
 
 // `iso!` — a tiny `MyId(u64) <-> u64` bijection.
 mod iso_smoke {
-    use connections::conn::ViewL;
+    use connections::conn::ConnL;
 
     const fn fwd(x: u64) -> u64 {
         x
@@ -40,9 +40,9 @@ mod iso_smoke {
     }
 }
 
-// `triple!` — same shape as iso! but with explicit ceil/inner/floor.
+// `conn_k!` — same shape as iso! but with explicit ceil/inner/floor.
 mod triple_smoke {
-    use connections::conn::{ViewL, ViewR};
+    use connections::conn::{ConnL, ConnR};
 
     const fn ceil_(x: i32) -> i32 {
         x
@@ -54,7 +54,7 @@ mod triple_smoke {
         x
     }
 
-    connections::triple! {
+    connections::conn_k! {
         pub IDI032 : i32 => i32 {
             ceil:  ceil_,
             inner: inner_,
@@ -65,7 +65,7 @@ mod triple_smoke {
     #[test]
     fn triple_both_views() {
         assert_eq!(IDI032.ceil(7), 7);
-        assert_eq!(IDI032::R.floor(7), 7);
+        assert_eq!(IDI032.conn_r().floor(7), 7);
     }
 }
 
@@ -80,13 +80,13 @@ mod uint_uint_smoke {
 
     #[test]
     fn inner_saturates() {
-        assert_eq!(SMOKE_U008U016.inner(u16::MAX), u8::MAX);
+        assert_eq!(SMOKE_U008U016.upper(u16::MAX), u8::MAX);
     }
 }
 
 // `ext_int!` — full triple with `Extended` source.
 mod ext_int_smoke {
-    use connections::conn::ViewL;
+    use connections::conn::ConnL;
     use connections::extended::Extended;
 
     connections::ext_int!(SmokeExt08, i8, i16);
@@ -128,7 +128,7 @@ mod narrow_macro_smoke {
 
 // `nz_int_ext!` and `nz_uint_ext!` — NonZero adjoints.
 mod nz_smoke {
-    use connections::conn::{ViewL, ViewR};
+    use connections::conn::{ConnL, ConnR};
     use core::num::{NonZeroI8, NonZeroU8};
 
     connections::nz_int_ext!(SmokeNzI8, i8, NonZeroI8);

@@ -16,7 +16,7 @@
 use ::fixed::types::extra::U0;
 use ::fixed::{FixedI16, FixedI32, FixedI64, FixedI128, FixedU16, FixedU32, FixedU64, FixedU128};
 
-use connections::conn::{ViewL, ViewR};
+use connections::conn::{ConnL, ConnR};
 use connections::fixed;
 use connections::prop::conn as conn_laws;
 use core::num::{
@@ -40,16 +40,16 @@ macro_rules! signed_nz_props {
             proptest! {
                 #[test]
                 fn galois_l(a in any::<$A>(), b in arb_nz()) {
-                    prop_assert!(conn_laws::galois_l(&<$CONN as connections::conn::ViewL<_, _>>::L, a, b));
+                    prop_assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
                 }
                 #[test]
                 fn galois_r(a in any::<$A>(), b in arb_nz()) {
-                    prop_assert!(conn_laws::galois_r(&<$CONN as connections::conn::ViewR<_, _>>::R, a, b));
+                    prop_assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
                 }
                 #[test]
                 fn inner_then_ceil_recovers(nz in arb_nz()) {
-                    prop_assert_eq!($CONN.ceil($CONN.inner(nz)), nz);
-                    prop_assert_eq!($CONN.floor($CONN.inner(nz)), nz);
+                    prop_assert_eq!($CONN.ceil($CONN.upper(nz)), nz);
+                    prop_assert_eq!($CONN.floor($CONN.upper(nz)), nz);
                 }
             }
         }
@@ -76,11 +76,11 @@ macro_rules! unsigned_nz_props {
             proptest! {
                 #[test]
                 fn galois_l(a in any::<$A>(), b in arb_nz()) {
-                    prop_assert!(conn_laws::galois_l(&<$CONN as connections::conn::ViewL<_, _>>::L, a, b));
+                    prop_assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
                 }
                 #[test]
                 fn inner_then_ceil_recovers(nz in arb_nz()) {
-                    prop_assert_eq!($CONN.ceil($CONN.inner(nz)), nz);
+                    prop_assert_eq!($CONN.ceil($CONN.upper(nz)), nz);
                 }
             }
         }
@@ -103,18 +103,18 @@ macro_rules! iso_props {
                 #[test]
                 fn galois_l(a_bits in any::<$A>(), b in any::<$A>()) {
                     let a = $FIXED::<U0>::from_bits(a_bits);
-                    prop_assert!(conn_laws::galois_l(&<$CONN as connections::conn::ViewL<_, _>>::L, a, b));
+                    prop_assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
                 }
                 #[test]
                 fn galois_r(a_bits in any::<$A>(), b in any::<$A>()) {
                     let a = $FIXED::<U0>::from_bits(a_bits);
-                    prop_assert!(conn_laws::galois_r(&<$CONN as connections::conn::ViewR<_, _>>::R, a, b));
+                    prop_assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
                 }
                 #[test]
                 fn round_trip_both_directions(v in any::<$A>()) {
                     let q = $FIXED::<U0>::from_bits(v);
-                    prop_assert_eq!($CONN.ceil($CONN.inner(v)), v);
-                    prop_assert_eq!($CONN.inner($CONN.ceil(q)), q);
+                    prop_assert_eq!($CONN.ceil($CONN.upper(v)), v);
+                    prop_assert_eq!($CONN.upper($CONN.ceil(q)), q);
                 }
             }
         }

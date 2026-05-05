@@ -1,8 +1,8 @@
-error[E0599]: no method named `ceiling` found for struct `Conn<i32, i32, R>` in the current scope
+error[E0599]: no method named `ceil` found for struct `Conn<i32, i32, R>` in the current scope
   --> tests/compile_fail/ceiling_on_r_conn.rs:11:20
    |
-11 |     let _ = R_CONN.ceiling(0_i32);
-   |                    ^^^^^^^ method not found in `Conn<i32, i32, R>`
+11 |     let _ = R_CONN.ceil(0_i32);
+   |                    ^^^^ method not found in `Conn<i32, i32, R>`
    |
    = note: the method was found for
            - `Conn<A, B>`

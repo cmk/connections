@@ -382,14 +382,14 @@ pub trait Boolean: Symmetric {}
 /// // `Ordering` impls `Join + Meet` (3-element chain Less < Equal < Greater).
 /// // LATTBOOL returns a one-sided ConnL — only the L-side adjoint laws hold.
 /// let c = LATTBOOL::<Ordering>();
-/// assert_eq!(c.ceiling(Ordering::Less),     false); // bot → false
-/// assert_eq!(c.ceiling(Ordering::Equal),    true);  // not-bot → true
-/// assert_eq!(c.ceiling(Ordering::Greater),  true);
+/// assert_eq!(c.ceil(Ordering::Less),     false); // bot → false
+/// assert_eq!(c.ceil(Ordering::Equal),    true);  // not-bot → true
+/// assert_eq!(c.ceil(Ordering::Greater),  true);
 /// assert_eq!(c.upper(false),                Ordering::Less);
 /// assert_eq!(c.upper(true),                 Ordering::Greater);
 /// ```
 #[allow(non_snake_case)]
-pub fn LATTBOOL<A>() -> crate::conn::ConnL<A, bool>
+pub fn LATTBOOL<A>() -> crate::conn::Conn<A, bool>
 where
     A: Join + Meet + Copy + 'static,
 {
@@ -430,7 +430,7 @@ impl Meet for core::cmp::Ordering {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::float::ExtendedFloat;
     use crate::prop::arb::{arb_f32, arb_f64};
     use crate::prop::conn as conn_laws;
@@ -559,8 +559,8 @@ mod tests {
         assert!(!c.ceil(Ordering::Less));
         assert!(c.ceil(Ordering::Equal));
         assert!(c.ceil(Ordering::Greater));
-        assert_eq!(c.inner(false), Ordering::Less);
-        assert_eq!(c.inner(true), Ordering::Greater);
+        assert_eq!(c.upper(false), Ordering::Less);
+        assert_eq!(c.upper(true), Ordering::Greater);
     }
 
     proptest! {

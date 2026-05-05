@@ -22,7 +22,7 @@ you that the standard tools don't:
 
 1. **Both arms of a cast on one value.** An adjoint-triple marker
    exposes `ceil: A → B`, `floor: A → B`, *and* the embedding
-   `inner: B → A` as a unit struct with `ViewL` / `ViewR` impls — you
+   `inner: B → A` as a unit struct with `ConnL` / `ConnR` impls — you
    don't pick "ceiling cast" vs "floor cast" up front, you carry the
    marker and call whichever you need per-call. (One-sided
    connections — where only one law holds — ship as kind-tagged
@@ -102,12 +102,12 @@ satisfies `g(b) ≤ a ⟺ b ≤ f(a)`.
 [Adjoint triples](https://ncatlab.org/nlab/show/adjoint+triple) — the
 `f ⊣ g ⊣ h` shape Example 3 below derives — are *not* a third kind
 of `Conn`. They are zero-sized **marker types** implementing two
-projection traits, `ViewL<A, B>` and `ViewR<A, B>`, whose associated
+projection traits, `ConnL<A, B>` and `ConnR<A, B>`, whose associated
 consts are the L-view and R-view `Conn`s of the triple. The "third
 function" lives as a free function in module scope, referenced from
 the marker's trait impls; no struct in the crate stores three fns.
 Two-sided helpers (`round`, `truncate`, …) bind on the
-`Triple<A, B>` super-trait and reach through both views.
+`ConnK<A, B>` super-trait and reach through both views.
 
 The struct is `Copy`, `const`-constructible, heap-free, and the crate
 is `#![forbid(unsafe_code)]`.
@@ -224,23 +224,23 @@ qualified import (e.g. `fixed::i8::Q008Q000` and
 
 **Conn API**
 
-- L-side methods on `Conn<_, _, L>` (and on any `ViewL` implementor
-  via default-method dispatch): `ceiling`, `upper`, `ceiling1`/`2`,
+- L-side methods on `Conn<_, _, L>` (and on any `ConnL` implementor
+  via default-method dispatch): `ceil`, `upper`, `ceiling1`/`2`,
   `upper1`/`2`. Back-compat aliases: `ceil` / `inner`.
-- R-side methods on `Conn<_, _, R>` (and on any `ViewR` implementor):
+- R-side methods on `Conn<_, _, R>` (and on any `ConnR` implementor):
   `floor`, `lower`, `floor1`/`2`, `lower1`/`2`. Back-compat alias for
   `lower`: `inner`.
 - Two-sided helpers (re-exported at the crate root): `interval`,
   `midpoint`, `round`/`round1`/`round2`,
   `truncate`/`truncate1`/`truncate2`, `median`. All bind on
-  `T: Triple<A, B>` (= `ViewL + ViewR`), so they're callable only on
+  `T: ConnK<A, B>` (= `ConnL + ConnR`), so they're callable only on
   triple markers — not on one-sided Conns.
 
 Kind discipline is structural: calling `.floor(...)` on an L-kind
 Conn is a compile error (the method only exists on `Conn<_, _, R>`),
-and likewise `.ceiling(...)` on R. Two-sided helpers similarly reject
+and likewise `.ceil(...)` on R. Two-sided helpers similarly reject
 one-sided operands at compile time because a one-sided `Conn` doesn't
-implement `Triple`.
+implement `ConnK`.
 
 ## Examples
 
@@ -261,12 +261,12 @@ fn ceil(o: Ordering) -> bool {
 fn inner(b: bool) -> Ordering {
     if b { Ordering::Greater } else { Ordering::Less }
 }
-const ORDRBOOL: ConnL<Ordering, bool> = Conn::new_l(ceil, inner);
+const ORDRBOOL: Conn<Ordering, bool> = Conn::new_l(ceil, inner);
 
 assert_eq!(ORDRBOOL.ceil(Ordering::Less),    false);
 assert_eq!(ORDRBOOL.ceil(Ordering::Greater), true);
-assert_eq!(ORDRBOOL.inner(false),            Ordering::Less);
-assert_eq!(ORDRBOOL.inner(true),             Ordering::Greater);
+assert_eq!(ORDRBOOL.upper(false),            Ordering::Less);
+assert_eq!(ORDRBOOL.upper(true),             Ordering::Greater);
 ```
 
 Each function is monotone (`x₁ ≤ x₂ ⇒ f(x₁) ≤ f(x₂)`) and the pair is
@@ -301,18 +301,18 @@ fn ceil(b: bool) -> Ordering {
 fn inner(o: Ordering) -> bool {
     matches!(o, Ordering::Greater)
 }
-const BOOLORDR: ConnL<bool, Ordering> = Conn::new_l(ceil, inner);
+const BOOLORDR: Conn<bool, Ordering> = Conn::new_l(ceil, inner);
 
 assert_eq!(BOOLORDR.ceil(false),              Ordering::Less);
 assert_eq!(BOOLORDR.ceil(true),               Ordering::Greater);
-assert_eq!(BOOLORDR.inner(Ordering::Less),    false);
-assert_eq!(BOOLORDR.inner(Ordering::Equal),   false);
-assert_eq!(BOOLORDR.inner(Ordering::Greater), true);
+assert_eq!(BOOLORDR.upper(Ordering::Less),    false);
+assert_eq!(BOOLORDR.upper(Ordering::Equal),   false);
+assert_eq!(BOOLORDR.upper(Ordering::Greater), true);
 ```
 
 For one-sided Conns this crate ships the `conn_l!` / `conn_r!`
 declaration-form macros — they bottom out at `Conn::new_l` /
-`Conn::new_r` but use named-field syntax that matches `triple!` /
+`Conn::new_r` but use named-field syntax that matches `conn_k!` /
 `iso!` and removes the `(ceil, inner)` vs. `(inner, floor)`
 positional-argument footgun. The const above can be written:
 
@@ -338,7 +338,7 @@ pair. Together with Example 1's `ceil` and Example 2's `inner`, the
 three functions form an *adjoint string of length 3*: `f ⊣ g ⊣ h`.
 The two adjoint pairs (`f`/`g` and `g`/`h`) give *two routes* back
 from `Ordering` to `bool` — and that two-route choice is exactly what
-enables lawful `ceiling`, `floor`, `round`, and `truncate` on
+enables lawful `ceil`, `floor`, `round`, and `truncate` on
 arbitrary `Conn`s.
 
 ### Example 3
@@ -347,8 +347,8 @@ A small change to Example 1 — supplying both the upper and lower
 adjoints on the L side — packs the whole chain into a single value:
 
 ```rust
-use connections::conn::{Conn, ConnL, ConnR, ViewL, ViewR};
-use connections::triple;
+use connections::conn::{ConnL, ConnR};
+use connections::conn_k;
 use std::cmp::Ordering;
 
 fn ceil(o: Ordering) -> bool {
@@ -361,8 +361,8 @@ fn floor(o: Ordering) -> bool {
     matches!(o, Ordering::Greater)
 }
 
-// Adjoint triples are unit-struct markers implementing ViewL + ViewR.
-triple! { pub ORDRBOOL : Ordering => bool { ceil: ceil, inner: inner, floor: floor } }
+// Adjoint triples are unit-struct markers implementing ConnL + ConnR.
+conn_k! { pub ORDRBOOL : Ordering => bool { ceil: ceil, inner: inner, floor: floor } }
 
 // `ceil` reads the L-pair (ceil ⊣ inner); `floor` reads the R-pair
 // (inner ⊣ floor). They differ on `Equal`, where the bracket is open:
@@ -381,13 +381,13 @@ verify the `g ⊣ h` pair (with the appropriate reversal):
 | `Greater`        | `>`/`>`/`>` | `=`/`=`/`=` |
 
 This is the shape an adjoint-triple **marker** carries: three free
-fns wired through `ViewL` and `ViewR` impls, with `MARKER::L` /
-`MARKER::R` projecting to the L-view and R-view `Conn`s respectively.
-The default-method dispatch on `ViewL` / `ViewR` lets you call
-`.ceiling()` / `.floor()` on the marker directly when both traits are
+fns wired through `ConnL` and `ConnR` impls, with `MARKER.conn_l()` /
+`MARKER.conn_r()` projecting to the L-view and R-view `Conn`s respectively.
+The default-method dispatch on `ConnL` / `ConnR` lets you call
+`.ceil()` / `.floor()` on the marker directly when both traits are
 in scope.
 
-(`triple!` only ships a *true* adjoint triple — many natural cast
+(`conn_k!` only ships a *true* adjoint triple — many natural cast
 families don't admit one. See [*Why one-sided?*](#why-one-sided) above
 for the necessary and sufficient condition.)
 
@@ -399,7 +399,7 @@ past the source" sentinels in the target, `inner` rounds back to the
 nearest in-range source value or out to a synthetic infinity):
 
 ```rust
-use connections::conn::ViewL;
+use connections::conn::ConnL;
 use connections::fixed::i16::U008I016;
 use connections::extended::Extended;
 
@@ -413,8 +413,8 @@ assert_eq!(U008I016.ceil(Extended::PosInf),  256_i16);   // u8::MAX + 1
 
 // `inner` partitions the target: above-source rung values collapse
 // to the synthetic PosInf source.
-assert_eq!(U008I016.inner(256_i16),  Extended::PosInf);
-assert_eq!(U008I016.inner(i16::MAX), Extended::PosInf);
+assert_eq!(U008I016.upper(256_i16),  Extended::PosInf);
+assert_eq!(U008I016.upper(i16::MAX), Extended::PosInf);
 ```
 
 This Conn ships as `ConnL` (left-Galois only) — its `inner` is
@@ -432,7 +432,7 @@ into a negative PID. `U032I032.floor` saturates to `i32::MAX`
 instead, preserving the R-Galois `inner ⊣ floor` law:
 
 ```rust
-use connections::conn::ViewR;
+use connections::conn::ConnR;
 use connections::fixed::i32::U032I032;
 
 // Mid-range u32 PIDs that fit in i32 pass through.
@@ -445,9 +445,9 @@ assert_eq!(U032I032.floor(u32::MAX),              i32::MAX);
 
 // Round-trip: i32 → u32 saturates negatives to 0 (the largest
 // u32 satisfying inner(b) ≤ a for any a < 0).
-assert_eq!(U032I032.inner(-1),       0_u32);
-assert_eq!(U032I032.inner(0),        0_u32);
-assert_eq!(U032I032.inner(i32::MAX), i32::MAX as u32);
+assert_eq!(U032I032.lower(-1),       0_u32);
+assert_eq!(U032I032.lower(0),        0_u32);
+assert_eq!(U032I032.lower(i32::MAX), i32::MAX as u32);
 ```
 
 ### Example 6
@@ -455,23 +455,23 @@ assert_eq!(U032I032.inner(i32::MAX), i32::MAX as u32);
 `Conn` API — accessors and lifters operating on any `Conn`:
 
 ```rust
-use connections::conn::{ViewL, ViewR};
+use connections::conn::{ConnL, ConnR};
 use connections::fixed::i16::U008I016;
 use connections::extended::Extended;
 
-// `ceiling` is the named alias of `ceil` under the L-side reading.
-// Triple markers route via U008I016::L (the L-view ConnL).
+// `ceil` is the named alias of `ceil` under the L-side reading.
+// ConnK markers route via U008I016.conn_l() (the L-view ConnL).
 assert_eq!(
-    U008I016::L.ceiling(Extended::Finite(200_u8)),
-    U008I016::L.ceil(Extended::Finite(200_u8)),
+    U008I016.conn_l().ceil(Extended::Finite(200_u8)),
+    U008I016.conn_l().ceil(Extended::Finite(200_u8)),
 );
 
 // `upper1` lifts an endofunction over the target type back to the source:
 //   upper1(c, f, a) = inner(f(ceil(a)))
-let bumped = U008I016::L.upper1(|n| n, Extended::Finite(200_u8));
+let bumped = U008I016.conn_l().upper1(|n| n, Extended::Finite(200_u8));
 assert_eq!(
     bumped,
-    U008I016::L.upper(U008I016::L.ceiling(Extended::Finite(200_u8))),
+    U008I016.conn_l().upper(U008I016.conn_l().ceil(Extended::Finite(200_u8))),
 );
 ```
 
@@ -486,7 +486,7 @@ code block is mirrored verbatim into the `time` module-level
 rustdoc, so `cargo test --doc` keeps the two in sync):
 
 ```rust
-use connections::conn::{ViewL, ViewR};
+use connections::conn::{ConnL, ConnR};
 use connections::time::DURNSECS;
 use connections::extended::Extended;
 use time::Duration;
@@ -494,7 +494,7 @@ use time::Duration;
 let half = Duration::seconds(5) + Duration::nanoseconds(1);
 assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));
 assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
-assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
+assert_eq!(DURNSECS.upper(Extended::Finite(42)), Duration::seconds(42));
 ```
 
 ### Example 8
@@ -507,7 +507,7 @@ use connections::extended::Extended;
 use time::OffsetDateTime;
 
 // OFDTNANO is a one-sided ConnL; the L-side methods are inherent.
-assert_eq!(OFDTNANO.inner(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
+assert_eq!(OFDTNANO.upper(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
 assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
 ```
 
@@ -516,7 +516,7 @@ assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
 Rounding an IEEE-float number of seconds up to a `Duration`:
 
 ```rust
-use connections::conn::ViewL;
+use connections::conn::ConnL;
 use connections::float::ExtendedFloat;
 use connections::time::F064DURN;
 use connections::extended::Extended;
@@ -552,8 +552,8 @@ use connections::float::ExtendedFloat::Extend;
 let pi = Extend(std::f64::consts::PI);
 let pi_up   = F064F016.ceil(pi);
 let pi_down = F064F016.floor(pi);
-assert!(F064F016.inner(pi_down) <= pi);
-assert!(pi <= F064F016.inner(pi_up));
+assert!(F064F016.upper(pi_down) <= pi);
+assert!(pi <= F064F016.upper(pi_up));
 
 // f64::MAX saturates to f16::INFINITY.
 let huge = Extend(f64::MAX);
@@ -634,7 +634,7 @@ crates against their own connections:
 A tenth law, `conn_floor_le_ceil` (`floor(a) ≤ ceil(a)`), is asserted
 only on connections whose `inner` is a documented injective embedding —
 on saturating connections it fails at the saturation plateau by design.
-See [`doc/design.md`](doc/design.md) §"Triple-only properties and the
+See [`doc/design.md`](doc/design.md) §"ConnK-only properties and the
 role of injectivity".
 
 For float-bearing types, the `≤` is a [N5 lattice](https://en.wikipedia.org/wiki/Distributive_lattice#Characteristic_properties). 

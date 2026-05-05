@@ -19,7 +19,7 @@
 //!
 //! Q128.0 lossless bridge between the Q-format and std-int views of
 //! the same 128-bit signed integer storage; `Q000I128` uses
-//! the [`triple!`](crate::triple) macro.
+//! the [`conn_k!`](crate::triple) macro.
 //!
 //! ## §4 Q-format ladder over `FixedI128<Frac>`
 //!
@@ -164,9 +164,14 @@ macro_rules! fix_fix_i128 {
         }
 
         // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ViewL<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>> for $const_name {
-            const L: $crate::conn::ConnL<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>> =
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        impl $crate::conn::ConnL<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>> for $const_name {
+            #[inline]
+            fn conn_l(
+                &self,
+            ) -> $crate::conn::Conn<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>, $crate::conn::L>
+            {
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
+            }
         }
     };
 }
@@ -196,7 +201,7 @@ fix_fix_i128!(Q128Q096, U128, U96);
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::extended::Extended;
     use proptest::prelude::*;
 
@@ -217,11 +222,11 @@ mod tests {
 
     #[test]
     fn u128i128_neg_and_high() {
-        assert_eq!(U128I128.inner(-1), 0_u128);
-        assert_eq!(U128I128.inner(i128::MIN), 0_u128);
+        assert_eq!(U128I128.lower(-1), 0_u128);
+        assert_eq!(U128I128.lower(i128::MIN), 0_u128);
         assert_eq!(U128I128.floor(u128::MAX), i128::MAX);
-        assert_eq!(U128I128.floor(U128I128.inner(50)), 50);
-        assert_eq!(U128I128.floor(U128I128.inner(i128::MAX)), i128::MAX);
+        assert_eq!(U128I128.floor(U128I128.lower(50)), 50);
+        assert_eq!(U128I128.floor(U128I128.lower(i128::MAX)), i128::MAX);
     }
 
     // ── §4 Q-format spot checks ────────────────────────────────────
@@ -232,15 +237,15 @@ mod tests {
     fn degenerate_max_shift() {
         // inner: only 0 stays in range; everything else saturates.
         assert_eq!(
-            Q128Q000.inner(FixedI128::<U0>::from_bits(0)),
+            Q128Q000.upper(FixedI128::<U0>::from_bits(0)),
             FixedI128::<U128>::from_bits(0),
         );
         assert_eq!(
-            Q128Q000.inner(FixedI128::<U0>::from_bits(1)),
+            Q128Q000.upper(FixedI128::<U0>::from_bits(1)),
             FixedI128::<U128>::from_bits(i128::MAX),
         );
         assert_eq!(
-            Q128Q000.inner(FixedI128::<U0>::from_bits(-1)),
+            Q128Q000.upper(FixedI128::<U0>::from_bits(-1)),
             FixedI128::<U128>::from_bits(i128::MIN),
         );
         // ceil: positive inputs round up to 1; non-positive (and non-MIN)
@@ -274,7 +279,7 @@ mod tests {
         // Instead use a small value: coarse = 1 represents 2^-64.
         // inner(1) = 1 × 2^64 = 2^64, fits.
         let coarse_one = FixedI128::<U64>::from_bits(1);
-        let fine_via_inner = Q128Q064.inner(coarse_one);
+        let fine_via_inner = Q128Q064.upper(coarse_one);
         assert_eq!(fine_via_inner, FixedI128::<U128>::from_bits(1_i128 << 64));
     }
 
@@ -295,12 +300,12 @@ mod tests {
         // saturate to FINE_MAX.
         let big_coarse = FixedI128::<U16>::from_bits(i128::MAX);
         assert_eq!(
-            Q128Q016.inner(big_coarse),
+            Q128Q016.upper(big_coarse),
             FixedI128::<U128>::from_bits(i128::MAX),
         );
         let neg_coarse = FixedI128::<U16>::from_bits(i128::MIN);
         assert_eq!(
-            Q128Q016.inner(neg_coarse),
+            Q128Q016.upper(neg_coarse),
             FixedI128::<U128>::from_bits(i128::MIN),
         );
     }

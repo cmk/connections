@@ -83,7 +83,7 @@
 macro_rules! uint_uint {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating cast.")]
-        pub const $NAME: $crate::conn::ConnL<$A, $B> = {
+        pub const $NAME: $crate::conn::Conn<$A, $B> = {
             fn ceil(x: $A) -> $B {
                 x as $B
             }
@@ -119,7 +119,7 @@ macro_rules! int_uint {
             stringify!($B),
             "` saturating cast: negatives clip to 0; `inner` saturates at source max."
         )]
-        pub const $NAME: $crate::conn::ConnL<$A, $B> = {
+        pub const $NAME: $crate::conn::Conn<$A, $B> = {
             fn ceil(x: $A) -> $B {
                 if x < 0 { 0 } else { x as $B }
             }
@@ -187,9 +187,13 @@ macro_rules! ext_int {
             }
         }
 
-        impl $crate::conn::ViewL<$crate::extended::Extended<$A>, $B> for $NAME {
-            const L: $crate::conn::ConnL<$crate::extended::Extended<$A>, $B> =
-                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner);
+        impl $crate::conn::ConnL<$crate::extended::Extended<$A>, $B> for $NAME {
+            #[inline]
+            fn conn_l(
+                &self,
+            ) -> $crate::conn::Conn<$crate::extended::Extended<$A>, $B, $crate::conn::L> {
+                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner)
+            }
         }
     };
 }
@@ -224,7 +228,7 @@ pub(crate) use ext_int;
 macro_rules! int_int_narrow {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
-        pub const $NAME: $crate::conn::ConnL<$A, $B> = {
+        pub const $NAME: $crate::conn::Conn<$A, $B> = {
             fn ceil(x: $A) -> $B {
                 if x > <$B>::MAX as $A {
                     <$B>::MAX
@@ -262,7 +266,7 @@ pub(crate) use int_int_narrow;
 macro_rules! uint_uint_narrow {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
-        pub const $NAME: $crate::conn::ConnL<$A, $B> = {
+        pub const $NAME: $crate::conn::Conn<$A, $B> = {
             fn ceil(x: $A) -> $B {
                 if x > <$B>::MAX as $A {
                     <$B>::MAX
@@ -303,7 +307,7 @@ macro_rules! uint_int_sat {
     ($(#[$attr:meta])* $NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating cast (right-Galois).")]
         $(#[$attr])*
-        pub const $NAME: $crate::conn::ConnR<$A, $B> = {
+        pub const $NAME: $crate::conn::Conn<$A, $B, $crate::conn::R> = {
             fn floor(x: $A) -> $B {
                 if x > <$B>::MAX as $A {
                     <$B>::MAX
@@ -373,13 +377,17 @@ macro_rules! nz_int_ext {
             }
         }
 
-        impl $crate::conn::ViewL<$A, $NZ> for $NAME {
-            const L: $crate::conn::ConnL<$A, $NZ> =
-                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner);
+        impl $crate::conn::ConnL<$A, $NZ> for $NAME {
+            #[inline]
+            fn conn_l(&self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::L> {
+                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner)
+            }
         }
-        impl $crate::conn::ViewR<$A, $NZ> for $NAME {
-            const R: $crate::conn::ConnR<$A, $NZ> =
-                $crate::conn::Conn::new_r($NAME::_inner, $NAME::_floor);
+        impl $crate::conn::ConnR<$A, $NZ> for $NAME {
+            #[inline]
+            fn conn_r(&self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::R> {
+                $crate::conn::Conn::new_r($NAME::_inner, $NAME::_floor)
+            }
         }
     };
 }
@@ -420,9 +428,11 @@ macro_rules! nz_uint_ext {
             }
         }
 
-        impl $crate::conn::ViewL<$A, $NZ> for $NAME {
-            const L: $crate::conn::ConnL<$A, $NZ> =
-                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner);
+        impl $crate::conn::ConnL<$A, $NZ> for $NAME {
+            #[inline]
+            fn conn_l(&self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::L> {
+                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner)
+            }
         }
     };
 }
@@ -439,7 +449,7 @@ pub(crate) use nz_uint_ext;
 macro_rules! int_uint_narrow {
     ($NAME:ident, $A:ty, $B:ty) => {
         #[doc = concat!("`", stringify!($A), " → ", stringify!($B), "` saturating narrow.")]
-        pub const $NAME: $crate::conn::ConnL<$A, $B> = {
+        pub const $NAME: $crate::conn::Conn<$A, $B> = {
             fn ceil(x: $A) -> $B {
                 if x < 0 {
                     0

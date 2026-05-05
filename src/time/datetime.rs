@@ -68,7 +68,7 @@ crate::conn_l! {
     /// let p_later = PrimitiveDateTime::new(day, Time::from_hms(0, 0, 1).unwrap());
     /// assert_eq!(PDTMDATE.ceil(p_later), Extended::Finite(day.next_day().unwrap()));
     ///
-    /// assert_eq!(PDTMDATE.inner(Extended::Finite(day)), p_midnight);
+    /// assert_eq!(PDTMDATE.upper(Extended::Finite(day)), p_midnight);
     /// ```
     pub PDTMDATE : PrimitiveDateTime => Extended<Date> {
         ceil:  pdtmdate_ceil,
@@ -80,7 +80,7 @@ crate::conn_l! {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{arb_date, arb_extended_date, arb_primitive_dt};
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -130,7 +130,7 @@ mod tests {
         let d = Date::from_calendar_date(2000, Month::January, 1).unwrap();
         let p = PrimitiveDateTime::new(d, Time::MIDNIGHT);
         assert_eq!(PDTMDATE.ceil(p), Extended::Finite(d));
-        assert_eq!(PDTMDATE.inner(Extended::Finite(d)), p);
+        assert_eq!(PDTMDATE.upper(Extended::Finite(d)), p);
     }
 
     #[test]
@@ -150,8 +150,8 @@ mod tests {
         assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MAX), Extended::PosInf);
         assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MAX), Extended::PosInf);
 
-        assert_eq!(PDTMDATE.inner(Extended::NegInf), PrimitiveDateTime::MIN);
-        assert_eq!(PDTMDATE.inner(Extended::PosInf), PrimitiveDateTime::MAX);
+        assert_eq!(PDTMDATE.upper(Extended::NegInf), PrimitiveDateTime::MIN);
+        assert_eq!(PDTMDATE.upper(Extended::PosInf), PrimitiveDateTime::MAX);
     }
 
     #[test]

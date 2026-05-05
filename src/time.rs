@@ -96,7 +96,7 @@
 //! compiling.
 //!
 //! ```rust
-//! use connections::conn::{ViewL, ViewR};  // brings .ceil/.inner/.floor in via default methods
+//! use connections::conn::{ConnL, ConnR};  // brings .ceil/.inner/.floor in via default methods
 //! use connections::time::DURNSECS;
 //! use connections::extended::Extended;
 //! use time::Duration;
@@ -104,13 +104,13 @@
 //! let half = Duration::seconds(5) + Duration::nanoseconds(1);
 //! assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));
 //! assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
-//! assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
+//! assert_eq!(DURNSECS.upper(Extended::Finite(42)), Duration::seconds(42));
 //! ```
 //!
 //! And the unsigned counterpoint via [`STDRU064`]:
 //!
 //! ```rust
-//! use connections::conn::{ViewL, ViewR};
+//! use connections::conn::{ConnL, ConnR};
 //! use connections::time::STDRU064;
 //! use connections::extended::Extended;
 //! use std::time::Duration as StdDuration;

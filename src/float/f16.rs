@@ -107,7 +107,7 @@ fn f032f016_floor(x: F032) -> F016 {
     }
 }
 
-crate::triple! {
+crate::conn_k! {
     /// Connection between [`super::F032`] (`ExtendedFloat<f32>`) and
     /// [`F016`] (`ExtendedFloat<f16>`) under the N5 lattice.
     ///
@@ -132,8 +132,8 @@ crate::triple! {
     /// let pi = Extend(std::f32::consts::PI);
     /// let pi_up   = F032F016.ceil(pi);
     /// let pi_down = F032F016.floor(pi);
-    /// assert!(F032F016.inner(pi_down) <= pi);
-    /// assert!(pi <= F032F016.inner(pi_up));
+    /// assert!(F032F016.upper(pi_down) <= pi);
+    /// assert!(pi <= F032F016.upper(pi_up));
     ///
     /// // f32::MAX saturates to f16::INFINITY.
     /// let huge: F032 = Extend(f32::MAX);
@@ -208,7 +208,7 @@ fn f064f016_floor(x: F064) -> F016 {
     }
 }
 
-crate::triple! {
+crate::conn_k! {
     /// Connection between [`super::F064`] and [`F016`] under the
     /// N5 lattice — direct `f64 ↔ f16` narrowing.
     ///
@@ -226,7 +226,7 @@ crate::triple! {
     /// let pi = Extend(std::f64::consts::PI);
     /// let pi_up = F064F016.ceil(pi);
     /// // Widening f16 back to f64 lands above the original.
-    /// assert!(F064F016.inner(pi_up) >= pi);
+    /// assert!(F064F016.upper(pi_up) >= pi);
     /// ```
     pub F064F016 : F064 => F016 {
         ceil:  f064f016_ceil,
@@ -273,7 +273,7 @@ fn floor_f64_f16(x: f64) -> f16 {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{arb_f32, arb_f64, extended_float_f16 as ef16};
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -431,8 +431,8 @@ mod tests {
         assert_eq!(F032F016.floor(ExtendedFloat::Bot), ExtendedFloat::Bot);
         assert_eq!(F032F016.ceil(ExtendedFloat::Top), ExtendedFloat::Top);
         assert_eq!(F032F016.floor(ExtendedFloat::Top), ExtendedFloat::Top);
-        assert_eq!(F032F016.inner(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F032F016.inner(ExtendedFloat::Top), ExtendedFloat::Top);
+        assert_eq!(F032F016.upper(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F032F016.upper(ExtendedFloat::Top), ExtendedFloat::Top);
     }
 
     // ── F064F016 spot checks ───────────────────────────────────────
@@ -485,8 +485,8 @@ mod tests {
         assert_eq!(F064F016.floor(ExtendedFloat::Bot), ExtendedFloat::Bot);
         assert_eq!(F064F016.ceil(ExtendedFloat::Top), ExtendedFloat::Top);
         assert_eq!(F064F016.floor(ExtendedFloat::Top), ExtendedFloat::Top);
-        assert_eq!(F064F016.inner(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F064F016.inner(ExtendedFloat::Top), ExtendedFloat::Top);
+        assert_eq!(F064F016.upper(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F064F016.upper(ExtendedFloat::Top), ExtendedFloat::Top);
     }
 
     // ── F032F016 property tests ────────────────────────────────────
@@ -500,47 +500,47 @@ mod tests {
 
         #[test]
         fn f032_galois_l(a in ef32(), b in ef16()) {
-            prop_assert!(conn_laws::galois_l(&F032F016::L, a, b));
+            prop_assert!(conn_laws::galois_l(&F032F016.conn_l(), a, b));
         }
 
         #[test]
         fn f032_galois_r(a in ef32(), b in ef16()) {
-            prop_assert!(conn_laws::galois_r(&F032F016::R, a, b));
+            prop_assert!(conn_laws::galois_r(&F032F016.conn_r(), a, b));
         }
 
         #[test]
         fn f032_closure_l(a in ef32()) {
-            prop_assert!(conn_laws::closure_l(&F032F016::L, a));
+            prop_assert!(conn_laws::closure_l(&F032F016.conn_l(), a));
         }
 
         #[test]
         fn f032_closure_r(a in ef32()) {
-            prop_assert!(conn_laws::closure_r(&F032F016::R, a));
+            prop_assert!(conn_laws::closure_r(&F032F016.conn_r(), a));
         }
 
         #[test]
         fn f032_kernel_l(b in ef16()) {
-            prop_assert!(conn_laws::kernel_l(&F032F016::L, b));
+            prop_assert!(conn_laws::kernel_l(&F032F016.conn_l(), b));
         }
 
         #[test]
         fn f032_kernel_r(b in ef16()) {
-            prop_assert!(conn_laws::kernel_r(&F032F016::R, b));
+            prop_assert!(conn_laws::kernel_r(&F032F016.conn_r(), b));
         }
 
         #[test]
         fn f032_monotone_l(a1 in ef32(), a2 in ef32()) {
-            prop_assert!(conn_laws::monotone_l(&F032F016::L, a1, a2));
+            prop_assert!(conn_laws::monotone_l(&F032F016.conn_l(), a1, a2));
         }
 
         #[test]
         fn f032_monotone_r(b1 in ef16(), b2 in ef16()) {
-            prop_assert!(conn_laws::monotone_r(&F032F016::R, b1, b2));
+            prop_assert!(conn_laws::monotone_r(&F032F016.conn_r(), b1, b2));
         }
 
         #[test]
         fn f032_idempotent(a in ef32()) {
-            prop_assert!(conn_laws::idempotent(&F032F016::L, a));
+            prop_assert!(conn_laws::idempotent(&F032F016.conn_l(), a));
         }
 
         #[test]
@@ -586,47 +586,47 @@ mod tests {
 
         #[test]
         fn f064_galois_l(a in ef64(), b in ef16()) {
-            prop_assert!(conn_laws::galois_l(&F064F016::L, a, b));
+            prop_assert!(conn_laws::galois_l(&F064F016.conn_l(), a, b));
         }
 
         #[test]
         fn f064_galois_r(a in ef64(), b in ef16()) {
-            prop_assert!(conn_laws::galois_r(&F064F016::R, a, b));
+            prop_assert!(conn_laws::galois_r(&F064F016.conn_r(), a, b));
         }
 
         #[test]
         fn f064_closure_l(a in ef64()) {
-            prop_assert!(conn_laws::closure_l(&F064F016::L, a));
+            prop_assert!(conn_laws::closure_l(&F064F016.conn_l(), a));
         }
 
         #[test]
         fn f064_closure_r(a in ef64()) {
-            prop_assert!(conn_laws::closure_r(&F064F016::R, a));
+            prop_assert!(conn_laws::closure_r(&F064F016.conn_r(), a));
         }
 
         #[test]
         fn f064_kernel_l(b in ef16()) {
-            prop_assert!(conn_laws::kernel_l(&F064F016::L, b));
+            prop_assert!(conn_laws::kernel_l(&F064F016.conn_l(), b));
         }
 
         #[test]
         fn f064_kernel_r(b in ef16()) {
-            prop_assert!(conn_laws::kernel_r(&F064F016::R, b));
+            prop_assert!(conn_laws::kernel_r(&F064F016.conn_r(), b));
         }
 
         #[test]
         fn f064_monotone_l(a1 in ef64(), a2 in ef64()) {
-            prop_assert!(conn_laws::monotone_l(&F064F016::L, a1, a2));
+            prop_assert!(conn_laws::monotone_l(&F064F016.conn_l(), a1, a2));
         }
 
         #[test]
         fn f064_monotone_r(b1 in ef16(), b2 in ef16()) {
-            prop_assert!(conn_laws::monotone_r(&F064F016::R, b1, b2));
+            prop_assert!(conn_laws::monotone_r(&F064F016.conn_r(), b1, b2));
         }
 
         #[test]
         fn f064_idempotent(a in ef64()) {
-            prop_assert!(conn_laws::idempotent(&F064F016::L, a));
+            prop_assert!(conn_laws::idempotent(&F064F016.conn_l(), a));
         }
 
         #[test]

@@ -34,7 +34,7 @@ fn f064f032_floor(x: F064) -> F032 {
     }
 }
 
-crate::triple! {
+crate::conn_k! {
     /// Connection between [`super::F064`] (i.e. `ExtendedFloat<f64>`) and
     /// [`super::F032`] (`ExtendedFloat<f32>`) under the N5 lattice ordering.
     ///
@@ -50,7 +50,7 @@ crate::triple! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::conn::{ConnL, ConnR};
     /// use connections::float::f32::F064F032;
     /// use connections::float::ExtendedFloat;
     ///
@@ -63,8 +63,8 @@ crate::triple! {
     /// assert!(matches!(lo, ExtendedFloat::Extend(_)));
     /// assert!(matches!(hi, ExtendedFloat::Extend(_)));
     /// // Embedding the bracket back to f64 sandwiches the original.
-    /// let lo_back = F064F032.inner(lo);
-    /// let hi_back = F064F032.inner(hi);
+    /// let lo_back = F064F032.upper(lo);
+    /// let hi_back = F064F032.upper(hi);
     /// assert!(lo_back <= pi_f64 && pi_f64 <= hi_back);
     ///
     /// // Sentinel pass-through.
@@ -122,7 +122,7 @@ fn floor_f64_f32(x: f64) -> f32 {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{arb_f32, arb_f64};
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn inner_nan() {
-        match F064F032.inner(ExtendedFloat::Extend(f32::NAN)) {
+        match F064F032.upper(ExtendedFloat::Extend(f32::NAN)) {
             ExtendedFloat::Extend(v) => assert!(v.is_nan()),
             _ => panic!("expected Extend(NaN)"),
         }
@@ -204,8 +204,8 @@ mod tests {
         assert_eq!(F064F032.floor(ExtendedFloat::Bot), ExtendedFloat::Bot);
         assert_eq!(F064F032.ceil(ExtendedFloat::Top), ExtendedFloat::Top);
         assert_eq!(F064F032.floor(ExtendedFloat::Top), ExtendedFloat::Top);
-        assert_eq!(F064F032.inner(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F064F032.inner(ExtendedFloat::Top), ExtendedFloat::Top);
+        assert_eq!(F064F032.upper(ExtendedFloat::Bot), ExtendedFloat::Bot);
+        assert_eq!(F064F032.upper(ExtendedFloat::Top), ExtendedFloat::Top);
     }
 
     // ── Property tests ─────────────────────────────────────────────

@@ -3,12 +3,12 @@
 //! Five Conns covering the std-library IP types:
 //!
 //! - [`U032IPV4`] — `Conn<u32, Ipv4Addr>` total bijection via
-//!   `Ipv4Addr::{from,to}_bits`. Constructed with the [`triple!`](crate::triple) macro;
+//!   `Ipv4Addr::{from,to}_bits`. Constructed with the [`conn_k!`](crate::triple) macro;
 //!   both Galois laws and `floor_le_ceil` hold trivially.
 //! - [`U128IPV6`] — `Conn<u128, Ipv6Addr>` total bijection, same
 //!   shape.
 //! - [`IPV6IPV4`] — `Conn<Ipv6Addr, Extended<Ipv4Addr>>`, the
-//!   v4-mapped bridge. Full triple (the [`triple!`](crate::triple) macro) with asymmetric
+//!   v4-mapped bridge. Full triple (the [`conn_k!`](crate::triple) macro) with asymmetric
 //!   ceil/floor outside the v4-mapped block; lawful (passes
 //!   `floor_le_ceil`) because `inner` is order-reflecting — the
 //!   v4-mapped block sits strictly inside `Ipv6Addr`, giving "room"
@@ -54,12 +54,12 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::conn::{ConnL, ConnR};
     /// use connections::addr::U032IPV4;
     /// use std::net::Ipv4Addr;
     ///
     /// assert_eq!(U032IPV4.ceil(0xC0A80101_u32), Ipv4Addr::new(192, 168, 1, 1));
-    /// assert_eq!(U032IPV4.inner(Ipv4Addr::new(192, 168, 1, 1)), 0xC0A80101_u32);
+    /// assert_eq!(U032IPV4.upper(Ipv4Addr::new(192, 168, 1, 1)), 0xC0A80101_u32);
     /// ```
     pub U032IPV4 : u32 => Ipv4Addr {
         forward: u32_to_v4,
@@ -83,12 +83,12 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::conn::{ConnL, ConnR};
     /// use connections::addr::U128IPV6;
     /// use std::net::Ipv6Addr;
     ///
     /// assert_eq!(U128IPV6.ceil(1_u128), Ipv6Addr::LOCALHOST);
-    /// assert_eq!(U128IPV6.inner(Ipv6Addr::LOCALHOST), 1_u128);
+    /// assert_eq!(U128IPV6.upper(Ipv6Addr::LOCALHOST), 1_u128);
     /// ```
     pub U128IPV6 : u128 => Ipv6Addr {
         forward: u128_to_v6,
@@ -139,7 +139,7 @@ const fn ipv6ipv4_floor(v6: Ipv6Addr) -> Extended<Ipv4Addr> {
     }
 }
 
-crate::triple! {
+crate::conn_k! {
     /// `Ipv6Addr → Extended<Ipv4Addr>` — the v4-mapped bridge.
     ///
     /// The forward map projects an `Ipv6Addr` onto its embedded
@@ -179,7 +179,7 @@ crate::triple! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::conn::{ConnL, ConnR};
     /// use connections::addr::ip::IPV6IPV4;
     /// use connections::extended::Extended;
     /// use std::net::{Ipv4Addr, Ipv6Addr};
@@ -191,7 +191,7 @@ crate::triple! {
     ///     Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))
     /// );
     /// assert_eq!(
-    ///     IPV6IPV4.inner(Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))),
+    ///     IPV6IPV4.upper(Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))),
     ///     v4_in_v6
     /// );
     ///
@@ -243,11 +243,11 @@ crate::triple! {
 /// // accessor; `inner(PosInf)` saturates to the source MAX
 /// // (`V6` with all bits set) per the L-Galois right-adjoint formula.
 /// assert_eq!(
-///     IPVXIPV4.inner(Extended::PosInf),
+///     IPVXIPV4.upper(Extended::PosInf),
 ///     IpAddr::V6(Ipv6Addr::from_bits(u128::MAX)),
 /// );
 /// ```
-pub const IPVXIPV4: crate::conn::ConnL<IpAddr, Extended<Ipv4Addr>> = {
+pub const IPVXIPV4: crate::conn::Conn<IpAddr, Extended<Ipv4Addr>> = {
     fn ceil(a: IpAddr) -> Extended<Ipv4Addr> {
         match a {
             // Galois forces ceil(MIN) = NegInf because inner(NegInf) = V4(0.0.0.0)
@@ -304,9 +304,9 @@ pub const IPVXIPV4: crate::conn::ConnL<IpAddr, Extended<Ipv4Addr>> = {
 /// // IPVXIPV6 is a one-sided ConnR — no `.ceil()` method exists,
 /// // and no L-view is exposed. `inner` is the surviving lower-side
 /// // accessor.
-/// assert_eq!(IPVXIPV6.inner(Extended::NegInf), IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+/// assert_eq!(IPVXIPV6.lower(Extended::NegInf), IpAddr::V4(Ipv4Addr::UNSPECIFIED));
 /// ```
-pub const IPVXIPV6: crate::conn::ConnR<IpAddr, Extended<Ipv6Addr>> = {
+pub const IPVXIPV6: crate::conn::Conn<IpAddr, Extended<Ipv6Addr>, crate::conn::R> = {
     fn inner(b: Extended<Ipv6Addr>) -> IpAddr {
         match b {
             // Galois R pins inner(NegInf) below all V6: largest V4 ≤ all V6 is the
@@ -335,7 +335,7 @@ pub const IPVXIPV6: crate::conn::ConnR<IpAddr, Extended<Ipv6Addr>> = {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{arb_extended_ipv4, arb_extended_ipv6, arb_ip_addr, arb_ipv4, arb_ipv6};
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
@@ -345,15 +345,15 @@ mod tests {
     #[test]
     fn u032ipv4_loopback() {
         assert_eq!(U032IPV4.ceil(0x7F000001_u32), Ipv4Addr::new(127, 0, 0, 1));
-        assert_eq!(U032IPV4.inner(Ipv4Addr::new(127, 0, 0, 1)), 0x7F000001_u32);
+        assert_eq!(U032IPV4.upper(Ipv4Addr::new(127, 0, 0, 1)), 0x7F000001_u32);
     }
 
     #[test]
     fn u032ipv4_extremes() {
         assert_eq!(U032IPV4.ceil(0_u32), Ipv4Addr::UNSPECIFIED);
         assert_eq!(U032IPV4.ceil(u32::MAX), Ipv4Addr::BROADCAST);
-        assert_eq!(U032IPV4.inner(Ipv4Addr::UNSPECIFIED), 0_u32);
-        assert_eq!(U032IPV4.inner(Ipv4Addr::BROADCAST), u32::MAX);
+        assert_eq!(U032IPV4.upper(Ipv4Addr::UNSPECIFIED), 0_u32);
+        assert_eq!(U032IPV4.upper(Ipv4Addr::BROADCAST), u32::MAX);
     }
 
     // ── U128IPV6 spot checks ────────────────────────────────────
@@ -361,13 +361,13 @@ mod tests {
     #[test]
     fn u128ipv6_localhost() {
         assert_eq!(U128IPV6.ceil(1_u128), Ipv6Addr::LOCALHOST);
-        assert_eq!(U128IPV6.inner(Ipv6Addr::LOCALHOST), 1_u128);
+        assert_eq!(U128IPV6.upper(Ipv6Addr::LOCALHOST), 1_u128);
     }
 
     #[test]
     fn u128ipv6_extremes() {
         assert_eq!(U128IPV6.ceil(0_u128), Ipv6Addr::UNSPECIFIED);
-        assert_eq!(U128IPV6.inner(Ipv6Addr::UNSPECIFIED), 0_u128);
+        assert_eq!(U128IPV6.upper(Ipv6Addr::UNSPECIFIED), 0_u128);
         assert_eq!(U128IPV6.ceil(u128::MAX), Ipv6Addr::from_bits(u128::MAX));
     }
 
@@ -410,7 +410,7 @@ mod tests {
         let v6: Ipv6Addr = "::ffff:7f00:1".parse().unwrap();
         assert_eq!(IPV6IPV4.ceil(v6), Extended::Finite(v4));
         assert_eq!(IPV6IPV4.floor(v6), Extended::Finite(v4));
-        assert_eq!(IPV6IPV4.inner(Extended::Finite(v4)), v6);
+        assert_eq!(IPV6IPV4.upper(Extended::Finite(v4)), v6);
     }
 
     #[test]
@@ -467,9 +467,9 @@ mod tests {
 
     #[test]
     fn ipv6ipv4_synthetic_inner() {
-        assert_eq!(IPV6IPV4.inner(Extended::NegInf), Ipv6Addr::UNSPECIFIED);
+        assert_eq!(IPV6IPV4.upper(Extended::NegInf), Ipv6Addr::UNSPECIFIED);
         assert_eq!(
-            IPV6IPV4.inner(Extended::PosInf),
+            IPV6IPV4.upper(Extended::PosInf),
             Ipv6Addr::from_bits(u128::MAX)
         );
     }
@@ -487,7 +487,7 @@ mod tests {
         // V4-mapped block round-trips bijectively.
         #[test]
         fn ipv6ipv4_v4_round_trip(v4 in arb_ipv4()) {
-            let v6 = IPV6IPV4.inner(Extended::Finite(v4));
+            let v6 = IPV6IPV4.upper(Extended::Finite(v4));
             prop_assert_eq!(IPV6IPV4.ceil(v6), Extended::Finite(v4));
             prop_assert_eq!(IPV6IPV4.floor(v6), Extended::Finite(v4));
         }

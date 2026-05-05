@@ -19,7 +19,7 @@
 //! single Fine value. Per the equivalence `inner order-reflecting ⟺
 //! floor ≤ ceil`, no `floor` function can satisfy the rounding
 //! sandwich at the plateau without breaking one of the per-side
-//! Galois laws. Plan 32 demoted these from `triple!` to `Conn::new_l`
+//! Galois laws. Plan 32 demoted these from `conn_k!` to `Conn::new_l`
 //! to remove the lie. `ceil` retains the FINE_MIN boundary fixup
 //! (`ceil(Fine::MIN) = Coarse::MIN`) needed for galois_l at the
 //! lower extreme.
@@ -124,9 +124,14 @@ macro_rules! fix_fix_i16 {
         }
 
         // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ViewL<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>> for $const_name {
-            const L: $crate::conn::ConnL<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>> =
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        impl $crate::conn::ConnL<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>> for $const_name {
+            #[inline]
+            fn conn_l(
+                &self,
+            ) -> $crate::conn::Conn<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>, $crate::conn::L>
+            {
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
+            }
         }
     };
 }
@@ -157,7 +162,7 @@ fix_fix_i16!(Q016Q012, U16, U12);
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::extended::Extended;
     use proptest::prelude::*;
 
@@ -177,13 +182,13 @@ mod tests {
 
     #[test]
     fn i008i016_inner_partitions_target_range() {
-        assert_eq!(I008I016.inner(-129), Extended::NegInf);
-        assert_eq!(I008I016.inner(i16::MIN), Extended::NegInf);
-        assert_eq!(I008I016.inner(128), Extended::PosInf);
-        assert_eq!(I008I016.inner(i16::MAX), Extended::PosInf);
-        assert_eq!(I008I016.inner(-128), Extended::Finite(i8::MIN));
-        assert_eq!(I008I016.inner(0), Extended::Finite(0));
-        assert_eq!(I008I016.inner(127), Extended::Finite(i8::MAX));
+        assert_eq!(I008I016.upper(-129), Extended::NegInf);
+        assert_eq!(I008I016.upper(i16::MIN), Extended::NegInf);
+        assert_eq!(I008I016.upper(128), Extended::PosInf);
+        assert_eq!(I008I016.upper(i16::MAX), Extended::PosInf);
+        assert_eq!(I008I016.upper(-128), Extended::Finite(i8::MIN));
+        assert_eq!(I008I016.upper(0), Extended::Finite(0));
+        assert_eq!(I008I016.upper(127), Extended::Finite(i8::MAX));
     }
 
     #[test]
@@ -198,13 +203,13 @@ mod tests {
 
     #[test]
     fn u008i016_inner_partitions_target_range() {
-        assert_eq!(U008I016.inner(-1), Extended::NegInf);
-        assert_eq!(U008I016.inner(i16::MIN), Extended::NegInf);
-        assert_eq!(U008I016.inner(256), Extended::PosInf);
-        assert_eq!(U008I016.inner(i16::MAX), Extended::PosInf);
-        assert_eq!(U008I016.inner(0), Extended::Finite(0));
-        assert_eq!(U008I016.inner(50), Extended::Finite(50));
-        assert_eq!(U008I016.inner(255), Extended::Finite(255));
+        assert_eq!(U008I016.upper(-1), Extended::NegInf);
+        assert_eq!(U008I016.upper(i16::MIN), Extended::NegInf);
+        assert_eq!(U008I016.upper(256), Extended::PosInf);
+        assert_eq!(U008I016.upper(i16::MAX), Extended::PosInf);
+        assert_eq!(U008I016.upper(0), Extended::Finite(0));
+        assert_eq!(U008I016.upper(50), Extended::Finite(50));
+        assert_eq!(U008I016.upper(255), Extended::Finite(255));
     }
 
     #[test]
@@ -217,17 +222,17 @@ mod tests {
 
     #[test]
     fn i_to_i16_inner_fine_max_fixup() {
-        assert_eq!(I032I016.inner(i16::MAX), i32::MAX);
-        assert_eq!(I064I016.inner(i16::MAX), i64::MAX);
-        assert_eq!(I128I016.inner(i16::MAX), i128::MAX);
-        assert_eq!(I032I016.inner(0), 0_i32);
-        assert_eq!(I032I016.inner(i16::MIN), i16::MIN as i32);
+        assert_eq!(I032I016.upper(i16::MAX), i32::MAX);
+        assert_eq!(I064I016.upper(i16::MAX), i64::MAX);
+        assert_eq!(I128I016.upper(i16::MAX), i128::MAX);
+        assert_eq!(I032I016.upper(0), 0_i32);
+        assert_eq!(I032I016.upper(i16::MIN), i16::MIN as i32);
     }
 
     #[test]
     fn u_to_i16_neg_and_high() {
-        assert_eq!(U016I016.inner(-1), 0_u16);
-        assert_eq!(U016I016.inner(i16::MIN), 0_u16);
+        assert_eq!(U016I016.lower(-1), 0_u16);
+        assert_eq!(U016I016.lower(i16::MIN), 0_u16);
         assert_eq!(U016I016.floor(u16::MAX), i16::MAX);
         assert_eq!(U128I016.floor(u128::MAX), i16::MAX);
     }
@@ -242,7 +247,7 @@ mod tests {
         // 1.5 in Q8.8 (bits 384) — exactly representable in Q12.4.
         let q88 = FixedI16::<U8>::from_bits(384);
         assert_eq!(Q008Q004.ceil(q88), FixedI16::<U4>::from_bits(24));
-        assert_eq!(Q008Q004.inner(FixedI16::<U4>::from_bits(24)), q88);
+        assert_eq!(Q008Q004.upper(FixedI16::<U4>::from_bits(24)), q88);
     }
 
     #[test]
@@ -267,7 +272,7 @@ mod tests {
         // `floor_le_ceil` violation that demoted these to ConnL.
         let fmax = FixedI16::<U8>::from_bits(i16::MAX);
         assert_eq!(Q008Q004.ceil(fmax), FixedI16::<U4>::from_bits(2048));
-        assert_eq!(Q008Q004.inner(FixedI16::<U4>::from_bits(2048)), fmax);
+        assert_eq!(Q008Q004.upper(FixedI16::<U4>::from_bits(2048)), fmax);
 
         // Fine::MIN ceils to Coarse::MIN (the FINE_MIN ceil fixup is
         // still needed for galois_l, kept in the macro).
@@ -280,15 +285,15 @@ mod tests {
         // SHIFT = 16, RATIO = 65 536. Every Coarse value with |bits| ≥ 1
         // saturates inner. Only Coarse(0) round-trips.
         assert_eq!(
-            Q016Q000.inner(FixedI16::<U0>::from_bits(0)),
+            Q016Q000.upper(FixedI16::<U0>::from_bits(0)),
             FixedI16::<U16>::from_bits(0),
         );
         assert_eq!(
-            Q016Q000.inner(FixedI16::<U0>::from_bits(1)),
+            Q016Q000.upper(FixedI16::<U0>::from_bits(1)),
             FixedI16::<U16>::from_bits(i16::MAX),
         );
         assert_eq!(
-            Q016Q000.inner(FixedI16::<U0>::from_bits(-1)),
+            Q016Q000.upper(FixedI16::<U0>::from_bits(-1)),
             FixedI16::<U16>::from_bits(i16::MIN),
         );
     }

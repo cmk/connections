@@ -99,9 +99,14 @@ macro_rules! fix_fix_i64 {
         }
 
         // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ViewL<FixedI64<$FineFrac>, FixedI64<$CoarseFrac>> for $const_name {
-            const L: $crate::conn::ConnL<FixedI64<$FineFrac>, FixedI64<$CoarseFrac>> =
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        impl $crate::conn::ConnL<FixedI64<$FineFrac>, FixedI64<$CoarseFrac>> for $const_name {
+            #[inline]
+            fn conn_l(
+                &self,
+            ) -> $crate::conn::Conn<FixedI64<$FineFrac>, FixedI64<$CoarseFrac>, $crate::conn::L>
+            {
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
+            }
         }
     };
 }
@@ -131,7 +136,7 @@ fix_fix_i64!(Q064Q048, U64, U48);
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::extended::Extended;
     use proptest::prelude::*;
 
@@ -154,15 +159,15 @@ mod tests {
     fn i128i064_saturate_and_fixup() {
         assert_eq!(I128I064.ceil(i128::MAX), i64::MAX);
         assert_eq!(I128I064.ceil(i128::MIN), i64::MIN);
-        assert_eq!(I128I064.inner(i64::MAX), i128::MAX);
-        assert_eq!(I128I064.inner(i64::MIN), i64::MIN as i128);
+        assert_eq!(I128I064.upper(i64::MAX), i128::MAX);
+        assert_eq!(I128I064.upper(i64::MIN), i64::MIN as i128);
     }
 
     #[test]
     fn u_to_i64_neg_and_high() {
-        assert_eq!(U064I064.inner(-1), 0_u64);
+        assert_eq!(U064I064.lower(-1), 0_u64);
         assert_eq!(U064I064.floor(u64::MAX), i64::MAX);
-        assert_eq!(U128I064.inner(i64::MIN), 0_u128);
+        assert_eq!(U128I064.lower(i64::MIN), 0_u128);
         assert_eq!(U128I064.floor(u128::MAX), i64::MAX);
     }
 
@@ -181,15 +186,15 @@ mod tests {
     fn spot_q064q000_degenerate() {
         // SHIFT = 64. Only Coarse(0) round-trips; ±1 saturates inner.
         assert_eq!(
-            Q064Q000.inner(FixedI64::<U0>::from_bits(0)),
+            Q064Q000.upper(FixedI64::<U0>::from_bits(0)),
             FixedI64::<U64>::from_bits(0),
         );
         assert_eq!(
-            Q064Q000.inner(FixedI64::<U0>::from_bits(1)),
+            Q064Q000.upper(FixedI64::<U0>::from_bits(1)),
             FixedI64::<U64>::from_bits(i64::MAX),
         );
         assert_eq!(
-            Q064Q000.inner(FixedI64::<U0>::from_bits(-1)),
+            Q064Q000.upper(FixedI64::<U0>::from_bits(-1)),
             FixedI64::<U64>::from_bits(i64::MIN),
         );
     }

@@ -114,13 +114,13 @@ crate::conn_l! {
     ///     86_399_999_999_999,
     /// );
     /// assert_eq!(
-    ///     TIMENANO.inner(43_200_000_000_000),
+    ///     TIMENANO.upper(43_200_000_000_000),
     ///     Extended::Finite(Time::from_hms(12, 0, 0).unwrap()),
     /// );
     ///
     /// // Out-of-range nanoseconds saturate.
-    /// assert_eq!(TIMENANO.inner(-1), Extended::NegInf);
-    /// assert_eq!(TIMENANO.inner(86_400_000_000_000), Extended::PosInf);
+    /// assert_eq!(TIMENANO.upper(-1), Extended::NegInf);
+    /// assert_eq!(TIMENANO.upper(86_400_000_000_000), Extended::PosInf);
     /// ```
     pub TIMENANO : Extended<Time> => i64 {
         ceil:  timenano_ceil,
@@ -170,7 +170,7 @@ crate::conn_l! {
     /// let mid_minute = Time::from_hms_nano(12, 0, 0, 1).unwrap();
     /// assert_eq!(TIMESECS.ceil(Extended::Finite(mid_minute)), 43_201);
     ///
-    /// assert_eq!(TIMESECS.inner(43_200), Extended::Finite(noon));
+    /// assert_eq!(TIMESECS.upper(43_200), Extended::Finite(noon));
     /// ```
     pub TIMESECS : Extended<Time> => i64 {
         ceil:  timesecs_ceil,
@@ -182,7 +182,7 @@ crate::conn_l! {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{arb_extended_time, arb_ns_in_range, arb_secs_in_range, arb_time};
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -234,29 +234,29 @@ mod tests {
         #[test]
         fn midnight_is_zero() {
             assert_eq!(TIMENANO.ceil(Extended::Finite(Time::MIDNIGHT)), 0);
-            assert_eq!(TIMENANO.inner(0), Extended::Finite(Time::MIDNIGHT));
+            assert_eq!(TIMENANO.upper(0), Extended::Finite(Time::MIDNIGHT));
         }
 
         #[test]
         fn end_of_day() {
             let last = Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap();
             assert_eq!(TIMENANO.ceil(Extended::Finite(last)), NS_MAX);
-            assert_eq!(TIMENANO.inner(NS_MAX), Extended::Finite(last));
+            assert_eq!(TIMENANO.upper(NS_MAX), Extended::Finite(last));
         }
 
         #[test]
         fn noon_round_trip() {
             let noon = Time::from_hms(12, 0, 0).unwrap();
-            assert_eq!(TIMENANO.inner(43_200_000_000_000), Extended::Finite(noon));
+            assert_eq!(TIMENANO.upper(43_200_000_000_000), Extended::Finite(noon));
             assert_eq!(TIMENANO.ceil(Extended::Finite(noon)), 43_200_000_000_000);
         }
 
         #[test]
         fn saturation_extremes() {
-            assert_eq!(TIMENANO.inner(-1), Extended::NegInf);
-            assert_eq!(TIMENANO.inner(i64::MIN), Extended::NegInf);
-            assert_eq!(TIMENANO.inner(NS_MAX + 1), Extended::PosInf);
-            assert_eq!(TIMENANO.inner(i64::MAX), Extended::PosInf);
+            assert_eq!(TIMENANO.upper(-1), Extended::NegInf);
+            assert_eq!(TIMENANO.upper(i64::MIN), Extended::NegInf);
+            assert_eq!(TIMENANO.upper(NS_MAX + 1), Extended::PosInf);
+            assert_eq!(TIMENANO.upper(i64::MAX), Extended::PosInf);
 
             assert_eq!(TIMENANO.ceil(Extended::NegInf), i64::MIN);
             assert_eq!(TIMENANO.ceil(Extended::PosInf), NS_MAX + 1);
@@ -310,14 +310,14 @@ mod tests {
         #[test]
         fn midnight_is_zero() {
             assert_eq!(TIMESECS.ceil(Extended::Finite(Time::MIDNIGHT)), 0);
-            assert_eq!(TIMESECS.inner(0), Extended::Finite(Time::MIDNIGHT));
+            assert_eq!(TIMESECS.upper(0), Extended::Finite(Time::MIDNIGHT));
         }
 
         #[test]
         fn exact_second_round_trip() {
             let noon = Time::from_hms(12, 0, 0).unwrap();
             assert_eq!(TIMESECS.ceil(Extended::Finite(noon)), 43_200);
-            assert_eq!(TIMESECS.inner(43_200), Extended::Finite(noon));
+            assert_eq!(TIMESECS.upper(43_200), Extended::Finite(noon));
         }
 
         #[test]
@@ -340,8 +340,8 @@ mod tests {
 
         #[test]
         fn saturation_extremes() {
-            assert_eq!(TIMESECS.inner(-1), Extended::NegInf);
-            assert_eq!(TIMESECS.inner(86_400), Extended::PosInf);
+            assert_eq!(TIMESECS.upper(-1), Extended::NegInf);
+            assert_eq!(TIMESECS.upper(86_400), Extended::PosInf);
             assert_eq!(TIMESECS.ceil(Extended::NegInf), i64::MIN);
             assert_eq!(TIMESECS.ceil(Extended::PosInf), 86_400);
             // `new_left` wires `floor = ceil` structurally.

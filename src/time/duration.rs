@@ -133,7 +133,7 @@ fn durnsecs_floor(d: Duration) -> Extended<i64> {
     }
 }
 
-crate::triple! {
+crate::conn_k! {
     /// `Duration → Extended<i64>` — signed time span ↔ whole seconds.
     ///
     /// `Duration` already covers the full `i64`-second range, so the
@@ -157,7 +157,7 @@ crate::triple! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::conn::{ConnL, ConnR};
     /// use connections::time::DURNSECS;
     /// use connections::extended::Extended;
     /// use time::Duration;
@@ -171,7 +171,7 @@ crate::triple! {
     /// assert_eq!(DURNSECS.ceil(neg),  Extended::Finite(-5));
     /// assert_eq!(DURNSECS.floor(neg), Extended::Finite(-6));
     ///
-    /// assert_eq!(DURNSECS.inner(Extended::Finite(42)), Duration::seconds(42));
+    /// assert_eq!(DURNSECS.upper(Extended::Finite(42)), Duration::seconds(42));
     /// ```
     pub DURNSECS : Duration => Extended<i64> {
         ceil:  durnsecs_ceil,
@@ -183,7 +183,7 @@ crate::triple! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{arb_duration, arb_extended_i64};
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -193,7 +193,7 @@ mod tests {
     mod duration_preorder {
         use super::*;
         #[allow(unused_imports)]
-        use crate::conn::{ViewL, ViewR};
+        use crate::conn::{ConnL, ConnR};
 
         proptest! {
             #[test]
@@ -229,7 +229,7 @@ mod tests {
     fn zero_is_zero() {
         assert_eq!(DURNSECS.ceil(Duration::ZERO), Extended::Finite(0));
         assert_eq!(DURNSECS.floor(Duration::ZERO), Extended::Finite(0));
-        assert_eq!(DURNSECS.inner(Extended::Finite(0)), Duration::ZERO);
+        assert_eq!(DURNSECS.upper(Extended::Finite(0)), Duration::ZERO);
     }
 
     #[test]
@@ -257,8 +257,8 @@ mod tests {
 
     #[test]
     fn inner_saturates_extended() {
-        assert_eq!(DURNSECS.inner(Extended::NegInf), Duration::MIN);
-        assert_eq!(DURNSECS.inner(Extended::PosInf), Duration::MAX);
+        assert_eq!(DURNSECS.upper(Extended::NegInf), Duration::MIN);
+        assert_eq!(DURNSECS.upper(Extended::PosInf), Duration::MAX);
     }
 
     // ── DURNSECS Galois law battery ─────────────────────────────
@@ -292,12 +292,12 @@ mod tests {
         // identity.
         #[test]
         fn roundtrip_ceil(s in any::<i64>()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&DURNSECS::L, Extended::Finite(s)));
+            prop_assert!(conn_laws::roundtrip_ceil(&DURNSECS.conn_l(), Extended::Finite(s)));
         }
 
         #[test]
         fn roundtrip_floor(s in any::<i64>()) {
-            prop_assert!(conn_laws::roundtrip_floor(&DURNSECS::R, Extended::Finite(s)));
+            prop_assert!(conn_laws::roundtrip_floor(&DURNSECS.conn_r(), Extended::Finite(s)));
         }
     }
 }
@@ -377,12 +377,12 @@ crate::conn_l! {
     ///
     /// // 0.5 seconds round-trips exactly.
     /// let half = ExtendedFloat::Extend(0.5_f64);
-    /// assert_eq!(F064DURN.ceiling(half), Extended::Finite(Duration::milliseconds(500)));
+    /// assert_eq!(F064DURN.ceil(half), Extended::Finite(Duration::milliseconds(500)));
     /// assert_eq!(F064DURN.upper(Extended::Finite(Duration::milliseconds(500))),
     ///            ExtendedFloat::Extend(0.5));
     ///
     /// // NaN saturates ceil to PosInf.
-    /// assert_eq!(F064DURN.ceiling(ExtendedFloat::Extend(f64::NAN)), Extended::PosInf);
+    /// assert_eq!(F064DURN.ceil(ExtendedFloat::Extend(f64::NAN)), Extended::PosInf);
     /// ```
     pub F064DURN : F064 => Extended<Duration> {
         ceil:  f064durn_ceil,
@@ -456,7 +456,7 @@ crate::conn_l! {
     ///
     /// // 1.0 s in f32 ceils to the bottom of the f32 plateau covering 1.0.
     /// let one = ExtendedFloat::Extend(1.0_f32);
-    /// if let Extended::Finite(c) = F032DURN.ceiling(one) {
+    /// if let Extended::Finite(c) = F032DURN.ceil(one) {
     ///     assert_eq!(c.as_seconds_f32(), 1.0_f32);
     /// }
     /// ```
@@ -547,7 +547,7 @@ fn stdru064_floor(d: Extended<StdDuration>) -> Extended<u64> {
     }
 }
 
-crate::triple! {
+crate::conn_k! {
     /// `Extended<StdDuration> → Extended<u64>` — unsigned time span ↔
     /// whole seconds.
     ///
@@ -573,7 +573,7 @@ crate::triple! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::conn::{ConnL, ConnR};
     /// use connections::time::STDRU064;
     /// use connections::extended::Extended;
     /// use std::time::Duration as StdDuration;
@@ -586,9 +586,9 @@ crate::triple! {
     /// assert_eq!(STDRU064.ceil(Extended::Finite(StdDuration::MAX)), Extended::PosInf);
     /// assert_eq!(STDRU064.floor(Extended::Finite(StdDuration::MAX)), Extended::Finite(u64::MAX));
     ///
-    /// assert_eq!(STDRU064.inner(Extended::Finite(42)),
+    /// assert_eq!(STDRU064.upper(Extended::Finite(42)),
     ///            Extended::Finite(StdDuration::from_secs(42)));
-    /// assert_eq!(STDRU064.inner(Extended::PosInf), Extended::PosInf);
+    /// assert_eq!(STDRU064.upper(Extended::PosInf), Extended::PosInf);
     /// ```
     pub STDRU064 : Extended<StdDuration> => Extended<u64> {
         ceil:  stdru064_ceil,
@@ -641,7 +641,7 @@ crate::conn_l! {
     /// `Finite(StdDuration::MAX)` on `inner` (Galois pins this to the
     /// largest representative ≤ the synthetic top).
     ///
-    /// **One-sided.** Shipped as `ConnL` rather than a `triple!` marker
+    /// **One-sided.** Shipped as `ConnL` rather than a `conn_k!` marker
     /// because `inner` collapses the entire above-max plateau
     /// (`Finite(n > max_nanos)`) onto `Finite(StdDuration::MAX)` and so is
     /// not order-reflecting; the L-Galois adjunction `ceil ⊣ inner` holds
@@ -657,7 +657,7 @@ crate::conn_l! {
     /// use std::time::Duration as StdDuration;
     ///
     /// let one_and_a_half = StdDuration::from_nanos(1_500_000_000);
-    /// assert_eq!(STDRU128.ceiling(Extended::Finite(one_and_a_half)),
+    /// assert_eq!(STDRU128.ceil(Extended::Finite(one_and_a_half)),
     ///            Extended::Finite(1_500_000_000_u128));
     ///
     /// // `inner` is exact on the representable range and round-trips back.
@@ -734,12 +734,12 @@ crate::conn_l! {
     ///
     /// // 0.5 s round-trips exactly.
     /// let half = ExtendedFloat::Extend(0.5_f64);
-    /// assert_eq!(F064STDR.ceiling(half), Extended::Finite(StdDuration::from_millis(500)));
+    /// assert_eq!(F064STDR.ceil(half), Extended::Finite(StdDuration::from_millis(500)));
     ///
     /// // Negative float: ceil saturates up to ZERO (unsigned rung has
     /// // no negative representative).
     /// let neg = ExtendedFloat::Extend(-0.5_f64);
-    /// assert_eq!(F064STDR.ceiling(neg), Extended::Finite(StdDuration::ZERO));
+    /// assert_eq!(F064STDR.ceil(neg), Extended::Finite(StdDuration::ZERO));
     /// ```
     pub F064STDR : F064 => Extended<StdDuration> {
         ceil:  f064stdr_ceil,
@@ -802,7 +802,7 @@ crate::conn_l! {
     ///
     /// // 1.0 s in f32 ceils to the bottom of the f32 plateau covering 1.0.
     /// let one = ExtendedFloat::Extend(1.0_f32);
-    /// if let Extended::Finite(c) = F032STDR.ceiling(one) {
+    /// if let Extended::Finite(c) = F032STDR.ceil(one) {
     ///     assert_eq!(c.as_secs_f32(), 1.0_f32);
     /// }
     /// ```
@@ -816,7 +816,7 @@ crate::conn_l! {
 mod float_durn_tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{
         arb_extended_duration_bounded_f32, arb_extended_duration_bounded_f64, extended_float_f32,
         extended_float_f64,
@@ -828,7 +828,7 @@ mod float_durn_tests {
     fn f64_zero() {
         let zero = ExtendedFloat::Extend(0.0_f64);
         assert_eq!(F064DURN.ceil(zero), Extended::Finite(Duration::ZERO));
-        assert_eq!(F064DURN.inner(Extended::Finite(Duration::ZERO)), zero);
+        assert_eq!(F064DURN.upper(Extended::Finite(Duration::ZERO)), zero);
     }
 
     #[test]
@@ -837,7 +837,7 @@ mod float_durn_tests {
         let half = ExtendedFloat::Extend(0.5_f64);
         let half_d = Duration::milliseconds(500);
         assert_eq!(F064DURN.ceil(half), Extended::Finite(half_d));
-        assert_eq!(F064DURN.inner(Extended::Finite(half_d)), half);
+        assert_eq!(F064DURN.upper(Extended::Finite(half_d)), half);
     }
 
     #[test]
@@ -859,8 +859,8 @@ mod float_durn_tests {
     fn f64_bot_top_arms() {
         assert_eq!(F064DURN.ceil(ExtendedFloat::Bot), Extended::NegInf);
         assert_eq!(F064DURN.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F064DURN.inner(Extended::NegInf), ExtendedFloat::Bot);
-        assert_eq!(F064DURN.inner(Extended::PosInf), ExtendedFloat::Top);
+        assert_eq!(F064DURN.upper(Extended::NegInf), ExtendedFloat::Bot);
+        assert_eq!(F064DURN.upper(Extended::PosInf), ExtendedFloat::Top);
     }
 
     // Regression guard for the v == min_secs fast-path in ceil. The
@@ -884,7 +884,7 @@ mod float_durn_tests {
     fn f32_zero() {
         let zero = ExtendedFloat::Extend(0.0_f32);
         assert_eq!(F032DURN.ceil(zero), Extended::Finite(Duration::ZERO));
-        assert_eq!(F032DURN.inner(Extended::Finite(Duration::ZERO)), zero);
+        assert_eq!(F032DURN.upper(Extended::Finite(Duration::ZERO)), zero);
     }
 
     #[test]
@@ -924,8 +924,8 @@ mod float_durn_tests {
     fn f32_bot_top_arms() {
         assert_eq!(F032DURN.ceil(ExtendedFloat::Bot), Extended::NegInf);
         assert_eq!(F032DURN.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F032DURN.inner(Extended::NegInf), ExtendedFloat::Bot);
-        assert_eq!(F032DURN.inner(Extended::PosInf), ExtendedFloat::Top);
+        assert_eq!(F032DURN.upper(Extended::NegInf), ExtendedFloat::Bot);
+        assert_eq!(F032DURN.upper(Extended::PosInf), ExtendedFloat::Top);
     }
 
     // ── Galois L-side battery — F064DURN / F032DURN ────────────
@@ -993,7 +993,7 @@ mod float_durn_tests {
 mod stdr_tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{
         arb_extended_std_duration, arb_extended_std_duration_bounded_f32,
         arb_extended_std_duration_bounded_f64, arb_extended_u64, arb_extended_u128,
@@ -1009,7 +1009,7 @@ mod stdr_tests {
         let z = Extended::Finite(StdDuration::ZERO);
         assert_eq!(STDRU064.ceil(z), Extended::Finite(0_u64));
         assert_eq!(STDRU064.floor(z), Extended::Finite(0_u64));
-        assert_eq!(STDRU064.inner(Extended::Finite(0_u64)), z);
+        assert_eq!(STDRU064.upper(Extended::Finite(0_u64)), z);
     }
 
     #[test]
@@ -1032,8 +1032,8 @@ mod stdr_tests {
         assert_eq!(STDRU064.ceil(Extended::PosInf), Extended::PosInf);
         assert_eq!(STDRU064.floor(Extended::NegInf), Extended::NegInf);
         assert_eq!(STDRU064.floor(Extended::PosInf), Extended::PosInf);
-        assert_eq!(STDRU064.inner(Extended::NegInf), Extended::NegInf);
-        assert_eq!(STDRU064.inner(Extended::PosInf), Extended::PosInf);
+        assert_eq!(STDRU064.upper(Extended::NegInf), Extended::NegInf);
+        assert_eq!(STDRU064.upper(Extended::PosInf), Extended::PosInf);
     }
 
     // ── STDRU128 spot checks (ConnL — no `.floor()` method) ──────
@@ -1054,12 +1054,12 @@ mod stdr_tests {
     #[test]
     fn stdru128_inner_saturates_above_max() {
         assert_eq!(
-            STDRU128.inner(Extended::Finite(u128::MAX)),
+            STDRU128.upper(Extended::Finite(u128::MAX)),
             Extended::Finite(StdDuration::MAX)
         );
         let above = StdDuration::MAX.as_nanos() + 1;
         assert_eq!(
-            STDRU128.inner(Extended::Finite(above)),
+            STDRU128.upper(Extended::Finite(above)),
             Extended::Finite(StdDuration::MAX)
         );
     }
@@ -1068,13 +1068,13 @@ mod stdr_tests {
     fn stdru128_synthetic_arms() {
         assert_eq!(STDRU128.ceil(Extended::NegInf), Extended::NegInf);
         assert_eq!(STDRU128.ceil(Extended::PosInf), Extended::PosInf);
-        assert_eq!(STDRU128.inner(Extended::NegInf), Extended::NegInf);
-        assert_eq!(STDRU128.inner(Extended::PosInf), Extended::PosInf);
+        assert_eq!(STDRU128.upper(Extended::NegInf), Extended::NegInf);
+        assert_eq!(STDRU128.upper(Extended::PosInf), Extended::PosInf);
     }
 
     // Boundary kernel_l checks: with stdru128 demoted to ConnL, the
     // L-side adjunction holds on the FULL `Extended<u128>` rung
-    // (including `Finite(n > max_nanos)` where the prior `triple!`
+    // (including `Finite(n > max_nanos)` where the prior `conn_k!`
     // shape silently broke `kernel_r`). Pin those boundaries here
     // so future regressions surface immediately.
     #[test]
@@ -1106,7 +1106,7 @@ mod stdr_tests {
     // STDRU128 is now ConnL — exercise L-side laws over the FULL
     // Extended<u128> rung (no in-range filter). The `coarse` strategy
     // `arb_extended_u128()` includes `Finite(u128::MAX)`, which under
-    // the prior `triple!` shape would have surfaced a `kernel_r`
+    // the prior `conn_k!` shape would have surfaced a `kernel_r`
     // violation. With ConnL, only L-side laws apply and they hold on
     // the full domain. Pattern matches TIMENANO/OFDTNANO (bare ConnL
     // const, hand-rolled proptest! since law_battery! is marker-only).
@@ -1153,7 +1153,7 @@ mod stdr_tests {
     fn f64_stdr_zero() {
         let zero = ExtendedFloat::Extend(0.0_f64);
         assert_eq!(F064STDR.ceil(zero), Extended::Finite(StdDuration::ZERO));
-        assert_eq!(F064STDR.inner(Extended::Finite(StdDuration::ZERO)), zero);
+        assert_eq!(F064STDR.upper(Extended::Finite(StdDuration::ZERO)), zero);
     }
 
     #[test]
@@ -1161,13 +1161,13 @@ mod stdr_tests {
         let half = ExtendedFloat::Extend(0.5_f64);
         let half_d = StdDuration::from_millis(500);
         assert_eq!(F064STDR.ceil(half), Extended::Finite(half_d));
-        assert_eq!(F064STDR.inner(Extended::Finite(half_d)), half);
+        assert_eq!(F064STDR.upper(Extended::Finite(half_d)), half);
     }
 
     #[test]
     fn f64_stdr_inner_one_second() {
         let one_d = Extended::Finite(StdDuration::from_secs(1));
-        assert_eq!(F064STDR.inner(one_d), ExtendedFloat::Extend(1.0_f64));
+        assert_eq!(F064STDR.upper(one_d), ExtendedFloat::Extend(1.0_f64));
     }
 
     #[test]
@@ -1195,8 +1195,8 @@ mod stdr_tests {
     fn f64_stdr_bot_top_arms() {
         assert_eq!(F064STDR.ceil(ExtendedFloat::Bot), Extended::NegInf);
         assert_eq!(F064STDR.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F064STDR.inner(Extended::NegInf), ExtendedFloat::Bot);
-        assert_eq!(F064STDR.inner(Extended::PosInf), ExtendedFloat::Top);
+        assert_eq!(F064STDR.upper(Extended::NegInf), ExtendedFloat::Bot);
+        assert_eq!(F064STDR.upper(Extended::PosInf), ExtendedFloat::Top);
     }
 
     #[test]

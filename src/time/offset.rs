@@ -33,7 +33,7 @@
 //! use connections::extended::Extended;
 //! use time::OffsetDateTime;
 //!
-//! assert_eq!(OFDTNANO.inner(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
+//! assert_eq!(OFDTNANO.upper(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
 //! assert_eq!(
 //!     OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)),
 //!     0,
@@ -181,12 +181,12 @@ crate::conn_l! {
     /// use time::OffsetDateTime;
     ///
     /// assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
-    /// assert_eq!(OFDTNANO.inner(1_000_000_000), Extended::Finite(
+    /// assert_eq!(OFDTNANO.upper(1_000_000_000), Extended::Finite(
     ///     OffsetDateTime::UNIX_EPOCH + time::Duration::seconds(1),
     /// ));
     ///
     /// // Out-of-range nanoseconds saturate.
-    /// assert_eq!(OFDTNANO.inner(i128::MAX), Extended::PosInf);
+    /// assert_eq!(OFDTNANO.upper(i128::MAX), Extended::PosInf);
     /// ```
     pub OFDTNANO : Extended<OffsetDateTime> => i128 {
         ceil:  ofdtnano_ceil,
@@ -292,7 +292,7 @@ crate::conn_l! {
 mod ofdt_tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{
         arb_extended_offset_dt, arb_offset_dt, arb_unix_nanos_in_range, arb_unix_secs_in_range,
     };
@@ -342,7 +342,7 @@ mod ofdt_tests {
             0
         );
         assert_eq!(
-            OFDTNANO.inner(0),
+            OFDTNANO.upper(0),
             Extended::Finite(OffsetDateTime::UNIX_EPOCH)
         );
     }
@@ -351,14 +351,14 @@ mod ofdt_tests {
     fn one_ns_past_epoch() {
         let mid = OffsetDateTime::UNIX_EPOCH + Duration::nanoseconds(1);
         assert_eq!(OFDTNANO.ceil(Extended::Finite(mid)), 1);
-        assert_eq!(OFDTNANO.inner(1), Extended::Finite(mid));
+        assert_eq!(OFDTNANO.upper(1), Extended::Finite(mid));
     }
 
     #[test]
     fn one_ns_before_epoch() {
         let mid = OffsetDateTime::UNIX_EPOCH - Duration::nanoseconds(1);
         assert_eq!(OFDTNANO.ceil(Extended::Finite(mid)), -1);
-        assert_eq!(OFDTNANO.inner(-1), Extended::Finite(mid));
+        assert_eq!(OFDTNANO.upper(-1), Extended::Finite(mid));
     }
 
     #[test]
@@ -366,7 +366,7 @@ mod ofdt_tests {
         let y2038_ns: i128 = 2_147_483_648_000_000_000;
         let y2038 = OffsetDateTime::from_unix_timestamp_nanos(y2038_ns).unwrap();
         assert_eq!(OFDTNANO.ceil(Extended::Finite(y2038)), y2038_ns);
-        assert_eq!(OFDTNANO.inner(y2038_ns), Extended::Finite(y2038));
+        assert_eq!(OFDTNANO.upper(y2038_ns), Extended::Finite(y2038));
     }
 
     #[test]
@@ -385,8 +385,8 @@ mod ofdt_tests {
 
         assert_eq!(OFDTNANO.ceil(Extended::Finite(min_utc)), min_ns);
         assert_eq!(OFDTNANO.ceil(Extended::Finite(max_utc)), max_ns);
-        assert_eq!(OFDTNANO.inner(min_ns), Extended::Finite(min_utc));
-        assert_eq!(OFDTNANO.inner(max_ns), Extended::Finite(max_utc));
+        assert_eq!(OFDTNANO.upper(min_ns), Extended::Finite(min_utc));
+        assert_eq!(OFDTNANO.upper(max_ns), Extended::Finite(max_utc));
     }
 
     #[test]
@@ -402,8 +402,8 @@ mod ofdt_tests {
 
     #[test]
     fn ofdtnano_saturation_extremes() {
-        assert_eq!(OFDTNANO.inner(i128::MAX), Extended::PosInf);
-        assert_eq!(OFDTNANO.inner(i128::MIN), Extended::NegInf);
+        assert_eq!(OFDTNANO.upper(i128::MAX), Extended::PosInf);
+        assert_eq!(OFDTNANO.upper(i128::MIN), Extended::NegInf);
 
         let max_ns = utc_max_ns();
         assert_eq!(OFDTNANO.ceil(Extended::PosInf), max_ns + 1);
@@ -422,7 +422,7 @@ mod ofdt_tests {
             0
         );
         assert_eq!(
-            OFDTSECS.inner(0),
+            OFDTSECS.upper(0),
             Extended::Finite(OffsetDateTime::UNIX_EPOCH)
         );
     }

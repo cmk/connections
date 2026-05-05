@@ -58,10 +58,10 @@ crate::conn_l! {
     ///
     /// let epoch = Date::from_calendar_date(1970, Month::January, 1).unwrap();
     /// assert_eq!(DATEJDAY.ceil(Extended::Finite(epoch)), 2_440_588);
-    /// assert_eq!(DATEJDAY.inner(2_440_588), Extended::Finite(epoch));
+    /// assert_eq!(DATEJDAY.upper(2_440_588), Extended::Finite(epoch));
     ///
     /// // Out-of-range julian day saturates to PosInf.
-    /// assert_eq!(DATEJDAY.inner(i32::MAX), Extended::PosInf);
+    /// assert_eq!(DATEJDAY.upper(i32::MAX), Extended::PosInf);
     /// ```
     pub DATEJDAY : Extended<Date> => i32 {
         ceil:  datejday_ceil,
@@ -73,7 +73,7 @@ crate::conn_l! {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{arb_date, arb_extended_date, arb_jd_in_range};
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -125,27 +125,27 @@ mod tests {
     fn epoch_is_2440588() {
         let epoch = Date::from_calendar_date(1970, Month::January, 1).unwrap();
         assert_eq!(DATEJDAY.ceil(Extended::Finite(epoch)), 2_440_588);
-        assert_eq!(DATEJDAY.inner(2_440_588), Extended::Finite(epoch));
+        assert_eq!(DATEJDAY.upper(2_440_588), Extended::Finite(epoch));
     }
 
     #[test]
     fn min_max_round_trip() {
         assert_eq!(
-            DATEJDAY.inner(Date::MIN.to_julian_day()),
+            DATEJDAY.upper(Date::MIN.to_julian_day()),
             Extended::Finite(Date::MIN),
         );
         assert_eq!(
-            DATEJDAY.inner(Date::MAX.to_julian_day()),
+            DATEJDAY.upper(Date::MAX.to_julian_day()),
             Extended::Finite(Date::MAX),
         );
     }
 
     #[test]
     fn saturation_extremes() {
-        assert_eq!(DATEJDAY.inner(i32::MAX), Extended::PosInf);
-        assert_eq!(DATEJDAY.inner(i32::MIN), Extended::NegInf);
-        assert_eq!(DATEJDAY.inner(MIN_JD - 1), Extended::NegInf);
-        assert_eq!(DATEJDAY.inner(MAX_JD + 1), Extended::PosInf);
+        assert_eq!(DATEJDAY.upper(i32::MAX), Extended::PosInf);
+        assert_eq!(DATEJDAY.upper(i32::MIN), Extended::NegInf);
+        assert_eq!(DATEJDAY.upper(MIN_JD - 1), Extended::NegInf);
+        assert_eq!(DATEJDAY.upper(MAX_JD + 1), Extended::PosInf);
 
         assert_eq!(DATEJDAY.ceil(Extended::NegInf), i32::MIN);
         assert_eq!(DATEJDAY.ceil(Extended::PosInf), MAX_JD + 1);

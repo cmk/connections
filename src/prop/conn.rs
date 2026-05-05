@@ -1,11 +1,11 @@
-//! Galois-connection law predicates, kind-bound and Triple-bound.
+//! Galois-connection law predicates, kind-bound and ConnK-bound.
 //!
 //! Each predicate takes either `&Conn<A, B, L>` (L-laws),
-//! `&Conn<A, B, R>` (R-laws), or `&T: Triple<A, B>` (laws spanning
+//! `&Conn<A, B, R>` (R-laws), or `&T: ConnK<A, B>` (laws spanning
 //! both views). Inputs are passed by value (Conn is `Copy`).
 //! Returns `bool`.
 
-use crate::conn::{Conn, L, R, Triple, ViewL, ViewR};
+use crate::conn::{Conn, ConnK, ConnL, ConnR, L, R};
 
 // (back-compat re-exports removed under the prefix-strip rename —
 // `floor_le_ceil`, `ulp_bound`, `idempotent` are the canonical names.)
@@ -18,17 +18,17 @@ pub fn galois_l<A: Copy + Eq + PartialOrd, B: Copy + Eq + PartialOrd>(
     a: A,
     b: B,
 ) -> bool {
-    (c.ceiling(a) <= b) == (a <= c.upper(b))
+    (c.ceil(a) <= b) == (a <= c.upper(b))
 }
 
 /// Closure law (left): `a ≤ inner(ceil(a))` — unit of `inner ⊣ ceil`.
 pub fn closure_l<A: Copy + PartialOrd, B: Copy>(c: &Conn<A, B, L>, a: A) -> bool {
-    a <= c.upper(c.ceiling(a))
+    a <= c.upper(c.ceil(a))
 }
 
 /// Kernel law (left): `ceil(inner(b)) ≤ b` — counit of `inner ⊣ ceil`.
 pub fn kernel_l<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B, L>, b: B) -> bool {
-    c.ceiling(c.upper(b)) <= b
+    c.ceil(c.upper(b)) <= b
 }
 
 /// Monotonicity (left): `a1 ≤ a2 ⟹ ceil(a1) ≤ ceil(a2)`.
@@ -38,7 +38,7 @@ pub fn monotone_l<A: Copy + PartialOrd, B: Copy + PartialOrd>(
     a2: A,
 ) -> bool {
     if a1 <= a2 {
-        c.ceiling(a1) <= c.ceiling(a2)
+        c.ceil(a1) <= c.ceil(a2)
     } else {
         true
     }
@@ -46,8 +46,8 @@ pub fn monotone_l<A: Copy + PartialOrd, B: Copy + PartialOrd>(
 
 /// Idempotence (left): `(inner ∘ ceil)² == (inner ∘ ceil)`.
 pub fn idempotent_l<A: Copy + Eq, B: Copy>(c: &Conn<A, B, L>, a: A) -> bool {
-    let once = c.upper(c.ceiling(a));
-    let twice = c.upper(c.ceiling(once));
+    let once = c.upper(c.ceil(a));
+    let twice = c.upper(c.ceil(once));
     once == twice
 }
 
@@ -66,19 +66,19 @@ pub fn upper2_id_diag<A: Copy + Eq, B: Copy>(c: &Conn<A, B, L>, a: A) -> bool {
     c.upper2(|p, _q| p, a, a) == c.upper1(|x| x, a)
 }
 
-/// `ceiling1` kernel law: `ceiling1(c, id, b) ≤ b`.
+/// `ceil1` kernel law: `ceiling1(c, id, b) ≤ b`.
 pub fn ceiling1_id_kernel<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B, L>, b: B) -> bool {
-    c.ceiling1(|x| x, b) <= b
+    c.ceil1(|x| x, b) <= b
 }
 
-/// `ceiling2` collapse-on-projection.
+/// `ceil2` collapse-on-projection.
 pub fn ceiling2_id_diag<A: Copy, B: Copy + Eq>(c: &Conn<A, B, L>, b: B) -> bool {
-    c.ceiling2(|p, _q| p, b, b) == c.ceiling1(|x| x, b)
+    c.ceil2(|p, _q| p, b, b) == c.ceil1(|x| x, b)
 }
 
 /// Round-trip via ceil: `ceil(inner(b)) == b` (exact-embedding L-Conns).
 pub fn roundtrip_ceil<A: Copy, B: Copy + Eq>(c: &Conn<A, B, L>, b: B) -> bool {
-    c.ceiling(c.upper(b)) == b
+    c.ceil(c.upper(b)) == b
 }
 
 /// Iso forward round-trip (L): `inner(ceil(a)) == a`. Holds for
@@ -86,7 +86,7 @@ pub fn roundtrip_ceil<A: Copy, B: Copy + Eq>(c: &Conn<A, B, L>, b: B) -> bool {
 /// `A → B` side); only needs `A: Eq`, so usable on types that
 /// don't impl `Ord`.
 pub fn iso_roundtrip_l<A: Copy + Eq, B: Copy>(c: &Conn<A, B, L>, a: A) -> bool {
-    c.upper(c.ceiling(a)) == a
+    c.upper(c.ceil(a)) == a
 }
 
 // ── R-side predicates ─────────────────────────────────────────────────
@@ -155,7 +155,7 @@ pub fn roundtrip_floor<A: Copy, B: Copy + Eq>(c: &Conn<A, B, R>, b: B) -> bool {
     c.floor(c.lower(b)) == b
 }
 
-// ── Triple-bound predicates ──────────────────────────────────────────
+// ── ConnK-bound predicates ──────────────────────────────────────────
 
 /// `floor(a) ≤ ceil(a)` — the rounding-sandwich.
 ///
@@ -173,17 +173,17 @@ pub fn roundtrip_floor<A: Copy, B: Copy + Eq>(c: &Conn<A, B, R>, b: B) -> bool {
 /// third is L-Galois `ceil(a) ≤ b ⟺ a ≤ inner(b)` with the given
 /// hypothesis. So `x ≤ y`.
 ///
-/// Required for every marker shipping both `ViewL` and `ViewR`. The
+/// Required for every marker shipping both `ConnL` and `ConnR`. The
 /// `law_battery!` `full` subset enforces both this and its cause —
 /// see [`order_reflecting`] for the load-bearing predicate. This
 /// predicate is the user-facing fast signal (single quantifier over
 /// `A`); `order_reflecting` quantifies over `B²` and thus catches
 /// boundary violations with twice the proptest surface area.
-pub fn floor_le_ceil<T, A: Copy, B: Copy + PartialOrd>(_t: &T, a: A) -> bool
+pub fn floor_le_ceil<T, A: Copy, B: Copy + PartialOrd>(t: &T, a: A) -> bool
 where
-    T: Triple<A, B>,
+    T: ConnK<A, B>,
 {
-    <T as ViewR<A, B>>::R.floor(a) <= <T as ViewL<A, B>>::L.ceiling(a)
+    t.conn_r().floor(a) <= t.conn_l().ceil(a)
 }
 
 /// `inner(b1) ≤ inner(b2) ⟹ b1 ≤ b2` — `inner` is order-reflecting.
@@ -199,33 +199,33 @@ where
 /// source-side strategy under-samples extremes — the failure mode that
 /// hid the Haskell `f09sys` bug for years.
 ///
-/// `inner` is taken from the L view (`<T as ViewL>::L.upper`); for a
-/// true triple `<T as ViewL>::L.upper == <T as ViewR>::R.lower` by
-/// construction (same function pointer), so the choice of view is
+/// `inner` is taken from the L view (`t.conn_l().upper`); for a true
+/// triple the L-view's `upper` and the R-view's `lower` are the same
+/// function pointer by construction, so the choice of view is
 /// arbitrary.
-pub fn order_reflecting<T, A, B>(_t: &T, b1: B, b2: B) -> bool
+pub fn order_reflecting<T, A, B>(t: &T, b1: B, b2: B) -> bool
 where
-    T: Triple<A, B>,
+    T: ConnK<A, B>,
     A: Copy + PartialOrd,
     B: Copy + PartialOrd,
 {
-    let conn_l = <T as ViewL<A, B>>::L;
-    let a1 = conn_l.upper(b1);
-    let a2 = conn_l.upper(b2);
+    let l = t.conn_l();
+    let a1 = l.upper(b1);
+    let a2 = l.upper(b2);
     if a1 <= a2 { b1 <= b2 } else { true }
 }
 
 /// ULP-bound: `ceil(a) - floor(a) ≤ 1` under a caller-provided
 /// rung-extractor.
-pub fn ulp_bound<T, A, B, F>(_t: &T, a: A, rung: F) -> bool
+pub fn ulp_bound<T, A, B, F>(t: &T, a: A, rung: F) -> bool
 where
-    T: Triple<A, B>,
+    T: ConnK<A, B>,
     A: Copy,
     B: Copy,
     F: Fn(B) -> i64,
 {
-    let c_val = rung(<T as ViewL<A, B>>::L.ceiling(a));
-    let f_val = rung(<T as ViewR<A, B>>::R.floor(a));
+    let c_val = rung(t.conn_l().ceil(a));
+    let f_val = rung(t.conn_r().floor(a));
     c_val
         .checked_sub(f_val)
         .is_some_and(|d| (0..=1).contains(&d))
@@ -235,7 +235,7 @@ where
 /// `Some(Equal)` (or `None` if the source values are NaN-bearing).
 pub fn interval_at_midpoint_eq_or_none<T, A, B>(t: &T, x: A) -> bool
 where
-    T: Triple<A, B>,
+    T: ConnK<A, B>,
     A: Copy
         + PartialOrd
         + core::ops::Add<Output = A>
@@ -249,11 +249,12 @@ where
     matches!(crate::conn::interval(t, mid), None | Some(Ordering::Equal))
 }
 
-/// `midpoint(t, x)` lies between `T::R.lower(T::R.floor(x))` and
-/// `T::L.upper(T::L.ceiling(x))` whenever those two are comparable.
+/// `midpoint(t, x)` lies between `t.conn_r().lower(t.conn_r().floor(x))`
+/// and `t.conn_l().upper(t.conn_l().ceil(x))` whenever those two are
+/// comparable.
 pub fn midpoint_between<T, A, B>(t: &T, x: A) -> bool
 where
-    T: Triple<A, B>,
+    T: ConnK<A, B>,
     A: Copy
         + PartialOrd
         + core::ops::Add<Output = A>
@@ -262,8 +263,10 @@ where
         + From<u8>,
     B: Copy,
 {
-    let lo = <T as ViewR<A, B>>::R.lower(<T as ViewR<A, B>>::R.floor(x));
-    let hi = <T as ViewL<A, B>>::L.upper(<T as ViewL<A, B>>::L.ceiling(x));
+    let r = t.conn_r();
+    let l = t.conn_l();
+    let lo = r.lower(r.floor(x));
+    let hi = l.upper(l.ceil(x));
     let mid = crate::conn::midpoint(t, x);
     if lo <= hi {
         lo <= mid && mid <= hi
@@ -272,48 +275,48 @@ where
     }
 }
 
-/// `round(t, x)` is always one of `T::L.ceiling(x)` / `T::R.floor(x)`.
+/// `round(t, x)` is always one of `t.conn_l().ceil(x)` / `t.conn_r().floor(x)`.
 pub fn round_picks_endpoint<T, A, B>(t: &T, x: A) -> bool
 where
-    T: Triple<A, B>,
+    T: ConnK<A, B>,
     A: Copy + PartialOrd + core::ops::Sub<Output = A> + From<u8>,
     B: Copy + Eq,
 {
     let r = crate::conn::round(t, x);
-    r == <T as ViewL<A, B>>::L.ceiling(x) || r == <T as ViewR<A, B>>::R.floor(x)
+    r == t.conn_l().ceil(x) || r == t.conn_r().floor(x)
 }
 
-/// `truncate(t, x)` is always one of `T::L.ceiling(x)` / `T::R.floor(x)`.
+/// `truncate(t, x)` is always one of `t.conn_l().ceil(x)` / `t.conn_r().floor(x)`.
 pub fn truncate_picks_endpoint<T, A, B>(t: &T, x: A) -> bool
 where
-    T: Triple<A, B>,
+    T: ConnK<A, B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy + Eq,
 {
     let v = crate::conn::truncate(t, x);
-    v == <T as ViewL<A, B>>::L.ceiling(x) || v == <T as ViewR<A, B>>::R.floor(x)
+    v == t.conn_l().ceil(x) || v == t.conn_r().floor(x)
 }
 
 /// Toward-zero contract: `x ≥ 0 ⟹ truncate = floor`, otherwise `= ceil`.
 pub fn truncate_toward_zero<T, A, B>(t: &T, x: A) -> bool
 where
-    T: Triple<A, B>,
+    T: ConnK<A, B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy + Eq,
 {
     let zero = A::from(0);
     let v = crate::conn::truncate(t, x);
     if x >= zero {
-        v == <T as ViewR<A, B>>::R.floor(x)
+        v == t.conn_r().floor(x)
     } else {
-        v == <T as ViewL<A, B>>::L.ceiling(x)
+        v == t.conn_l().ceil(x)
     }
 }
 
 /// `round1(t, id, x) == x` for an identity triple.
 pub fn round1_id_unit<T, A, B>(t: &T, x: B) -> bool
 where
-    T: Triple<A, B>,
+    T: ConnK<A, B>,
     A: Copy + PartialOrd + core::ops::Sub<Output = A> + From<u8>,
     B: Copy + Eq,
 {
@@ -323,7 +326,7 @@ where
 /// `truncate1(t, id, x) == x` for an identity triple.
 pub fn truncate1_id_unit<T, A, B>(t: &T, x: B) -> bool
 where
-    T: Triple<A, B>,
+    T: ConnK<A, B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy + Eq,
 {
@@ -335,7 +338,7 @@ where
 /// Median axiom 1 (idempotence): `median(t, x, x, y) == x`.
 pub fn median_idempotent<T, A>(t: &T, x: A, y: A) -> bool
 where
-    T: Triple<(A, A), A>,
+    T: ConnK<(A, A), A>,
     A: Copy + Eq,
 {
     crate::conn::median(t, x, x, y) == x
@@ -344,7 +347,7 @@ where
 /// Median axiom 2 (rotation).
 pub fn median_rotate<T, A>(t: &T, x: A, y: A, z: A) -> bool
 where
-    T: Triple<(A, A), A>,
+    T: ConnK<(A, A), A>,
     A: Copy + Eq,
 {
     crate::conn::median(t, x, y, z) == crate::conn::median(t, z, x, y)
@@ -353,7 +356,7 @@ where
 /// Median axiom 3 (last-two swap).
 pub fn median_swap_yz<T, A>(t: &T, x: A, y: A, z: A) -> bool
 where
-    T: Triple<(A, A), A>,
+    T: ConnK<(A, A), A>,
     A: Copy + Eq,
 {
     crate::conn::median(t, x, y, z) == crate::conn::median(t, x, z, y)
@@ -362,7 +365,7 @@ where
 /// Median axiom 4 (associativity).
 pub fn median_associative<T, A>(t: &T, w: A, x: A, y: A, z: A) -> bool
 where
-    T: Triple<(A, A), A>,
+    T: ConnK<(A, A), A>,
     A: Copy + Eq,
 {
     let lhs = crate::conn::median(t, crate::conn::median(t, x, w, y), w, z);
@@ -378,14 +381,20 @@ where
 // hand-rolled blocks in `time/duration.rs`, `addr/ip.rs`, `char.rs`,
 // `float/f32.rs`, etc. (Plan 31 T2.)
 
-/// Generate a property-test battery for an adjoint-triple marker.
+/// Generate a property-test battery for an adjoint connection.
+///
+/// `conn:` accepts a value expression — either a triple-marker
+/// instance (`TripleIdI32`, `Q008Q000`, …) or a `Conn<_,_,K>` const
+/// (`TIMENANO`, `U032I032`, …). The trait dispatch (`.conn_l()` /
+/// `.conn_r()`) extracts the appropriate one-sided `Conn` from
+/// either shape.
 ///
 /// Each invocation emits `mod $mod_name { ... }` containing the
 /// requested subset of the standard property checks:
 ///
 /// | Subset (`subset:` flag) | Tests emitted | Trait bounds on `A` / `B` |
 /// |-------------------------|---------------|---------------------------|
-/// | `full` (default)        | `galois_l`, `galois_r`, `closure_l`, `closure_r`, `kernel_l`, `kernel_r`, `monotone_l`, `monotone_r`, `idempotent` | `A`, `B`: `Copy + Eq + PartialOrd` |
+/// | `full` (default)        | `galois_l`, `galois_r`, `closure_l`, `closure_r`, `kernel_l`, `kernel_r`, `monotone_l`, `monotone_r`, `idempotent`, `floor_le_ceil`, `order_reflecting` | `A`, `B`: `Copy + Eq + PartialOrd` |
 /// | `l_only`                | `galois_l`, `closure_l`, `kernel_l`, `monotone_l`, `idempotent`                                                       | same |
 /// | `r_only`                | `galois_r`, `closure_r`, `kernel_r`, `monotone_r` (4 tests; `idempotent` is L-side and doesn't fit a one-sided R-Conn) | same |
 /// | `iso_only`              | `idempotent`, `iso_roundtrip_l`, `roundtrip_ceil`                                                                     | `A`: `Copy + Eq`; `B`: `Copy + Eq` (no `Ord` required) |
@@ -415,22 +424,22 @@ macro_rules! law_battery {
     // ── Public top-level arms (forward to internal @batch arms) ──
 
     // full (default), no cases override
-    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr $(,)?) => {
+    (mod $m:ident, conn: $c:expr, fine: $f:expr, coarse: $cs:expr $(,)?) => {
         $crate::law_battery!(@batch full, $m, $c, $f, $cs,
             ::proptest::test_runner::Config::default());
     };
-    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, cases: $n:expr $(,)?) => {
+    (mod $m:ident, conn: $c:expr, fine: $f:expr, coarse: $cs:expr, cases: $n:expr $(,)?) => {
         $crate::law_battery!(@batch full, $m, $c, $f, $cs,
             ::proptest::test_runner::Config { cases: $n,
                 .. ::proptest::test_runner::Config::default() });
     };
 
     // l_only
-    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: l_only $(,)?) => {
+    (mod $m:ident, conn: $c:expr, fine: $f:expr, coarse: $cs:expr, subset: l_only $(,)?) => {
         $crate::law_battery!(@batch l_only, $m, $c, $f, $cs,
             ::proptest::test_runner::Config::default());
     };
-    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: l_only,
+    (mod $m:ident, conn: $c:expr, fine: $f:expr, coarse: $cs:expr, subset: l_only,
      cases: $n:expr $(,)?) => {
         $crate::law_battery!(@batch l_only, $m, $c, $f, $cs,
             ::proptest::test_runner::Config { cases: $n,
@@ -438,11 +447,11 @@ macro_rules! law_battery {
     };
 
     // r_only
-    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: r_only $(,)?) => {
+    (mod $m:ident, conn: $c:expr, fine: $f:expr, coarse: $cs:expr, subset: r_only $(,)?) => {
         $crate::law_battery!(@batch r_only, $m, $c, $f, $cs,
             ::proptest::test_runner::Config::default());
     };
-    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: r_only,
+    (mod $m:ident, conn: $c:expr, fine: $f:expr, coarse: $cs:expr, subset: r_only,
      cases: $n:expr $(,)?) => {
         $crate::law_battery!(@batch r_only, $m, $c, $f, $cs,
             ::proptest::test_runner::Config { cases: $n,
@@ -450,11 +459,11 @@ macro_rules! law_battery {
     };
 
     // iso_only
-    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: iso_only $(,)?) => {
+    (mod $m:ident, conn: $c:expr, fine: $f:expr, coarse: $cs:expr, subset: iso_only $(,)?) => {
         $crate::law_battery!(@batch iso_only, $m, $c, $f, $cs,
             ::proptest::test_runner::Config::default());
     };
-    (mod $m:ident, conn: $c:ty, fine: $f:expr, coarse: $cs:expr, subset: iso_only,
+    (mod $m:ident, conn: $c:expr, fine: $f:expr, coarse: $cs:expr, subset: iso_only,
      cases: $n:expr $(,)?) => {
         $crate::law_battery!(@batch iso_only, $m, $c, $f, $cs,
             ::proptest::test_runner::Config { cases: $n,
@@ -463,203 +472,172 @@ macro_rules! law_battery {
 
     // ── Internal @batch arms ──
 
-    (@batch full, $m:ident, $c:ty, $f:expr, $cs:expr, $cfg:expr) => {
+    (@batch full, $m:ident, $c:expr, $f:expr, $cs:expr, $cfg:expr) => {
         mod $m {
             #[allow(unused_imports)]
             use super::*;
             #[allow(unused_imports)]
             use ::proptest::prelude::*;
+            #[allow(unused_imports)]
+            use $crate::conn::{ConnL as _, ConnR as _};
             ::proptest::proptest! {
                 #![proptest_config($cfg)]
                 #[test]
                 fn galois_l(a in $f, b in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::galois_l(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, a, b));
+                        $crate::prop::conn::galois_l(&($c).conn_l(), a, b));
                 }
                 #[test]
                 fn galois_r(a in $f, b in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::galois_r(
-                            &<$c as $crate::conn::ViewR<_, _>>::R, a, b));
+                        $crate::prop::conn::galois_r(&($c).conn_r(), a, b));
                 }
                 #[test]
                 fn closure_l(a in $f) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::closure_l(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                        $crate::prop::conn::closure_l(&($c).conn_l(), a));
                 }
                 #[test]
                 fn closure_r(a in $f) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::closure_r(
-                            &<$c as $crate::conn::ViewR<_, _>>::R, a));
+                        $crate::prop::conn::closure_r(&($c).conn_r(), a));
                 }
                 #[test]
                 fn kernel_l(b in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::kernel_l(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, b));
+                        $crate::prop::conn::kernel_l(&($c).conn_l(), b));
                 }
                 #[test]
                 fn kernel_r(b in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::kernel_r(
-                            &<$c as $crate::conn::ViewR<_, _>>::R, b));
+                        $crate::prop::conn::kernel_r(&($c).conn_r(), b));
                 }
                 #[test]
                 fn monotone_l(a1 in $f, a2 in $f) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::monotone_l(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, a1, a2));
+                        $crate::prop::conn::monotone_l(&($c).conn_l(), a1, a2));
                 }
                 #[test]
                 fn monotone_r(b1 in $cs, b2 in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::monotone_r(
-                            &<$c as $crate::conn::ViewR<_, _>>::R, b1, b2));
+                        $crate::prop::conn::monotone_r(&($c).conn_r(), b1, b2));
                 }
                 #[test]
                 fn idempotent(a in $f) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::idempotent(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                        $crate::prop::conn::idempotent(&($c).conn_l(), a));
                 }
-                // (Plan 32) `floor_le_ceil` is a triple-only law: the
-                // user-facing fast signal that the rounding sandwich
-                // holds at every `a`. Inlined here (rather than calling
-                // `prop::conn::floor_le_ceil`) because the function is
-                // `Triple`-bound on a marker instance, while the macro
-                // carries `$c:ty` as a type.
                 #[test]
                 fn floor_le_ceil(a in $f) {
-                    let lo = <$c as $crate::conn::ViewR<_, _>>::R.floor(a);
-                    let hi = <$c as $crate::conn::ViewL<_, _>>::L.ceiling(a);
-                    ::proptest::prop_assert!(lo <= hi);
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::floor_le_ceil(&($c), a));
                 }
-                // (Plan 33) `order_reflecting` is the *cause* of which
-                // `floor_le_ceil` is the corollary: `inner(b1) ≤ inner(b2)
-                // ⟹ b1 ≤ b2`. Quantifying over `(b1, b2) ∈ B²` gives
-                // proptest twice the surface area of `floor_le_ceil`,
-                // catching boundary violations the rounding sandwich
-                // misses when source-side strategies under-sample
-                // extremes. Same inlining rationale as `floor_le_ceil`.
                 #[test]
                 fn order_reflecting(b1 in $cs, b2 in $cs) {
-                    let conn_l = <$c as $crate::conn::ViewL<_, _>>::L;
-                    let a1 = conn_l.upper(b1);
-                    let a2 = conn_l.upper(b2);
-                    if a1 <= a2 {
-                        ::proptest::prop_assert!(b1 <= b2);
-                    }
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::order_reflecting(&($c), b1, b2));
                 }
             }
         }
     };
 
-    (@batch l_only, $m:ident, $c:ty, $f:expr, $cs:expr, $cfg:expr) => {
+    (@batch l_only, $m:ident, $c:expr, $f:expr, $cs:expr, $cfg:expr) => {
         mod $m {
             #[allow(unused_imports)]
             use super::*;
             #[allow(unused_imports)]
             use ::proptest::prelude::*;
+            #[allow(unused_imports)]
+            use $crate::conn::ConnL as _;
             ::proptest::proptest! {
                 #![proptest_config($cfg)]
                 #[test]
                 fn galois_l(a in $f, b in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::galois_l(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, a, b));
+                        $crate::prop::conn::galois_l(&($c).conn_l(), a, b));
                 }
                 #[test]
                 fn closure_l(a in $f) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::closure_l(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                        $crate::prop::conn::closure_l(&($c).conn_l(), a));
                 }
                 #[test]
                 fn kernel_l(b in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::kernel_l(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, b));
+                        $crate::prop::conn::kernel_l(&($c).conn_l(), b));
                 }
                 #[test]
                 fn monotone_l(a1 in $f, a2 in $f) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::monotone_l(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, a1, a2));
+                        $crate::prop::conn::monotone_l(&($c).conn_l(), a1, a2));
                 }
                 #[test]
                 fn idempotent(a in $f) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::idempotent(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                        $crate::prop::conn::idempotent(&($c).conn_l(), a));
                 }
             }
         }
     };
 
-    (@batch r_only, $m:ident, $c:ty, $f:expr, $cs:expr, $cfg:expr) => {
+    (@batch r_only, $m:ident, $c:expr, $f:expr, $cs:expr, $cfg:expr) => {
         mod $m {
             #[allow(unused_imports)]
             use super::*;
             #[allow(unused_imports)]
             use ::proptest::prelude::*;
+            #[allow(unused_imports)]
+            use $crate::conn::ConnR as _;
             ::proptest::proptest! {
                 #![proptest_config($cfg)]
                 #[test]
                 fn galois_r(a in $f, b in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::galois_r(
-                            &<$c as $crate::conn::ViewR<_, _>>::R, a, b));
+                        $crate::prop::conn::galois_r(&($c).conn_r(), a, b));
                 }
                 #[test]
                 fn closure_r(a in $f) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::closure_r(
-                            &<$c as $crate::conn::ViewR<_, _>>::R, a));
+                        $crate::prop::conn::closure_r(&($c).conn_r(), a));
                 }
                 #[test]
                 fn kernel_r(b in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::kernel_r(
-                            &<$c as $crate::conn::ViewR<_, _>>::R, b));
+                        $crate::prop::conn::kernel_r(&($c).conn_r(), b));
                 }
                 #[test]
                 fn monotone_r(b1 in $cs, b2 in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::monotone_r(
-                            &<$c as $crate::conn::ViewR<_, _>>::R, b1, b2));
+                        $crate::prop::conn::monotone_r(&($c).conn_r(), b1, b2));
                 }
             }
         }
     };
 
-    (@batch iso_only, $m:ident, $c:ty, $f:expr, $cs:expr, $cfg:expr) => {
+    (@batch iso_only, $m:ident, $c:expr, $f:expr, $cs:expr, $cfg:expr) => {
         mod $m {
             #[allow(unused_imports)]
             use super::*;
             #[allow(unused_imports)]
             use ::proptest::prelude::*;
+            #[allow(unused_imports)]
+            use $crate::conn::ConnL as _;
             ::proptest::proptest! {
                 #![proptest_config($cfg)]
                 #[test]
                 fn idempotent(a in $f) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::idempotent(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                        $crate::prop::conn::idempotent(&($c).conn_l(), a));
                 }
                 #[test]
                 fn iso_roundtrip_l(a in $f) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::iso_roundtrip_l(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, a));
+                        $crate::prop::conn::iso_roundtrip_l(&($c).conn_l(), a));
                 }
                 #[test]
                 fn roundtrip_ceil(b in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::roundtrip_ceil(
-                            &<$c as $crate::conn::ViewL<_, _>>::L, b));
+                        $crate::prop::conn::roundtrip_ceil(&($c).conn_l(), b));
                 }
             }
         }

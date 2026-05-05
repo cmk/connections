@@ -67,9 +67,9 @@ const fn sov6_max() -> SocketAddrV6 {
 ///
 /// // SOVXSOV4 is a one-sided ConnL — no `.floor()` method exists.
 /// // `inner` is the surviving lower-side accessor for the L-pair.
-/// let _: SocketAddr = SOVXSOV4.inner(Extended::Finite(v4));
+/// let _: SocketAddr = SOVXSOV4.upper(Extended::Finite(v4));
 /// ```
-pub const SOVXSOV4: crate::conn::ConnL<SocketAddr, Extended<SocketAddrV4>> = {
+pub const SOVXSOV4: crate::conn::Conn<SocketAddr, Extended<SocketAddrV4>> = {
     fn ceil(s: SocketAddr) -> Extended<SocketAddrV4> {
         match s {
             // Galois forces ceil(MIN) = NegInf because inner(NegInf) = SOV4_MIN
@@ -124,9 +124,9 @@ pub const SOVXSOV4: crate::conn::ConnL<SocketAddr, Extended<SocketAddrV4>> = {
 ///
 /// // SOVXSOV6 is a one-sided ConnR — no `.ceil()` method exists.
 /// // `inner` is the surviving lower-side accessor for the R-pair.
-/// let _: SocketAddr = SOVXSOV6.inner(Extended::Finite(v6));
+/// let _: SocketAddr = SOVXSOV6.lower(Extended::Finite(v6));
 /// ```
-pub const SOVXSOV6: crate::conn::ConnR<SocketAddr, Extended<SocketAddrV6>> = {
+pub const SOVXSOV6: crate::conn::Conn<SocketAddr, Extended<SocketAddrV6>, crate::conn::R> = {
     fn inner(b: Extended<SocketAddrV6>) -> SocketAddr {
         match b {
             // R-Galois `inner(b) ≤ a ⟺ b ≤ floor(a)` with b = NegInf forces
@@ -157,7 +157,7 @@ pub const SOVXSOV6: crate::conn::ConnR<SocketAddr, Extended<SocketAddrV6>> = {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{
         arb_extended_socket_addr_v4, arb_extended_socket_addr_v6, arb_socket_addr,
     };

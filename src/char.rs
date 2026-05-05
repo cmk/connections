@@ -9,7 +9,7 @@
 //! Per CLAUDE.md § Conn placement, char wins the same-tier tie over
 //! `u32` (right wins → coarser side → 21-bit char), so this is the
 //! natural module for u32↔char. To compose into `u8 → char` from
-//! downstream code, chain `compose_l!(U008U032::L, U032CHAR::L)` (or
+//! downstream code, chain `compose_l!(U008U032.conn_l(), U032CHAR.conn_l())` (or
 //! the analogous `_r` chain).
 
 use crate::extended::Extended;
@@ -67,7 +67,7 @@ const fn inner_char_u32(c: Extended<char>) -> Extended<u32> {
     }
 }
 
-crate::triple! {
+crate::conn_k! {
     /// `Extended<u32> → Extended<char>` — validated-codepoint projection.
     ///
     /// `inner`: lossless `char → u32` cast (`NegInf`/`PosInf` pass
@@ -86,7 +86,7 @@ crate::triple! {
     ///
     /// ```rust
     /// use connections::char::U032CHAR;
-    /// use connections::conn::{ViewL, ViewR};
+    /// use connections::conn::{ConnL, ConnR};
     /// use connections::extended::Extended;
     ///
     /// // Valid codepoints pass through.
@@ -112,7 +112,7 @@ crate::triple! {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{arb_extended_char, arb_extended_u32};
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
@@ -173,7 +173,7 @@ mod tests {
                 Extended::Finite(c)
             );
             assert_eq!(
-                U032CHAR.inner(Extended::Finite(c)),
+                U032CHAR.upper(Extended::Finite(c)),
                 Extended::Finite(c as u32)
             );
         }
@@ -185,8 +185,8 @@ mod tests {
         assert_eq!(U032CHAR.floor(Extended::NegInf), Extended::NegInf);
         assert_eq!(U032CHAR.ceil(Extended::PosInf), Extended::PosInf);
         assert_eq!(U032CHAR.floor(Extended::PosInf), Extended::PosInf);
-        assert_eq!(U032CHAR.inner(Extended::NegInf), Extended::NegInf);
-        assert_eq!(U032CHAR.inner(Extended::PosInf), Extended::PosInf);
+        assert_eq!(U032CHAR.upper(Extended::NegInf), Extended::NegInf);
+        assert_eq!(U032CHAR.upper(Extended::PosInf), Extended::PosInf);
     }
 
     // ── Property tests ─────────────────────────────────────────────
@@ -199,7 +199,7 @@ mod tests {
     }
 
     // `floor_le_ceil` isn't part of the law_battery!(full) set
-    // (Triple-bound rather than per-side) — kept as a standalone
+    // (ConnK-bound rather than per-side) — kept as a standalone
     // proptest below.
     proptest! {
         #[test]

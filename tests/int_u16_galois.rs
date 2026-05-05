@@ -2,7 +2,7 @@
 //! test — see `tests/conn_std_u8_galois.rs` for rationale.
 
 #[allow(unused_imports)]
-use connections::conn::{ViewL, ViewR};
+use connections::conn::{ConnL, ConnR};
 use connections::fixed::u16::*;
 use proptest::prelude::*;
 
@@ -18,7 +18,7 @@ macro_rules! single_sided_props {
             proptest! {
                 #[test]
                 fn galois_upper(a in $arb_src, b in $arb_tgt) {
-                    prop_assert_eq!($CONN.ceil(a) <= b, a <= $CONN.inner(b));
+                    prop_assert_eq!($CONN.ceil(a) <= b, a <= $CONN.upper(b));
                 }
                 #[test]
                 fn ceil_monotone(a1 in $arb_src, a2 in $arb_src) {
@@ -28,16 +28,16 @@ macro_rules! single_sided_props {
                 #[test]
                 fn inner_monotone(b1 in $arb_tgt, b2 in $arb_tgt) {
                     let (lo, hi) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
-                    prop_assert!($CONN.inner(lo) <= $CONN.inner(hi));
+                    prop_assert!($CONN.upper(lo) <= $CONN.upper(hi));
                 }
                 #[test]
                 fn kernel(b in $arb_tgt) {
-                    prop_assert!($CONN.ceil($CONN.inner(b)) <= b);
+                    prop_assert!($CONN.ceil($CONN.upper(b)) <= b);
                 }
                 #[test]
                 fn idempotent(a in $arb_src) {
-                    let once = $CONN.inner($CONN.ceil(a));
-                    let twice = $CONN.inner($CONN.ceil(once));
+                    let once = $CONN.upper($CONN.ceil(a));
+                    let twice = $CONN.upper($CONN.ceil(once));
                     prop_assert_eq!(once, twice);
                 }
             }

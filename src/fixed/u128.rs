@@ -121,9 +121,14 @@ macro_rules! fix_fix_u128 {
         }
 
         // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ViewL<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> for $const_name {
-            const L: $crate::conn::ConnL<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> =
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        impl $crate::conn::ConnL<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> for $const_name {
+            #[inline]
+            fn conn_l(
+                &self,
+            ) -> $crate::conn::Conn<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>, $crate::conn::L>
+            {
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
+            }
         }
     };
 }
@@ -159,20 +164,20 @@ fix_fix_u128!(Q128Q127, U128, U127);
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
 
     // ── §1 std-int spot checks (merged from former int/u128.rs) ────
 
     #[test]
     fn u064u128_inner_saturates_at_source_max() {
-        assert_eq!(U064U128.inner(u128::MAX), u64::MAX);
+        assert_eq!(U064U128.upper(u128::MAX), u64::MAX);
     }
 
     #[test]
     fn i128u128_at_extremes() {
         assert_eq!(I128U128.ceil(i128::MIN), 0);
         assert_eq!(I128U128.ceil(i128::MAX), i128::MAX as u128);
-        assert_eq!(I128U128.inner(u128::MAX), i128::MAX);
+        assert_eq!(I128U128.upper(u128::MAX), i128::MAX);
     }
 
     // ── §4 Q-format spot checks ────────────────────────────────────
@@ -183,15 +188,15 @@ mod tests {
     fn degenerate_max_shift() {
         // inner: only 0 stays in range; everything else saturates to MAX.
         assert_eq!(
-            Q128Q000.inner(FixedU128::<U0>::from_bits(0)),
+            Q128Q000.upper(FixedU128::<U0>::from_bits(0)),
             FixedU128::<U128>::from_bits(0),
         );
         assert_eq!(
-            Q128Q000.inner(FixedU128::<U0>::from_bits(1)),
+            Q128Q000.upper(FixedU128::<U0>::from_bits(1)),
             FixedU128::<U128>::from_bits(u128::MAX),
         );
         assert_eq!(
-            Q128Q000.inner(FixedU128::<U0>::from_bits(u128::MAX)),
+            Q128Q000.upper(FixedU128::<U0>::from_bits(u128::MAX)),
             FixedU128::<U128>::from_bits(u128::MAX),
         );
         // ceil: positive inputs round up to 1; zero → 0.
@@ -212,7 +217,7 @@ mod tests {
     #[test]
     fn spot_q127_to_q128() {
         let q127 = FixedU128::<U127>::from_bits(1 << 126);
-        let q128 = Q128Q127.inner(q127);
+        let q128 = Q128Q127.upper(q127);
         assert_eq!(q128, FixedU128::<U128>::from_bits(1 << 127));
         assert_eq!(Q128Q127.ceil(q128), q127);
     }
@@ -234,7 +239,7 @@ mod tests {
         // saturate to FINE_MAX.
         let big_coarse = FixedU128::<U16>::from_bits(u128::MAX);
         assert_eq!(
-            Q128Q016.inner(big_coarse),
+            Q128Q016.upper(big_coarse),
             FixedU128::<U128>::from_bits(u128::MAX),
         );
     }

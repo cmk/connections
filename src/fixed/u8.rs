@@ -116,9 +116,13 @@ macro_rules! fix_fix_u8 {
         }
 
         // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ViewL<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> for $const_name {
-            const L: $crate::conn::ConnL<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> =
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner);
+        impl $crate::conn::ConnL<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> for $const_name {
+            #[inline]
+            fn conn_l(
+                &self,
+            ) -> $crate::conn::Conn<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>, $crate::conn::L> {
+                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
+            }
         }
     };
 }
@@ -161,7 +165,7 @@ fix_fix_u8!(Q008Q007, U8, U7);
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ViewL, ViewR};
+    use crate::conn::{ConnL, ConnR};
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
@@ -181,9 +185,9 @@ mod tests {
 
     #[test]
     fn i008u008_inner_saturates_at_source_max() {
-        assert_eq!(I008U008.inner(u8::MAX), i8::MAX);
-        assert_eq!(I008U008.inner(127), 127);
-        assert_eq!(I008U008.inner(50), 50);
+        assert_eq!(I008U008.upper(u8::MAX), i8::MAX);
+        assert_eq!(I008U008.upper(127), 127);
+        assert_eq!(I008U008.upper(50), 50);
     }
 
     #[test]
@@ -196,12 +200,12 @@ mod tests {
 
     #[test]
     fn u_to_u8_inner_fine_max_fixup() {
-        assert_eq!(U016U008.inner(u8::MAX), u16::MAX);
-        assert_eq!(U032U008.inner(u8::MAX), u32::MAX);
-        assert_eq!(U064U008.inner(u8::MAX), u64::MAX);
-        assert_eq!(U128U008.inner(u8::MAX), u128::MAX);
-        assert_eq!(U016U008.inner(0), 0_u16);
-        assert_eq!(U016U008.inner(254), 254_u16);
+        assert_eq!(U016U008.upper(u8::MAX), u16::MAX);
+        assert_eq!(U032U008.upper(u8::MAX), u32::MAX);
+        assert_eq!(U064U008.upper(u8::MAX), u64::MAX);
+        assert_eq!(U128U008.upper(u8::MAX), u128::MAX);
+        assert_eq!(U016U008.upper(0), 0_u16);
+        assert_eq!(U016U008.upper(254), 254_u16);
     }
 
     #[test]
@@ -220,10 +224,10 @@ mod tests {
 
     #[test]
     fn i_to_u8_inner_fine_max_fixup() {
-        assert_eq!(I016U008.inner(u8::MAX), i16::MAX);
-        assert_eq!(I128U008.inner(u8::MAX), i128::MAX);
-        assert_eq!(I016U008.inner(0), 0_i16);
-        assert_eq!(I016U008.inner(100), 100_i16);
+        assert_eq!(I016U008.upper(u8::MAX), i16::MAX);
+        assert_eq!(I128U008.upper(u8::MAX), i128::MAX);
+        assert_eq!(I016U008.upper(0), 0_i16);
+        assert_eq!(I016U008.upper(100), 100_i16);
     }
 
     // ── §2 u8 ↔ NonZeroU8 spot checks ──────────────────────────────
@@ -248,7 +252,7 @@ mod tests {
     fn u008n008_inner_is_total_embedding() {
         for &v in &[1, 50, u8::MAX] {
             let nz = NonZeroU8::new(v).unwrap();
-            assert_eq!(U008N008.inner(nz), v);
+            assert_eq!(U008N008.upper(nz), v);
         }
     }
 
@@ -260,9 +264,9 @@ mod tests {
             let q = FixedU8::<U0>::from_bits(v);
             assert_eq!(Q000U008.ceil(q), v);
             assert_eq!(Q000U008.floor(q), v);
-            assert_eq!(Q000U008.inner(v), q);
-            assert_eq!(Q000U008.ceil(Q000U008.inner(v)), v);
-            assert_eq!(Q000U008.inner(Q000U008.ceil(q)), q);
+            assert_eq!(Q000U008.upper(v), q);
+            assert_eq!(Q000U008.ceil(Q000U008.upper(v)), v);
+            assert_eq!(Q000U008.upper(Q000U008.ceil(q)), q);
         }
     }
 
@@ -280,32 +284,32 @@ mod tests {
         // galois_l is asserted.
         #[test]
         fn u008n008_galois_l(a in any::<u8>(), b in arb_nz_u8()) {
-            prop_assert!(conn_laws::galois_l(&U008N008::L, a, b));
+            prop_assert!(conn_laws::galois_l(&U008N008.conn_l(), a, b));
         }
 
         #[test]
         fn u008n008_inner_then_ceil_recovers_nonzero(nz in arb_nz_u8()) {
-            prop_assert_eq!(U008N008.ceil(U008N008.inner(nz)), nz);
+            prop_assert_eq!(U008N008.ceil(U008N008.upper(nz)), nz);
         }
 
         // Q000U008 iso — both Galois laws hold.
         #[test]
         fn q000u008_galois_l(a_bits in any::<u8>(), b in any::<u8>()) {
             let a = FixedU8::<U0>::from_bits(a_bits);
-            prop_assert!(conn_laws::galois_l(&Q000U008::L, a, b));
+            prop_assert!(conn_laws::galois_l(&Q000U008.conn_l(), a, b));
         }
 
         #[test]
         fn q000u008_galois_r(a_bits in any::<u8>(), b in any::<u8>()) {
             let a = FixedU8::<U0>::from_bits(a_bits);
-            prop_assert!(conn_laws::galois_r(&Q000U008::R, a, b));
+            prop_assert!(conn_laws::galois_r(&Q000U008.conn_r(), a, b));
         }
 
         #[test]
         fn q000u008_round_trip_both_directions(v in any::<u8>()) {
             let q = FixedU8::<U0>::from_bits(v);
-            prop_assert_eq!(Q000U008.ceil(Q000U008.inner(v)), v);
-            prop_assert_eq!(Q000U008.inner(Q000U008.ceil(q)), q);
+            prop_assert_eq!(Q000U008.ceil(Q000U008.upper(v)), v);
+            prop_assert_eq!(Q000U008.upper(Q000U008.ceil(q)), q);
         }
     }
 
@@ -318,7 +322,7 @@ mod tests {
     #[test]
     fn spot_midi_velocity_q17_to_q08() {
         let velocity_64 = FixedU8::<U7>::from_bits(64);
-        let pixel = Q008Q007.inner(velocity_64);
+        let pixel = Q008Q007.upper(velocity_64);
         assert_eq!(pixel, FixedU8::<U8>::from_bits(128));
         // Round-trip Q0.8 → Q1.7 via ceil. (Plan 32: ConnL only.)
         assert_eq!(Q008Q007.ceil(pixel), velocity_64);
@@ -329,7 +333,7 @@ mod tests {
     #[test]
     fn spot_q17_max_velocity_to_q08() {
         let velocity_max = FixedU8::<U7>::from_bits(127);
-        assert_eq!(Q008Q007.inner(velocity_max), FixedU8::<U8>::from_bits(254));
+        assert_eq!(Q008Q007.upper(velocity_max), FixedU8::<U8>::from_bits(254));
     }
 
     #[test]
@@ -338,7 +342,7 @@ mod tests {
         let q44 = FixedU8::<U4>::from_bits(24);
         assert_eq!(Q004Q000.ceil(q44), FixedU8::<U0>::from_bits(2));
         assert_eq!(
-            Q004Q000.inner(FixedU8::<U0>::from_bits(1)),
+            Q004Q000.upper(FixedU8::<U0>::from_bits(1)),
             FixedU8::<U4>::from_bits(16)
         );
     }
@@ -348,15 +352,15 @@ mod tests {
         // SHIFT = 8, RATIO = 256. Only Coarse(0) round-trips; bits ≥ 1
         // saturates inner at u8::MAX.
         assert_eq!(
-            Q008Q000.inner(FixedU8::<U0>::from_bits(0)),
+            Q008Q000.upper(FixedU8::<U0>::from_bits(0)),
             FixedU8::<U8>::from_bits(0),
         );
         assert_eq!(
-            Q008Q000.inner(FixedU8::<U0>::from_bits(1)),
+            Q008Q000.upper(FixedU8::<U0>::from_bits(1)),
             FixedU8::<U8>::from_bits(u8::MAX),
         );
         assert_eq!(
-            Q008Q000.inner(FixedU8::<U0>::from_bits(255)),
+            Q008Q000.upper(FixedU8::<U0>::from_bits(255)),
             FixedU8::<U8>::from_bits(u8::MAX),
         );
     }
