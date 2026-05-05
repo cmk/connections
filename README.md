@@ -5,13 +5,50 @@
 Read the docs [here](https://cmk.gitlab.io/connections/).
 
 Galois connections as first-class Rust values. Use them to cast lawfully
-between numeric types, expose ceiling/floor/inner alongside each other on
-the same value, and compose ladders of conversions whose round-trip
+between numeric types, expose ceil/floor/upper/lower alongside each other
+on the same value, and compose ladders of conversions whose round-trip
 behavior is property-tested rather than left to chance.
 
 **MSRV: Rust 1.85.** Bumps to the MSRV will be treated as minor-version
 changes — pin `connections = "0.1"` and an MSRV upgrade will surface as
 a 0.2 release rather than a silent break on a patch update.
+
+## Get started in 30 seconds
+
+Most users only need `.ceil`, `.floor`, and the embedding (`.upper` for
+an L-side or triple Conn, `.lower` for an R-side Conn). The rest of
+this doc explains how those names get earned.
+
+```rust
+use connections::conn::{ConnL, ConnR};
+use connections::time::DURNSECS;
+use connections::extended::Extended;
+use time::Duration;
+
+let half = Duration::seconds(5) + Duration::nanoseconds(1);
+assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));   // round up
+assert_eq!(DURNSECS.floor(half), Extended::Finite(5));   // round down
+assert_eq!(DURNSECS.upper(Extended::Finite(42)), Duration::seconds(42));
+```
+
+### Naming the methods
+
+The crate keeps two distinct naming axes on purpose:
+
+- **Direction names** — `ceil` (rounds up) and `floor` (rounds down) —
+  match downstream intuition. "Give me a ceiling cast" doesn't require
+  the caller to know which side of an adjunction they're on.
+- **Position names** — `upper` (the upper adjoint of the L-pair) and
+  `lower` (the lower adjoint of the R-pair) — match the math: a
+  generic `T: ConnK<A,B>` bound exposes both because a triple has both
+  adjunctions, regardless of which way each one rounds in any concrete
+  instance.
+
+So an L-Conn (or triple) has `.ceil` and `.upper`; an R-Conn (or triple)
+has `.floor` and `.lower`. There is *no* `.inner` method — `inner` would
+collide with the rounding-direction axis on one side or the other, so
+it's not on the surface. Use `.upper` for the L-side embedding,
+`.lower` for the R-side.
 
 ## Why this crate
 
@@ -21,13 +58,13 @@ saturation, and lossy conversion. Three concrete things this crate gives
 you that the standard tools don't:
 
 1. **Both arms of a cast on one value.** An adjoint-triple marker
-   exposes `ceil: A → B`, `floor: A → B`, *and* the embedding
-   `inner: B → A` as a unit struct with `ConnL` / `ConnR` impls — you
-   don't pick "ceiling cast" vs "floor cast" up front, you carry the
-   marker and call whichever you need per-call. (One-sided
+   exposes `ceil: A → B`, `floor: A → B`, *and* the embedding (`upper`
+   / `lower`) as a unit struct implementing both `ConnL` and `ConnR`
+   — you don't pick "ceiling cast" vs "floor cast" up front, you carry
+   the marker and call whichever you need per-call. (One-sided
    connections — where only one law holds — ship as kind-tagged
-   `ConnL<A, B>` / `ConnR<A, B>` values, exposing only the methods of
-   their kind.)
+   `Conn<A, B>` (L) / `Conn<A, B, R>` values, exposing only the
+   methods of their kind.)
 
 2. **Round-trip identities that hold.** `(x as f32) as f64 != x` for many
    `x: f64`. With a `Conn`, the closure law `a ≤ inner(ceil(a))` and
@@ -102,12 +139,18 @@ satisfies `g(b) ≤ a ⟺ b ≤ f(a)`.
 [Adjoint triples](https://ncatlab.org/nlab/show/adjoint+triple) — the
 `f ⊣ g ⊣ h` shape Example 3 below derives — are *not* a third kind
 of `Conn`. They are zero-sized **marker types** implementing two
-projection traits, `ConnL<A, B>` and `ConnR<A, B>`, whose associated
-consts are the L-view and R-view `Conn`s of the triple. The "third
-function" lives as a free function in module scope, referenced from
-the marker's trait impls; no struct in the crate stores three fns.
-Two-sided helpers (`round`, `truncate`, …) bind on the
-`ConnK<A, B>` super-trait and reach through both views.
+capability traits, `ConnL<A, B>` and `ConnR<A, B>`, whose `conn_l` /
+`conn_r` methods project to the L-view and R-view `Conn`s of the
+triple. The trait names match the value-type spellings on purpose:
+the blanket `impl ConnL for Conn<A, B, L>` (and the R-side analogue)
+makes every one-sided value also satisfy the trait, so a generic
+`T: ConnL<A, B>` bound accepts triple markers and raw `Conn<A, B, L>`
+values uniformly. The "third function" — the adjoint that distinguishes
+a triple from a one-sided Conn — lives as a free function in module
+scope, referenced from the marker's trait impls; no struct in the
+crate stores three fns. Two-sided helpers (`round`, `truncate`, …)
+bind on the `ConnK<A, B>` super-trait (`= ConnL + ConnR`) and reach
+through both views.
 
 The struct is `Copy`, `const`-constructible, heap-free, and the crate
 is `#![forbid(unsafe_code)]`.
@@ -225,11 +268,10 @@ qualified import (e.g. `fixed::i8::Q008Q000` and
 **Conn API**
 
 - L-side methods on `Conn<_, _, L>` (and on any `ConnL` implementor
-  via default-method dispatch): `ceil`, `upper`, `ceiling1`/`2`,
-  `upper1`/`2`. Back-compat aliases: `ceil` / `inner`.
+  via default-method dispatch): `ceil`, `upper`, plus `ceil1`/`2`,
+  `upper1`/`2` lifters.
 - R-side methods on `Conn<_, _, R>` (and on any `ConnR` implementor):
-  `floor`, `lower`, `floor1`/`2`, `lower1`/`2`. Back-compat alias for
-  `lower`: `inner`.
+  `floor`, `lower`, plus `floor1`/`2`, `lower1`/`2` lifters.
 - Two-sided helpers (re-exported at the crate root): `interval`,
   `midpoint`, `round`/`round1`/`round2`,
   `truncate`/`truncate1`/`truncate2`, `median`. All bind on
@@ -241,6 +283,39 @@ Conn is a compile error (the method only exists on `Conn<_, _, R>`),
 and likewise `.ceil(...)` on R. Two-sided helpers similarly reject
 one-sided operands at compile time because a one-sided `Conn` doesn't
 implement `ConnK`.
+
+## When NOT to use a Conn
+
+Galois connections are the right shape for *static, lawful* numeric
+boundary conversions: `f64 → f32`, `Duration → seconds`, `u32 → IpAddr`,
+`Micro → Pico → samples` ladders parameterised at type-construction
+time. They are **not** a good fit when:
+
+1. **The conversion takes a runtime parameter.** A "convert micros to
+   samples at the current sample rate" helper threads a runtime `sr:
+   u32` through a static `FD12FD06`-then-`R048I064` chain. Encoding
+   the runtime arg as a `Conn<(Micro, u32), i64>` tuple destroys the
+   symmetry of the static algebra and can't compose. Keep the helper
+   as a normal named function whose body *visibly composes* the
+   lawful Conns it depends on.
+
+2. **The conversion validates input.** FFI clamps, sentinel-checking
+   wrappers, and "is this a real PID" guards belong as named helpers.
+   They're not adjunctions — they're partial functions that happen to
+   delegate to a Conn after a precondition check. Naming the precondition
+   in the helper signature is more useful than smuggling it into a Conn.
+
+3. **The conversion needs a domain policy.** "Round to nearest sample,
+   ties toward zero, with a clamp at the audio max" is one specific
+   policy among several lawful ones; a Conn picks one. If your callers
+   need to inject the policy, expose the underlying ceil/floor/upper
+   primitives and let them assemble the policy at the call site.
+
+The discipline of pushing runtime parameters and policy choices *close
+to the static Conn call site* tends to make conversion code clearer,
+not more verbose — the policy and the static cast are both visible in
+the same body. A boundary helper that names what it does and visibly
+composes lawful Conns is a feature, not a workaround.
 
 ## Examples
 
