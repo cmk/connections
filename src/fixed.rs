@@ -9,6 +9,8 @@
 //! [`fixed`]: https://docs.rs/fixed
 //! [`core::num::NonZero<T>`]: https://doc.rust-lang.org/core/num/struct.NonZero.html
 //!
+//! ## Submodules
+//!
 //! - [`mod@i8`] / [`mod@i16`] / [`mod@i32`] / [`mod@i64`] / [`mod@i128`] —
 //!   Conns landing on signed `iN` and `FixedI<N><Frac>`. Per the
 //!   right-side-wins module rule, each per-primitive submodule hosts
@@ -16,6 +18,18 @@
 //!   wrapper) wins as the destination.
 //! - [`mod@u8`] / [`mod@u16`] / [`mod@u32`] / [`mod@u64`] / [`mod@u128`] —
 //!   same shape over unsigned `uN` and `FixedU<N><Frac>`.
+//!
+//! ## Example
+//!
+//! ```rust
+//! use connections::conn::ConnR;
+//! use connections::fixed::i32::U032I032;
+//!
+//! // u32 PID into i32 — saturates instead of wrapping for large values.
+//! assert_eq!(U032I032.floor(1_u32), 1_i32);
+//! assert_eq!(U032I032.floor((i32::MAX as u32) + 1), i32::MAX);
+//! assert_eq!(U032I032.floor(u32::MAX), i32::MAX);
+//! ```
 //!
 //! ## Conn-name prefix conventions (post-merge)
 //!

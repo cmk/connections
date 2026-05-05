@@ -1,6 +1,34 @@
-//! `ExtendedFloat<T>` extends an IEEE float type with synthetic `Bot` and
-//! `Top` elements outside the float range, recovering the N5 lattice
-//! structure the Galois-connection machinery requires.
+//! IEEE float Conns built on [`ExtendedFloat<T>`], an N5-lattice
+//! extension of an IEEE float that recovers a total-enough preorder
+//! for the Galois-connection machinery to apply.
+//!
+//! ## Constants
+//!
+//! Per-destination-tier Conns live in submodules (right-hand side
+//! wins under the placement rule when both endpoints sit at the same
+//! specificity tier):
+//!
+//! | Const          | Conn                                  | Module       |
+//! |----------------|---------------------------------------|--------------|
+//! | `F064F032`     | `Conn<F064, F032>` (lossy narrowing)  | [`mod@f32`]  |
+//! | `F064F016`     | `Conn<F064, F016>` (`f16` feature)    | `f16`        |
+//! | `F032F016`     | `Conn<F032, F016>` (`f16` feature)    | `f16`        |
+//!
+//! ## Example
+//!
+//! ```rust
+//! use connections::conn::{ConnL, ConnR};  // brings .ceil/.floor in via default methods
+//! use connections::float::f32::F064F032;
+//! use connections::float::F064;
+//!
+//! // f64 → f32 narrowing rounds in two directions.
+//! let pi64 = F064::Extend(std::f64::consts::PI);
+//! let lo = F064F032.floor(pi64);   // largest f32 ≤ π
+//! let hi = F064F032.ceil(pi64);    // smallest f32 ≥ π
+//! assert!(lo != hi);               // π is not exactly representable in f32
+//! ```
+//!
+//! ## Why ExtendedFloat?
 //!
 //! Rust's built-in float `PartialOrd` is a partial order: NaN is
 //! incomparable with every value including itself, and there are no
@@ -17,18 +45,6 @@
 //! lattice's bottom/top; NaN's reflexivity closes the preorder; its
 //! incomparability with finites is inherited unchanged from
 //! `PartialOrd` on the wrapped `T`.
-//!
-//! Per-destination-tier Conns live in submodules (right-hand side
-//! wins under the placement rule when both endpoints sit at the same
-//! specificity tier — see CLAUDE.md § Conn placement):
-//!
-//! - [`mod@f32`] — Conns whose target is `ExtendedFloat<f32>`
-//!   (`F064F032`).
-//! - `f16` — Conns whose target is `ExtendedFloat<f16>`
-//!   (`F032F016`, `F064F016`) along with the `F016` type alias
-//!   and 16-bit ULP machinery. Gated on the `f16` cargo feature
-//!   (nightly required); the module name resolves only when the
-//!   feature is enabled.
 
 #[cfg(feature = "f16")]
 pub mod f16;
