@@ -96,14 +96,14 @@
 //! compiling.
 //!
 //! ```rust
-//! use connections::conn::{ConnL, ConnR};  // brings .ceil/.inner/.floor in via default methods
+//! use connections::conn::{ConnL, ConnR};
 //! use connections::time::DURNSECS;
 //! use connections::extended::Extended;
 //! use time::Duration;
 //!
 //! let half = Duration::seconds(5) + Duration::nanoseconds(1);
-//! assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));
-//! assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
+//! assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));   // round up
+//! assert_eq!(DURNSECS.floor(half), Extended::Finite(5));   // round down
 //! assert_eq!(DURNSECS.upper(Extended::Finite(42)), Duration::seconds(42));
 //! ```
 //!
