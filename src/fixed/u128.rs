@@ -212,7 +212,7 @@ mod tests {
     }
 
     /// Q1.127 (the canonical 128-bit normalised amplitude) → Q0.128:
-    /// the value 1<<126 in Q1.127 (= 0.5) embeds via Q128Q127.inner
+    /// the value 1<<126 in Q1.127 (= 0.5) embeds via Q128Q127.upper
     /// to 1<<127 in Q0.128 (= 0.5).
     #[test]
     fn spot_q127_to_q128() {

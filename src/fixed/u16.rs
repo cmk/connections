@@ -221,7 +221,7 @@ mod tests {
     // ── §4 Q-format spot checks ────────────────────────────────────
 
     /// Q1.15 audio amplitude → Q0.16 normalised pixel intensity:
-    /// the value 16384 in Q1.15 (= 0.5) embeds via `Q016Q015.inner`
+    /// the value 16384 in Q1.15 (= 0.5) embeds via `Q016Q015.upper`
     /// to 32768 in Q0.16 (= 0.5).
     #[test]
     fn spot_q15_audio_to_q16() {

@@ -12,7 +12,7 @@
 //! The Conn rounds that value up to the next integer in Q7.0:
 //!
 //! ```rust
-//! use connections::conn::ConnL;  // brings .ceil/.inner in via default methods
+//! use connections::conn::ConnL;  // brings .ceil/.upper in via default methods
 //! use connections::fixed::i8::Q004Q000;
 //! use fixed::FixedI8;
 //! use fixed::types::extra::{U0, U4};

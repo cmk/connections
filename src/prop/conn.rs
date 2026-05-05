@@ -66,17 +66,17 @@ pub fn upper2_id_diag<A: Copy + Eq, B: Copy>(c: &Conn<A, B, L>, a: A) -> bool {
     c.upper2(|p, _q| p, a, a) == c.upper1(|x| x, a)
 }
 
-/// `ceil1` kernel law: `ceiling1(c, id, b) ≤ b`.
-pub fn ceiling1_id_kernel<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B, L>, b: B) -> bool {
+/// `ceil1` kernel law: `ceil1(c, id, b) ≤ b`.
+pub fn ceil1_id_kernel<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B, L>, b: B) -> bool {
     c.ceil1(|x| x, b) <= b
 }
 
 /// `ceil2` collapse-on-projection.
-pub fn ceiling2_id_diag<A: Copy, B: Copy + Eq>(c: &Conn<A, B, L>, b: B) -> bool {
+pub fn ceil2_id_diag<A: Copy, B: Copy + Eq>(c: &Conn<A, B, L>, b: B) -> bool {
     c.ceil2(|p, _q| p, b, b) == c.ceil1(|x| x, b)
 }
 
-/// Round-trip via ceil: `ceil(inner(b)) == b` (exact-embedding L-Conns).
+/// Round-trip via ceil: `ceil(upper(b)) == b` (exact-embedding L-Conns).
 pub fn roundtrip_ceil<A: Copy, B: Copy + Eq>(c: &Conn<A, B, L>, b: B) -> bool {
     c.ceil(c.upper(b)) == b
 }

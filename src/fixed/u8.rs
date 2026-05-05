@@ -316,7 +316,7 @@ mod tests {
     // ── §4 Q-format spot checks ────────────────────────────────────
 
     /// MIDI velocity 64 — the canonical mid-range velocity, exactly
-    /// 0.5 in Q1.7 (`U007`) — embeds via `Q008Q007.inner` to 128
+    /// 0.5 in Q1.7 (`U007`) — embeds via `Q008Q007.upper` to 128
     /// (= 0.5 in Q0.8 / `U008`). `U008` is the Fine side (more
     /// fractional bits) and `U007` is the Coarse side.
     #[test]

@@ -904,6 +904,16 @@ mod tests {
         assert_eq!(VIA_ALIAS.upper(7_i32), VIA_LEFT.upper(7_i32));
     }
 
+    #[test]
+    fn compose_alias_matches_compose_l_three_operands() {
+        // Variadic forward — three operands through the alias must
+        // match three operands through `compose_l!` directly.
+        const VIA_ALIAS: Conn<i32, i32> = crate::compose!(ID_L, ID_L, ID_L);
+        const VIA_LEFT: Conn<i32, i32> = crate::compose_l!(ID_L, ID_L, ID_L);
+        assert_eq!(VIA_ALIAS.ceil(42_i32), VIA_LEFT.ceil(42_i32));
+        assert_eq!(VIA_ALIAS.upper(7_i32), VIA_LEFT.upper(7_i32));
+    }
+
     // ── conn_l! / conn_r! macro instantiation ────────────────────────
 
     const fn _i64_to_i32(x: i64) -> i32 {

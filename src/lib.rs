@@ -186,23 +186,21 @@ pub mod float;
 pub mod lattice;
 pub mod time;
 
-// Re-exports of [`conn`] free functions at the crate root for
-// ergonomic access (`connections::ceiling(&c, x)` rather than the
-// module path).
+// Two-sided helpers (ConnK-bound) re-exported at the crate root for
+// ergonomic access (`connections::round(&t, x)` rather than the
+// module path). One-sided ops (`ceil` / `upper` / `floor` / `lower`
+// and their `1` / `2` lifters) are inherent methods on
+// `Conn<_, _, L>` / `Conn<_, _, R>` (and trait-default methods on
+// `ConnL` / `ConnR`), accessed via `c.ceil(x)` etc.
 //
-// Note on glob-imports: `floor` / `ceil` are the bare function
-// names from category theory, not the `f32::floor` / `f64::ceil`
-// methods. If you `use connections::*` alongside another crate's
-// glob (e.g. `use libm::*`, `use num_traits::*`), the names may
-// collide. Resolution is by type — these take `&Conn<A, B>` as their
-// first argument, so a wrong `floor` will produce a type error
+// Note on glob-imports: `round` / `truncate` are bare function names
+// at the crate root. If you `use connections::*` alongside another
+// crate's glob (e.g. `use num_traits::*`), the names may collide.
+// Resolution is by argument type — these take `&T: ConnK<A, B>` as
+// their first argument, so a wrong `round` will produce a type error
 // rather than silent misbehavior — but prefer named imports
-// (`use connections::{ceiling, floor};`) over globs to make the
+// (`use connections::{round, truncate};`) over globs to make the
 // origin explicit.
-// Two-sided helpers (ConnK-bound) re-exported at the crate root.
-// One-sided ops (`ceil` / `upper` / `floor` / `lower` and their
-// `1` / `2` lifters) are inherent methods on `Conn<_, _, L>` /
-// `Conn<_, _, R>`, accessed via `c.ceil(x)` etc.
 pub use conn::{interval, median, midpoint, round, round1, round2, truncate, truncate1, truncate2};
 
 // Capability traits — re-export so `use connections::*` brings

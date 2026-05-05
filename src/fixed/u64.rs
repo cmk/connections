@@ -172,7 +172,7 @@ mod tests {
     // ── §4 Q-format spot checks ────────────────────────────────────
 
     /// Q1.63 (the canonical 64-bit normalised amplitude) → Q0.64:
-    /// the value 1<<62 in Q1.63 (= 0.5) embeds via Q064Q063.inner
+    /// the value 1<<62 in Q1.63 (= 0.5) embeds via Q064Q063.upper
     /// to 1<<63 in Q0.64 (= 0.5).
     #[test]
     fn spot_q63_to_q64() {

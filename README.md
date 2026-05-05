@@ -534,15 +534,17 @@ use connections::conn::{ConnL, ConnR};
 use connections::fixed::i16::U008I016;
 use connections::extended::Extended;
 
-// `ceil` is the named alias of `ceil` under the L-side reading.
-// ConnK markers route via U008I016.conn_l() (the L-view ConnL).
+// The blanket `impl ConnL for Conn<A, B, L>` means `marker.ceil(x)`
+// (the trait method via default-method dispatch) and
+// `marker.conn_l().ceil(x)` (explicit projection then inherent
+// method on the value) produce the same result.
 assert_eq!(
-    U008I016.conn_l().ceil(Extended::Finite(200_u8)),
+    U008I016.ceil(Extended::Finite(200_u8)),
     U008I016.conn_l().ceil(Extended::Finite(200_u8)),
 );
 
 // `upper1` lifts an endofunction over the target type back to the source:
-//   upper1(c, f, a) = inner(f(ceil(a)))
+//   upper1(c, f, a) = upper(f(ceil(a)))
 let bumped = U008I016.conn_l().upper1(|n| n, Extended::Finite(200_u8));
 assert_eq!(
     bumped,

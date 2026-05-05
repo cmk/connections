@@ -425,7 +425,7 @@ pub fn arb_extended_u64() -> impl Strategy<Value = Extended<u64>> {
 /// `Extended<u128>` over `NegInf`, `PosInf`, and `Finite` values —
 /// 1:1:8 weighting with explicit bias toward `Finite::{0, MAX,
 /// std::time::Duration::MAX.as_nanos()}`. The third boundary is the
-/// largest rung value `STDRU128.inner` round-trips bijectively.
+/// largest rung value `STDRU128.upper` round-trips bijectively.
 ///
 /// Not currently driven by any Conn battery in this crate (the
 /// `STDRU128` battery uses [`arb_extended_stdr_nanos_in_range`] to stay

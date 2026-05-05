@@ -181,7 +181,7 @@ mod tests {
     // ── §4 Q-format spot checks ────────────────────────────────────
 
     /// Q1.31 (the canonical 32-bit normalised amplitude) → Q0.32:
-    /// the value 1<<30 in Q1.31 (= 0.5) embeds via Q032Q031.inner
+    /// the value 1<<30 in Q1.31 (= 0.5) embeds via Q032Q031.upper
     /// to 1<<31 in Q0.32 (= 0.5).
     #[test]
     fn spot_q31_to_q32() {
