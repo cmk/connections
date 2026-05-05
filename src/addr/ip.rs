@@ -3,12 +3,12 @@
 //! Five Conns covering the std-library IP types:
 //!
 //! - [`U032IPV4`] — `Conn<u32, Ipv4Addr>` total bijection via
-//!   `Ipv4Addr::{from,to}_bits`. Constructed with the [`conn_k!`](crate::triple) macro;
+//!   `Ipv4Addr::{from,to}_bits`. Constructed with the [`conn_k!`](crate::conn_k) macro;
 //!   both Galois laws and `floor_le_ceil` hold trivially.
 //! - [`U128IPV6`] — `Conn<u128, Ipv6Addr>` total bijection, same
 //!   shape.
 //! - [`IPV6IPV4`] — `Conn<Ipv6Addr, Extended<Ipv4Addr>>`, the
-//!   v4-mapped bridge. Full triple (the [`conn_k!`](crate::triple) macro) with asymmetric
+//!   v4-mapped bridge. Full triple (the [`conn_k!`](crate::conn_k) macro) with asymmetric
 //!   ceil/floor outside the v4-mapped block; lawful (passes
 //!   `floor_le_ceil`) because `inner` is order-reflecting — the
 //!   v4-mapped block sits strictly inside `Ipv6Addr`, giving "room"

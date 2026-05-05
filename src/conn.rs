@@ -290,8 +290,8 @@ impl<X> Conn<X, X, L> {
 /// connection between `A` and `B`.
 ///
 /// Two flavors of implementor:
-/// 1. **ConnK markers** (zero-sized unit structs from [`conn_k!`] /
-///    [`iso!`] / [`compose_k!`]) — they provide an L-view alongside
+/// 1. **ConnK markers** (zero-sized unit structs from [`conn_k!`](crate::conn_k) /
+///    [`iso!`](crate::iso) / [`compose_k!`](crate::compose_k)) — they provide an L-view alongside
 ///    an R-view, gaining `.ceil()` / `.upper()` directly.
 /// 2. **The value type itself** — a blanket impl on `Conn<A, B, L>`
 ///    (see below) means every L-Conn value is also a `ConnL`, so
@@ -567,10 +567,10 @@ macro_rules! compose_r {
     };
 }
 
-/// Forwarding alias for [`compose_l!`] — mirrors the `K = L` default
+/// Forwarding alias for [`compose_l!`](crate::compose_l) — mirrors the `K = L` default
 /// of [`Conn`]. Use when composing L-side conns and you'd rather not
 /// spell the side explicitly. Error spans may point at this
-/// forwarder rather than [`compose_l!`] directly.
+/// forwarder rather than [`compose_l!`](crate::compose_l) directly.
 ///
 /// ```ignore
 /// const FOO: Conn<A, C> = compose!(BAR_AB, BAZ_BC);
@@ -583,7 +583,7 @@ macro_rules! compose {
 /// Declaration-form macro: compose two adjoint-triple markers into a
 /// fresh triple marker. The composed marker is a unit struct with
 /// freshly-built `ConnL` and `ConnR` impls whose `conn_l` / `conn_r`
-/// methods build the projection via [`compose_l!`] / [`compose_r!`]
+/// methods build the projection via [`compose_l!`](crate::compose_l) / [`compose_r!`](crate::compose_r)
 /// over the parents' views.
 ///
 /// ```ignore
@@ -656,7 +656,7 @@ macro_rules! conn_k {
 /// Declaration-form macro: ship a degenerate-Galois iso (lossless
 /// bijection) from a single `(forward, back)` function pair.
 ///
-/// Equivalent to [`conn_k!`] with `ceil = floor = forward`; the macro
+/// Equivalent to [`conn_k!`](crate::conn_k) with `ceil = floor = forward`; the macro
 /// name itself flags the bijection so the body fields read as
 /// `forward` / `back` rather than `ceil` / `inner` / `floor`. Both
 /// [`ConnL`] and [`ConnR`] are implemented; every iso law
@@ -694,14 +694,14 @@ macro_rules! iso {
 /// Declaration-form macro: ship a one-sided left-Galois `Conn`
 /// (`ceil ⊣ inner`) as a `pub const` of type [`Conn<A, B>`].
 ///
-/// Named-field syntax mirrors [`conn_k!`] / [`iso!`] and removes the
+/// Named-field syntax mirrors [`conn_k!`](crate::conn_k) / [`iso!`](crate::iso) and removes the
 /// argument-order footgun on [`Conn::new_l`]: the field labels make
 /// it impossible to swap `ceil` and `inner` accidentally (and the
 /// `_l` / `_r` macro-name split prevents picking the wrong kind).
 ///
-/// Unlike [`conn_k!`], this macro emits the `Conn` value directly —
+/// Unlike [`conn_k!`](crate::conn_k), this macro emits the `Conn` value directly —
 /// not a marker struct with [`ConnL`] / [`ConnR`] impls — because no
-/// adjoint triple exists for one-sided connections. Use [`conn_k!`]
+/// adjoint triple exists for one-sided connections. Use [`conn_k!`](crate::conn_k)
 /// when both `ceil` and `floor` are available and the inner
 /// embedding is order-reflecting; use this macro when only the
 /// left half of the adjunction holds.
@@ -732,7 +732,7 @@ macro_rules! conn_l {
 /// Declaration-form macro: ship a one-sided right-Galois `Conn`
 /// (`inner ⊣ floor`) as a `pub const` of type [`Conn<A, B, R>`].
 ///
-/// Named-field syntax mirrors [`conn_k!`] / [`iso!`] and removes the
+/// Named-field syntax mirrors [`conn_k!`](crate::conn_k) / [`iso!`](crate::iso) and removes the
 /// argument-order footgun on [`Conn::new_r`] — whose positional
 /// shape `(inner, floor)` (mirroring Haskell's `CastR`) is the
 /// reverse of [`Conn::new_l`]'s `(ceil, inner)`. Field labels make

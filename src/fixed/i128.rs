@@ -19,7 +19,7 @@
 //!
 //! Q128.0 lossless bridge between the Q-format and std-int views of
 //! the same 128-bit signed integer storage; `Q000I128` uses
-//! the [`conn_k!`](crate::triple) macro.
+//! the [`conn_k!`](crate::conn_k) macro.
 //!
 //! ## §4 Q-format ladder over `FixedI128<Frac>`
 //!
