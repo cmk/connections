@@ -6,16 +6,33 @@
 //!
 //! ## Representation
 //!
-//! A Galois connection is mathematically a pair of monotone functions
-//! `(f, g)` with `f: A → B` and `g: B → A` satisfying one of two
-//! adjunction laws:
+//! A Galois connection is a pair of monotone functions `f: A → B`
+//! and `g: B → A`, such that `f(a) ≤ b ⟺  a ≤ g(b)` for all pairs
+//! of inputs `(a, b)`. A picture is worth 1000 words:
 //!
-//! - **Left-Galois (`L`):** `f(a) ≤ b ⟺ a ≤ g(b)`.  `f` is the lower
-//!   adjoint (round-up / `ceil`); `g` is the upper adjoint (the
-//!   embedding / `upper`).
-//! - **Right-Galois (`R`):** `g(b) ≤ a ⟺ b ≤ f(a)`.  `g` is the
-//!   lower adjoint (`lower`); `f` is the upper adjoint (round-down /
-//!   `floor`).
+//! ```text
+//! A  ←  B
+//!    g
+//!
+//! 3  ↔  3
+//!
+//!
+//! 2  ←  2
+//!    ↰
+//!    ↳
+//! 1  →  1
+//!
+//!    f
+//! A  →  B
+//! ```
+//!
+//! Each row is a `(a, b)` pair; arrows show the action of `f` (A → B,
+//! bottom legend) and `g` (B → A, top legend). Lone arrows mark
+//! single function mappings (`f(1) = 1`, `g(2) = 2`); the `↔` marks a
+//! matched pair where both functions agree (`f(3) = 3`, `g(3) = 3`); the
+//! adjacent `↰ ↳` glyphs depict the *lens* `f(2) ↔ g(1)` — two
+//! non-crossing arrows `↰ ↳` between rows 2 and 1 are the 'geometric
+//! signature' of adjointness.
 //!
 //! [`Conn<A, B, K>`] holds *exactly two* fn-pointer fields, and the
 //! kind tag `K` (defaulting to [`L`]) determines which adjoint role

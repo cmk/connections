@@ -5,7 +5,7 @@
 //!   cast lifter laws, two-sided helper laws).
 //! - [`lattice`] — Heyting / Coheyting / Bi-Heyting / Boolean /
 //!   bare partial-order law predicates.
-//! - [`arb`] — proptest strategies (`arb_f64`, `arb_f32`,
+//! - `arb` — proptest strategies (`arb_f64`, `arb_f32`,
 //!   `arb_f64_bounded`, `arb_f16`, the `extended_float_*` and
 //!   time-crate generators). Gated on the `testing` feature, which
 //!   flips `proptest` from this crate's dev-dep to an optional

@@ -55,13 +55,13 @@
 //!
 //! | macro | direction | Galois | constructor |
 //! |---|---|---|---|
-//! | `uint_uint!`        | U→U widening    | left  | `new_left` |
-//! | `int_uint!`         | I→U widening    | left  | `new_left` |
+//! | `uint_uint!`        | U→U widening    | left  | `new_l` |
+//! | `int_uint!`         | I→U widening    | left  | `new_l` |
 //! | `ext_int!`          | I→I, U→I widening (Extended source) | full triple | `new` |
-//! | `int_int_narrow!`   | I→I narrowing   | left  | `new_left` |
-//! | `uint_uint_narrow!` | U→U narrowing   | left  | `new_left` |
-//! | `int_uint_narrow!`  | I→U narrowing   | left  | `new_left` |
-//! | `uint_int_sat!`     | U→I non-widening | right | `new_right` |
+//! | `int_int_narrow!`   | I→I narrowing   | left  | `new_l` |
+//! | `uint_uint_narrow!` | U→U narrowing   | left  | `new_l` |
+//! | `int_uint_narrow!`  | I→U narrowing   | left  | `new_l` |
+//! | `uint_int_sat!`     | U→I non-widening | right | `new_r` |
 //!
 //! The four narrowing/non-widening macros use a **FINE_MAX
 //! boundary fixup** in `inner` (`inner(Coarse::MAX) =

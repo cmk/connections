@@ -4,13 +4,19 @@ edition = "2024"
 version = "0.0.0"
 rust-version = "1.85"
 license = "MIT"
-description = "Galois connections and lattice-based numerical conversions"
+description = "Lawful numerical conversions"
 repository = "https://gitlab.com/cmk/connections"
-homepage = "https://gitlab.com/cmk/connections"
+homepage = "https://cmk.gitlab.io/connections/"
 documentation = "https://docs.rs/connections"
 readme = "README.md"
-keywords = ["galois", "connection", "lattice", "fixed-point", "conversion"]
 categories = ["mathematics", "encoding"]
+keywords = [
+    "cast",
+    "round",
+    "point",
+    "numeric",
+    "lattice"
+    ]
 
 # Trim the published archive to user-facing artifacts only. Cargo's
 # default behavior ships everything not gitignored — including

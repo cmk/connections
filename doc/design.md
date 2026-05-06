@@ -2,7 +2,29 @@
 
 This document describes the design of `connections`, a Rust library encoding
 [Galois connections](https://ncatlab.org/nlab/show/Galois+connection) as
-first-class values. It is a port of the Haskell library of the same name.
+first-class values.
+
+## Haskell version
+
+This crate is a port of the Haskell library
+[`connections`](https://github.com/cmk/connections/). The faithful parts:
+
+- The `Conn` API
+- The connection families (decimal/binary fixed-point, sample rates,
+  integer widening, float pairs).
+- The N5 ordering on float-bearing types via `ExtendedFloat<T>`.
+- The lattice trait hierarchy (`Join`, `Meet`, `Heyting`, `Coheyting`,
+  `Symmetric`, `Boolean`).
+
+The deliberate divergences:
+
+- One `Conn<A, B>` type instead of `Cast (k :: Side) a b`. Both
+  L-side and R-side accessors are free functions on the unified type.
+- Composition is a `compose!` macro over module-scope `const`s, not a
+  generic `Category` instance. The trade-off is documented in
+  [`doc/design.md`](doc/design.md) §"Composition".
+- No `Preorder` class; `PartialOrd` + `ExtendedFloat` cover the cases
+  that matter.
 
 ## Mathematical background
 

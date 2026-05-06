@@ -101,9 +101,9 @@
 //! use connections::extended::Extended;
 //! use time::Duration;
 //!
-//! let half = Duration::seconds(5) + Duration::nanoseconds(1);
-//! assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));   // round up
-//! assert_eq!(DURNSECS.floor(half), Extended::Finite(5));   // round down
+//! let dur = Duration::seconds(5) + Duration::nanoseconds(1);
+//! assert_eq!(DURNSECS.ceil(dur),  Extended::Finite(6));   // round up
+//! assert_eq!(DURNSECS.floor(dur), Extended::Finite(5));   // round down
 //! assert_eq!(DURNSECS.upper(Extended::Finite(42)), Duration::seconds(42));
 //! ```
 //!
@@ -115,9 +115,9 @@
 //! use connections::extended::Extended;
 //! use std::time::Duration as StdDuration;
 //!
-//! let half = StdDuration::from_secs(5) + StdDuration::from_nanos(1);
-//! assert_eq!(STDRU064.ceil(Extended::Finite(half)),  Extended::Finite(6));
-//! assert_eq!(STDRU064.floor(Extended::Finite(half)), Extended::Finite(5));
+//! let dur = StdDuration::from_secs(5) + StdDuration::from_nanos(1);
+//! assert_eq!(STDRU064.ceil(Extended::Finite(dur)),  Extended::Finite(6));
+//! assert_eq!(STDRU064.floor(Extended::Finite(dur)), Extended::Finite(5));
 //! ```
 
 pub mod clock;
