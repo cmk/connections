@@ -47,3 +47,133 @@
 - [ ] `scripts/check-pii.sh` — exits 0.
 - [ ] `scripts/check_readme_mirror.sh` — exits 0 (no new headline
       `Conn` const introduced; README mirror rule N/A).
+
+## Local review (2026-05-06)
+
+**Branch:** `sprint/interval-filter`
+**Commits:** 6 (origin/main..sprint/interval-filter)
+**Reviewer:** Claude (sonnet, independent)
+
+---
+
+### Commit Hygiene
+
+All six commits use conventional prefixes (`task:`, `feat:`, `feat:`,
+`test:`, `fix:`, `doc:`) and are reasonably atomic. The `feat:`
+combining `interval` rename + `midpoint` deletion + `round` rewrite +
+`filter_l`/`filter_r` is a deliberate bundle (changes must move
+together to keep the build green). Each commit leaves
+`cargo test --workspace` passing.
+
+### Code Quality
+
+`#![forbid(unsafe_code)]` respected. Doc-link disambiguation correct
+after `pub mod interval` was introduced alongside the existing
+`pub use conn::interval` (function): both `lib.rs` and
+`src/interval.rs` use fully-qualified `crate::conn::interval` for
+the function. Module placement of `src/interval.rs` follows the
+top-level layout convention. The `## ConnK` index in `lib.rs`
+correctly drops `midpoint`, updates `interval`'s wording, and adds
+prose for the one-sided `filter_l`/`filter_r` methods. Clippy clean.
+
+### Test Coverage
+
+**Must-fix #1 — `round_picks_endpoint` not wired into `@batch full`.**
+The plan T6 lists this as a required wiring; the verification table
+includes it as a must-pass property; the predicate exists at
+`src/prop/conn.rs:337` but no `#[test]` block was added in the
+`@batch full` arm. The `Sub<Output = A> + From<u8>` bounds may
+prevent universal wiring (`addr::ip` / `char` batteries have non-
+numeric `A` types). Either wire it (and accept the bound-tightening
+on numeric-only batteries via a new subset variant) or document the
+deferral in the plan's Review section with rationale. Currently it
+is silently omitted.
+
+**Must-fix #2 — undocumented property reformulation.** The plan
+specified `bracket_idempotent`, but during implementation it failed
+against five batteries because bracket endpoints are themselves
+grid-aligned and have singleton brackets, not the parent bracket.
+Reformulated as `bracket_endpoints_self_bracket` (which is the
+*correct* idempotence-flavored property and is sound). The
+reformulation is a design deviation from the plan; per the TDD
+workflow (CLAUDE.md), it must be documented in the plan's Review
+section.
+
+**Must-fix #3 — undocumented property substitution.** The plan
+specified `imap_monotonic_preserved` (general monotone `f`); the
+diff ships `imap_identity_preserves` (only `f = id`). Identity is
+trivially monotone but does not exercise the case where a strictly
+monotone function re-sorts endpoints. Same plan-Review documentation
+requirement.
+
+**Weaker-than-needed properties:** `filter_l_dual_to_ceil` and
+`filter_r_dual_to_floor` are tautologies — `filter_l(a, b) ==
+(ceil(a) <= b)` is literally the body of `filter_l`. They will
+always pass and never catch a regression. Acceptable as
+specification documentation, but not coverage.
+
+`bracket_endpoints_share_b_cell`'s `B: Eq` bound is satisfied by
+all current battery instantiations (every `B` here either derives
+or hand-impls `Eq`). Sound.
+
+`Interval<A>` proptest block covers `i32` only; NaN handling is
+verified via doctests on `Interval::new` and the
+`prop::interval::new_orientation` predicate (which works correctly
+on `f64::NAN` since `partial_cmp` returns `None` → `Empty`). No
+gap for NaN specifically.
+
+### Plan Conformance
+
+- T1 (Interval<A> ADT): complete.
+- T2 (replace `interval`): complete.
+- T3 (delete `midpoint` + obsolete predicates): complete.
+- T4 (rewrite `round`): complete; tiebreak direction (toward zero)
+  preserved.
+- T5 (`filter_l`/`filter_r` inherent methods): complete with
+  doctests.
+- T6 (property bodies + `law_battery!` plumbing): **incomplete** —
+  9/10 wired; `round_picks_endpoint` missing from `@batch full`.
+- T7 (standalone `Interval<A>` properties): **partially complete** —
+  4 of 5 planned predicates present; `imap_monotonic_preserved`
+  weakened to `imap_identity_preserves`.
+- T8 (`lib.rs` index update): complete.
+- T9 (verification gate): all gates green; T6/T7 gaps not gating.
+
+### Risks
+
+`round` tiebreak direction preserved correctly (`Equal | None →
+truncate(t, x)` faithfully replicated). `midpoint` removal is a
+breaking change to any external consumer; the MR description
+mentions the deletion in the second bullet. Pre-0.1.0 crate, no
+known cross-crate consumers — acceptable. `imap` antimonotone
+collapse-to-Empty behavior is documented at the doctest. `Interval`
+API surface uses `endpts(self)` which moves out, fine because
+`Interval: Copy` when `A: Copy`.
+
+### Recommendations
+
+**Must fix before merge:**
+
+1. Wire `round_picks_endpoint` into `@batch full` *or* document the
+   deferral in `doc/plans/plan-2026-05-06-01.md`'s Review section
+   with the bound-tension rationale (`Sub + From<u8>` excludes
+   `addr` / `char` batteries).
+
+2. Append a Review section to `doc/plans/plan-2026-05-06-01.md`
+   documenting: (a) the `bracket_idempotent` →
+   `bracket_endpoints_self_bracket` reformulation with the failure
+   trace and reasoning; (b) the `imap_monotonic_preserved` →
+   `imap_identity_preserves` substitution. Both are TDD-workflow
+   deviations and must be tracked.
+
+**Follow-up (future work):**
+
+- Replace `imap_identity_preserves` with a real monotone proptest
+  (e.g., `i.imap(|a| a.saturating_add(k))` for `k: i32`) — would
+  exercise the actual reordering / preservation invariant the plan
+  intended.
+- Strengthen `filter_l_dual_to_ceil` / `filter_r_dual_to_floor`
+  beyond definitional tautologies — perhaps test the excluded zone
+  (`!filter_l(a, b)` whenever `b < ceil(a)`).
+- Consider a `numeric_only` battery subset for round/truncate
+  contract properties that need arithmetic bounds.
