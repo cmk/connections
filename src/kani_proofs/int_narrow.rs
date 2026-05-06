@@ -31,6 +31,11 @@ macro_rules! prove_int_narrow {
                 assert!(conn_laws::galois_l(&$CONN, a, b));
             }
 
+            // `prop::conn::monotone_l` returns `true` vacuously for
+            // `a1 > a2` (see `src/prop/conn.rs`), so unconstrained
+            // `kani::any()` inputs are sound — no
+            // `kani::assume(a1 <= a2)` needed; same for the other
+            // monotonicity harnesses below.
             #[kani::proof]
             fn monotone_l() {
                 let a1: $A = kani::any();

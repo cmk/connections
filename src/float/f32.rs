@@ -127,6 +127,15 @@ fn floor_f64_f32(x: f64) -> f32 {
 // is ≤ 2 over the *full* finite-non-NaN domain rather than a
 // proptest sample. Gated on `cfg(kani)` so they compile only under
 // `cargo kani`.
+//
+// The shims **deliberately omit** the production code's
+// `if x.is_nan() { return f32::NAN; }` early-return: every harness
+// that invokes them precedes the call with
+// `kani::assume(x.is_finite() && !x.is_nan())`, which excludes NaN
+// inputs at the SMT level. If a future refactor adds NaN-specific
+// logic to `ceil_f64_f32` / `floor_f64_f32` (beyond the bare NaN
+// pass-through), update the shims to mirror it — otherwise the
+// proven bound applies only to the shim, not the production path.
 #[cfg(kani)]
 pub(crate) fn ceil_walk_steps_for_proof(x: f64) -> (f32, u32) {
     let est = x as f32;

@@ -42,6 +42,10 @@ macro_rules! prove_fix_fix {
                 assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
             }
 
+            // `prop::conn::monotone_l` returns `true` vacuously for
+            // `a1 > a2`; unconstrained `kani::any()` inputs are sound.
+            // Same convention as the integer harnesses in
+            // `int_narrow.rs`.
             #[kani::proof]
             fn monotone_l() {
                 let b1: $BITS = kani::any();

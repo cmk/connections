@@ -19,6 +19,10 @@ macro_rules! prove_uint_sat {
                 assert!(conn_laws::galois_r(&$CONN, a, b));
             }
 
+            // `prop::conn::monotone_r` returns `true` vacuously for
+            // `b1 > b2`; unconstrained `kani::any()` inputs are sound.
+            // Mirrors the same convention as the L-side harnesses in
+            // `int_narrow.rs`.
             #[kani::proof]
             fn monotone_r() {
                 let b1: $B = kani::any();

@@ -170,3 +170,83 @@ But only 10 pairs follow, giving 50 harnesses. Compare the analogous comment in 
 3. **`README.md` "Verification" section.** Downstream consumers of the crate have no way to discover that the Galois laws are SMT-verified. Adding a brief section (as the plan recommends) with the harness counts and a link to `src/kani_proofs/` would make the proof tree discoverable.
 
 4. **f16 mirror.** Once the `f16` feature stabilizes, `float_walk.rs` and `float_weaker.rs` shapes copy directly to F032F016 / F064F016. Trivial when the time comes; noting here for tracking.
+
+<!-- glab-id: 3321952086 -->
+<!-- glab-discussion: 3d18b4a8aaf5a48514ec1171ab38d884bb945a6a -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/kani_proofs/float_weaker.rs:68` (2026-05-06 21:47 UTC) [open]
+
+**[must-fix]** The `finite_in_finite_out_ceil_in_range` harness calls `F064F032.upper(F064F032.ceil(x))` but the `float_weaker` module imports `ConnR` alongside `ConnL` — however the harness uses `.upper()` rather than `.lower()` (the R-side embedding) to lift the f32 result back to f64. If `upper` is the L-adjoint's embedding and `lower` is the R-adjoint's embedding, using the wrong one produces a mismatch with the floor-side harness at line 79 which correctly uses `.lower()`. Verify that `.upper()` is the right method for the ceil round-trip; if `upper` ≠ `inner` for the ceil direction, the harness is testing the wrong composition.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3321952110 -->
+<!-- glab-discussion: ba8aa96ca8cbbd8e8f8f35596713efef78a81074 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/kani_proofs/fix_fix_signed.rs:78` (2026-05-06 21:47 UTC) [open]
+
+**[follow-up]** The `monotone_l` harness generates two independent symbolic bit-patterns `b1` and `b2` and calls `conn_laws::monotone_l` with the corresponding fine-side values `a1` and `a2`, but `monotone_l` in `prop::conn` presumably asserts `a1 ≤ a2 ⟹ ceil(a1) ≤ ceil(a2)`. Without a `kani::assume(a1 <= a2)` guard, Kani will explore all orderings and the property as stated in the macro doc ("a1 ≤ a2 ⟹ ...") would still hold vacuously for the `a1 > a2` branch — but this means the harness is proving a tautology when `a1 > a2`. Confirm that `conn_laws::monotone_l` internally encodes the conditional so that no assume is needed, and add a comment to the harness making this explicit; the same concern applies to `prove_fix_fix_u!` and `prove_uint_sat!`.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3321952126 -->
+<!-- glab-discussion: 039c31a56d626ee8aef534fbaf98466a168b03f6 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/kani_proofs/float_walk.rs:37` (2026-05-06 21:47 UTC) [open]
+
+**[follow-up]** The T0 harnesses call `ceil_walk_steps_for_proof` / `floor_walk_steps_for_proof` which omit the `is_nan()` early-return that the production functions have, compensated only by `kani::assume(x.is_finite() && !x.is_nan())`. Since `is_finite()` already returns `false` for NaN in Rust's IEEE implementation, the `!x.is_nan()` conjunct is redundant — but more importantly, the shim diverges from the production code by also lacking the `is_nan()` branch, meaning if a future refactor adds NaN-specific logic to that branch, the shim will silently become unfaithful. A brief comment in the shim body noting the deliberate omission and why the assume covers it would prevent future drift.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+## Local review (2026-05-06, round 2 — Codex)
+
+**Reviewer:** Codex (independent local review run by Chris)
+
+### Findings
+
+**[P2] Add Kani modules for omitted fixed families** — `src/kani_proofs.rs:45-52`
+
+> When `cargo kani` is run with this module list, no harness is registered for the fixed macro families `uint_uint!`, `int_uint!`, `ext_int!`, `uint_uint_narrow!`, or `int_uint_narrow!` even though `src/fixed.rs` defines them and the new docs describe one submodule per fixed family. Conns such as `fixed::u8::I008U008` and `fixed::i128::I008I128` are therefore still only sampled by proptest, so regressions in those families would pass the SMT proof tree; add corresponding harness modules or narrow the stated coverage.
+
+**Response — addressed.** Three new harness modules added:
+
+- `src/kani_proofs/ext_int.rs` — 20 `ext_int!` Conns × 5 props = **100 harnesses**, all verified.
+- `src/kani_proofs/uint_widen.rs` — 10 `uint_uint!` + 15 `int_uint!` Conns × 5 props = **125 harnesses**, all verified.
+- `src/kani_proofs/uint_narrow.rs` — 10 `uint_uint_narrow!` + 10 `int_uint_narrow!` Conns × 6 props = **120 harnesses**, all verified.
+
+Module list in `src/kani_proofs.rs` updated; family table in the module doc rewritten to reflect actual coverage.
+
+**[P2] Prove the omitted unsigned fixed-point pairs** — `src/kani_proofs/fix_fix_unsigned.rs:64-65`
+
+> For the unsigned Q-format path, the proof list switches to representative/boundary subsets even on `u8`/`u16`: `src/fixed/u8.rs` defines 28 `fix_fix_u8!` pairs but only 10 are registered here (for example `Q002Q001` is missing), and `src/fixed/u16.rs` likewise has 28 pairs but only 5 proofs. When `cargo kani` succeeds, bugs in the omitted unsigned ladder pairs remain unchecked despite the header saying the u8/u16 ladders are fully covered.
+
+**Response — addressed.** Both unsigned 8-/16-bit ladders expanded to full coverage:
+
+- `fix_fix_unsigned::u8_*` — was 10 pairs (50 harnesses), now **28 pairs (140 harnesses)**, all verified.
+- `fix_fix_unsigned::u16_*` — was 5 pairs (25 harnesses), now **28 pairs (140 harnesses)**, all verified.
+
+Module-level coverage doc tightened from "full ladder for u8/u16, boundary pairs for wider widths" (which was misleading vs the 10/5 reality) to the now-accurate "full ladder for u8 (28 pairs) and u16 (28 pairs); boundary pairs for u32 / u64 / u128".
+
+### Cumulative pass count
+
+Round 1 (sprint): 604 verified, 0 failures.
+Round 2 (Codex expansion): +550 new harnesses verified, 0 failures.
+**Total: 1154 verified, 0 failures.**
+
+<!-- glab-id: 3322007019 -->
+<!-- glab-discussion: 3d18b4a8aaf5a48514ec1171ab38d884bb945a6a -->
+#### ↳ cmk (2026-05-06 22:07 UTC) [open]
+
+Pushed back — `F064F032` is a triple, so its L-view's `.upper()` and R-view's `.lower()` both delegate to the same `inner` fn pointer (`f064f032_inner` in `src/float/f32.rs`). The harness pairs `ceil` with `upper` (L-side round-trip) and `floor` with `lower` (R-side round-trip) — that's the correct symmetric structure, not a mismatch.
+
+<!-- glab-id: 3322008192 -->
+<!-- glab-discussion: ba8aa96ca8cbbd8e8f8f35596713efef78a81074 -->
+#### ↳ cmk (2026-05-06 22:07 UTC) [open]
+
+Fixed — added a brief comment in each macro's `monotone_l`/`monotone_r` harness noting that `prop::conn::monotone_l`/`monotone_r` is conditional (returns `true` vacuously on reversed orderings), so unconstrained `kani::any()` inputs are sound without a `kani::assume` guard. Applied across `int_narrow.rs`, `uint_sat.rs`, `fix_fix_signed.rs`, `fix_fix_unsigned.rs`, and the new `ext_int.rs` / `uint_widen.rs` / `uint_narrow.rs`.
+
+<!-- glab-id: 3322008375 -->
+<!-- glab-discussion: 039c31a56d626ee8aef534fbaf98466a168b03f6 -->
+#### ↳ cmk (2026-05-06 22:07 UTC) [open]
+
+Fixed — added a comment block on the walk-step probe shims in `src/float/f32.rs` documenting the deliberate omission of the production `is_nan()` early-return (covered by `kani::assume(x.is_finite() && !x.is_nan())` in every harness) and flagging it as a drift point that must be mirrored if production-side NaN handling ever diverges from the bare pass-through.
