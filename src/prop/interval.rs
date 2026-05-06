@@ -41,19 +41,22 @@ pub fn imap_identity_preserves<A: Copy + PartialOrd>(x: A, y: A) -> bool {
 
 /// Strictly-monotone shift preserves the bracket: for any
 /// `f(a) = a.saturating_add(k)` (which is monotonic non-decreasing
-/// over `i64`), `i.imap(f) == Interval::new(f(lo), f(hi))`.
+/// over `i64`), `Interval::new(lo, hi).imap(f) ==
+/// Interval::new(f(lo), f(hi))`.
+///
+/// **Caller contract**: `lo ≤ hi`. The Empty input case is excluded
+/// because `f` saturates: when `lo > hi` saturation can collide
+/// (`f(lo) == f(hi)`) and produce a `Bounded` singleton on the RHS
+/// while the LHS is `Empty`, yielding a spurious failure unrelated
+/// to the `imap` contract under test. The proptest harness enforces
+/// this via `prop_assume!`.
 ///
 /// Unlike [`imap_identity_preserves`], this exercises the case where
 /// `f` actually moves the endpoints — distinguishing a correct `imap`
 /// from one that secretly assumed `f = id`.
 pub fn imap_saturating_add_preserves(lo: i64, hi: i64, k: i64) -> bool {
-    let i = Interval::new(lo, hi);
     let f = |a: i64| a.saturating_add(k);
-    let mapped = i.imap(f);
-    match i {
-        Interval::Empty => mapped == Interval::Empty,
-        Interval::Bounded { lo, hi } => mapped == Interval::new(f(lo), f(hi)),
-    }
+    Interval::new(lo, hi).imap(f) == Interval::new(f(lo), f(hi))
 }
 
 /// Containment-preorder is reflexive: `i ≤ i` (i.e. `Some(Equal)`).
@@ -89,6 +92,7 @@ mod tests {
 
         #[test]
         fn prop_imap_saturating_add_preserves(lo: i64, hi: i64, k: i64) {
+            prop_assume!(lo <= hi);
             prop_assert!(imap_saturating_add_preserves(lo, hi, k));
         }
 

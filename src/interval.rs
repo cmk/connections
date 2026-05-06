@@ -18,6 +18,36 @@ use core::cmp::Ordering;
 /// called with endpoints that are not preorder-comparable
 /// (e.g. `f64::NAN`) or out of order.
 ///
+/// # Equality vs containment
+///
+/// `Interval` carries **two distinct relations** on the same value:
+///
+/// - **`PartialEq` / `Eq`** are *structural*: two `Bounded`s
+///   compare equal iff their `lo` and `hi` fields are pairwise
+///   equal. `Empty == Empty`. Derived from the field-level
+///   `PartialEq` impl on `A`.
+/// - **`PartialOrd`** is the *containment preorder*: `Empty ≤
+///   everything`; `Bounded i₁ ≤ Bounded i₂ ⟺ i₂ ⊇ i₁`.
+///   Two `Bounded`s neither of which contains the other (e.g.
+///   `[1, 4]` vs `[2, 5]`) are incomparable, returning `None`.
+///
+/// The two are intentionally different: structural equality is the
+/// natural equality-up-to-constructor, while containment is the
+/// natural lattice-theoretic order. They agree only at `Some(Equal)`,
+/// which corresponds to mutual containment (i.e. structural equality
+/// of endpoints).
+///
+/// # Why `Eq` is sound for floating-point `A`
+///
+/// `Eq` requires reflexive equality: `a == a` for all `a`. For
+/// `A = f64`, NaN breaks this. Soundness here rests on the
+/// invariant that **no `Bounded` variant ever holds a non-reflexive
+/// value**, which holds because [`Interval::new`] preorder-checks its
+/// inputs and routes any `partial_cmp` returning `None` to `Empty`.
+/// Direct construction (`Interval::Bounded { lo: NAN, hi: NAN }`)
+/// bypasses this gate; callers using the public field syntax must
+/// preserve the invariant themselves.
+///
 /// # Examples
 ///
 /// ```rust

@@ -712,6 +712,14 @@ where
     A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
     B: Copy,
 {
+    // Tiebreak relies on `lo ≤ x ≤ hi` — i.e. on `bracket_contains_x`
+    // holding for the input. That property is *tested* in the
+    // numeric_only battery (`bracket_contains_x`) but is not
+    // guaranteed by the Galois laws alone, so on a malformed Conn
+    // where `lower1`/`upper1` produce a degenerate result `x - lo`
+    // or `hi - x` could underflow / wrap on unsigned `A`. The
+    // numeric_only subset's `bracket_contains_x` proptest is the
+    // shipped backstop.
     match interval(t, x) {
         Interval::Bounded { lo, hi } => match (x - lo).partial_cmp(&(hi - x)) {
             Some(Ordering::Greater) => t.conn_l().ceil(x),

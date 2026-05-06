@@ -554,6 +554,12 @@ macro_rules! law_battery {
     };
 
     // ── Internal @batch arms ──
+    //
+    // `full` and `numeric_only` share their 14-test core via the
+    // hidden `@props_full` arm; `numeric_only` then layers on the
+    // arithmetic-bound contract tests via `@props_numeric_extras`.
+    // Editing the `full` test set means editing `@props_full` —
+    // both batteries pick up the change.
 
     (@batch full, $m:ident, $c:expr, $f:expr, $cs:expr, $cfg:expr) => {
         mod $m {
@@ -563,79 +569,7 @@ macro_rules! law_battery {
             use ::proptest::prelude::*;
             #[allow(unused_imports)]
             use $crate::conn::{ConnL as _, ConnR as _};
-            ::proptest::proptest! {
-                #![proptest_config($cfg)]
-                #[test]
-                fn galois_l(a in $f, b in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::galois_l(&($c).conn_l(), a, b));
-                }
-                #[test]
-                fn galois_r(a in $f, b in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::galois_r(&($c).conn_r(), a, b));
-                }
-                #[test]
-                fn closure_l(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::closure_l(&($c).conn_l(), a));
-                }
-                #[test]
-                fn closure_r(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::closure_r(&($c).conn_r(), a));
-                }
-                #[test]
-                fn kernel_l(b in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::kernel_l(&($c).conn_l(), b));
-                }
-                #[test]
-                fn kernel_r(b in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::kernel_r(&($c).conn_r(), b));
-                }
-                #[test]
-                fn monotone_l(a1 in $f, a2 in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::monotone_l(&($c).conn_l(), a1, a2));
-                }
-                #[test]
-                fn monotone_r(b1 in $cs, b2 in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::monotone_r(&($c).conn_r(), b1, b2));
-                }
-                #[test]
-                fn idempotent(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::idempotent(&($c).conn_l(), a));
-                }
-                #[test]
-                fn floor_le_ceil(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::floor_le_ceil(&($c), a));
-                }
-                #[test]
-                fn order_reflecting(b1 in $cs, b2 in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::order_reflecting(&($c), b1, b2));
-                }
-                #[test]
-                fn bracket_contains_x(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::bracket_contains_x(&($c), a));
-                }
-                #[test]
-                fn bracket_endpoints_self_bracket(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::bracket_endpoints_self_bracket(&($c), a));
-                }
-                #[test]
-                fn bracket_endpoints_share_b_cell(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::bracket_endpoints_share_b_cell(&($c), a));
-                }
-            }
+            $crate::law_battery!(@props_full, $c, $f, $cs, $cfg);
         }
     };
 
@@ -647,93 +581,108 @@ macro_rules! law_battery {
             use ::proptest::prelude::*;
             #[allow(unused_imports)]
             use $crate::conn::{ConnL as _, ConnR as _};
-            ::proptest::proptest! {
-                #![proptest_config($cfg)]
-                #[test]
-                fn galois_l(a in $f, b in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::galois_l(&($c).conn_l(), a, b));
-                }
-                #[test]
-                fn galois_r(a in $f, b in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::galois_r(&($c).conn_r(), a, b));
-                }
-                #[test]
-                fn closure_l(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::closure_l(&($c).conn_l(), a));
-                }
-                #[test]
-                fn closure_r(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::closure_r(&($c).conn_r(), a));
-                }
-                #[test]
-                fn kernel_l(b in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::kernel_l(&($c).conn_l(), b));
-                }
-                #[test]
-                fn kernel_r(b in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::kernel_r(&($c).conn_r(), b));
-                }
-                #[test]
-                fn monotone_l(a1 in $f, a2 in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::monotone_l(&($c).conn_l(), a1, a2));
-                }
-                #[test]
-                fn monotone_r(b1 in $cs, b2 in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::monotone_r(&($c).conn_r(), b1, b2));
-                }
-                #[test]
-                fn idempotent(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::idempotent(&($c).conn_l(), a));
-                }
-                #[test]
-                fn floor_le_ceil(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::floor_le_ceil(&($c), a));
-                }
-                #[test]
-                fn order_reflecting(b1 in $cs, b2 in $cs) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::order_reflecting(&($c), b1, b2));
-                }
-                #[test]
-                fn bracket_contains_x(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::bracket_contains_x(&($c), a));
-                }
-                #[test]
-                fn bracket_endpoints_self_bracket(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::bracket_endpoints_self_bracket(&($c), a));
-                }
-                #[test]
-                fn bracket_endpoints_share_b_cell(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::bracket_endpoints_share_b_cell(&($c), a));
-                }
-                #[test]
-                fn round_picks_endpoint(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::round_picks_endpoint(&($c), a));
-                }
-                #[test]
-                fn truncate_picks_endpoint(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::truncate_picks_endpoint(&($c), a));
-                }
-                #[test]
-                fn truncate_toward_zero(a in $f) {
-                    ::proptest::prop_assert!(
-                        $crate::prop::conn::truncate_toward_zero(&($c), a));
-                }
+            $crate::law_battery!(@props_full, $c, $f, $cs, $cfg);
+            $crate::law_battery!(@props_numeric_extras, $c, $f, $cs, $cfg);
+        }
+    };
+
+    // The shared body for `full` and `numeric_only` — 14 tests.
+    (@props_full, $c:expr, $f:expr, $cs:expr, $cfg:expr) => {
+        ::proptest::proptest! {
+            #![proptest_config($cfg)]
+            #[test]
+            fn galois_l(a in $f, b in $cs) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::galois_l(&($c).conn_l(), a, b));
+            }
+            #[test]
+            fn galois_r(a in $f, b in $cs) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::galois_r(&($c).conn_r(), a, b));
+            }
+            #[test]
+            fn closure_l(a in $f) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::closure_l(&($c).conn_l(), a));
+            }
+            #[test]
+            fn closure_r(a in $f) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::closure_r(&($c).conn_r(), a));
+            }
+            #[test]
+            fn kernel_l(b in $cs) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::kernel_l(&($c).conn_l(), b));
+            }
+            #[test]
+            fn kernel_r(b in $cs) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::kernel_r(&($c).conn_r(), b));
+            }
+            #[test]
+            fn monotone_l(a1 in $f, a2 in $f) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::monotone_l(&($c).conn_l(), a1, a2));
+            }
+            #[test]
+            fn monotone_r(b1 in $cs, b2 in $cs) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::monotone_r(&($c).conn_r(), b1, b2));
+            }
+            #[test]
+            fn idempotent(a in $f) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::idempotent(&($c).conn_l(), a));
+            }
+            #[test]
+            fn floor_le_ceil(a in $f) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::floor_le_ceil(&($c), a));
+            }
+            #[test]
+            fn order_reflecting(b1 in $cs, b2 in $cs) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::order_reflecting(&($c), b1, b2));
+            }
+            #[test]
+            fn bracket_contains_x(a in $f) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::bracket_contains_x(&($c), a));
+            }
+            #[test]
+            fn bracket_endpoints_self_bracket(a in $f) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::bracket_endpoints_self_bracket(&($c), a));
+            }
+            #[test]
+            fn bracket_endpoints_share_b_cell(a in $f) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::bracket_endpoints_share_b_cell(&($c), a));
+            }
+        }
+    };
+
+    // The numeric-only extras: round/truncate contract properties
+    // requiring `A: Sub<Output = A> + From<u8>`. Layered on top of
+    // `@props_full` by `@batch numeric_only`.
+    (@props_numeric_extras, $c:expr, $f:expr, $cs:expr, $cfg:expr) => {
+        ::proptest::proptest! {
+            #![proptest_config($cfg)]
+            #[test]
+            fn round_picks_endpoint(a in $f) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::round_picks_endpoint(&($c), a));
+            }
+            #[test]
+            fn truncate_picks_endpoint(a in $f) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::truncate_picks_endpoint(&($c), a));
+            }
+            #[test]
+            fn truncate_toward_zero(a in $f) {
+                ::proptest::prop_assert!(
+                    $crate::prop::conn::truncate_toward_zero(&($c), a));
             }
         }
     };

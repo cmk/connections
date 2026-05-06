@@ -230,3 +230,53 @@ Test-count delta: 1163 → 1167 lib tests
 (+ `imap_saturating_add_preserves` proptest in `src/prop/interval.rs`,
 + `round_picks_endpoint`, `truncate_picks_endpoint`,
 `truncate_toward_zero` instantiations on `F064F032`).
+
+---
+
+## Round 2 GitLab `claude-review` discussions
+
+Eleven advisory threads, two waves:
+
+- **Wave A** (7 discussions, posted on `fb8ecca` before round-1):
+  4 of 7 already covered by the round-1 fix commit `3196848`; 3 of
+  7 remained actionable and are addressed in this round.
+- **Wave B** (4 discussions, posted on `3196848` after round-1):
+  3 of 4 actionable, addressed in this round; 1 declined with
+  rationale.
+
+All gates remained green throughout: `cargo test --workspace`
+(1167 lib tests + 45 integration + 57 doctests), `cargo clippy
+--all-targets -- -D warnings`, `cargo fmt --check`,
+`RUSTDOCFLAGS="-D warnings" cargo doc`,
+`scripts/check-pii.sh`, `scripts/check_readme_mirror.sh`.
+
+### Wave A — addressed in round 1 (`3196848`)
+
+| Thread | Disposition |
+|---|---|
+| `c304c3e` (`imap_monotonic_preserved` follow-up) | Plan Review section now documents the substitution; `imap_saturating_add_preserves` added in round 1. |
+| `50c884c` (`bracket_idempotent` reformulation) | Plan Review section documents the failure trace and reasoning behind `bracket_endpoints_self_bracket`. |
+| `083063e` (`imap_monotonic_preserved` dup) | Same as `c304c3e`. |
+| `b488eb1` (`round_picks_endpoint` deferral) | `numeric_only` subset added in round 1; F064F032 wired in. |
+
+### Wave A — addressed in round 2 (this commit)
+
+| Thread | Disposition |
+|---|---|
+| `40168415` (PartialEq vs PartialOrd doc) | Added "Equality vs containment" section to `Interval`'s rustdoc explaining the structural-equality / containment-preorder distinction. |
+| `c380a302` (Eq derive NaN) | Added "Why Eq is sound for floating-point A" rustdoc section noting the constructor invariant via `Interval::new` and the bypass risk of direct field construction. |
+| `1be7eec9` (`round` bracket invariant — **must-fix**) | Inline comment in `src/conn.rs:709`'s `round` cites the `bracket_contains_x` dependency and points at the `numeric_only` battery as the shipped backstop. |
+
+### Wave B — addressed in round 2
+
+| Thread | Disposition |
+|---|---|
+| `86849db1` (Eq derive **must-fix**) | The bot's analysis is partly incorrect: `#[derive(Eq)]` produces `impl<A: Eq> Eq for Interval<A>` which is *already* conditional on `A: Eq` (Rust's auto-derive bound). `Interval<f64>` does *not* impl `Eq`. The genuine concern (direct-construction NaN bypass on `A: Eq` types that lie about reflexivity, e.g. `ExtendedFloat<f64>` with NaN reflexivity) is documented in the new "Why Eq is sound" rustdoc section. No code change needed. |
+| `3d049617` (`imap_saturating_add` Empty arm) | Predicate body simplified to a single equality (`Interval::new(lo, hi).imap(f) == Interval::new(f(lo), f(hi))`); proptest harness now applies `prop_assume!(lo <= hi)` to filter out the saturation-collision spurious-failure case. Doc explains the caller contract. |
+| `05fd9fc7` (`numeric_only` DRY) | Refactored `law_battery!` to introduce hidden `@props_full` (14 tests) and `@props_numeric_extras` (3 arithmetic-bound tests) arms. `@batch full` calls `@props_full`; `@batch numeric_only` calls both. Future edits to `full`'s test set propagate to `numeric_only` automatically. |
+
+### Wave B — declined
+
+| Thread | Disposition |
+|---|---|
+| `f67461e7` (`filter_l_via_upper` false-false weakness) | Declined: an iff `(c.filter_l(a, b) == (a <= c.upper(b)))` is non-trivial as a *whole*, not vacuous in either case independently. proptest naturally explores both `true == true` and `false == false` instances over `(a, b) ∈ A × B`; if the L-Galois adjunction were broken in one direction the iff would fail at *some* instance, regardless of which side is "trivial" at any given case. Splitting into separate true/false predicates would not strengthen coverage and would double the proptest cost. |
