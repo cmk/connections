@@ -181,8 +181,11 @@ pub mod conn;
 pub mod extended;
 pub mod fixed;
 pub mod float;
+pub mod interval;
 pub mod lattice;
 pub mod time;
+
+pub use interval::Interval;
 
 // Two-sided helpers (ConnK-bound) re-exported at the crate root for
 // ergonomic access (`connections::round(&t, x)` rather than the
