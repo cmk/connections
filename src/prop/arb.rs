@@ -1182,3 +1182,107 @@ pub use hifi_dur::{
     arb_extended_hifi_duration_bounded_f64, arb_hifi_duration, arb_hifi_duration_bounded_f32,
     arb_hifi_duration_bounded_f64, arb_hifi_total_nanos_in_range, arb_hifi_total_secs_in_range,
 };
+
+// ── hifitime::Epoch strategies ──────────────────────────────────
+//
+// Sprint-2 set: TAI-scale Epochs only. Cross-scale arbs (UTC,
+// GPST, …) deferred until Sprint-3+ scale-specific Conns surface
+// the need; the Conn laws don't care about the scale tag (Epoch's
+// Ord/Eq are instant-based) so single-scale arbs cover every law.
+
+#[cfg(feature = "hifi")]
+mod hifi_epoch {
+    use super::*;
+    use crate::extended::Extended;
+    use hifitime::{
+        BDT_REF_EPOCH, Duration as HD, Epoch, GPST_REF_EPOCH, GST_REF_EPOCH, J1900_REF_EPOCH,
+        J2000_REF_EPOCH, QZSST_REF_EPOCH, UNIX_REF_EPOCH,
+    };
+
+    /// Arbitrary `hifitime::Epoch` over the full canonical TAI range,
+    /// biased toward the well-known reference epochs.
+    pub fn arb_hifi_epoch() -> impl Strategy<Value = Epoch> {
+        prop_oneof![
+            // Named reference epochs hifitime ships
+            1 => Just(J1900_REF_EPOCH),
+            1 => Just(J2000_REF_EPOCH),
+            1 => Just(UNIX_REF_EPOCH),
+            1 => Just(GPST_REF_EPOCH),
+            1 => Just(GST_REF_EPOCH),
+            1 => Just(BDT_REF_EPOCH),
+            1 => Just(QZSST_REF_EPOCH),
+            // HD extremes wrapped as TAI Epochs
+            1 => Just(Epoch::from_tai_duration(HD::MIN)),
+            1 => Just(Epoch::from_tai_duration(HD::MAX)),
+            1 => Just(Epoch::from_tai_duration(HD::ZERO)),
+            1 => Just(Epoch::from_tai_duration(HD::EPSILON)),
+            1 => Just(Epoch::from_tai_duration(HD::MIN_NEGATIVE)),
+            // Full-range uniform sample via the canonical Duration arb.
+            12 => super::arb_hifi_duration().prop_map(Epoch::from_tai_duration),
+        ]
+    }
+
+    /// `Extended<Epoch>` — 1:1:2 weighting for synthetic ends and
+    /// `Finite` slot from [`arb_hifi_epoch`].
+    pub fn arb_extended_hifi_epoch() -> impl Strategy<Value = Extended<Epoch>> {
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            2 => arb_hifi_epoch().prop_map(Extended::Finite),
+        ]
+    }
+
+    /// Bounded-magnitude `Epoch` for the f64 epoch-bridge law
+    /// batteries — pins the underlying TAI Duration to the same
+    /// `±10⁹ s` envelope as `arb_hifi_duration_bounded_f64`.
+    pub fn arb_hifi_epoch_bounded_f64() -> impl Strategy<Value = Epoch> {
+        super::arb_hifi_duration_bounded_f64().prop_map(Epoch::from_tai_duration)
+    }
+
+    /// `Extended<Epoch>` — bounded-f64 variant for float-bridge laws.
+    pub fn arb_extended_hifi_epoch_bounded_f64() -> impl Strategy<Value = Extended<Epoch>> {
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            2 => arb_hifi_epoch_bounded_f64().prop_map(Extended::Finite),
+        ]
+    }
+
+    /// `i128` strategy bounded to `[HD::MIN.total_ns(), HD::MAX.total_ns()]`
+    /// — the round-trippable range for `ETAINANO`. Same range as
+    /// `arb_hifi_total_nanos_in_range` (Epoch-via-TAI uses the same
+    /// reference as raw HD), but kept as a separate fn for clarity
+    /// at the call-site.
+    pub fn arb_hifi_tai_nanos_in_range() -> impl Strategy<Value = i128> {
+        super::arb_hifi_total_nanos_in_range()
+    }
+
+    /// `i128` strategy bounded to the UNIX-anchored round-trippable
+    /// range for `EUTCNANO`. **Asymmetric** about the UNIX offset:
+    /// lower bound is `HD::MIN.total_ns()` (not shifted, because
+    /// `ceil`'s `epoch.to_utc_duration() − UNIX_REF.utc` subtraction
+    /// would underflow HD if the stored UTC duration were already
+    /// `HD::MIN`); upper bound is `HD::MAX.total_ns() −
+    /// UNIX_REF.utc.total_ns()` (shifted, because the inner
+    /// `n + UNIX_REF.utc` addition would overflow HD beyond it).
+    pub fn arb_hifi_unix_nanos_in_range() -> impl Strategy<Value = i128> {
+        let unix_off = UNIX_REF_EPOCH.to_utc_duration().total_nanoseconds();
+        let min_n = HD::MIN.total_nanoseconds();
+        let max_n = HD::MAX.total_nanoseconds() - unix_off;
+        prop_oneof![
+            1 => Just(min_n),
+            1 => Just(max_n),
+            1 => Just(0_i128),
+            1 => Just(1_000_000_000_i128),                   // 1 s past UNIX
+            1 => Just(2_147_483_648_000_000_000_i128),       // Y2038 cutover
+            1 => Just(-1_i128),
+            8 => min_n..=max_n,
+        ]
+    }
+}
+
+#[cfg(feature = "hifi")]
+pub use hifi_epoch::{
+    arb_extended_hifi_epoch, arb_extended_hifi_epoch_bounded_f64, arb_hifi_epoch,
+    arb_hifi_epoch_bounded_f64, arb_hifi_tai_nanos_in_range, arb_hifi_unix_nanos_in_range,
+};
