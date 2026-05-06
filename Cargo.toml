@@ -85,3 +85,10 @@ macros = []
 [package.metadata.docs.rs]
 features = ["testing", "macros"]
 rustdoc-args = ["--cfg", "docsrs"]
+
+# Declare `cfg(kani)` so `cargo build` / `cargo test` don't warn about
+# the SMT-proof harnesses gated on it. Kani sets `--cfg kani` itself
+# when running `cargo kani`; this entry just teaches the check-cfg
+# lint to expect it.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(kani)"] }

@@ -118,6 +118,43 @@ fn floor_f64_f32(x: f64) -> f32 {
     z
 }
 
+// ── Proof-only walk-step probes ─────────────────────────────────────
+//
+// Mirror `ceil_f64_f32` / `floor_f64_f32` above but return the
+// `(z, steps)` tuple from each walk helper instead of dropping
+// `_steps`. Used by the Kani harnesses in
+// [`crate::kani_proofs::float_walk`] to prove the iteration bound
+// is ≤ 2 over the *full* finite-non-NaN domain rather than a
+// proptest sample. Gated on `cfg(kani)` so they compile only under
+// `cargo kani`.
+#[cfg(kani)]
+pub(crate) fn ceil_walk_steps_for_proof(x: f64) -> (f32, u32) {
+    let est = x as f32;
+    let est_up = est as f64;
+    if est_up == x {
+        return (est, 0);
+    }
+    if x <= est_up {
+        f64_f32_walks::descend_to_ceil(est, x)
+    } else {
+        f64_f32_walks::ascend_to_ceil(est, x)
+    }
+}
+
+#[cfg(kani)]
+pub(crate) fn floor_walk_steps_for_proof(x: f64) -> (f32, u32) {
+    let est = x as f32;
+    let est_up = est as f64;
+    if est_up == x {
+        return (est, 0);
+    }
+    if est_up <= x {
+        f64_f32_walks::ascend_to_floor(est, x)
+    } else {
+        f64_f32_walks::descend_to_floor(est, x)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

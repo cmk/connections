@@ -226,6 +226,15 @@ pub use conn::{ConnK, ConnL, ConnR};
 // which flips `proptest` from a dev-dep to an optional regular dep.
 pub mod prop;
 
+// SMT-verified Galois-connection laws via Kani. Compiled only when
+// `cargo kani` sets `--cfg kani`; invisible to `cargo build`,
+// `cargo test`, and downstream consumers. Each submodule mirrors
+// one macro family in `src/fixed.rs` and proves the same laws that
+// `tests/*_galois.rs` exercise via proptest, but for *all* inputs
+// within the bit-width rather than a sampled subset.
+#[cfg(kani)]
+mod kani_proofs;
+
 /// Codegen macros for downstream crates building their own
 /// bounded-integer / Q-format / NonZero / iso lattices on top of
 /// this crate. Gated on the `macros` cargo feature.
