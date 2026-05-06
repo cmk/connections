@@ -111,7 +111,7 @@
 //! assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
 //! ```
 //!
-//! - [`interval`](crate::interval) — bracket of `x` as an
+//! - [`interval`](crate::conn::interval) — bracket of `x` as an
 //!   [`Interval<A>`](crate::Interval) (closed cell `[lo, hi] ⊆ A`
 //!   sharing `x`'s B-projection; `Interval::Empty` for NaN-bearing
 //!   inputs)

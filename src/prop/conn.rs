@@ -110,11 +110,7 @@ pub fn filter_l_upward_closed<A: Copy, B: Copy + PartialOrd>(
 }
 
 /// `filter_l(a, b) ⟺ ceil(a) ≤ b` — the definitional duality.
-pub fn filter_l_dual_to_ceil<A: Copy, B: Copy + PartialOrd>(
-    c: &Conn<A, B, L>,
-    a: A,
-    b: B,
-) -> bool {
+pub fn filter_l_dual_to_ceil<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B, L>, a: A, b: B) -> bool {
     c.filter_l(a, b) == (c.ceil(a) <= b)
 }
 
@@ -332,8 +328,7 @@ where
     match crate::conn::interval(t, x) {
         crate::Interval::Empty => true,
         crate::Interval::Bounded { lo, hi } => {
-            t.conn_r().floor(lo) == t.conn_r().floor(x)
-                && t.conn_l().ceil(hi) == t.conn_l().ceil(x)
+            t.conn_r().floor(lo) == t.conn_r().floor(x) && t.conn_l().ceil(hi) == t.conn_l().ceil(x)
         }
     }
 }

@@ -4,7 +4,7 @@
 //!
 //! Ports `Data.Order.Interval` from the Haskell `connections` crate.
 //! The bracket of an element under a [`ConnK`](crate::conn::ConnK)
-//! triple is one canonical source — see [`interval`](crate::interval).
+//! triple is one canonical source — see [`interval`](crate::conn::interval).
 
 use core::cmp::Ordering;
 
@@ -201,10 +201,7 @@ impl<A: PartialOrd> PartialOrd for Interval<A> {
             (Interval::Empty, Interval::Empty) => Some(Ordering::Equal),
             (Interval::Empty, Interval::Bounded { .. }) => Some(Ordering::Less),
             (Interval::Bounded { .. }, Interval::Empty) => Some(Ordering::Greater),
-            (
-                Interval::Bounded { lo: l1, hi: h1 },
-                Interval::Bounded { lo: l2, hi: h2 },
-            ) => {
+            (Interval::Bounded { lo: l1, hi: h1 }, Interval::Bounded { lo: l2, hi: h2 }) => {
                 // i1 ⊆ i2 iff l2 ≤ l1 && h1 ≤ h2.
                 let l_cmp = l2.partial_cmp(l1)?;
                 let h_cmp = h1.partial_cmp(h2)?;

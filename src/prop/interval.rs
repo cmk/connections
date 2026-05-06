@@ -13,11 +13,13 @@ use core::cmp::Ordering;
 /// `Empty` otherwise (incomparable or out-of-order endpoints).
 pub fn new_orientation<A: Copy + PartialOrd>(x: A, y: A) -> bool {
     let i = Interval::new(x, y);
-    match (x.partial_cmp(&y), i) {
-        (Some(Ordering::Less | Ordering::Equal), Interval::Bounded { .. }) => true,
-        (Some(Ordering::Greater) | None, Interval::Empty) => true,
-        _ => false,
-    }
+    matches!(
+        (x.partial_cmp(&y), i),
+        (
+            Some(Ordering::Less | Ordering::Equal),
+            Interval::Bounded { .. }
+        ) | (Some(Ordering::Greater) | None, Interval::Empty)
+    )
 }
 
 /// A singleton always contains its own element.
