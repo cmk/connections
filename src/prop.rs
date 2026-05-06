@@ -58,6 +58,7 @@
 //! ```
 
 pub mod conn;
+pub mod interval;
 pub mod lattice;
 
 #[cfg(any(test, feature = "testing"))]
