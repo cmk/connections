@@ -546,8 +546,23 @@ impl<T, A: Copy, B: Copy> ConnK<A, B> for T where T: ConnL<A, B> + ConnR<A, B> {
 // ── Two-sided helpers (bound on ConnK) ────────────────────────────────
 
 /// Bracket of `x` under conn `t`: the closed interval `[lo, hi] ⊆ A`
-/// of values sharing `x`'s B-cell. Returns [`Interval::Empty`] when
-/// the bracket endpoints are not preorder-comparable (e.g. NaN).
+/// of values sharing `x`'s B-cell.
+///
+/// Returns [`Interval::Empty`] when the **`ConnK` sandwich
+/// inequality** `lo ≤ x ≤ hi` fails. The Galois laws give
+/// `floor(x) ≤ ceil(x)` on the B-side, but lifting that back to
+/// `A` requires the middle adjoint to be shared between the L-
+/// and R-views, which the type system does not enforce: a user
+/// can implement `ConnL` and `ConnR` independently with
+/// incompatible widening functions. Genuinely partially-ordered
+/// `A` (e.g. antichain pairs) can also produce incomparable
+/// `lo` / `hi`. In either case the bracket cannot meaningfully
+/// represent `x`'s `B`-cell, so we surface it as `Empty` rather
+/// than fabricate a misleading `Closed`.
+///
+/// **Postcondition for `Closed` results**: `lo ≤ x ≤ hi`.
+/// Downstream consumers (`round`, `bracket_contains_x`, etc.) may
+/// rely on this without an extra runtime check.
 ///
 /// # Examples
 ///
@@ -567,7 +582,7 @@ impl<T, A: Copy, B: Copy> ConnK<A, B> for T where T: ConnL<A, B> + ConnR<A, B> {
 /// let pi32 = Extend(std::f32::consts::PI as f64);
 /// assert_eq!(
 ///     interval(&F064F032, pi32),
-///     Interval::Bounded { lo: pi32, hi: pi32 }
+///     Interval::Closed { lo: pi32, hi: pi32 }
 /// );
 /// ```
 #[inline]
@@ -580,7 +595,11 @@ where
 {
     let lo = t.conn_r().lower1(|b| b, x);
     let hi = t.conn_l().upper1(|b| b, x);
-    Interval::new(lo, hi)
+    if lo <= x && x <= hi {
+        Interval::Closed { lo, hi }
+    } else {
+        Interval::Empty
+    }
 }
 
 /// Truncate `x` toward zero through the triple: returns
@@ -712,16 +731,12 @@ where
     A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
     B: Copy,
 {
-    // Tiebreak relies on `lo ≤ x ≤ hi` — i.e. on `bracket_contains_x`
-    // holding for the input. That property is *tested* in the
-    // numeric_only battery (`bracket_contains_x`) but is not
-    // guaranteed by the Galois laws alone, so on a malformed Conn
-    // where `lower1`/`upper1` produce a degenerate result `x - lo`
-    // or `hi - x` could underflow / wrap on unsigned `A`. The
-    // numeric_only subset's `bracket_contains_x` proptest is the
-    // shipped backstop.
+    // `Closed` carries `lo ≤ x ≤ hi` as a postcondition (see
+    // [`interval`]); `x - lo` and `hi - x` are non-negative for
+    // any sensible `A: Sub`. `Empty` signals a malformed triple
+    // or antichain endpoints — fall back to truncate.
     match interval(t, x) {
-        Interval::Bounded { lo, hi } => match (x - lo).partial_cmp(&(hi - x)) {
+        Interval::Closed { lo, hi } => match (x - lo).partial_cmp(&(hi - x)) {
             Some(Ordering::Greater) => t.conn_l().ceil(x),
             Some(Ordering::Less) => t.conn_r().floor(x),
             _ => truncate(t, x),

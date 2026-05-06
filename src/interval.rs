@@ -22,13 +22,13 @@ use core::cmp::Ordering;
 ///
 /// `Interval` carries **two distinct relations** on the same value:
 ///
-/// - **`PartialEq` / `Eq`** are *structural*: two `Bounded`s
+/// - **`PartialEq` / `Eq`** are *structural*: two `Closed`s
 ///   compare equal iff their `lo` and `hi` fields are pairwise
 ///   equal. `Empty == Empty`. Derived from the field-level
 ///   `PartialEq` impl on `A`.
 /// - **`PartialOrd`** is the *containment preorder*: `Empty ≤
-///   everything`; `Bounded i₁ ≤ Bounded i₂ ⟺ i₂ ⊇ i₁`.
-///   Two `Bounded`s neither of which contains the other (e.g.
+///   everything`; `Closed i₁ ≤ Closed i₂ ⟺ i₂ ⊇ i₁`.
+///   Two `Closed`s neither of which contains the other (e.g.
 ///   `[1, 4]` vs `[2, 5]`) are incomparable, returning `None`.
 ///
 /// The two are intentionally different: structural equality is the
@@ -41,10 +41,10 @@ use core::cmp::Ordering;
 ///
 /// `Eq` requires reflexive equality: `a == a` for all `a`. For
 /// `A = f64`, NaN breaks this. Soundness here rests on the
-/// invariant that **no `Bounded` variant ever holds a non-reflexive
+/// invariant that **no `Closed` variant ever holds a non-reflexive
 /// value**, which holds because [`Interval::new`] preorder-checks its
 /// inputs and routes any `partial_cmp` returning `None` to `Empty`.
-/// Direct construction (`Interval::Bounded { lo: NAN, hi: NAN }`)
+/// Direct construction (`Interval::Closed { lo: NAN, hi: NAN }`)
 /// bypasses this gate; callers using the public field syntax must
 /// preserve the invariant themselves.
 ///
@@ -71,7 +71,7 @@ pub enum Interval<A> {
     #[default]
     Empty,
     /// A non-empty closed interval `[lo, hi]` with `lo ≤ hi`.
-    Bounded {
+    Closed {
         /// Lower endpoint (inclusive).
         lo: A,
         /// Upper endpoint (inclusive).
@@ -105,7 +105,7 @@ impl<A> Interval<A> {
     where
         A: Clone,
     {
-        Interval::Bounded {
+        Interval::Closed {
             lo: a.clone(),
             hi: a,
         }
@@ -123,14 +123,14 @@ impl<A> Interval<A> {
     /// // In-order endpoints retained:
     /// assert!(matches!(
     ///     Interval::new(1, 3),
-    ///     Interval::Bounded { lo: 1, hi: 3 }
+    ///     Interval::Closed { lo: 1, hi: 3 }
     /// ));
     /// // Reversed endpoints collapse:
     /// assert_eq!(Interval::new(3, 1), Interval::<i32>::Empty);
     /// // Equal endpoints produce a singleton.
     /// assert!(matches!(
     ///     Interval::new(2, 2),
-    ///     Interval::Bounded { lo: 2, hi: 2 }
+    ///     Interval::Closed { lo: 2, hi: 2 }
     /// ));
     /// ```
     #[inline]
@@ -140,7 +140,7 @@ impl<A> Interval<A> {
         A: PartialOrd,
     {
         match x.partial_cmp(&y) {
-            Some(Ordering::Less | Ordering::Equal) => Interval::Bounded { lo: x, hi: y },
+            Some(Ordering::Less | Ordering::Equal) => Interval::Closed { lo: x, hi: y },
             _ => Interval::Empty,
         }
     }
@@ -152,7 +152,7 @@ impl<A> Interval<A> {
     pub fn endpts(self) -> Option<(A, A)> {
         match self {
             Interval::Empty => None,
-            Interval::Bounded { lo, hi } => Some((lo, hi)),
+            Interval::Closed { lo, hi } => Some((lo, hi)),
         }
     }
 
@@ -174,7 +174,7 @@ impl<A> Interval<A> {
     {
         match self {
             Interval::Empty => false,
-            Interval::Bounded { lo, hi } => lo <= p && p <= hi,
+            Interval::Closed { lo, hi } => lo <= p && p <= hi,
         }
     }
 
@@ -191,7 +191,7 @@ impl<A> Interval<A> {
     /// // Monotone +1: endpoints map and remain in order.
     /// assert!(matches!(
     ///     Interval::new(1_i32, 3).imap(|x| x + 1),
-    ///     Interval::Bounded { lo: 2, hi: 4 }
+    ///     Interval::Closed { lo: 2, hi: 4 }
     /// ));
     /// // Antimonotone negate over a non-singleton: lo and hi
     /// // swap, so `Interval::new` sees a reversed pair and
@@ -203,7 +203,7 @@ impl<A> Interval<A> {
     /// // Singletons survive any function.
     /// assert!(matches!(
     ///     Interval::singleton(2_i32).imap(|x| -x),
-    ///     Interval::Bounded { lo: -2, hi: -2 }
+    ///     Interval::Closed { lo: -2, hi: -2 }
     /// ));
     /// ```
     #[inline]
@@ -215,23 +215,23 @@ impl<A> Interval<A> {
     {
         match self {
             Interval::Empty => Interval::Empty,
-            Interval::Bounded { lo, hi } => Interval::new(f(lo), f(hi)),
+            Interval::Closed { lo, hi } => Interval::new(f(lo), f(hi)),
         }
     }
 }
 
-/// Containment preorder: `Empty ≤ everything`; `Bounded i₁ ≤
-/// Bounded i₂ ⟺ i₂ ⊇ i₁` (i.e. `lo₂ ≤ lo₁ && hi₁ ≤ hi₂`).
+/// Containment preorder: `Empty ≤ everything`; `Closed i₁ ≤
+/// Closed i₂ ⟺ i₂ ⊇ i₁` (i.e. `lo₂ ≤ lo₁ && hi₁ ≤ hi₂`).
 ///
-/// Two `Bounded` intervals neither of which contains the other
+/// Two `Closed` intervals neither of which contains the other
 /// (e.g. `[1,4]` vs `[2,5]`) are incomparable, returning `None`.
 impl<A: PartialOrd> PartialOrd for Interval<A> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
             (Interval::Empty, Interval::Empty) => Some(Ordering::Equal),
-            (Interval::Empty, Interval::Bounded { .. }) => Some(Ordering::Less),
-            (Interval::Bounded { .. }, Interval::Empty) => Some(Ordering::Greater),
-            (Interval::Bounded { lo: l1, hi: h1 }, Interval::Bounded { lo: l2, hi: h2 }) => {
+            (Interval::Empty, Interval::Closed { .. }) => Some(Ordering::Less),
+            (Interval::Closed { .. }, Interval::Empty) => Some(Ordering::Greater),
+            (Interval::Closed { lo: l1, hi: h1 }, Interval::Closed { lo: l2, hi: h2 }) => {
                 // i1 ⊆ i2 iff l2 ≤ l1 && h1 ≤ h2.
                 let l_cmp = l2.partial_cmp(l1)?;
                 let h_cmp = h1.partial_cmp(h2)?;

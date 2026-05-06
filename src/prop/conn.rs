@@ -295,8 +295,14 @@ where
         .is_some_and(|d| (0..=1).contains(&d))
 }
 
-/// `interval(t, x).contains(&x)` whenever the bracket is non-empty;
-/// vacuously true when the bracket is `Empty` (NaN-bearing input).
+/// `interval(t, x).contains(&x)` whenever the bracket is
+/// non-empty; vacuously true when the bracket is `Empty`
+/// (malformed triple, or antichain endpoints in a partial order).
+///
+/// As of the `interval` sandwich-postcondition refactor this is
+/// **true by construction**: `interval` returns `Closed` only
+/// when `lo ≤ x ≤ hi`. Kept as a regression check on `interval`'s
+/// body — a bug there would now be caught here directly.
 pub fn bracket_contains_x<T, A, B>(t: &T, x: A) -> bool
 where
     T: ConnK<A, B>,
@@ -320,9 +326,9 @@ where
 {
     match crate::conn::interval(t, x) {
         crate::Interval::Empty => true,
-        crate::Interval::Bounded { lo, hi } => {
-            crate::conn::interval(t, lo) == crate::Interval::Bounded { lo, hi: lo }
-                && crate::conn::interval(t, hi) == crate::Interval::Bounded { lo: hi, hi }
+        crate::Interval::Closed { lo, hi } => {
+            crate::conn::interval(t, lo) == crate::Interval::Closed { lo, hi: lo }
+                && crate::conn::interval(t, hi) == crate::Interval::Closed { lo: hi, hi }
         }
     }
 }
@@ -337,7 +343,7 @@ where
 {
     match crate::conn::interval(t, x) {
         crate::Interval::Empty => true,
-        crate::Interval::Bounded { lo, hi } => {
+        crate::Interval::Closed { lo, hi } => {
             t.conn_r().floor(lo) == t.conn_r().floor(x) && t.conn_l().ceil(hi) == t.conn_l().ceil(x)
         }
     }

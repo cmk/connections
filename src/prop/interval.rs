@@ -9,7 +9,7 @@
 use crate::Interval;
 use core::cmp::Ordering;
 
-/// `Interval::new(x, y)` is `Bounded` iff `x ≤ y` (preorder-wise),
+/// `Interval::new(x, y)` is `Closed` iff `x ≤ y` (preorder-wise),
 /// `Empty` otherwise (incomparable or out-of-order endpoints).
 pub fn new_orientation<A: Copy + PartialOrd>(x: A, y: A) -> bool {
     let i = Interval::new(x, y);
@@ -17,7 +17,7 @@ pub fn new_orientation<A: Copy + PartialOrd>(x: A, y: A) -> bool {
         (x.partial_cmp(&y), i),
         (
             Some(Ordering::Less | Ordering::Equal),
-            Interval::Bounded { .. }
+            Interval::Closed { .. }
         ) | (Some(Ordering::Greater) | None, Interval::Empty)
     )
 }
@@ -46,7 +46,7 @@ pub fn imap_identity_preserves<A: Copy + PartialOrd>(x: A, y: A) -> bool {
 ///
 /// **Caller contract**: `lo ≤ hi`. The Empty input case is excluded
 /// because `f` saturates: when `lo > hi` saturation can collide
-/// (`f(lo) == f(hi)`) and produce a `Bounded` singleton on the RHS
+/// (`f(lo) == f(hi)`) and produce a `Closed` singleton on the RHS
 /// while the LHS is `Empty`, yielding a spurious failure unrelated
 /// to the `imap` contract under test. The proptest harness enforces
 /// this via `prop_assume!`.
