@@ -190,6 +190,8 @@ pub mod conn;
 pub mod extended;
 pub mod fixed;
 pub mod float;
+#[cfg(feature = "hifi")]
+pub mod hifi;
 pub mod interval;
 pub mod lattice;
 pub mod time;

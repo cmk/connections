@@ -43,6 +43,7 @@ exclude = [
 [dependencies]
 fixed = "1"
 time = "0.3"
+hifitime = { version = "4.3", optional = true, default-features = false }
 proptest = { version = "1", optional = true }
 
 [dev-dependencies]
@@ -64,6 +65,16 @@ testing = ["dep:proptest"]
 # (`#![feature(f16)]`, tracking issue #116909). Default stable
 # builds skip the f16 path entirely.
 f16 = []
+
+# Enable the `hifitime` crate's nanosecond-precision `Duration` and
+# `Epoch` Conns under `connections::hifi::*`. Optional because
+# hifitime adds ~200 KB compiled and is only useful for
+# scientific / aerospace / GNSS time work — the always-on `time`
+# crate covers civil-calendar use. We pull hifitime with
+# `default-features = false` to keep the dep tree minimal (no
+# serde, no web-time, no snafu); downstream crates that want those
+# can re-enable the corresponding hifitime features themselves.
+hifi = ["dep:hifitime"]
 
 # Re-export the crate's internal codegen macros under
 # `connections::macros` for downstream crates building their own

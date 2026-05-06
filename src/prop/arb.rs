@@ -1017,3 +1017,134 @@ pub fn arb_ordering() -> impl Strategy<Value = core::cmp::Ordering> {
         Just(core::cmp::Ordering::Greater),
     ]
 }
+
+// ── hifitime::Duration strategies ───────────────────────────────
+//
+// Gated on `feature = "hifi"`. Mirror the `arb_duration*` family but
+// over hifitime's `Duration` (i16 centuries × NANOSECONDS_PER_CENTURY +
+// u64 sub-century nanoseconds, total range ≈ ±1.03 × 10²³ ns).
+//
+// All entries go through `Duration::from_total_nanoseconds`, which
+// always normalizes (`nanoseconds < NANOSECONDS_PER_CENTURY` post-
+// canonicalization). hifitime's `PartialOrd` is field-wise and only
+// agrees with semantic order on canonical Durations; never use
+// `from_parts` here.
+
+#[cfg(feature = "hifi")]
+mod hifi_dur {
+    use super::*;
+    use crate::extended::Extended;
+    use hifitime::Duration as HD;
+
+    /// Arbitrary `hifitime::Duration` over the full canonical range.
+    pub fn arb_hifi_duration() -> impl Strategy<Value = HD> {
+        prop_oneof![
+            // Named extremes
+            1 => Just(HD::ZERO),
+            1 => Just(HD::MIN),
+            1 => Just(HD::MAX),
+            1 => Just(HD::EPSILON),
+            1 => Just(HD::MIN_NEGATIVE),
+            // Signed-rounding edges around ±1 s
+            1 => Just(HD::from_total_nanoseconds(1_000_000_000 - 1)),
+            1 => Just(HD::from_total_nanoseconds(1_000_000_000 + 1)),
+            1 => Just(HD::from_total_nanoseconds(-(1_000_000_000 - 1))),
+            1 => Just(HD::from_total_nanoseconds(-(1_000_000_000 + 1))),
+            // ±1 s exact
+            1 => Just(HD::from_seconds(1.0)),
+            1 => Just(HD::from_seconds(-1.0)),
+            // ±(MAX-1ns), ±(MIN+1ns)
+            1 => Just(HD::from_total_nanoseconds(HD::MAX.total_nanoseconds() - 1)),
+            1 => Just(HD::from_total_nanoseconds(HD::MIN.total_nanoseconds() + 1)),
+            // Full-range uniform sample. `from_total_nanoseconds`
+            // saturates to MIN/MAX outside the i16-century range.
+            12 => any::<i128>().prop_map(HD::from_total_nanoseconds),
+        ]
+    }
+
+    /// `Extended<HD>` — 1:1:2 weighting for synthetic ends and
+    /// `Finite` slot from [`arb_hifi_duration`].
+    pub fn arb_extended_hifi_duration() -> impl Strategy<Value = Extended<HD>> {
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            2 => arb_hifi_duration().prop_map(Extended::Finite),
+        ]
+    }
+
+    /// Bounded-magnitude `HD` for the `F064HDUR` law battery.
+    /// Pins |total_ns| ≤ 10⁹ × 10⁹ ns = 10¹⁸ ns ≈ 31 yr — well under
+    /// the f64 mantissa-precision wall at 2⁵³ ns ≈ 104 days, *but*
+    /// well over the per-Conn-call ULP-walk budget. The 31-yr bound
+    /// matches `arb_duration_bounded_f64`'s rationale (see arb.rs
+    /// header).
+    pub fn arb_hifi_duration_bounded_f64() -> impl Strategy<Value = HD> {
+        const SECS_BOUND: i128 = 1_000_000_000; // ±31.7 yr
+        const NANOS_BOUND: i128 = SECS_BOUND * 1_000_000_000;
+        prop_oneof![
+            1 => Just(HD::ZERO),
+            1 => Just(HD::EPSILON),
+            1 => Just(HD::MIN_NEGATIVE),
+            1 => Just(HD::from_seconds(1.0)),
+            1 => Just(HD::from_seconds(-1.0)),
+            8 => (-NANOS_BOUND..=NANOS_BOUND).prop_map(HD::from_total_nanoseconds),
+        ]
+    }
+
+    /// Bounded-magnitude `HD` for the `F032HDUR` law battery.
+    /// Pins |total_ns| ≤ 10 × 10⁹ ns = 10 s — same shape as
+    /// `arb_duration_bounded_f32` (the f32 plateau is much wider;
+    /// keeping the bound tight keeps walk budgets sane).
+    pub fn arb_hifi_duration_bounded_f32() -> impl Strategy<Value = HD> {
+        const NANOS_BOUND: i128 = 10 * 1_000_000_000; // ±10 s
+        prop_oneof![
+            1 => Just(HD::ZERO),
+            1 => Just(HD::EPSILON),
+            1 => Just(HD::MIN_NEGATIVE),
+            1 => Just(HD::from_seconds(1.0)),
+            1 => Just(HD::from_seconds(-1.0)),
+            8 => (-NANOS_BOUND..=NANOS_BOUND).prop_map(HD::from_total_nanoseconds),
+        ]
+    }
+
+    /// `Extended<HD>` — bounded-f64 variant for float-bridge laws.
+    pub fn arb_extended_hifi_duration_bounded_f64() -> impl Strategy<Value = Extended<HD>> {
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            2 => arb_hifi_duration_bounded_f64().prop_map(Extended::Finite),
+        ]
+    }
+
+    /// `Extended<HD>` — bounded-f32 variant for float-bridge laws.
+    pub fn arb_extended_hifi_duration_bounded_f32() -> impl Strategy<Value = Extended<HD>> {
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            2 => arb_hifi_duration_bounded_f32().prop_map(Extended::Finite),
+        ]
+    }
+
+    /// `i128` strategy bounded to `[HD::MIN.total_ns(), HD::MAX.total_ns()]`
+    /// — the round-trippable range for `HDURNANO`. Mirrors
+    /// [`super::arb_unix_nanos_in_range`].
+    pub fn arb_hifi_total_nanos_in_range() -> impl Strategy<Value = i128> {
+        let min_n = HD::MIN.total_nanoseconds();
+        let max_n = HD::MAX.total_nanoseconds();
+        prop_oneof![
+            1 => Just(min_n),
+            1 => Just(max_n),
+            1 => Just(0_i128),
+            1 => Just(1_i128),
+            1 => Just(-1_i128),
+            8 => min_n..=max_n,
+        ]
+    }
+}
+
+#[cfg(feature = "hifi")]
+pub use hifi_dur::{
+    arb_extended_hifi_duration, arb_extended_hifi_duration_bounded_f32,
+    arb_extended_hifi_duration_bounded_f64, arb_hifi_duration, arb_hifi_duration_bounded_f32,
+    arb_hifi_duration_bounded_f64, arb_hifi_total_nanos_in_range,
+};
