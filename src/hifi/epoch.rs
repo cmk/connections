@@ -392,10 +392,14 @@ crate::conn_l! {
     /// OFDTNANO shape with the standard asymmetric saturation
     /// (`ceil(NegInf) = i128::MIN`, `ceil(PosInf) = unix_max + 1`).
     ///
-    /// The in-range Finite portion `[unix_min, unix_max]` is the
-    /// UNIX-anchored shift of `[HD::MIN.total_ns(), HD::MAX.total_ns()]`,
-    /// shifted by the constant `−UNIX_REF_EPOCH.to_tai_duration().
-    /// total_nanoseconds()` (~−70 years in nanoseconds). Sub-second
+    /// The in-range Finite portion `[unix_min, unix_max]` is
+    /// **asymmetric** about the UNIX offset: `unix_min =
+    /// HD::MIN.total_ns()` (unshifted — `ceil`'s subtraction
+    /// `epoch.to_utc_duration() − UNIX_REF.utc` would underflow `HD`
+    /// if the stored value were already at `HD::MIN`); `unix_max =
+    /// HD::MAX.total_ns() − UNIX_REF_EPOCH.to_utc_duration().
+    /// total_nanoseconds()` (shifted — the inner addition `n +
+    /// UNIX_REF.utc` would overflow `HD` beyond it). Sub-second
     /// `Epoch` values round-trip exactly within that range.
     ///
     /// # Examples
