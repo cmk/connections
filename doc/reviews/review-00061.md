@@ -177,3 +177,56 @@ API surface uses `endpts(self)` which moves out, fine because
   (`!filter_l(a, b)` whenever `b < ceil(a)`).
 - Consider a `numeric_only` battery subset for round/truncate
   contract properties that need arithmetic bounds.
+
+---
+
+## Round 1 fixes (2026-05-06)
+
+All three must-fix items and all three follow-ups addressed in a
+single fix commit on `sprint/interval-filter`. Branch tested clean
+on every layer (`cargo test --workspace`, `cargo test --doc`,
+`cargo clippy --all-targets -- -D warnings`,
+`cargo fmt -- --check`, `RUSTDOCFLAGS="-D warnings" cargo doc
+--no-deps --document-private-items`, `scripts/check-pii.sh`,
+`scripts/check_readme_mirror.sh`).
+
+**Must-fix #1 — `round_picks_endpoint` wired.** Added a new
+`@batch numeric_only` arm to `law_battery!` (`src/prop/conn.rs`),
+a strict superset of `@batch full` that adds three arithmetic-
+bound contract properties (`round_picks_endpoint`,
+`truncate_picks_endpoint`, `truncate_toward_zero`). Switched
+`F064F032` to `subset: numeric_only` (`src/float/f32.rs:213-219`).
+Non-numeric `full` batteries (`addr::ip::*`, `char::U032CHAR`,
+`time::DURNSECS` / `STDRU064`) stay on `full` and remain green —
+their `A` types don't impl `Sub<Output = A> + From<u8>`.
+
+**Must-fix #2 / #3 — plan Review section appended.** Documented
+`bracket_idempotent` → `bracket_endpoints_self_bracket` and
+`imap_monotonic_preserved` → `imap_identity_preserves +
+imap_saturating_add_preserves` reformulations in
+`doc/plans/plan-2026-05-06-01.md`'s newly-populated `## Review`
+section, including the failure trace, structural reasoning, and
+sound-replacement rationale for each.
+
+**Follow-up #1 — real monotonic imap proptest.** Added
+`imap_saturating_add_preserves(lo, hi, k: i64)` to
+`src/prop/interval.rs`, exercising `f(a) = a.saturating_add(k)`
+(strictly monotone non-decreasing over `i64`, no overflow
+filtering needed). Wired into the in-file proptest block.
+
+**Follow-up #2 — `filter_*_via_*` non-tautologies.** Renamed
+`filter_l_dual_to_ceil` → `filter_l_via_upper` (asserts
+`filter_l(a, b) ⟺ a ≤ upper(b)`) and `filter_r_dual_to_floor`
+→ `filter_r_via_lower` (asserts `filter_r(a, b) ⟺ lower(b) ≤ a`).
+These are non-trivial: they hold only because of the L/R Galois
+adjunctions, so a regression in L/R Galois that left the body of
+`filter_l` untouched would now show up here. Battery wiring
+updated to call the renamed predicates.
+
+**Follow-up #3 — `numeric_only` subset.** Same change as
+must-fix #1, now in place.
+
+Test-count delta: 1163 → 1167 lib tests
+(+ `imap_saturating_add_preserves` proptest in `src/prop/interval.rs`,
++ `round_picks_endpoint`, `truncate_picks_endpoint`,
+`truncate_toward_zero` instantiations on `F064F032`).

@@ -109,9 +109,16 @@ pub fn filter_l_upward_closed<A: Copy, B: Copy + PartialOrd>(
     }
 }
 
-/// `filter_l(a, b) ⟺ ceil(a) ≤ b` — the definitional duality.
-pub fn filter_l_dual_to_ceil<A: Copy, B: Copy + PartialOrd>(c: &Conn<A, B, L>, a: A, b: B) -> bool {
-    c.filter_l(a, b) == (c.ceil(a) <= b)
+/// `filter_l(a, b) ⟺ a ≤ upper(b)` — principal-filter membership
+/// agrees with the Galois-adjoint characterization. Non-trivial:
+/// it relies on `ceil ⊣ upper`, so this is a regression test on
+/// the L-Galois law witnessed through `filter_l`.
+pub fn filter_l_via_upper<A: Copy + PartialOrd, B: Copy + PartialOrd>(
+    c: &Conn<A, B, L>,
+    a: A,
+    b: B,
+) -> bool {
+    c.filter_l(a, b) == (a <= c.upper(b))
 }
 
 // ── R-side predicates ─────────────────────────────────────────────────
@@ -200,13 +207,16 @@ pub fn filter_r_downward_closed<A: Copy, B: Copy + PartialOrd>(
     }
 }
 
-/// `filter_r(a, b) ⟺ b ≤ floor(a)` — the definitional duality.
-pub fn filter_r_dual_to_floor<A: Copy, B: Copy + PartialOrd>(
+/// `filter_r(a, b) ⟺ lower(b) ≤ a` — principal-ideal membership
+/// agrees with the Galois-adjoint characterization. Non-trivial:
+/// it relies on `lower ⊣ floor`, so this is a regression test on
+/// the R-Galois law witnessed through `filter_r`.
+pub fn filter_r_via_lower<A: Copy + PartialOrd, B: Copy + PartialOrd>(
     c: &Conn<A, B, R>,
     a: A,
     b: B,
 ) -> bool {
-    c.filter_r(a, b) == (b <= c.floor(a))
+    c.filter_r(a, b) == (c.lower(b) <= a)
 }
 
 // ── ConnK-bound predicates ──────────────────────────────────────────
@@ -452,9 +462,10 @@ where
 ///
 /// | Subset (`subset:` flag) | Tests emitted | Trait bounds on `A` / `B` |
 /// |-------------------------|---------------|---------------------------|
-/// | `full` (default)        | `galois_l`, `galois_r`, `closure_l`, `closure_r`, `kernel_l`, `kernel_r`, `monotone_l`, `monotone_r`, `idempotent`, `floor_le_ceil`, `order_reflecting` | `A`, `B`: `Copy + Eq + PartialOrd` |
-/// | `l_only`                | `galois_l`, `closure_l`, `kernel_l`, `monotone_l`, `idempotent`                                                       | same |
-/// | `r_only`                | `galois_r`, `closure_r`, `kernel_r`, `monotone_r` (4 tests; `idempotent` is L-side and doesn't fit a one-sided R-Conn) | same |
+/// | `full` (default)        | `galois_l`, `galois_r`, `closure_l`, `closure_r`, `kernel_l`, `kernel_r`, `monotone_l`, `monotone_r`, `idempotent`, `floor_le_ceil`, `order_reflecting`, `bracket_contains_x`, `bracket_endpoints_self_bracket`, `bracket_endpoints_share_b_cell` | `A`, `B`: `Copy + Eq + PartialOrd` |
+/// | `numeric_only`          | `full` ∪ `round_picks_endpoint`, `truncate_picks_endpoint`, `truncate_toward_zero`                                    | adds `A: Sub<Output = A> + From<u8>` |
+/// | `l_only`                | `galois_l`, `closure_l`, `kernel_l`, `monotone_l`, `idempotent`, `filter_l_at_ceil`, `filter_l_upward_closed`, `filter_l_via_upper` | same |
+/// | `r_only`                | `galois_r`, `closure_r`, `kernel_r`, `monotone_r`, `filter_r_at_floor`, `filter_r_downward_closed`, `filter_r_via_lower` (no `idempotent`; that is L-side) | same |
 /// | `iso_only`              | `idempotent`, `iso_roundtrip_l`, `roundtrip_ceil`                                                                     | `A`: `Copy + Eq`; `B`: `Copy + Eq` (no `Ord` required) |
 ///
 /// `cases: N` optionally overrides the proptest case count
@@ -488,6 +499,20 @@ macro_rules! law_battery {
     };
     (mod $m:ident, conn: $c:expr, fine: $f:expr, coarse: $cs:expr, cases: $n:expr $(,)?) => {
         $crate::law_battery!(@batch full, $m, $c, $f, $cs,
+            ::proptest::test_runner::Config { cases: $n,
+                .. ::proptest::test_runner::Config::default() });
+    };
+
+    // numeric_only — superset of `full`; adds round/truncate
+    // contract properties that need `A: Sub<Output = A> + From<u8>`.
+    (mod $m:ident, conn: $c:expr, fine: $f:expr, coarse: $cs:expr,
+     subset: numeric_only $(,)?) => {
+        $crate::law_battery!(@batch numeric_only, $m, $c, $f, $cs,
+            ::proptest::test_runner::Config::default());
+    };
+    (mod $m:ident, conn: $c:expr, fine: $f:expr, coarse: $cs:expr,
+     subset: numeric_only, cases: $n:expr $(,)?) => {
+        $crate::law_battery!(@batch numeric_only, $m, $c, $f, $cs,
             ::proptest::test_runner::Config { cases: $n,
                 .. ::proptest::test_runner::Config::default() });
     };
@@ -614,6 +639,105 @@ macro_rules! law_battery {
         }
     };
 
+    (@batch numeric_only, $m:ident, $c:expr, $f:expr, $cs:expr, $cfg:expr) => {
+        mod $m {
+            #[allow(unused_imports)]
+            use super::*;
+            #[allow(unused_imports)]
+            use ::proptest::prelude::*;
+            #[allow(unused_imports)]
+            use $crate::conn::{ConnL as _, ConnR as _};
+            ::proptest::proptest! {
+                #![proptest_config($cfg)]
+                #[test]
+                fn galois_l(a in $f, b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::galois_l(&($c).conn_l(), a, b));
+                }
+                #[test]
+                fn galois_r(a in $f, b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::galois_r(&($c).conn_r(), a, b));
+                }
+                #[test]
+                fn closure_l(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::closure_l(&($c).conn_l(), a));
+                }
+                #[test]
+                fn closure_r(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::closure_r(&($c).conn_r(), a));
+                }
+                #[test]
+                fn kernel_l(b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::kernel_l(&($c).conn_l(), b));
+                }
+                #[test]
+                fn kernel_r(b in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::kernel_r(&($c).conn_r(), b));
+                }
+                #[test]
+                fn monotone_l(a1 in $f, a2 in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::monotone_l(&($c).conn_l(), a1, a2));
+                }
+                #[test]
+                fn monotone_r(b1 in $cs, b2 in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::monotone_r(&($c).conn_r(), b1, b2));
+                }
+                #[test]
+                fn idempotent(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::idempotent(&($c).conn_l(), a));
+                }
+                #[test]
+                fn floor_le_ceil(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::floor_le_ceil(&($c), a));
+                }
+                #[test]
+                fn order_reflecting(b1 in $cs, b2 in $cs) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::order_reflecting(&($c), b1, b2));
+                }
+                #[test]
+                fn bracket_contains_x(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::bracket_contains_x(&($c), a));
+                }
+                #[test]
+                fn bracket_endpoints_self_bracket(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::bracket_endpoints_self_bracket(&($c), a));
+                }
+                #[test]
+                fn bracket_endpoints_share_b_cell(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::bracket_endpoints_share_b_cell(&($c), a));
+                }
+                #[test]
+                fn round_picks_endpoint(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::round_picks_endpoint(&($c), a));
+                }
+                #[test]
+                fn truncate_picks_endpoint(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::truncate_picks_endpoint(&($c), a));
+                }
+                #[test]
+                fn truncate_toward_zero(a in $f) {
+                    ::proptest::prop_assert!(
+                        $crate::prop::conn::truncate_toward_zero(&($c), a));
+                }
+            }
+        }
+    };
+
     (@batch l_only, $m:ident, $c:expr, $f:expr, $cs:expr, $cfg:expr) => {
         mod $m {
             #[allow(unused_imports)]
@@ -661,9 +785,9 @@ macro_rules! law_battery {
                             &($c).conn_l(), a, b1, b2));
                 }
                 #[test]
-                fn filter_l_dual_to_ceil(a in $f, b in $cs) {
+                fn filter_l_via_upper(a in $f, b in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::filter_l_dual_to_ceil(
+                        $crate::prop::conn::filter_l_via_upper(
                             &($c).conn_l(), a, b));
                 }
             }
@@ -712,9 +836,9 @@ macro_rules! law_battery {
                             &($c).conn_r(), a, b1, b2));
                 }
                 #[test]
-                fn filter_r_dual_to_floor(a in $f, b in $cs) {
+                fn filter_r_via_lower(a in $f, b in $cs) {
                     ::proptest::prop_assert!(
-                        $crate::prop::conn::filter_r_dual_to_floor(
+                        $crate::prop::conn::filter_r_via_lower(
                             &($c).conn_r(), a, b));
                 }
             }

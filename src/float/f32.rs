@@ -215,6 +215,7 @@ mod tests {
         conn: F064F032,
         fine:   ef64(),
         coarse: ef32(),
+        subset: numeric_only,
     }
 
     proptest! {
