@@ -112,9 +112,11 @@ impl<A> Interval<A> {
     }
 
     /// Construct an interval from a pair of endpoints. Endpoints
-    /// are preorder-sorted; if `x` and `y` are not comparable
-    /// (e.g. `NaN` vs `NaN`, or an antichain pair in a partial
-    /// order) or out of order, the result is [`Interval::Empty`].
+    /// are **preorder-checked, not sorted**: if `x ≤ y` then
+    /// `Closed { lo: x, hi: y }`; otherwise (`x > y` or `x` and
+    /// `y` incomparable — e.g. an antichain pair in a partial
+    /// order) the result is [`Interval::Empty`]. Reversed
+    /// endpoints are *not* swapped.
     ///
     /// # Examples
     ///
@@ -225,6 +227,23 @@ impl<A> Interval<A> {
 ///
 /// Two `Closed` intervals neither of which contains the other
 /// (e.g. `[1,4]` vs `[2,5]`) are incomparable, returning `None`.
+///
+/// # Consistency with `PartialEq` / `Eq`
+///
+/// `std::cmp::PartialOrd` requires `partial_cmp(a, b) ==
+/// Some(Equal) ⟺ a == b`. The two relations on `Interval<A>`
+/// are intentionally different (containment vs structural), but
+/// they agree at equality:
+///
+/// - `Empty.partial_cmp(&Empty) == Some(Equal)` and `Empty == Empty`. ✓
+/// - `Closed { lo: l₁, hi: h₁ }.partial_cmp(&Closed { lo: l₂, hi: h₂ })
+///   == Some(Equal)` iff `(i₁ ⊆ i₂) ∧ (i₂ ⊆ i₁)`, which expands to
+///   `(l₂ ≤ l₁ ∧ h₁ ≤ h₂) ∧ (l₁ ≤ l₂ ∧ h₂ ≤ h₁)`. By `PartialOrd`'s
+///   antisymmetry on `A` this gives `l₁ = l₂ ∧ h₁ = h₂`, i.e.
+///   structural equality, i.e. `Closed{l₁,h₁} == Closed{l₂,h₂}`. ✓
+///
+/// So the contract holds: structural eq and mutual containment
+/// coincide on every variant pair.
 impl<A: PartialOrd> PartialOrd for Interval<A> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
