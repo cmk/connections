@@ -111,16 +111,25 @@
 //! assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
 //! ```
 //!
-//! - [`interval`](crate::interval) — bracket equipoise at the midpoint
-//! - [`midpoint`](crate::midpoint) — π's distance from the f32 bracket centre
+//! - [`interval`](crate::interval) — bracket of `x` as an
+//!   [`Interval<A>`](crate::Interval) (closed cell `[lo, hi] ⊆ A`
+//!   sharing `x`'s B-projection; `Interval::Empty` for NaN-bearing
+//!   inputs)
 //! - [`truncate`](crate::truncate),
 //!   [`truncate1`](crate::truncate1),
 //!   [`truncate2`](crate::truncate2) — round-toward-zero through the triple
 //! - [`round`](crate::round) — round-to-nearest f32 of true π
+//!   (ties broken toward zero)
 //! - [`round1`](crate::round1) — Newton step on `sin` near π
 //! - [`round2`](crate::round2) — catastrophic-cancellation recovery
 //! - [`median`](crate::median) — Birkhoff median (i32 ordered lattice
 //!   + N5 lattice with NaN, both at the function's doctest)
+//!
+//! Principal-filter / principal-ideal predicates live as inherent
+//! methods on the one-sided views: [`Conn::filter_l`](crate::conn::Conn::filter_l)
+//! on `Conn<_, _, L>` (upward-closed: `ceil(a) ≤ b`),
+//! [`Conn::filter_r`](crate::conn::Conn::filter_r) on `Conn<_, _, R>`
+//! (downward-closed: `b ≤ floor(a)`).
 //!
 //! ## Composition
 //!
@@ -202,7 +211,7 @@ pub use interval::Interval;
 // rather than silent misbehavior — but prefer named imports
 // (`use connections::{round, truncate};`) over globs to make the
 // origin explicit.
-pub use conn::{interval, median, midpoint, round, round1, round2, truncate, truncate1, truncate2};
+pub use conn::{interval, median, round, round1, round2, truncate, truncate1, truncate2};
 
 // Capability traits — re-export so `use connections::*` brings
 // `.ceil()` / `.upper()` / `.floor()` / `.lower()` into scope for

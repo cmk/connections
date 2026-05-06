@@ -231,50 +231,6 @@ where
         .is_some_and(|d| (0..=1).contains(&d))
 }
 
-/// `interval` evaluated at the conn's midpoint resolves to
-/// `Some(Equal)` (or `None` if the source values are NaN-bearing).
-pub fn interval_at_midpoint_eq_or_none<T, A, B>(t: &T, x: A) -> bool
-where
-    T: ConnK<A, B>,
-    A: Copy
-        + PartialOrd
-        + core::ops::Add<Output = A>
-        + core::ops::Sub<Output = A>
-        + core::ops::Div<Output = A>
-        + From<u8>,
-    B: Copy,
-{
-    use core::cmp::Ordering;
-    let mid = crate::conn::midpoint(t, x);
-    matches!(crate::conn::interval(t, mid), None | Some(Ordering::Equal))
-}
-
-/// `midpoint(t, x)` lies between `t.conn_r().lower(t.conn_r().floor(x))`
-/// and `t.conn_l().upper(t.conn_l().ceil(x))` whenever those two are
-/// comparable.
-pub fn midpoint_between<T, A, B>(t: &T, x: A) -> bool
-where
-    T: ConnK<A, B>,
-    A: Copy
-        + PartialOrd
-        + core::ops::Add<Output = A>
-        + core::ops::Sub<Output = A>
-        + core::ops::Div<Output = A>
-        + From<u8>,
-    B: Copy,
-{
-    let r = t.conn_r();
-    let l = t.conn_l();
-    let lo = r.lower(r.floor(x));
-    let hi = l.upper(l.ceil(x));
-    let mid = crate::conn::midpoint(t, x);
-    if lo <= hi {
-        lo <= mid && mid <= hi
-    } else {
-        true
-    }
-}
-
 /// `round(t, x)` is always one of `t.conn_l().ceil(x)` / `t.conn_r().floor(x)`.
 pub fn round_picks_endpoint<T, A, B>(t: &T, x: A) -> bool
 where
