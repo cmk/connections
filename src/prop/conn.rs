@@ -735,6 +735,12 @@ macro_rules! law_battery {
                 }
                 #[test]
                 fn filter_l_upward_closed(a in $f, b1 in $cs, b2 in $cs) {
+                    // Bias toward `b1 ≤ b2` so the implication's
+                    // antecedent isn't false ~half the time. For
+                    // antichain pairs (where `partial_cmp` is None),
+                    // the swap is a no-op and the test still passes
+                    // vacuously, as before.
+                    let (b1, b2) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
                     ::proptest::prop_assert!(
                         $crate::prop::conn::filter_l_upward_closed(
                             &($c).conn_l(), a, b1, b2));
@@ -786,6 +792,12 @@ macro_rules! law_battery {
                 }
                 #[test]
                 fn filter_r_downward_closed(a in $f, b1 in $cs, b2 in $cs) {
+                    // Bias toward `b2 ≤ b1` so the implication's
+                    // antecedent isn't false ~half the time
+                    // (downward-closed wants the larger element
+                    // first). Antichain pairs collapse vacuously
+                    // as before.
+                    let (b1, b2) = if b2 <= b1 { (b1, b2) } else { (b2, b1) };
                     ::proptest::prop_assert!(
                         $crate::prop::conn::filter_r_downward_closed(
                             &($c).conn_r(), a, b1, b2));
