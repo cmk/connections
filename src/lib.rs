@@ -88,7 +88,39 @@
 //!
 //! ---
 //!
-//! # Advanced Usage
+//! # Usage
+//!
+//! ## ConnK
+//!
+//! The two-sided helpers (`ConnK`-bound free fns re-exported at the
+//! crate root) carry the following π-bracket worked-example thread in
+//! their per-fn doctests:
+//!
+//! ```rust
+//! use connections::conn::ConnL;
+//! use connections::float::ExtendedFloat::Extend;
+//! use connections::float::f32::F064F032;
+//!
+//! let pi64 = Extend(std::f64::consts::PI);
+//! // f32's nearest representation of π widened losslessly to f64.
+//! let pi32 = Extend(std::f32::consts::PI as f64);
+//!
+//! // Lossless ≠ precise: the value is still the f32 approximation.
+//! assert_ne!(pi64, pi32);
+//! // upper just widens; for F064F032 that's the f32 → f64 cast.
+//! assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
+//! ```
+//!
+//! - [`interval`](crate::interval) — bracket equipoise at the midpoint
+//! - [`midpoint`](crate::midpoint) — π's distance from the f32 bracket centre
+//! - [`truncate`](crate::truncate),
+//!   [`truncate1`](crate::truncate1),
+//!   [`truncate2`](crate::truncate2) — round-toward-zero through the triple
+//! - [`round`](crate::round) — round-to-nearest f32 of true π
+//! - [`round1`](crate::round1) — Newton step on `sin` near π
+//! - [`round2`](crate::round2) — catastrophic-cancellation recovery
+//! - [`median`](crate::median) — Birkhoff median (i32 ordered lattice
+//!   + N5 lattice with NaN, both at the function's doctest)
 //!
 //! ## Composition
 //!

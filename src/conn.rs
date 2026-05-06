@@ -143,6 +143,25 @@ impl<A, B> Conn<A, B, L> {
 
 impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// Apply the lower adjoint (round-up): `a ↦ f(a)`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::ConnL;
+    /// use connections::float::ExtendedFloat::Extend;
+    /// use connections::float::f32::F064F032;
+    ///
+    /// let pi64 = Extend(std::f64::consts::PI);
+    /// let pi32 = Extend(std::f32::consts::PI as f64);
+    /// let pi32_err = pi32 - pi64;
+    ///
+    /// // The f32 ceiling of π is std::f32::consts::PI itself —
+    /// // π's nearest f32 representation rounds up.
+    /// assert_eq!(F064F032.ceil(pi64), Extend(std::f32::consts::PI));
+    /// // Widening the result back to f64 lands at pi32, which sits
+    /// // exactly pi32_err above true π:
+    /// assert_eq!(F064F032.upper(F064F032.ceil(pi64)) - pi64, pi32_err);
+    /// ```
     #[inline]
     #[must_use]
     pub fn ceil(self, a: A) -> B {
@@ -150,6 +169,27 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     }
 
     /// Apply the upper adjoint (embedding): `b ↦ g(b)`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::ConnL;
+    /// use connections::float::ExtendedFloat::Extend;
+    /// use connections::float::f32::F064F032;
+    ///
+    /// let pi64 = Extend(std::f64::consts::PI);
+    /// // f32's nearest representation of π widened losslessly to f64.
+    /// // Lossless ≠ precise: the value is still the f32 approximation.
+    /// let pi32 = Extend(std::f32::consts::PI as f64);
+    /// // f32's rounding error for π — about +8.74e-8 (f32 rounds π up).
+    /// // The same constant carries through every π-widening doctest below.
+    /// let pi32_err = pi32 - pi64;
+    ///
+    /// // upper just widens; for F064F032 that's the f32 → f64 cast.
+    /// assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
+    /// // Equivalently, "f64 π plus f32's rounding error":
+    /// assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)) - pi64, pi32_err);
+    /// ```
     #[inline]
     #[must_use]
     pub fn upper(self, b: B) -> A {
@@ -179,6 +219,24 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
 
     /// Lift a unary endofunction over `A` into one over `B` through
     /// the L-pair: `b ↦ f(h(g(b)))`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::ConnL;
+    /// use connections::float::ExtendedFloat::Extend;
+    /// use connections::float::f32::F064F032;
+    ///
+    /// // ceil1 / floor1 / truncate1 share this closure shape: `2π − x`
+    /// // in f64-precision lands strictly between two f32 grid points.
+    /// // ceil1 unconditionally narrows up — to std::f32::consts::PI.
+    /// let pi32 = Extend(std::f32::consts::PI);
+    /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
+    /// assert_eq!(
+    ///     F064F032.conn_l().ceil1(probe, pi32),
+    ///     Extend(std::f32::consts::PI),
+    /// );
+    /// ```
     #[inline]
     #[must_use]
     pub fn ceil1<H>(self, h: H, b: B) -> B
@@ -263,6 +321,25 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
 
     /// Lift a unary endofunction over `A` into one over `B` through
     /// the R-pair: `b ↦ f(h(g(b)))`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::ConnR;
+    /// use connections::float::ExtendedFloat::Extend;
+    /// use connections::float::f32::F064F032;
+    ///
+    /// // Same shared probe as ceil1 / truncate1: `2π − x` in f64
+    /// // lands strictly between two f32 grid points. floor1
+    /// // unconditionally narrows down — to one f32 ULP below
+    /// // std::f32::consts::PI.
+    /// let pi32 = Extend(std::f32::consts::PI);
+    /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
+    /// assert_eq!(
+    ///     F064F032.conn_r().floor1(probe, pi32),
+    ///     Extend(3.1415925_f32),
+    /// );
+    /// ```
     #[inline]
     #[must_use]
     pub fn floor1<H>(self, h: H, b: B) -> B
@@ -393,6 +470,23 @@ impl<T, A: Copy, B: Copy> ConnK<A, B> for T where T: ConnL<A, B> + ConnR<A, B> {
 
 /// Compare the two halves of the conn-bracketed interval around `x`
 /// for an adjoint triple `T`.
+///
+/// # Examples
+///
+/// ```rust
+/// use core::cmp::Ordering;
+/// use connections::conn::{interval, midpoint};
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // The bracket midpoint is, by construction, the equipoise: at
+/// // that point neither f32 endpoint is closer.
+/// let pi = Extend(std::f64::consts::PI);
+/// assert_eq!(
+///     interval(&F064F032, midpoint(&F064F032, pi)),
+///     Some(Ordering::Equal),
+/// );
+/// ```
 #[inline]
 #[must_use]
 pub fn interval<T, A, B>(t: &T, x: A) -> Option<Ordering>
@@ -407,6 +501,19 @@ where
 }
 
 /// Return the midpoint of the conn-bracketed interval around `x`.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::midpoint;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // π's distance from the centre of its f32 bracket — equivalently,
+/// // the asymmetry of round-to-nearest f32 at π.
+/// let pi = Extend(std::f64::consts::PI);
+/// assert_eq!(pi - midpoint(&F064F032, pi), Extend(3.1786509424591713e-8));
+/// ```
 #[inline]
 #[must_use]
 pub fn midpoint<T, A, B>(t: &T, x: A) -> A
@@ -424,6 +531,19 @@ where
 /// Truncate `x` toward zero through the triple: returns
 /// `t.conn_r().floor(x)` when `x ≥ 0`, otherwise
 /// `t.conn_l().ceil(x)`.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::truncate;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // π > 0 → truncate-toward-zero takes the f32 floor; one f32 ULP
+/// // below std::f32::consts::PI.
+/// let pi = Extend(std::f64::consts::PI);
+/// assert_eq!(truncate(&F064F032, pi), Extend(3.1415925_f32));
+/// ```
 #[inline]
 #[must_use]
 pub fn truncate<T, A, B>(t: &T, x: A) -> B
@@ -449,6 +569,23 @@ where
 /// `g` field and the R-view's `g` field are both the same shared
 /// middle adjoint, so widening through either view yields the same
 /// value. We pick L by convention.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::truncate1;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // truncate1 / floor1 / ceil1 share this closure shape: `2π − x`
+/// // in f64-precision lands strictly between the f32 floor of π
+/// // (3.1415925_f32) and the f32 ceiling (std::f32::consts::PI), so
+/// // the three lifters narrow it to two distinct f32 values.
+/// // truncate-toward-zero of a positive result == floor:
+/// let pi32 = Extend(std::f32::consts::PI);
+/// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
+/// assert_eq!(truncate1(&F064F032, probe, pi32), Extend(3.1415925_f32));
+/// ```
 #[inline]
 #[must_use]
 pub fn truncate1<T, A, B, H>(t: &T, h: H, x: B) -> B
@@ -463,6 +600,22 @@ where
 
 /// Lift a binary function `h: (A, A) → A` through the triple, with
 /// the result truncated toward zero.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::truncate2;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // 2 · std::f32::consts::PI in f64 space, narrowed back to f32.
+/// // 2π32 > 0, so truncate-toward-zero takes the f32 floor.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// assert_eq!(
+///     truncate2(&F064F032, |a, b| a + b, pi32, pi32),
+///     Extend(6.2831855_f32),
+/// );
+/// ```
 #[inline]
 #[must_use]
 pub fn truncate2<T, A, B, H>(t: &T, h: H, x: B, y: B) -> B
@@ -478,6 +631,24 @@ where
 
 /// Round `x` to the nearest representable value across the triple,
 /// with ties broken toward zero.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::{round, ConnL};
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// let pi64 = Extend(std::f64::consts::PI);
+/// let pi32 = Extend(std::f32::consts::PI as f64);
+/// let pi32_err = pi32 - pi64;
+///
+/// // Round-to-nearest f32 of π is std::f32::consts::PI — the f32
+/// // value `(pi as f32)` would also produce.
+/// assert_eq!(round(&F064F032, pi64), Extend(std::f32::consts::PI));
+/// // Widening the result back to f64 lands pi32_err above true π:
+/// assert_eq!(F064F032.upper(round(&F064F032, pi64)) - pi64, pi32_err);
+/// ```
 #[inline]
 #[must_use]
 pub fn round<T, A, B>(t: &T, x: A) -> B
@@ -495,6 +666,24 @@ where
 
 /// Lift a unary function `h: A → A` through the triple, rounded to
 /// nearest with ties toward zero.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::round1;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // One Newton step on sin's zero near π. std::f32::consts::PI is
+/// // ~8.7e-8 above true π; a Newton step `x − tan(x)` in
+/// // f64-precision converges to true π_f64. round1 then picks the
+/// // closer f32 endpoint — std::f32::consts::PI itself.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// assert_eq!(
+///     round1(&F064F032, |a| a - a.tan(), pi32),
+///     Extend(std::f32::consts::PI),
+/// );
+/// ```
 #[inline]
 #[must_use]
 pub fn round1<T, A, B, H>(t: &T, h: H, x: B) -> B
@@ -509,6 +698,26 @@ where
 
 /// Lift a binary function `h: (A, A) → A` through the triple,
 /// rounded to nearest with ties toward zero.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::round2;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::f32::F064F032;
+///
+/// // Catastrophic cancellation example: `(x + y) − x` should be y, but
+/// // at the largest odd-integer f32 (2^24 - 1) the sum already rounds
+/// // away the small operand, and the answer collapses to 1.0 instead
+/// // of 2.0. round2 lifts to f64, computes exactly, narrows once.
+/// let max_odd = Extend(16777215.0_f32);   // = 2^24 - 1
+/// let two = Extend(2.0_f32);
+/// assert_eq!((16777215.0_f32 + 2.0_f32) - 16777215.0_f32, 1.0); // raw f32
+/// assert_eq!(
+///     round2(&F064F032, |a, b| (a + b) - a, max_odd, two),
+///     Extend(2.0_f32),
+/// );
+/// ```
 #[inline]
 #[must_use]
 pub fn round2<T, A, B, H>(t: &T, h: H, x: B, y: B) -> B
@@ -524,6 +733,83 @@ where
 
 /// Birkhoff median over a triple `T: ConnK<(A, A), A>`, using the
 /// triple's L-view ceil as join and R-view floor as meet.
+///
+/// # Examples
+///
+/// On a totally-ordered i32 lattice (`max`/`min`/diag), `median`
+/// reduces to the standard 3-element numeric median:
+///
+/// ```rust
+/// use connections::{conn_k, conn::median};
+///
+/// fn ceil_max(p: (i32, i32)) -> i32 { p.0.max(p.1) }
+/// fn dup(x: i32) -> (i32, i32) { (x, x) }
+/// fn floor_min(p: (i32, i32)) -> i32 { p.0.min(p.1) }
+/// conn_k! {
+///     OrdI32 : (i32, i32) => i32 {
+///         ceil:  ceil_max,
+///         inner: dup,
+///         floor: floor_min,
+///     }
+/// }
+///
+/// fn main() {
+///     assert_eq!(median(&OrdI32, 1, 2, 3), 2);
+/// }
+/// ```
+///
+/// On the partially-ordered N5 lattice over `ExtendedFloat<f32>`, an
+/// incomparable pair (NaN vs finite) escalates `lub` to `Top` and
+/// `glb` to `Bot`; the formula then collapses to the median of the
+/// two finite values:
+///
+/// ```rust
+/// use connections::{conn_k, conn::median};
+/// use connections::float::ExtendedFloat::{self, Bot, Extend, Top};
+/// use core::cmp::Ordering;
+///
+/// fn lub(p: (ExtendedFloat<f32>, ExtendedFloat<f32>)) -> ExtendedFloat<f32> {
+///     match p.0.partial_cmp(&p.1) {
+///         Some(Ordering::Less | Ordering::Equal) => p.1,
+///         Some(Ordering::Greater) => p.0,
+///         None => Top,
+///     }
+/// }
+/// fn glb(p: (ExtendedFloat<f32>, ExtendedFloat<f32>)) -> ExtendedFloat<f32> {
+///     match p.0.partial_cmp(&p.1) {
+///         Some(Ordering::Less | Ordering::Equal) => p.0,
+///         Some(Ordering::Greater) => p.1,
+///         None => Bot,
+///     }
+/// }
+/// fn diag(x: ExtendedFloat<f32>) -> (ExtendedFloat<f32>, ExtendedFloat<f32>) {
+///     (x, x)
+/// }
+/// conn_k! {
+///     N5Float : (ExtendedFloat<f32>, ExtendedFloat<f32>) => ExtendedFloat<f32> {
+///         ceil:  lub,
+///         inner: diag,
+///         floor: glb,
+///     }
+/// }
+///
+/// fn main() {
+///     let nan = Extend(0.0_f32 / 0.0_f32);
+///
+///     // All finite — matches the standard numeric median.
+///     assert_eq!(
+///         median(&N5Float, Extend(1.0_f32), Extend(9.0_f32), Extend(7.0_f32)),
+///         Extend(7.0_f32),
+///     );
+///
+///     // NaN argument: incomparable, so the formula collapses to the
+///     // median of the two finite values.
+///     assert_eq!(
+///         median(&N5Float, Extend(1.0_f32), Extend(9.0_f32), nan),
+///         Extend(9.0_f32),
+///     );
+/// }
+/// ```
 #[inline]
 #[must_use]
 pub fn median<T, A>(t: &T, x: A, y: A, z: A) -> A
@@ -589,8 +875,15 @@ macro_rules! compose_r {
 /// spell the side explicitly. Error spans may point at this
 /// forwarder rather than [`compose_l!`](crate::compose_l) directly.
 ///
-/// ```ignore
-/// const FOO: Conn<A, C> = compose!(BAR_AB, BAZ_BC);
+/// # Examples
+///
+/// ```rust,no_run
+/// use connections::compose;
+/// use connections::conn::Conn;
+///
+/// // Three-step compose: id ∘ id ∘ id = id (any Conn type works).
+/// const ID_I32: Conn<i32, i32> = Conn::identity();
+/// const COMPOSED: Conn<i32, i32> = compose!(ID_I32, ID_I32, ID_I32);
 /// ```
 #[macro_export]
 macro_rules! compose {
