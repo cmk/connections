@@ -595,11 +595,13 @@ where
 {
     let lo = t.conn_r().lower1(|b| b, x);
     let hi = t.conn_l().upper1(|b| b, x);
-    // `lo ≤ x ≤ hi` plus `PartialOrd` transitivity gives `lo ≤ hi`,
-    // so the `Closed` postcondition is sound. Skipping the
-    // `Interval::new` preorder-check to avoid a redundant `partial_cmp`.
+    // Route through `Interval::new` defensively: a contract-broken
+    // `PartialOrd` (non-transitive) could in principle satisfy
+    // `lo ≤ x ∧ x ≤ hi` while `lo > hi`. The extra `partial_cmp`
+    // is cheap and keeps `Interval::Closed`'s `lo ≤ hi` invariant
+    // intact regardless of caller PartialOrd hygiene.
     if lo <= x && x <= hi {
-        Interval::Closed { lo, hi }
+        Interval::new(lo, hi)
     } else {
         Interval::Empty
     }
