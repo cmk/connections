@@ -132,3 +132,63 @@ Fixed — same integer-arithmetic switch as MR !63's hd_min_secs/hd_max_secs fix
 #### ↳ cmk (2026-05-07 01:14 UTC) [open]
 
 Deferred — accepted as a follow-up. The recomputation is a few-nanosecond hifitime call against the compile-time-baked LatestLeapSeconds table, not a hot-loop concern. If profiling later shows the EUTCF064 ceil path matters, hoisting to a LazyLock is straightforward.
+
+<!-- glab-id: 3322349398 -->
+<!-- glab-discussion: ad27e2aa904755385e3709519a21fa367951d08b -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:246` (2026-05-07 01:23 UTC) [open]
+
+**[must-fix]** The `etaif064_ceil` bounds check uses `HD::MAX.to_seconds()` and `HD::MIN.to_seconds()` — the same f64-cast path that was already identified as incorrect in Sprint 1 and fixed in `hd_min_secs`/`hd_max_secs` (see `src/hifi/duration.rs` and MR !63 review). `HD::MAX.to_seconds()` is a large f64 value (~`±1.03×10¹⁴` s) that is outside f64's exact-integer range (`2⁵³ ≈ 9×10¹⁵`), so the cast may round and produce an off-by-one boundary, allowing `v` values that map outside HD's range to slip through the `> max_secs` check. Use `(HD::MAX.total_nanoseconds() / 1_000_000_000) as i64 as f64` (or a helper) consistent with the integer-arithmetic fix already applied elsewhere.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322349418 -->
+<!-- glab-discussion: fff8127d627da08c7090319d0a741d419fd6a338 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:305` (2026-05-07 01:23 UTC) [open]
+
+**[must-fix]** Same f64-bounds issue in `eutcf064_ceil`: `unix_max_secs` and `unix_min_secs` are derived by calling `epoch_to_unix_f64(Epoch::from_tai_duration(HD::MAX/MIN))`, which goes through `to_unix_seconds()` — a floating-point path at magnitudes (~`±1.03×10¹⁴` s) well beyond f64's exact-integer range. If the f64 result rounds in the wrong direction, the guard `v > unix_max_secs` can silently miss out-of-range inputs, breaking the saturation contract. Derive the bounds via integer nanosecond arithmetic (paralleling `unix_max_nanos`/`unix_min_nanos`) and convert to seconds after, or reuse the nanosecond bounds with a nanosecond-unit comparison.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322349445 -->
+<!-- glab-discussion: 4b463c5a35647a00c9db42174199946748b1d602 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/prop/arb.rs:1238` (2026-05-07 01:23 UTC) [open]
+
+**[must-fix]** The `arb_hifi_unix_nanos_in_range` strategy includes a hardcoded `Just(2_147_483_648_000_000_000_i128)` Y2038 value, but the Y2038 timestamp is approximately `2.15×10¹⁸` ns past the UNIX epoch while `unix_max_nanos()` is `HD::MAX.total_ns() - unix_ref_utc_ns()` which is roughly `HD::MAX.total_ns() ≈ 9.2×10²³` ns — so the hardcoded value is well inside the range and that is fine. However, the lower bound `min_n = HD::MIN.total_nanoseconds()` is a large negative value (~`-9.2×10²³`), while the `unix_min_nanos()` function in `epoch.rs` also returns `hd_min_nanos()` (unshifted). The asymmetry is intentional and documented, but `eutcnano_ceil` for a `Finite` epoch whose stored UTC duration is between `HD::MIN` and `HD::MIN + unix_ref_utc_ns()` will return a value in `[hd_min_nanos(), hd_min_nanos() + unix_ref_utc_ns())` — these are valid `ceil` outputs but `inner` maps them back to `NegInf` (since they are `< unix_min_nanos() = hd_min_nanos()`... wait, they equal `hd_min_nanos()` which IS `unix_min_nanos()`). On re-examination: `inner` accepts `n >= unix_min_nanos() = hd_min_nanos()`, so the round-trip proptest will exercise `n = hd_min_nanos()` correctly. No bug here — withdraw this finding.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322349461 -->
+<!-- glab-discussion: 10f86de643601ecbe5ad95435012928260d6e330 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:87` (2026-05-07 01:23 UTC) [open]
+
+**[follow-up]** The EUTCNANO doc comment states `unix_min = HD::MIN.total_ns()` (unshifted lower bound), but a `Finite` epoch whose stored UTC duration is in `[HD::MIN, HD::MIN + unix_ref_utc_ns())` will have `ceil` return a value in that interval, which `inner` then maps back to `NegInf` (since `inner` uses the same `unix_min_nanos() = hd_min_nanos()` threshold). This means epochs very close to `HD::MIN` in UTC space do not round-trip through `ceil ∘ inner ∘ ceil` — `inner(ceil(e))` saturates to `NegInf` for those `e`. The `galois_l` proptest will catch this if `arb_extended_hifi_epoch` ever generates such an epoch, but `arb_hifi_epoch` only produces TAI-scale epochs so the problematic UTC-duration values may never be hit. Document the boundary exclusion explicitly or tighten `unix_min_nanos()` to exclude the problematic zone.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322399696 -->
+<!-- glab-discussion: ad27e2aa904755385e3709519a21fa367951d08b -->
+#### ↳ cmk (2026-05-07 02:03 UTC) [open]
+
+Fixed — `max_secs` / `min_secs` in `etaif064_ceil` now derive from new `hd_max_secs_f64` / `hd_min_secs_f64` helpers that do `total_nanoseconds() / 1_000_000_000` in i128 first (lands at ±10¹⁴, exact in f64) before the `as f64` cast. Same fix shape as MR !63's `hd_min_secs` migration.
+
+<!-- glab-id: 3322400026 -->
+<!-- glab-discussion: fff8127d627da08c7090319d0a741d419fd6a338 -->
+#### ↳ cmk (2026-05-07 02:03 UTC) [open]
+
+Fixed — `unix_max_secs` / `unix_min_secs` in `eutcf064_ceil` now derive from new `unix_max_secs_f64` / `unix_min_secs_f64` helpers that work from the existing i128 `unix_{max,min}_nanos()`, then divide and cast. The old `epoch_to_unix_f64(Epoch::from_tai_duration(HD::MAX))` path was doubly lossy — f64 cast of a ±10²³ value plus a UTC-conversion round-trip on top.
+
+<!-- glab-id: 3322400324 -->
+<!-- glab-discussion: 4b463c5a35647a00c9db42174199946748b1d602 -->
+#### ↳ cmk (2026-05-07 02:03 UTC) [open]
+
+Acknowledged — no action needed. The asymmetric `unix_min_nanos = hd_min_nanos` boundary is intentional and the `inner` check is `n < min_n` (not `<=`), so `n == hd_min_nanos` correctly maps to the Finite branch.
+
+<!-- glab-id: 3322400545 -->
+<!-- glab-discussion: 10f86de643601ecbe5ad95435012928260d6e330 -->
+#### ↳ cmk (2026-05-07 02:04 UTC) [open]
+
+Push-back — the "maps back to NegInf" claim is incorrect. `eutcnano_inner` uses `if n < min_n`, not `<=`, so `n == hd_min_nanos()` (the saturated `ceil` output) falls through to the Finite branch. Trace for `e = Epoch::from_tai_duration(HD::MIN)` (which `arb_hifi_epoch` already exercises via an explicit `Just`): `ceil(e) = (HD::MIN - UNIX_REF.utc).total_ns()` saturates to `hd_min_nanos()`; then `inner(hd_min_nanos())` computes `utc_total_ns = hd_min_nanos() + unix_ref_utc_ns()`, constructs a valid HD, and returns `Finite(epoch_X)` where `epoch_X.utc_dur = HD::MIN + UNIX_REF.utc`. Closure law `e ≤ inner(ceil(e))` holds because `epoch_X` is a *later* instant than `e` in TAI ordering. All proptests pass for this scenario.

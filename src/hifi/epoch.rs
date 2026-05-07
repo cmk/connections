@@ -86,6 +86,34 @@ fn unix_max_nanos() -> i128 {
     hd_max_nanos() - unix_ref_utc_ns()
 }
 
+// Float-bounds helpers for the F064 bridges. The naive
+// `HD::MAX.to_seconds()` route f64-casts a value at `±10²³`
+// magnitude — far past `f64`'s exact-integer range
+// (`2⁵³ ≈ 9 × 10¹⁵`) — and produces an off-by-(seconds) boundary
+// value. Doing the integer division **first** lands the result
+// at `±10¹⁴`, well inside the exact-integer range, so the trailing
+// `as f64` cast is exact. (MR !64 round-2 review.)
+
+#[inline]
+fn hd_min_secs_f64() -> f64 {
+    (hd_min_nanos() / 1_000_000_000) as f64
+}
+
+#[inline]
+fn hd_max_secs_f64() -> f64 {
+    (hd_max_nanos() / 1_000_000_000) as f64
+}
+
+#[inline]
+fn unix_min_secs_f64() -> f64 {
+    (unix_min_nanos() / 1_000_000_000) as f64
+}
+
+#[inline]
+fn unix_max_secs_f64() -> f64 {
+    (unix_max_nanos() / 1_000_000_000) as f64
+}
+
 // ── ETAIHDUR ─────────────────────────────────────────────────────
 
 #[inline]
@@ -230,8 +258,13 @@ fn etaif064_ceil(x: F064) -> Extended<Epoch> {
     if v == f64::NEG_INFINITY {
         return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
     }
-    let max_secs = HD::MAX.to_seconds();
-    let min_secs = HD::MIN.to_seconds();
+    // Bounds via integer arithmetic (`hd_{min,max}_secs_f64` —
+    // see helpers); going through `HD::MAX.to_seconds()` directly
+    // would f64-cast a `±10²³`-magnitude value past the exact-
+    // integer range and could miss out-of-range inputs by the
+    // boundary rounding error. (MR !64 round-2 review.)
+    let max_secs = hd_max_secs_f64();
+    let min_secs = hd_min_secs_f64();
     if v > max_secs {
         return Extended::PosInf;
     }
@@ -457,10 +490,14 @@ fn eutcf064_ceil(x: F064) -> Extended<Epoch> {
     if v == f64::NEG_INFINITY {
         return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
     }
-    // UTC-anchored bounds: HD::MAX/MIN translated to unix-seconds
-    // space via UNIX_REF_EPOCH.
-    let unix_max_secs = epoch_to_unix_f64(Epoch::from_tai_duration(HD::MAX));
-    let unix_min_secs = epoch_to_unix_f64(Epoch::from_tai_duration(HD::MIN));
+    // UNIX-anchored bounds via integer arithmetic
+    // (`unix_{min,max}_secs_f64`); going through
+    // `epoch_to_unix_f64(Epoch::from_tai_duration(HD::MAX))` would
+    // f64-cast through `to_unix_seconds` at `±10²³` magnitude past
+    // f64's exact-integer range and could miss out-of-range inputs.
+    // (MR !64 round-2 review.)
+    let unix_max_secs = unix_max_secs_f64();
+    let unix_min_secs = unix_min_secs_f64();
     if v > unix_max_secs {
         return Extended::PosInf;
     }
