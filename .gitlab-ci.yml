@@ -278,8 +278,10 @@ kani:
   script:
     # Full proof tree. Per-harness times are sub-second to a few
     # seconds; the whole tree finishes in well under two minutes
-    # once Kani is installed.
-    - cargo kani
+    # once Kani is installed. The hifi-feature harnesses
+    # (`hifi_walk`, `hifi_pure`) gate behind `--features hifi`;
+    # we pass it here so CI exercises the full surface in one job.
+    - cargo kani --features hifi
   allow_failure: true
   retry:
     max: 1

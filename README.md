@@ -357,11 +357,27 @@ non-widening saturating (`uint_int_sat!`), NonZero-bridge
 The `nz_int_ext!` harnesses additionally prove the closures'
 `<NonZero<_>>::new(_).unwrap()` calls cannot panic.
 
-Out of scope for now: time and address Conns (would require Kani to
-symbolically execute external crate internals), full Galois laws on
-float Conns over the unrestricted IEEE bit space (intractable for
-CBMC's FP theory; `src/kani_proofs/float_weaker.rs` covers the
-productive finite-domain subset), and composed-Conn lattice axioms.
+Plan 43 extends the proof tree to the **time** and **hifi** domains.
+The float-bridging Conns there reuse the same `def_walk_helpers!`
+machinery as `F064F032`, walking on a 1 ns rung in
+`time::Duration` / `std::time::Duration` / `hifitime::Duration` /
+`hifitime::Epoch`; the `≤ 2 ULP iterations` claim is now a Kani
+theorem on **seven** walks (`f64`/`f32` over `time::Duration` and
+`std::time::Duration`, `f64`/`f32` over `hifitime::Duration`, and
+`f64` over `Epoch` in TAI scale) over the full non-fast-path
+finite-non-NaN domain. Pure-arithmetic Conns whose closures don't
+call into calendar / leap-second tables — `TIMENANO`, `TIMESECS`,
+`DURNSECS`, `STDRU064`, `STDRU128`, `HDURNANO`, `HDURSECS`,
+`ETAINANO`, and the `ETAIHDUR` iso — pick up the standard
+Galois-law battery.
+
+Still out of scope: address Conns, full Galois laws on float Conns
+over the unrestricted IEEE bit space (intractable for CBMC's FP
+theory; `src/kani_proofs/float_weaker.rs` covers the productive
+finite-domain subset), `Date` / `OffsetDateTime` / UTC-scale
+hifi Conns whose closures consult leap-second / calendar tables
+(`DATEJDAY`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`, `EUTCNANO`,
+`EUTCHDUR`, `EUTCF064`), and composed-Conn lattice axioms.
 
 Run with:
 

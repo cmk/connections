@@ -812,6 +812,60 @@ crate::conn_l! {
     }
 }
 
+// ── Proof-only walk-step probes ─────────────────────────────────────
+//
+// Mirror the production `f???{durn,stdr}_ceil` walk-entry but return
+// `(z, steps)` from each walk helper instead of dropping `_steps`.
+// Used by the Kani harnesses in `crate::kani_proofs::time_walk` to
+// prove the iteration bound is ≤ 2 over the full non-fast-path
+// finite domain. The shims deliberately omit the production
+// fast-path checks (NaN / out-of-range / ±∞ / `<= min_secs`); the
+// harness applies the matching `kani::assume`s.
+
+#[cfg(kani)]
+pub(crate) fn f64_durn_ceil_walk_steps_for_proof(v: f64) -> (Duration, u32) {
+    let est = Duration::saturating_seconds_f64(v);
+    let est_widen = est.as_seconds_f64();
+    if est_widen >= v {
+        f64_durn_walks::descend_to_ceil(est, v)
+    } else {
+        f64_durn_walks::ascend_to_ceil(est, v)
+    }
+}
+
+#[cfg(kani)]
+pub(crate) fn f32_durn_ceil_walk_steps_for_proof(v: f32) -> (Duration, u32) {
+    let est = Duration::saturating_seconds_f32(v);
+    let est_widen = est.as_seconds_f32();
+    if est_widen >= v {
+        f32_durn_walks::descend_to_ceil(est, v)
+    } else {
+        f32_durn_walks::ascend_to_ceil(est, v)
+    }
+}
+
+#[cfg(kani)]
+pub(crate) fn f64_stdr_ceil_walk_steps_for_proof(v: f64) -> (StdDuration, u32) {
+    let est = StdDuration::from_secs_f64(v);
+    let est_widen = est.as_secs_f64();
+    if est_widen >= v {
+        f64_stdr_walks::descend_to_ceil(est, v)
+    } else {
+        f64_stdr_walks::ascend_to_ceil(est, v)
+    }
+}
+
+#[cfg(kani)]
+pub(crate) fn f32_stdr_ceil_walk_steps_for_proof(v: f32) -> (StdDuration, u32) {
+    let est = StdDuration::from_secs_f32(v);
+    let est_widen = est.as_secs_f32();
+    if est_widen >= v {
+        f32_stdr_walks::descend_to_ceil(est, v)
+    } else {
+        f32_stdr_walks::ascend_to_ceil(est, v)
+    }
+}
+
 #[cfg(test)]
 mod float_durn_tests {
     use super::*;

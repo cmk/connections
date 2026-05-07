@@ -467,6 +467,37 @@ crate::conn_l! {
     }
 }
 
+// ── Proof-only walk-step probes ─────────────────────────────────────
+//
+// Mirror the production `f???hdur_ceil` walk-entry but return
+// `(z, steps)` from each walk helper instead of dropping `_steps`.
+// Used by `crate::kani_proofs::hifi_walk` to prove the iteration
+// bound is ≤ 2 over the non-fast-path finite domain. Fast-paths
+// (NaN, out-of-range, ±∞, `<= min_secs`) are deliberately omitted;
+// the harness applies matching `kani::assume`s.
+
+#[cfg(kani)]
+pub(crate) fn f64_hdur_ceil_walk_steps_for_proof(v: f64) -> (HD, u32) {
+    let est = HD::from_seconds(v);
+    let est_widen = est.to_seconds();
+    if est_widen >= v {
+        f64_hdur_walks::descend_to_ceil(est, v)
+    } else {
+        f64_hdur_walks::ascend_to_ceil(est, v)
+    }
+}
+
+#[cfg(kani)]
+pub(crate) fn f32_hdur_ceil_walk_steps_for_proof(v: f32) -> (HD, u32) {
+    let est = HD::from_seconds(v as f64);
+    let est_widen = est.to_seconds() as f32;
+    if est_widen >= v {
+        f32_hdur_walks::descend_to_ceil(est, v)
+    } else {
+        f32_hdur_walks::ascend_to_ceil(est, v)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

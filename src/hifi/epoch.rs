@@ -340,6 +340,27 @@ crate::conn_l! {
     }
 }
 
+// ── Proof-only walk-step probe (TAI scale) ──────────────────────
+//
+// Mirrors the production `etaif064_ceil` walk-entry but returns
+// `(z, steps)` instead of dropping `_steps`. Used by
+// `crate::kani_proofs::hifi_walk` to prove the iteration bound is
+// ≤ 2 over the non-fast-path finite domain. The `EUTC` walk is
+// deferred — its widen (`Epoch::to_unix_seconds`) consults the
+// leap-second table, which makes the loop's per-iteration cost
+// intractable for CBMC.
+
+#[cfg(kani)]
+pub(crate) fn f64_etai_ceil_walk_steps_for_proof(v: f64) -> (Epoch, u32) {
+    let est = Epoch::from_tai_seconds(v);
+    let est_widen = est.to_tai_seconds();
+    if est_widen >= v {
+        f64_etai_walks::descend_to_ceil(est, v)
+    } else {
+        f64_etai_walks::ascend_to_ceil(est, v)
+    }
+}
+
 // ── EUTCHDUR ─────────────────────────────────────────────────────
 
 #[inline]

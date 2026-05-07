@@ -40,6 +40,10 @@
 //! | [`iso_family`]         | [`crate::iso!`] (lossless cross-crate iso)            |
 //! | [`float_walk`]         | F064F032 ULP-walk iteration upper bound               |
 //! | [`float_weaker`]       | F064F032 finite-domain weaker properties              |
+//! | [`time_walk`]          | float→Duration walk-step ≤ 2 (Plan 43)                |
+//! | [`time_pure`]          | TIMENANO / TIMESECS / DURNSECS / STDRU064 / STDRU128 (Plan 43) |
+//! | [`hifi_walk`]          | float→hifi-Duration / TAI-Epoch walk-step ≤ 2 (Plan 43) |
+//! | [`hifi_pure`]          | HDURNANO / HDURSECS / ETAINANO / ETAIHDUR (Plan 43)   |
 //!
 //! [Kani]: https://model-checking.github.io/kani/
 
@@ -50,9 +54,15 @@ mod fix_fix_signed;
 mod fix_fix_unsigned;
 mod float_walk;
 mod float_weaker;
+#[cfg(feature = "hifi")]
+mod hifi_pure;
+#[cfg(feature = "hifi")]
+mod hifi_walk;
 mod int_narrow;
 mod iso_family;
 mod nz_ext;
+mod time_pure;
+mod time_walk;
 mod uint_narrow;
 mod uint_sat;
 mod uint_widen;
