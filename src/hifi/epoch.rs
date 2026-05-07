@@ -435,6 +435,20 @@ crate::conn_l! {
     /// UNIX_REF.utc` would overflow `HD` beyond it). Sub-second
     /// `Epoch` values round-trip exactly within that range.
     ///
+    /// **Non-identity zone.** Epochs whose stored UTC duration falls
+    /// in `[HD::MIN, HD::MIN + UNIX_REF.utc.total_ns())` (a ~70-year
+    /// window at the negative HD extreme) are NOT preserved by
+    /// `inner ∘ ceil`. The `ceil` subtraction saturates against
+    /// `HD::MIN`, collapsing the entire window onto `unix_min_nanos`;
+    /// `inner` then maps that single value to a single epoch at UTC
+    /// `= HD::MIN + UNIX_REF.utc`. Closure (`a ≤ inner(ceil(a))`) and
+    /// Galois L still hold — the round-tripped epoch is a *later*
+    /// instant than every input in the window — but the round-trip is
+    /// non-injective there. The tradeoff is intrinsic to the
+    /// asymmetric design and matches the fact that the EUTCF064 walk
+    /// at the same magnitude also collapses to `Finite(HD::MIN_TAI
+    /// epoch)` via inner-side HD-subtraction saturation.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -758,10 +772,14 @@ mod tests {
 
     #[test]
     fn etaif064_min_secs_fast_path() {
-        // F064DURN regression-guard analog: at v == HD::MIN.to_seconds()
-        // the f64 plateau is wide enough that the walk would take
-        // ~10¹² steps. The `<=` boundary check fast-paths to MIN.
-        let v_min = ExtendedFloat::Extend(HD::MIN.to_seconds());
+        // F064DURN regression-guard analog: at the integer-derived
+        // `min_secs` the f64 plateau is wide enough that the walk
+        // would take ~10¹² steps; the `<=` boundary check fast-paths
+        // to MIN. Uses `hd_min_secs_f64()` (matches the implementation's
+        // threshold) rather than `HD::MIN.to_seconds()` whose `±10²³`-
+        // magnitude f64 cast could disagree by ULPs. (MR !63 round-3
+        // shape, carried into MR !64.)
+        let v_min = ExtendedFloat::Extend(hd_min_secs_f64());
         assert_eq!(
             ETAIF064.ceil(v_min),
             Extended::Finite(Epoch::from_tai_duration(HD::MIN)),

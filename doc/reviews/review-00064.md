@@ -192,3 +192,41 @@ Acknowledged — no action needed. The asymmetric `unix_min_nanos = hd_min_nanos
 #### ↳ cmk (2026-05-07 02:04 UTC) [open]
 
 Push-back — the "maps back to NegInf" claim is incorrect. `eutcnano_inner` uses `if n < min_n`, not `<=`, so `n == hd_min_nanos()` (the saturated `ceil` output) falls through to the Finite branch. Trace for `e = Epoch::from_tai_duration(HD::MIN)` (which `arb_hifi_epoch` already exercises via an explicit `Just`): `ceil(e) = (HD::MIN - UNIX_REF.utc).total_ns()` saturates to `hd_min_nanos()`; then `inner(hd_min_nanos())` computes `utc_total_ns = hd_min_nanos() + unix_ref_utc_ns()`, constructs a valid HD, and returns `Finite(epoch_X)` where `epoch_X.utc_dur = HD::MIN + UNIX_REF.utc`. Closure law `e ≤ inner(ceil(e))` holds because `epoch_X` is a *later* instant than `e` in TAI ordering. All proptests pass for this scenario.
+
+<!-- glab-id: 3322410140 -->
+<!-- glab-discussion: 12644a7478b87c9119da226a13f0a8ce763b164b -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:302` (2026-05-07 02:10 UTC) [open]
+
+**[must-fix]** The `eutcf064_ceil` fast-path for `v <= unix_min_secs` returns `Finite(Epoch::from_tai_duration(HD::MIN))`, but `unix_min_secs_f64()` is derived from `unix_min_nanos() / 1_000_000_000 = hd_min_nanos() / 1_000_000_000` — which is the same as `hd_min_secs_f64()`. So `eutcf064_ceil` and `etaif064_ceil` share the same lower-bound fast-path value and return the same epoch for `v <= unix_min_secs`. That is wrong: the UNIX-anchored lower bound in seconds is `hd_min_secs_f64() - unix_ref_utc_secs`, which is a much smaller (more negative) number than `hd_min_secs_f64()`. Any finite f64 in `(unix_min_secs_f64(), hd_min_secs_f64()]` (a ~70-year wide interval in seconds) will be fast-pathed to `HD::MIN` instead of walking to the correct epoch, producing a silent ~70-year error in the saturation boundary.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322410165 -->
+<!-- glab-discussion: a07e8729ca9ea04e29397db9e8a835635429f873 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:87` (2026-05-07 02:10 UTC) [open]
+
+**[follow-up]** The `EUTCNANO` doc comment states `unix_min = HD::MIN.total_ns()` (unshifted lower bound) but does not explain what happens to `Finite` epochs whose stored UTC duration lies in `[HD::MIN, HD::MIN + unix_ref_utc_ns())`. For such epochs `ceil` returns a value in that interval; `inner` accepts it (threshold is `< min_n`, not `<=`), constructs `utc_total_ns = n + unix_ref_utc_ns()` which is in `[HD::MIN + unix_ref_utc_ns(), HD::MIN + 2*unix_ref_utc_ns())`, and produces a later epoch — so closure holds but the round-tripped epoch is different from the input. The proptest `arb_extended_hifi_epoch` only produces TAI-scale epochs so this zone may never be exercised; add an explicit spot-check or document the non-identity zone.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322472243 -->
+<!-- glab-discussion: 12644a7478b87c9119da226a13f0a8ce763b164b -->
+#### ↳ cmk (2026-05-07 02:46 UTC) [open]
+
+Push-back — the fast-path is correct because the inner side's HD-subtraction saturation aligns the plateau boundary with the threshold. Trace for v = `hd_min_secs_f64() - 1e9` (in the bot's "70-year gap"):
+
+- Fast-path returns `Finite(Epoch::from_tai_duration(HD::MIN))`.
+- The walk WITHOUT the fast-path produces the same answer: `est = from_unix_seconds(v)` lands at TAI ≈ `HD::MIN + 70y`, then `to_unix_seconds(est)` returns `hd_min_secs_f64` (because `epoch.utc_dur - UNIX_REF.utc` saturates against `HD::MIN`). The descent walk shifts TAI down by 1ns per step until `shift_hd` saturates at `HD::MIN`. Termination value: `Finite(HD::MIN_TAI epoch)`.
+- Galois L: `EUTCF064.upper(Finite(HD::MIN_TAI epoch)) = hd_min_secs_f64`, so `f(v) ≤ Finite(HD::MIN_TAI epoch) ⇔ v ≤ hd_min_secs_f64` — satisfied for any v ≤ `hd_min_secs_f64` (which is exactly the fast-path's trigger).
+
+The "70-year span" of input values that the bot describes does map to a single output epoch, but that's NOT a saturation error — it's the genuine plateau of the inner-side projection, since `to_unix_seconds()` for any epoch with TAI ≤ `HD::MIN + UNIX_REF.utc` collapses to the same f64 value via UTC subtraction underflow. The fast-path correctly returns the smallest valid Finite candidate (HD::MIN_TAI) for the entire plateau. Verified by direct test: `EUTCF064.ceil(hd_min_secs_f64 - 1e9) = Finite(HD::MIN_TAI)` and `EUTCF064.upper(Finite(HD::MIN_TAI)) = hd_min_secs_f64`.
+
+Marked as `## Non-identity zone` in the EUTCNANO doc to make this explicit (carrying the round-3 follow-up there).
+
+<!-- glab-id: 3322472368 -->
+<!-- glab-discussion: a07e8729ca9ea04e29397db9e8a835635429f873 -->
+#### ↳ cmk (2026-05-07 02:47 UTC) [open]
+
+Fixed — added a **Non-identity zone** paragraph to the EUTCNANO doc that spells out exactly the boundary the bot described: epochs in `[HD::MIN, HD::MIN + UNIX_REF.utc.total_ns())` (a ~70-year window at the negative HD extreme) collapse via `ceil` saturation onto `unix_min_nanos`, then `inner` maps that single value to a single epoch at UTC = `HD::MIN + UNIX_REF.utc`. Closure and Galois L still hold, but the round-trip is non-injective there. Same root cause as the EUTCF064 fast-path discussion in the sibling thread (3322410140) — the inner-side HD subtraction is the underlying saturation.
