@@ -15,6 +15,14 @@
 //! `f64_eutc_walks` is **deferred**: its widen consults `hifitime`'s
 //! leap-second table, whose `partition_point` search makes the
 //! per-iteration cost intractable for CBMC.
+//!
+//! `f64_etde_walks` and `f64_etdb_walks` (Sprint 4 / Plan 45) are
+//! also **deferred**: their widens are `to_et_seconds` / `to_tdb_seconds`,
+//! which call `f64::sin` inside iterative loops over the NAIF /
+//! ESA correction algorithms (`hifitime/src/epoch/mod.rs:170-184,306-346`).
+//! CBMC's symex of `f64::sin` exceeds practical solver budgets at
+//! every magnitude tier. Property tests carry the load. ETDT is
+//! pure constant-offset arithmetic and ships normally.
 
 // ── T1 — bounded magnitude ──────────────────────────────────────────
 
@@ -48,6 +56,16 @@ fn t1_f64_etai_walk_steps_le_1() {
     assert!(steps <= 1);
 }
 
+#[kani::proof]
+#[kani::unwind(3)]
+fn t1_f64_etdt_walk_steps_le_1() {
+    let v: f64 = kani::any();
+    kani::assume(v.is_finite() && !v.is_nan());
+    kani::assume(v.abs() <= 1e6_f64);
+    let (_, steps) = crate::hifi::epoch::f64_etdt_ceil_walk_steps_for_proof(v);
+    assert!(steps <= 1);
+}
+
 // ── T2 — single binade ──────────────────────────────────────────────
 
 #[kani::proof]
@@ -74,5 +92,14 @@ fn t2_f64_etai_walk_steps_unit_binade() {
     let v: f64 = kani::any();
     kani::assume(v >= 1.0_f64 && v < 2.0_f64);
     let (_, steps) = crate::hifi::epoch::f64_etai_ceil_walk_steps_for_proof(v);
+    assert!(steps <= 1);
+}
+
+#[kani::proof]
+#[kani::unwind(3)]
+fn t2_f64_etdt_walk_steps_unit_binade() {
+    let v: f64 = kani::any();
+    kani::assume(v >= 1.0_f64 && v < 2.0_f64);
+    let (_, steps) = crate::hifi::epoch::f64_etdt_ceil_walk_steps_for_proof(v);
     assert!(steps <= 1);
 }

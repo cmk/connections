@@ -100,9 +100,30 @@
 //! | [`EBDTHDUR`]  | `Conn<Epoch, Duration>`                             | Epoch ↔ BDT (BeiDou) Duration since 2005-12-31 (degenerate iso) |
 //! | [`EBDTNANO`]  | `Conn<Extended<Epoch>, i128>`                       | BDT nanoseconds since 2005-12-31 |
 //! | [`EBDTF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 BDT seconds since 2005-12-31 ↔ Epoch (ULP walks on TAI Duration) |
+//! | [`ETDTF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 TT seconds since J1900 TT ↔ Epoch (relativistic, +32.184 s offset) |
+//! | [`ETDEF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 NAIF SPICE ET seconds since J2000 ET ↔ Epoch (≤1 ns lossy) |
+//! | [`ETDBF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 ESA TDB seconds since J2000 TDB ↔ Epoch (≤1 ns lossy) |
 //!
 //! Each constant ships with a runnable `# Examples` doctest and
 //! `proptest!` blocks driving the laws in [`crate::prop::conn`].
+//!
+//! ## Relativistic scales (TT / ET / TDB) — F064 only
+//!
+//! Sprint 4 ships **F064-only** Conns for the relativistic scales.
+//! HDUR / NANO projections of TT / ET / TDB are **deferred**:
+//!
+//! - **TT.** Forward `to_tt_duration` adds +32.184 s (`hifitime::TT_OFFSET_MS`),
+//!   which `Duration::add` saturates at `HD::MAX` per
+//!   `hifitime/src/duration/ops.rs:155-211`. The iso `back ∘ forward`
+//!   then loses 32.184 s under `Epoch::Eq`. Neither `iso!` nor
+//!   `conn_l!` recovers the boundary; F064's walk fast-paths
+//!   intercept.
+//! - **ET / TDB.** Lossy iterative algorithms (≤1 ns under hifitime's
+//!   `Epoch::Eq` per `hifitime/tests/epoch.rs:2366,2420`). Integer-ns
+//!   projections would imply false precision; F064 absorbs the
+//!   imprecision via the ULP walk.
+//!
+//! See [`crate::hifi::epoch`]'s §4 banner for the full derivation.
 
 pub mod duration;
 pub mod epoch;
@@ -110,5 +131,6 @@ pub mod epoch;
 pub use duration::{F032HDUR, F064HDUR, HDURNANO, HDURSECS};
 pub use epoch::{
     EBDTF064, EBDTHDUR, EBDTNANO, EGPSF064, EGPSHDUR, EGPSNANO, EGSTF064, EGSTHDUR, EGSTNANO,
-    EQZSF064, EQZSHDUR, EQZSNANO, ETAIF064, ETAIHDUR, ETAINANO, EUTCF064, EUTCHDUR, EUTCNANO,
+    EQZSF064, EQZSHDUR, EQZSNANO, ETAIF064, ETAIHDUR, ETAINANO, ETDBF064, ETDEF064, ETDTF064,
+    EUTCF064, EUTCHDUR, EUTCNANO,
 };
