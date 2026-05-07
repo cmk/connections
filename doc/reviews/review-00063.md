@@ -87,3 +87,33 @@ Fixed — added a comment confirming hifitime 4.3's saturation behavior on `Dura
 #### ↳ cmk (2026-05-07 01:08 UTC) [open]
 
 Fixed — reworded the rounding doc to 'ceiling division (rounds toward +∞), uniform across both signs' with the worked `-5.000_000_001 s → -5` example. The prior 'rounds away from zero' phrasing only held for positive inputs.
+
+<!-- glab-id: 3322342392 -->
+<!-- glab-discussion: fd5a1204fd8718f7d315d5a1806dcab856780665 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/duration.rs:341` (2026-05-07 01:16 UTC) [open]
+
+**[must-fix]** The `hdursecs_synthetic_arms` spot-check computes `max_s` via `HD::MAX.to_seconds() as i64`, the exact f64-cast path that the plan's Review section and the `hd_max_secs` doc both explicitly warn against (f64 can't represent `±1.03 × 10¹⁴` exactly and `HD::MAX` is non-canonical). The implementation functions (`hd_max_secs`) were fixed to use integer arithmetic, but this test still uses the lossy path — so if the boundary is ever off by one, the test won't catch it and may even silently agree with a wrong value.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322342440 -->
+<!-- glab-discussion: 821a80bf4054ff57d77f36e34a9ecc3bfd0de458 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/prop/arb.rs:1060` (2026-05-07 01:16 UTC) [open]
+
+**[follow-up]** The comment says `any::<i128>()` is left unbounded so saturation arms get proportional sampling, but it simultaneously claims the explicit `Just`s above cover interior values. With the i128 range being `~1.6 × 10¹⁵` times larger than the HD range, effectively all draws from this slot collapse to `HD::MIN` or `HD::MAX`, making the 12-weight slot almost entirely redundant with the `1 => Just(HD::MIN)` and `1 => Just(HD::MAX)` slots and providing zero interior coverage beyond the named constants. A bounded range (`HD::MIN.total_nanoseconds()..=HD::MAX.total_nanoseconds()`) with a separate small-weight unbounded slot for the saturation arms would match the stated intent.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322393923 -->
+<!-- glab-discussion: fd5a1204fd8718f7d315d5a1806dcab856780665 -->
+#### ↳ cmk (2026-05-07 01:58 UTC) [open]
+
+Fixed — the test now derives `max_s` via `(HD::MAX.total_nanoseconds() / 1_000_000_000) as i64`, matching the integer-arithmetic path `hd_max_secs` was migrated to. Good catch — the round-1 fix updated the helpers but missed this test fixture, so a boundary drift wouldn't have been caught.
+
+<!-- glab-id: 3322393960 -->
+<!-- glab-discussion: 821a80bf4054ff57d77f36e34a9ecc3bfd0de458 -->
+#### ↳ cmk (2026-05-07 01:58 UTC) [open]
+
+Fixed — split into a weight-11 bounded slot (uniform interior coverage over `[HD::MIN.total_ns(), HD::MAX.total_ns()]`) plus a weight-1 unbounded slot (saturation arms only). The round-1 comment was incorrect: with i128 ~10¹⁵× wider than HD, the unbounded slot collapsed essentially every draw to MIN/MAX, providing zero interior coverage.

@@ -1056,18 +1056,22 @@ mod hifi_dur {
             // ±(MAX-1ns), ±(MIN+1ns)
             1 => Just(HD::from_total_nanoseconds(HD::MAX.total_nanoseconds() - 1)),
             1 => Just(HD::from_total_nanoseconds(HD::MIN.total_nanoseconds() + 1)),
-            // Full-range uniform sample. `Duration::from_total_nanoseconds`
+            // Two slots split per the saturation analysis (MR !63
+            // round-2 review): `Duration::from_total_nanoseconds`
             // (hifitime 4.3, `src/duration/mod.rs:172`) saturates to
             // `Duration::MIN` / `Duration::MAX` when the implied
-            // `centuries` value falls outside `i16`'s range — confirmed
-            // by reading hifitime's source. Drawing from `any::<i128>()`
-            // therefore over-weights the `MIN` / `MAX` boundary by a
-            // factor of `(i128 range) / (HD range) ≈ 1.6 × 10¹⁵`, which
-            // would mask interior failures. The explicit `Just`s above
-            // cover canonical interior values; this slot is left
-            // unbounded so the saturation arms also see proportional
-            // sampling. (MR !63 review follow-up.)
-            12 => any::<i128>().prop_map(HD::from_total_nanoseconds),
+            // `centuries` value falls outside `i16`. The HD range is
+            // `~1.6 × 10¹⁵×` smaller than `i128`, so a single
+            // `any::<i128>()` slot collapses essentially all draws to
+            // the saturation arms (zero interior coverage).
+            //
+            // The bounded slot at weight 11 fills the interior
+            // uniformly across the canonical HD range. The
+            // unbounded slot at weight 1 keeps the saturation arms
+            // exercised at a non-negligible rate.
+            11 => (HD::MIN.total_nanoseconds()..=HD::MAX.total_nanoseconds())
+                .prop_map(HD::from_total_nanoseconds),
+            1 => any::<i128>().prop_map(HD::from_total_nanoseconds),
         ]
     }
 

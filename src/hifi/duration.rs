@@ -564,7 +564,10 @@ mod tests {
 
     #[test]
     fn hdursecs_synthetic_arms() {
-        let max_s = HD::MAX.to_seconds() as i64;
+        // Use the same integer-arithmetic derivation as `hd_max_secs`
+        // — `HD::MAX.to_seconds() as i64` is the lossy f64-cast path
+        // the helper was migrated off of (MR !63 round 1).
+        let max_s = (HD::MAX.total_nanoseconds() / 1_000_000_000) as i64;
         assert_eq!(HDURSECS.ceil(Extended::NegInf), i64::MIN);
         assert_eq!(HDURSECS.ceil(Extended::PosInf), max_s + 1);
         assert_eq!(HDURSECS.upper(i64::MIN), Extended::NegInf);
