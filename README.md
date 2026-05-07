@@ -5,6 +5,11 @@ Read the docs [here](https://cmk.gitlab.io/connections/).
 Galois connections as first-class Rust values. Use them to cast lawfully
 between numeric types, and compose ladders of conversions whose round-trip
 behavior is determined by simple inequalities rather than left to chance.
+The connection laws are not just sampled by proptest — every Galois law
+on every integer / Q-format / NonZero / iso connection is
+**SMT-proven** over the full bit-width domain via
+[Kani](https://model-checking.github.io/kani/) (see
+[Testing → SMT verification](#smt-verification-kani)).
 
 **MSRV: Rust 1.85.** Bumps to the MSRV will be treated as minor-version
 changes — pin `connections = "0.1"` and an MSRV upgrade will surface as
@@ -320,6 +325,56 @@ only on `ConnK` connections whose `inner` is an injective embedding. See
 For float-bearing types, the `≤` is a [N5 lattice](https://en.wikipedia.org/wiki/Distributive_lattice#Characteristic_properties). 
 In particular, NaN is reflexive, NaN sits between ±∞ in the synthetic lattice, 
 and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
+
+## SMT verification (Kani)
+
+Beyond the proptest law suite — which samples — every Galois law on
+every integer / Q-format / NonZero / iso connection is **SMT-proven**
+over the full bit-width domain via
+[Kani](https://model-checking.github.io/kani/). The proof tree lives at
+[`src/kani_proofs/`](https://gitlab.com/cmk/connections/-/tree/main/src/kani_proofs)
+and is gated behind `#[cfg(kani)]` so it compiles only under
+`cargo kani` — release builds, `cargo test`, and downstream consumers
+see no proof code. No new runtime dependency: Kani injects its own
+crate at proof time.
+
+The headline result is on the float side, where the IEEE bit space is
+too large for full-Galois proofs to be tractable: the f64 → f32
+ULP-walk in `src/float/f32.rs` (`ceil_f64_f32` / `floor_f64_f32`) is
+proven to converge in **≤ 2 iterations for every finite non-NaN
+f64**, not just the proptest sample. Three tiered harnesses
+(`float_walk::t0_*` for the full domain, `t1_*` for `|x| ≤ 1e6`,
+`t2_*` for the `[1, 2)` binade) each verify the bound under
+progressively tighter input restrictions.
+
+Coverage as of plan 39 (the introducing sprint): **1154 harnesses
+verified, 0 failures** across the integer-narrowing
+(`int_int_narrow!`, `uint_uint_narrow!`, `int_uint_narrow!`),
+integer-widening (`uint_uint!`, `int_uint!`, `ext_int!`),
+non-widening saturating (`uint_int_sat!`), NonZero-bridge
+(`nz_int_ext!`, `nz_uint_ext!`), Q-format ladder (`fix_fix_iN!` /
+`fix_fix_uN!`), cross-crate iso (`iso!`), and float-walking families.
+The `nz_int_ext!` harnesses additionally prove the closures'
+`<NonZero<_>>::new(_).unwrap()` calls cannot panic.
+
+Out of scope for now: time and address Conns (would require Kani to
+symbolically execute external crate internals), full Galois laws on
+float Conns over the unrestricted IEEE bit space (intractable for
+CBMC's FP theory; `src/kani_proofs/float_weaker.rs` covers the
+productive finite-domain subset), and composed-Conn lattice axioms.
+
+Run with:
+
+```sh
+cargo install --locked kani-verifier
+cargo kani setup
+cargo kani                                   # full proof tree
+cargo kani --harness 'float_walk::t0_'       # the headline
+cargo kani --harness 'int_narrow::'          # one family
+```
+
+Per-harness wall times are in the milliseconds-to-seconds range; the
+full tree runs in well under two minutes.
 
 # Library
 

@@ -220,6 +220,83 @@ claude-review:
     # branch was chosen) is ignored on this path.
     - if: $CLAUDE_REVIEW_MR && $ANTHROPIC_API_KEY && $GITLAB_TOKEN
 
+# Optional SMT verification of Galois-connection laws via Kani
+# (https://model-checking.github.io/kani/). The proof tree at
+# `src/kani_proofs/` is gated on `#[cfg(kani)]` and runs all 1100+
+# `#[kani::proof]` harnesses with CBMC under the hood — every law
+# proven over the full bit-width domain rather than sampled.
+#
+# Cadence: tag-push and scheduled only. The full sweep is fast (well
+# under 2 min once Kani is installed) but `cargo kani setup` downloads
+# ~1 GB of Kani's pinned nightly toolchain on a cold runner. Per-MR
+# is too costly for the marginal value over the local `cargo kani`
+# loop.
+#
+# Advisory: `allow_failure: true`. A Kani regression on a tagged
+# release is informative — surface in the job log; triage via a
+# follow-up MR or an unbump tag — but does not block the release
+# itself. The full pre-merge gate stays on `fmt`, `clippy`, `test`,
+# `deny`, `gitleaks`.
+kani:
+  stage: audit
+  # kani-verifier 0.67+ pulls in `home` 0.5.12+ which requires
+  # rustc ≥ 1.88, so we can't `cargo install` on the project's
+  # 1.85 image. `rust:1.92` is the newest stable available; the
+  # host cargo is only used to fetch kani-verifier (the launcher
+  # binary). `cargo kani setup` then downloads and pins Kani's
+  # own nightly toolchain (currently nightly-2025-11-21), which
+  # is what every `cargo kani` invocation actually runs under —
+  # the project's 1.85 pin is irrelevant inside Kani's harness
+  # compile.
+  image: rust:1.92
+  variables:
+    CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  cache:
+    key:
+      files:
+        - Cargo.lock
+      # Bump this prefix to invalidate the kani-verifier binary
+      # cache (e.g. when bumping to a newer release pinning a
+      # newer Kani backend).
+      prefix: kani-v0.67
+    paths:
+      - .cargo/registry/index/
+      - .cargo/registry/cache/
+      - .cargo/git/db/
+      # Cache the kani / cargo-kani launcher binaries so subsequent
+      # runs skip the ~30s `cargo install`. Kani's actual
+      # ~1 GB nightly toolchain (under ~/.kani/) is *not* cached —
+      # it invalidates with every Kani version bump and the
+      # tag-push cadence here doesn't justify the storage cost.
+      - .cargo/bin/
+  before_script:
+    # Idempotent: cargo install short-circuits if the exact version
+    # is already on $CARGO_HOME/bin/ from the cache. A bump to the
+    # `prefix:` above forces a clean install.
+    - cargo install --locked kani-verifier
+    - cargo kani setup
+  script:
+    # Full proof tree. Per-harness times are sub-second to a few
+    # seconds; the whole tree finishes in well under two minutes
+    # once Kani is installed.
+    - cargo kani
+  allow_failure: true
+  retry:
+    max: 1
+    when:
+      - script_failure
+      - runner_system_failure
+  rules:
+    # Tag-push: every release tag exercises the full proof tree.
+    - if: $CI_COMMIT_TAG
+    # Scheduled pipelines: catches toolchain drift between releases.
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    # Manual re-trigger: `glab ci run --variables KANI_RUN=1` (or
+    # the "Run pipeline" web UI with KANI_RUN set). Useful for
+    # validating a proof-tree change on a feature branch without
+    # waiting for the next tag.
+    - if: $KANI_RUN
+
 # Build rustdoc and publish to GitLab Pages. Runs only on main, after
 # `check` / `test` / `audit` have passed — so a doc warning that
 # slipped past the local pre-commit hook still blocks the deploy via
