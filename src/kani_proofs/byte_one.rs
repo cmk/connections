@@ -97,7 +97,9 @@ mod bool_obyt {
         let a = any_bool();
         let b = any_bool();
         let host_ord = a.cmp(&b);
-        let byte_ord = crate::byte::BOOLOBYT.ceil(a).cmp(&crate::byte::BOOLOBYT.ceil(b));
+        let byte_ord = crate::byte::BOOLOBYT
+            .ceil(a)
+            .cmp(&crate::byte::BOOLOBYT.ceil(b));
         assert!(host_ord == byte_ord);
     }
 }

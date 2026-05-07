@@ -127,7 +127,12 @@ mod tests {
         prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]
     }
     fn arb_byte1() -> impl Strategy<Value = [u8; 1]> {
-        prop_oneof![Just([0u8]), Just([u8::MAX]), Just([0x80u8]), any::<[u8; 1]>()]
+        prop_oneof![
+            Just([0u8]),
+            Just([u8::MAX]),
+            Just([0x80u8]),
+            any::<[u8; 1]>()
+        ]
     }
 
     // ---- u8 -----------------------------------------------------------------
