@@ -1928,13 +1928,16 @@ mod tests {
     fn egps_known_offset_at_interior_epoch() {
         // Pick an interior TAI epoch well past GPST inception
         // (1980-01-06 UTC) and confirm `EGPSHDUR` projects it
-        // through the ±19-leap-second-equivalent integer offset.
-        // `SECONDS_GPS_TAI_OFFSET` is the J1900-TAI seconds at GPST
-        // inception; for any TAI Epoch `e`,
-        // `EGPSHDUR.ceil(e).to_seconds() == e.to_tai_seconds() − offset`.
+        // through the +19-leap-second-equivalent integer offset.
+        // The expected value uses the **literal** offset
+        // `2_524_953_619` (J1900-TAI seconds at GPST inception, per
+        // <https://gssc.esa.int/navipedia/index.php/Time_References_in_GNSS#GPS_Time_.28GPST.29>)
+        // rather than `hifitime::SECONDS_GPS_TAI_OFFSET`, so the
+        // assertion remains independent of the constant the Conn
+        // itself transitively depends on. (MR !66 round-1.)
         let e = Epoch::from_tai_seconds(3_000_000_000.0); // ~rough 1995 TAI
         let gpst_secs = EGPSHDUR.ceil(e).to_seconds();
-        let expected = e.to_tai_seconds() - hifitime::SECONDS_GPS_TAI_OFFSET;
+        let expected = e.to_tai_seconds() - 2_524_953_619.0;
         assert!((gpst_secs - expected).abs() < 1e-6);
     }
 

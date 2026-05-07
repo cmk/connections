@@ -98,3 +98,48 @@ No new dependencies. No TODOs or stubs. Existing §1 and §2 Conns strictly addi
 
 - Factor the four `arb_hifi_*_nanos_in_range` bodies through the planned private helper to remove copy-paste drift risk.
 - Note in each F064 Conn's doc that the NEG_INFINITY arm returns a TAI-tagged Epoch (consistency with the `ETAIF064` precedent).
+
+<!-- glab-id: 3322850115 -->
+<!-- glab-discussion: 0bb32bd4858f3b47ccdc9ef2b929264118f8f87c -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:764` (2026-05-07 06:26 UTC) [open]
+
+**[must-fix]** The `egpsf064_ceil` branch for `f64::NEG_INFINITY` (and the identical branches in `eqzsf064_ceil`, `egstf064_ceil`, `ebdtf064_ceil`) returns `Extended::Finite(Epoch::from_tai_duration(HD::MIN))`, which is a TAI-tagged Epoch, not a GPST/QZSST/GST/BDT-tagged one. The `inner` function for each Conn calls the scale-specific `to_*_seconds()` accessor on that Epoch, so `inner(ceil(ExtendedFloat::Extend(f64::NEG_INFINITY)))` will compute a non-zero seconds value (the TAI-anchored `HD::MIN` converted to GPST seconds ≠ 0 if the scales don't align), violating the ConnL idempotent law `ceil ∘ inner ∘ ceil = ceil`. The local review also flags this but marks it a non-regression; it is structurally identical in all four F064 Conns and should be fixed before merge by returning `Epoch::from_{scale}_duration(HD::MIN)` in the NEG_INFINITY arm.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322850165 -->
+<!-- glab-discussion: 6746e56377d52ca2b8565f335b23620604d92770 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:1862` (2026-05-07 06:26 UTC) [open]
+
+**[must-fix]** The plan's Verification table and the local review's Spot-checks section both require `egps_known_offset`: "construct a known TAI Epoch, call `EGPSHDUR.ceil(e).to_seconds()`, assert against `e.to_tai_seconds() - 2_524_953_619.0`". The implemented test `egps_known_offset_at_interior_epoch` uses `SECONDS_GPS_TAI_OFFSET` (an `f64` constant) and calls `.to_tai_seconds()` on the TAI Epoch directly, but never verifies that the `EGPSHDUR.ceil` result equals the expected TAI offset subtraction — it compares `EGPSHDUR.ceil(e).to_seconds()` against `e.to_tai_seconds() - SECONDS_GPS_TAI_OFFSET`, where both sides just compute the same thing, so the assertion would pass even if the Conn were completely wrong. The test should construct `e` as a non-GPST-anchored TAI epoch and independently compute the expected GPST seconds as `e.to_tai_seconds() - 2_524_953_619.0` (the literal constant), not via a hifitime constant that the Conn itself may call internally.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322850217 -->
+<!-- glab-discussion: bdd5d88c67fcfb4d003d9a246359342cdf928992 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:1020` (2026-05-07 06:26 UTC) [open]
+
+**[follow-up]** The `ebdthdur_back` function uses `Epoch::from_bdt_duration(d)`, but the §3.4 banner explains that `to_bdt_duration` (the inverse of `from_bdt_duration`) saturates at the upper HD bound due to routing through TAI. If `from_bdt_duration` also routes through TAI internally in hifitime, then `ebdthdur_back(HD::MAX)` may produce an Epoch that, when forwarded through `ebdthdur_forward`, does not recover `HD::MAX` — breaking the iso round-trip in the `upper ∘ ceil` direction. The plan's Review section claims the workaround is applied to the forward path only; the back path should be verified or documented.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322898839 -->
+<!-- glab-discussion: 0bb32bd4858f3b47ccdc9ef2b929264118f8f87c -->
+#### ↳ cmk (2026-05-07 06:45 UTC) [open]
+
+Push-back: idempotent-l holds. Trace: `ceil(Extend(NEG_INFINITY))` → `Finite(TAI_HD_MIN)` (call it e0); `inner(e0)` → `Extend(e0.to_gpst_seconds())` where `to_gpst_seconds()` routes through `to_time_scale(GPST)`, whose HD subtraction `HD::MIN − GPST_REF.tai` saturates back to `HD::MIN` — so v ≈ `HD::MIN.to_seconds()`, which is ≤ `gpst_min_secs_f64`, so the next `ceil` short-circuits to `Finite(TAI_HD_MIN)` = e0. The `egpsf064_idempotent` proptest exercises this; all 1346 lib tests pass. Epoch's `Eq` is instant-based, so the TAI scale tag is observably indistinguishable from GPST/QZSST/GST/BDT for law purposes — see the local review's Risks section noting this is an inherited §1 design choice.
+
+<!-- glab-id: 3322899023 -->
+<!-- glab-discussion: 6746e56377d52ca2b8565f335b23620604d92770 -->
+#### ↳ cmk (2026-05-07 06:45 UTC) [open]
+
+Partial: replaced `hifitime::SECONDS_GPS_TAI_OFFSET` with the literal `2_524_953_619.0` per the second half of your suggestion (commit 19aeb0f), giving the assertion test-side independence from the constant `EGPSHDUR.ceil` transitively depends on. Disagree with the first half: a wholly wrong Conn (e.g. one that forgot to subtract `GPST_REF`) would yield LHS ≈ `e.to_tai_seconds() ≈ 3e9` while RHS = `e.to_tai_seconds() − 2_524_953_619 ≈ 4.76e8`, off by ~2.5e9 — orders of magnitude beyond the 1e-6 tolerance. The test does catch a wrong Conn; the literal swap closes the secondary self-reference concern.
+
+<!-- glab-id: 3322899233 -->
+<!-- glab-discussion: bdd5d88c67fcfb4d003d9a246359342cdf928992 -->
+#### ↳ cmk (2026-05-07 06:45 UTC) [open]
+
+Push-back: `Epoch::from_bdt_duration(d)` is `Self::from_duration(d, TimeScale::BDT)` (`hifitime/src/epoch/initializers.rs:106`) — bare struct construction storing `d` as the BDT-relative duration with the BDT scale tag. No arithmetic, no TAI routing, no saturation. The §3.4 banner's workaround only addresses the `to_*_duration` direction (where the `to_bdt_duration` impl detours through `to_tai_duration`). The `back ∘ forward` round-trip at `HD::MAX` is the failing case that originally surfaced this issue; it's now covered by `ebdthdur_laws::roundtrip_ceil` and passes after the forward-side fix.
