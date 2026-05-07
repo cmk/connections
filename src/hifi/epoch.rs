@@ -436,8 +436,13 @@ crate::conn_l! {
     /// values between `time::OffsetDateTime` and `hifitime::Epoch`.
     ///
     /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`),
-    /// OFDTNANO shape with the standard asymmetric saturation
-    /// (`ceil(NegInf) = i128::MIN`, `ceil(PosInf) = unix_max + 1`).
+    /// OFDTNANO shape with the standard asymmetric saturation:
+    /// `ceil(NegInf) = i128::MIN`, `ceil(PosInf) = unix_max + 1` —
+    /// where `unix_max = HD::MAX.total_ns() − UNIX_REF.utc.total_ns()`,
+    /// **distinct** from `ETAINANO`'s `ceil(PosInf) = HD::MAX.total_ns() + 1`.
+    /// The two sentinels differ by `UNIX_REF.utc.total_ns()` (~70 years
+    /// in nanoseconds); callers using these as PosInf markers must
+    /// pick the correct one for the Conn at hand.
     ///
     /// The in-range Finite portion `[unix_min, unix_max]` is
     /// **asymmetric** about the UNIX offset: `unix_min =
@@ -796,6 +801,32 @@ mod tests {
         let v_min = ExtendedFloat::Extend(hd_min_secs_f64());
         assert_eq!(
             ETAIF064.ceil(v_min),
+            Extended::Finite(Epoch::from_tai_duration(HD::MIN)),
+        );
+    }
+
+    // Pins the asymmetric-name vs equal-value relationship between
+    // `unix_min_secs_f64` and `hd_min_secs_f64`. Documented at length
+    // above their definitions; the test makes the equality machine-
+    // checked so it can't drift silently. (MR !64 round-5 follow-up.)
+    #[test]
+    fn unix_min_secs_f64_equals_hd_min_secs_f64() {
+        assert_eq!(unix_min_secs_f64(), hd_min_secs_f64());
+    }
+
+    // Spot-check for `eutcf064_ceil` at the lower-plateau interior:
+    // an input one second below `hd_min_secs_f64` is still inside the
+    // ~70-year non-identity zone where `from_unix_seconds` constructs
+    // a Finite (non-saturated) TAI duration but the inner side
+    // collapses to `hd_min_secs_f64` via UTC subtraction underflow.
+    // The walk converges to `Finite(HD::MIN_TAI epoch)`. Guards
+    // against regressions of the round-3/4 fast-path discussion.
+    // (MR !64 round-5 follow-up.)
+    #[test]
+    fn eutcf064_below_hd_min_secs_collapses_to_hd_min() {
+        let v = ExtendedFloat::Extend(hd_min_secs_f64() - 1.0);
+        assert_eq!(
+            EUTCF064.ceil(v),
             Extended::Finite(Epoch::from_tai_duration(HD::MIN)),
         );
     }

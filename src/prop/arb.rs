@@ -1271,7 +1271,7 @@ mod hifi_epoch {
         let max_n = HD::MAX.total_nanoseconds() - unix_off;
         prop_oneof![
             1 => Just(min_n),
-            1 => Just(min_n + 1),                            // upper-saturation symmetry partner of `max_n - 1`
+            1 => Just(min_n + 1),                            // lower-saturation boundary partner of `max_n - 1` (MR !64 round-5)
             1 => Just(max_n - 1),                            // probes the upper saturation boundary (MR !64 round-4)
             1 => Just(max_n),
             1 => Just(0_i128),

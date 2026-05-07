@@ -260,3 +260,84 @@ Acknowledged — the bot's own text mid-paragraph (`"wait: since both are identi
 #### ↳ cmk (2026-05-07 03:11 UTC) [open]
 
 Fixed — added `Just(max_n - 1)` to `arb_hifi_unix_nanos_in_range`, plus the symmetric `Just(min_n + 1)` partner so both saturation boundaries are probed in the same way as the existing `Just(min_n)` / `Just(max_n)` endpoints. Lands in the same fix commit (`6a8b31e`).
+
+<!-- glab-id: 3322519612 -->
+<!-- glab-discussion: 0312aca795551370afdffcda89c6dc759f8cb2d3 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:383` (2026-05-07 03:19 UTC) [open]
+
+**[must-fix]** The `eutcnano_ceil` Finite arm computes `(e.to_duration_in_time_scale(TimeScale::UTC) - UNIX_REF_EPOCH.to_utc_duration()).total_nanoseconds()` — but `hifitime::Duration` subtraction can produce a non-canonical (out-of-range) Duration if the result falls outside `[HD::MIN, HD::MAX]`, meaning `total_nanoseconds()` may silently return a wrapped/saturated value for Finite epochs near the HD extremes. The analogous inner path was fixed by doing the i128 arithmetic first (`utc_total_ns = n + unix_ref_utc_ns()`); `ceil` should use the same pattern: extract `e.to_duration_in_time_scale(UTC).total_nanoseconds()` as an i128, then subtract `unix_ref_utc_ns()` in i128 arithmetic, rather than subtracting Durations and then calling `total_nanoseconds()`.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322519618 -->
+<!-- glab-discussion: bb16a87b8e9146c7b6c6fedb1b9f9615fa95bc44 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:102` (2026-05-07 03:19 UTC) [open]
+
+**[follow-up]** The comment on `unix_min_secs_f64` and `unix_max_secs_f64` explains at length why `unix_min_secs_f64 == hd_min_secs_f64` is intentional, but the functions are still named asymmetrically (`unix_min` vs `hd_min`) — a future maintainer adding a new `E*F064` bridge may call `unix_min_secs_f64()` and expect a UNIX-shifted lower bound, introducing a silent ~70-year error. Consider either renaming `unix_min_secs_f64` → `hd_min_secs_f64` and documenting the shared threshold in one place, or adding a compile-time `debug_assert_eq!(unix_min_secs_f64(), hd_min_secs_f64())` to make the equality machine-checked.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322551712 -->
+<!-- glab-discussion: 273ca607543d70de6f2c6c5b00418e7b22662307 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:364` (2026-05-07 03:44 UTC) [open]
+
+**[must-fix]** The `EUTCNANO` doc comment states the `PosInf` saturation arm returns `unix_max + 1`, but `eutcnano_ceil` returns `max_n + 1` where `max_n = unix_max_nanos()`. That is correct. However, the doc comment on `EUTCNANO` at line ~364 says `ceil(PosInf) = unix_max + 1`, while the `ETAINANO` doc says `ceil(PosInf) = HD::MAX.total_ns() + 1`. These two values differ (`unix_max_nanos() ≠ hd_max_nanos()`), so callers reading the `EUTCNANO` doc who compare against `HD::MAX.total_ns() + 1` as the PosInf sentinel will get a silent off-by-value error. The doc comment should spell out the exact sentinel value (`(HD::MAX.total_ns() − UNIX_REF_EPOCH.to_utc_duration().total_nanoseconds()) + 1`) or point to `unix_max_nanos()` explicitly.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322551737 -->
+<!-- glab-discussion: ce511c0e0dd3acd806f0d3e0267275375058286e -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:93` (2026-05-07 03:44 UTC) [open]
+
+**[must-fix]** The comment block for `unix_min_secs_f64` / `unix_max_secs_f64` acknowledges that `unix_min_secs_f64() == hd_min_secs_f64()` despite the name implying a UNIX-shifted lower bound, and argues correctness via the plateau collapse. However, `unix_max_secs_f64()` divides `unix_max_nanos()` (which IS shifted by `unix_ref_utc_ns()`) by `1_000_000_000` — so the upper bound is correctly UNIX-anchored while the lower bound is not. This asymmetry means `eutcf064_ceil` accepts finite `v` values in `(hd_min_secs_f64(), hd_min_secs_f64() + unix_ref_utc_secs)` as "in-range" and passes them to `Epoch::from_unix_seconds(v)`, which constructs an epoch whose underlying TAI duration is below `HD::MIN`, potentially producing an invalid `Epoch`. The plan's own review section (round 4) pushed back on this as a "plateau collapse" but did not verify that `Epoch::from_unix_seconds` saturates safely at that boundary rather than panicking or wrapping. Add a spot-check that `EUTCF064.ceil(ExtendedFloat::Extend(hd_min_secs_f64() - 1.0))` produces `Finite(Epoch::from_tai_duration(HD::MIN))` and that `Epoch::from_unix_seconds` does not panic in that zone.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322551749 -->
+<!-- glab-discussion: c956ef657b911c56bef8eb65ebf857dcf790c142 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/prop/arb.rs:1272` (2026-05-07 03:44 UTC) [open]
+
+**[follow-up]** The comment on `Just(min_n + 1)` says it is the "upper-saturation symmetry partner of `max_n - 1`", but `min_n + 1` probes the *lower* saturation boundary (one step above the minimum), not the upper. The comment should read "lower-saturation boundary partner of `max_n - 1`" to correctly describe its role and avoid misleading future readers.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322660878 -->
+<!-- glab-discussion: 0312aca795551370afdffcda89c6dc759f8cb2d3 -->
+#### ↳ cmk (2026-05-07 04:52 UTC) [open]
+
+Push-back — the bot's proposed i128 arithmetic "fix" would actually break Galois L. Trace for an epoch `e` with stored UTC duration = `HD::MIN + 1ns`:
+
+- Current (HD-subtraction): `(e.utc - UNIX_REF.utc) = HD::MIN + 1ns - 2.2e18 ns`. HD subtraction saturates to `HD::MIN`. `total_nanoseconds() = hd_min_nanos = unix_min_nanos`. Galois L: for any b ≥ unix_min_nanos, e ≤ inner(b) holds (e is at the lower extreme); for b < unix_min_nanos, inner(b) = NegInf, and the law says ceil(e) > b, which is true (ceil(e) = unix_min_nanos > b). ✓
+
+- Bot's i128 arithmetic: `e.utc.total_ns - unix_ref_utc_ns ≈ -1.034e23 + 1 - 2.2e18`, which is **below** unix_min_nanos. Then `inner(that_value) = NegInf`. Closure law `e ≤ inner(ceil(e))` requires e ≤ NegInf — false (e is Finite). Closure FAILS, ConnL invariants broken.
+
+The HD subtraction is not a silent wrap — hifitime saturates at HD::MIN/MAX, and that saturation is the very mechanism aligning ceil's output with the inner threshold. Same root cause as the EUTCF064 fast-path discussion in MR !64 round-3 thread (3322410140) and the "Non-identity zone" doc paragraph on `EUTCNANO`.
+
+<!-- glab-id: 3322660954 -->
+<!-- glab-discussion: bb16a87b8e9146c7b6c6fedb1b9f9615fa95bc44 -->
+#### ↳ cmk (2026-05-07 04:52 UTC) [open]
+
+Fixed — added `unix_min_secs_f64_equals_hd_min_secs_f64` test (`commit f187ae2`) that asserts the equality at test time, making the invariant machine-checked. Renaming the helper would cascade into the EUTCNANO doc and the asymmetric-range commentary; the test gives the same drift protection without that churn.
+
+<!-- glab-id: 3322661030 -->
+<!-- glab-discussion: 273ca607543d70de6f2c6c5b00418e7b22662307 -->
+#### ↳ cmk (2026-05-07 04:52 UTC) [open]
+
+Fixed — EUTCNANO doc now spells out `unix_max = HD::MAX.total_ns() − UNIX_REF.utc.total_ns()` with explicit "**distinct** from ETAINANO's `ceil(PosInf) = HD::MAX.total_ns() + 1`" callout. Callers can pick the right sentinel without cross-referencing the impl. (commit `f187ae2`)
+
+<!-- glab-id: 3322661103 -->
+<!-- glab-discussion: ce511c0e0dd3acd806f0d3e0267275375058286e -->
+#### ↳ cmk (2026-05-07 04:52 UTC) [open]
+
+Fixed — added `eutcf064_below_hd_min_secs_collapses_to_hd_min` spot test (`commit f187ae2`) asserting `EUTCF064.ceil(ExtendedFloat::Extend(hd_min_secs_f64() - 1.0)) == Finite(Epoch::from_tai_duration(HD::MIN))`. The test exercises the ~70-year non-identity zone the previous rounds discussed and confirms `Epoch::from_unix_seconds` saturates safely (no panic). Belt-and-suspenders against regressions of the round-3/4 fast-path discussion.
+
+<!-- glab-id: 3322661196 -->
+<!-- glab-discussion: c956ef657b911c56bef8eb65ebf857dcf790c142 -->
+#### ↳ cmk (2026-05-07 04:52 UTC) [open]
+
+Fixed — corrected to "lower-saturation boundary partner of `max_n - 1` (MR !64 round-5)". (commit `f187ae2`)
