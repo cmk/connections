@@ -44,6 +44,7 @@
 //! | [`time_pure`]          | TIMENANO / TIMESECS / DURNSECS / STDRU064 / STDRU128 (Plan 43) |
 //! | [`hifi_walk`]          | float→hifi-Duration / TAI-Epoch walk-step ≤ 2 (Plan 43) |
 //! | [`hifi_pure`]          | HDURNANO / HDURSECS / ETAINANO / ETAIHDUR (Plan 43)   |
+//! | [`hifi_calendar`]      | MONTU008 / MONTNZ08 / WKDYU008 (Plan 46)              |
 //!
 //! [Kani]: https://model-checking.github.io/kani/
 
@@ -54,6 +55,8 @@ mod fix_fix_signed;
 mod fix_fix_unsigned;
 mod float_walk;
 mod float_weaker;
+#[cfg(feature = "hifi")]
+mod hifi_calendar;
 #[cfg(feature = "hifi")]
 mod hifi_pure;
 #[cfg(feature = "hifi")]

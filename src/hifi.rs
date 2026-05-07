@@ -103,6 +103,9 @@
 //! | [`ETDTF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 TT seconds since J1900 TT ↔ Epoch (relativistic, +32.184 s offset) |
 //! | [`ETDEF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 NAIF SPICE ET seconds since J2000 ET ↔ Epoch (≤1 ns lossy) |
 //! | [`ETDBF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 ESA TDB seconds since J2000 TDB ↔ Epoch (≤1 ns lossy) |
+//! | [`MONTU008`]  | `Conn<Extended<MonthName>, u8>`                     | month enum ↔ canonical 1=Jan…12=Dec u8; saturate u8 ∉ [1,12] |
+//! | [`MONTNZ08`]  | `Conn<Extended<MonthName>, NonZeroU8>`              | natural NonZero rep; saturate NonZeroU8 > 12 |
+//! | [`WKDYU008`]  | `Conn<Extended<Weekday>, u8>`                       | weekday enum ↔ 0=Mon…6=Sun (ISO); saturate u8 ∉ [0,6] |
 //!
 //! Each constant ships with a runnable `# Examples` doctest and
 //! `proptest!` blocks driving the laws in [`crate::prop::conn`].
@@ -124,10 +127,22 @@
 //!   imprecision via the ULP walk.
 //!
 //! See [`crate::hifi::epoch`]'s §4 banner for the full derivation.
+//!
+//! ## Calendar enums (Sprint 5)
+//!
+//! [`MONTU008`] / [`MONTNZ08`] / [`WKDYU008`] **diverge** from
+//! hifitime's `MonthName::from(u8)` and `Weekday::from(u8)` impls,
+//! which silently default-on-error or wrap-via-rem_euclid for
+//! out-of-domain integers. The Conn variants saturate to
+//! `Extended::NegInf` / `Extended::PosInf` instead — the
+//! "saturate-don't-pretend" convention from the OFDTNANO family.
+//! See [`crate::hifi::calendar`]'s module docs for the rationale.
 
+pub mod calendar;
 pub mod duration;
 pub mod epoch;
 
+pub use calendar::{MONTNZ08, MONTU008, WKDYU008};
 pub use duration::{F032HDUR, F064HDUR, HDURNANO, HDURSECS};
 pub use epoch::{
     EBDTF064, EBDTHDUR, EBDTNANO, EGPSF064, EGPSHDUR, EGPSNANO, EGSTF064, EGSTHDUR, EGSTNANO,

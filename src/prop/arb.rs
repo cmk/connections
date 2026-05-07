@@ -1341,3 +1341,67 @@ pub use hifi_epoch::{
     arb_hifi_gst_nanos_in_range, arb_hifi_qzsst_nanos_in_range, arb_hifi_tai_nanos_in_range,
     arb_hifi_unix_nanos_in_range,
 };
+
+// ── hifitime calendar enum strategies ───────────────────────────
+
+#[cfg(feature = "hifi")]
+mod hifi_calendar {
+    use super::*;
+    use crate::extended::Extended;
+    use hifitime::{MonthName, Weekday};
+
+    /// Arbitrary `hifitime::MonthName` — uniform over all 12 variants.
+    pub fn arb_hifi_month() -> impl Strategy<Value = MonthName> {
+        prop_oneof![
+            Just(MonthName::January),
+            Just(MonthName::February),
+            Just(MonthName::March),
+            Just(MonthName::April),
+            Just(MonthName::May),
+            Just(MonthName::June),
+            Just(MonthName::July),
+            Just(MonthName::August),
+            Just(MonthName::September),
+            Just(MonthName::October),
+            Just(MonthName::November),
+            Just(MonthName::December),
+        ]
+    }
+
+    /// `Extended<MonthName>` — 1:1:4 NegInf:PosInf:Finite weighting.
+    pub fn arb_extended_hifi_month() -> impl Strategy<Value = Extended<MonthName>> {
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            4 => arb_hifi_month().prop_map(Extended::Finite),
+        ]
+    }
+
+    /// Arbitrary `hifitime::Weekday` — uniform over all 7 variants
+    /// (ISO 8601 ordering, 0=Mon…6=Sun).
+    pub fn arb_hifi_weekday() -> impl Strategy<Value = Weekday> {
+        prop_oneof![
+            Just(Weekday::Monday),
+            Just(Weekday::Tuesday),
+            Just(Weekday::Wednesday),
+            Just(Weekday::Thursday),
+            Just(Weekday::Friday),
+            Just(Weekday::Saturday),
+            Just(Weekday::Sunday),
+        ]
+    }
+
+    /// `Extended<Weekday>` — 1:1:4 NegInf:PosInf:Finite weighting.
+    pub fn arb_extended_hifi_weekday() -> impl Strategy<Value = Extended<Weekday>> {
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            4 => arb_hifi_weekday().prop_map(Extended::Finite),
+        ]
+    }
+}
+
+#[cfg(feature = "hifi")]
+pub use hifi_calendar::{
+    arb_extended_hifi_month, arb_extended_hifi_weekday, arb_hifi_month, arb_hifi_weekday,
+};
