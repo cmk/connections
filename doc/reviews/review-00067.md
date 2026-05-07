@@ -136,3 +136,48 @@ fixed in this commit's amended state).
   per-harness `--default-unwind 4` retry) to upgrade the bound
   from `≤ 1` (T1/T2) to `≤ 2` (T0) on the well-behaved
   non-saturation domain.
+
+<!-- glab-id: 3322871863 -->
+<!-- glab-discussion: b56e888732e36b1b9789f0c08724c836f170ca5d -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/time/duration.rs:848` (2026-05-07 06:35 UTC) [open]
+
+**[must-fix]** The `f64_stdr_ceil_walk_steps_for_proof` exposer calls `StdDuration::from_secs_f64(v)` which **panics** when `v` is negative (std's implementation checks `v >= 0.0`). The corresponding harness in `time_walk.rs` does apply `kani::assume(v > 0.0 …)` for `stdr`, but the f32 variant (`t1_f32_stdr_walk_steps_le_1`) applies the same assume, while the T2 `stdr` harnesses constrain `v ∈ [1.0, 2.0)` — those are safe. However, the doc-comment on the exposer says it 'deliberately omits production fast-path checks', implying callers must guard, but there is no matching guarantee at the function boundary; a future harness that forgets the negative-guard will trigger a panic rather than a verification failure. Add `assert!(v >= 0.0)` or replace with a non-panicking constructor (e.g. `StdDuration::try_from_secs_f64`) inside the `#[cfg(kani)]` exposer to make the contract self-enforcing.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322871908 -->
+<!-- glab-discussion: aeccab8fbf87c0d76d25e6d728caaea88a66a338 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/kani_proofs/time_pure.rs:196` (2026-05-07 06:35 UTC) [open]
+
+**[follow-up]** The `prove_lr!` macro for `DURNSECS` passes `arb_duration` (plain `Duration`, not `Extended<Duration>`) as the `A`-side generator, but `DURNSECS` is typed as `ConnK<Duration, Extended<i64>>` with `A = Duration`. This is intentional for a `conn_k!` triple, but the plan §Tier 1 table lists `roundtrip_ceil`, `roundtrip_floor`, and `floor_le_ceil` as required properties; the local review's 'Coverage gap' section acknowledges these are absent from `prove_l!`/`prove_lr!`. Per CLAUDE.md's convention, skipped properties must be documented in the plan's Review section with a re-enablement plan — the current plan §Review does not mention these missing properties, only the T0 tier retreat.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322871988 -->
+<!-- glab-discussion: 52bca487cff6cab64c3542481d3befedab55b1f8 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/kani_proofs/hifi_pure.rs:39` (2026-05-07 06:35 UTC) [open]
+
+**[follow-up]** `arb_epoch()` is constructed as `Epoch::from_tai_duration(arb_hd())`, which means the reachable `Epoch` space is exactly the same as `HD::MIN..=HD::MAX` in TAI. This is correct for `ETAINANO` and `ETAIHDUR`, but if any future harness in this file adds an `EUTCNANO`-style Conn whose domain is further restricted (e.g. by `hifitime`'s valid epoch range), the shared `arb_epoch` will silently assume the full TAI range; consider a note or a debug-assert inside `arb_epoch` that documents the intended domain.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322907463 -->
+<!-- glab-discussion: b56e888732e36b1b9789f0c08724c836f170ca5d -->
+#### ↳ cmk (2026-05-07 06:49 UTC) [open]
+
+Fixed — both STDR walk-step exposers now mirror production's `v <= 0.0` fast-path, returning `(StdDuration::ZERO, 0)` before reaching `from_secs_f64` / `from_secs_f32`. The function boundary is panic-safe regardless of whether the harness asserts positivity.
+
+<!-- glab-id: 3322907618 -->
+<!-- glab-discussion: aeccab8fbf87c0d76d25e6d728caaea88a66a338 -->
+#### ↳ cmk (2026-05-07 06:49 UTC) [open]
+
+Fixed — plan §Review now has a section documenting that `roundtrip_ceil`, `roundtrip_floor`, and `floor_le_ceil` are deferred from the prove_l!/prove_lr! macros, with the re-enablement plan tracked in review-00067.md §Recommendations.
+
+<!-- glab-id: 3322907831 -->
+<!-- glab-discussion: 52bca487cff6cab64c3542481d3befedab55b1f8 -->
+#### ↳ cmk (2026-05-07 06:49 UTC) [open]
+
+Deferred — `arb_epoch` is intentionally typed as "any TAI epoch within HD's range" because that IS the reachable epoch domain in this crate (every Conn here is anchored to TAI or UTC-via-TAI Duration). When EUTCNANO-style Conns get Kani harnesses they'll need a separately-named generator anyway, since their valid input domain is asymmetric (the unix_min_nanos/unix_max_nanos shift). Adding domain commentary to the shared helper would tie it to a use case it doesn't cover.

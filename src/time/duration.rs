@@ -846,6 +846,13 @@ pub(crate) fn f32_durn_ceil_walk_steps_for_proof(v: f32) -> (Duration, u32) {
 
 #[cfg(kani)]
 pub(crate) fn f64_stdr_ceil_walk_steps_for_proof(v: f64) -> (StdDuration, u32) {
+    // Mirror production's `v <= 0.0` fast-path so the exposer is
+    // panic-free at the function boundary regardless of whether the
+    // calling harness `kani::assume`s positivity.
+    // `StdDuration::from_secs_f64` panics on negative inputs.
+    if v <= 0.0 {
+        return (StdDuration::ZERO, 0);
+    }
     let est = StdDuration::from_secs_f64(v);
     let est_widen = est.as_secs_f64();
     if est_widen >= v {
@@ -857,6 +864,9 @@ pub(crate) fn f64_stdr_ceil_walk_steps_for_proof(v: f64) -> (StdDuration, u32) {
 
 #[cfg(kani)]
 pub(crate) fn f32_stdr_ceil_walk_steps_for_proof(v: f32) -> (StdDuration, u32) {
+    if v <= 0.0 {
+        return (StdDuration::ZERO, 0);
+    }
     let est = StdDuration::from_secs_f32(v);
     let est_widen = est.as_secs_f32();
     if est_widen >= v {
