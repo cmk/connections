@@ -259,6 +259,14 @@ mod tests {
 
     // Local helper strategies — bias toward boundary u8 / NonZeroU8
     // values relevant to the calendar saturation arms.
+    //
+    // `arb_u8_calendar` is the **union** of MONTU008 boundaries
+    // (0, 1, 12, 13) and WKDYU008 boundaries (0, 6, 7) plus a
+    // generic `any::<u8>()` slot. Naming reflects the shared intent
+    // across both calendar Conns. A new Conn family with a different
+    // canonical integer range should NOT reuse this — define its own
+    // boundary-biased helper rather than inheriting MONT/WKDY-specific
+    // values. (MR !69 round-1.)
     fn arb_u8_calendar() -> impl Strategy<Value = u8> {
         prop_oneof![
             1 => Just(0_u8),
@@ -364,6 +372,18 @@ mod tests {
         // NonZeroU8 has no sub-1 sentinel; NegInf collapses to 1.
         let one = NonZeroU8::new(1).unwrap();
         assert_eq!(MONTNZ08.ceil(Extended::NegInf), one);
+    }
+
+    #[test]
+    fn montnz08_one_recovers_january_not_neg_inf() {
+        // Inverse of the NegInf-collapse: `upper(NonZeroU8(1))` must
+        // recover `Finite(January)`, NOT `NegInf`. The collapse on
+        // `ceil` is one-way; a refactor that inverted the inner arm
+        // (`inner(1) → NegInf`) would silently break the round-trip
+        // round-trip while still satisfying monotonicity. (MR !69
+        // round-1.)
+        let one = NonZeroU8::new(1).unwrap();
+        assert_eq!(MONTNZ08.upper(one), Extended::Finite(MonthName::January),);
     }
 
     #[test]
