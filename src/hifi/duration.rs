@@ -295,8 +295,15 @@ fn f064hdur_ceil(x: F064) -> Extended<HD> {
     if v == f64::NEG_INFINITY {
         return Extended::Finite(HD::MIN);
     }
-    let max_secs = HD::MAX.to_seconds();
-    let min_secs = HD::MIN.to_seconds();
+    // Bounds via integer arithmetic — `HD::MAX.to_seconds()` directly
+    // would f64-cast a `±10²³`-magnitude value past the exact-integer
+    // range (`2⁵³ ≈ 9 × 10¹⁵`) and could miss out-of-range inputs by
+    // boundary rounding error. `hd_{min,max}_secs() as f64` casts an
+    // i64 already at `±10¹⁴` (well inside f64-exact-int range) so the
+    // cast is precise. Same fix shape as the round-2 migration of
+    // `hd_{min,max}_secs` for `HDURSECS`. (MR !63 round-3 review.)
+    let max_secs = hd_max_secs() as f64;
+    let min_secs = hd_min_secs() as f64;
     if v > max_secs {
         return Extended::PosInf;
     }
@@ -384,8 +391,13 @@ fn f032hdur_ceil(x: F032) -> Extended<HD> {
     if v == f32::NEG_INFINITY {
         return Extended::Finite(HD::MIN);
     }
-    let max_secs = HD::MAX.to_seconds() as f32;
-    let min_secs = HD::MIN.to_seconds() as f32;
+    // Same integer-derived bounds as `f064hdur_ceil` — see its
+    // commentary. The trailing `as f32` cast is lossy on its own (f32
+    // ULP at `±10¹⁴` is much wider than the i64 unit), but starting
+    // from the integer-correct `hd_{min,max}_secs()` rules out the
+    // additive boundary error from the f64 detour. (MR !63 round-3.)
+    let max_secs = hd_max_secs() as f32;
+    let min_secs = hd_min_secs() as f32;
     if v > max_secs {
         return Extended::PosInf;
     }
@@ -574,6 +586,23 @@ mod tests {
         assert_eq!(HDURSECS.upper(i64::MAX), Extended::PosInf);
     }
 
+    // Boundary spot check: `inner` flips to NegInf/PosInf at exactly
+    // `min_s - 1` / `max_s + 1`, which is also exactly where `galois_l`
+    // is most likely to fail. (MR !63 round-3 follow-up — these can't
+    // live in `arb_hifi_total_secs_in_range` because that strategy
+    // feeds `roundtrip_ceil`, which would fail at saturation values.)
+    #[test]
+    fn hdursecs_inner_saturation_boundary() {
+        let min_s = (HD::MIN.total_nanoseconds() / 1_000_000_000) as i64;
+        let max_s = (HD::MAX.total_nanoseconds() / 1_000_000_000) as i64;
+        // In-range endpoints stay Finite.
+        assert!(matches!(HDURSECS.upper(min_s), Extended::Finite(_)));
+        assert!(matches!(HDURSECS.upper(max_s), Extended::Finite(_)));
+        // One step past saturates symmetrically.
+        assert_eq!(HDURSECS.upper(min_s - 1), Extended::NegInf);
+        assert_eq!(HDURSECS.upper(max_s + 1), Extended::PosInf);
+    }
+
     // ── Galois law batteries — HDURNANO / HDURSECS (one-sided L) ─
     //
     // OFDTNANO/OFDTSECS template: hand-rolled proptest!s since
@@ -691,9 +720,13 @@ mod tests {
     }
 
     // Regression guard mirroring F064DURN's `f64_ceil_min_secs_fast_path`.
+    // Uses the same integer-derived bound as the implementation
+    // (`hd_min_secs() as f64`) — `HD::MIN.to_seconds()` would f64-cast
+    // a `±10²³`-magnitude value past the exact-integer range and could
+    // disagree with the implementation's threshold. (MR !63 round-3.)
     #[test]
     fn f64_hdur_ceil_min_secs_fast_path() {
-        let v_min = ExtendedFloat::Extend(HD::MIN.to_seconds());
+        let v_min = ExtendedFloat::Extend(hd_min_secs() as f64);
         assert_eq!(F064HDUR.ceil(v_min), Extended::Finite(HD::MIN));
     }
 

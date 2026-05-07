@@ -117,3 +117,48 @@ Fixed — the test now derives `max_s` via `(HD::MAX.total_nanoseconds() / 1_000
 #### ↳ cmk (2026-05-07 01:58 UTC) [open]
 
 Fixed — split into a weight-11 bounded slot (uniform interior coverage over `[HD::MIN.total_ns(), HD::MAX.total_ns()]`) plus a weight-1 unbounded slot (saturation arms only). The round-1 comment was incorrect: with i128 ~10¹⁵× wider than HD, the unbounded slot collapsed essentially every draw to MIN/MAX, providing zero interior coverage.
+
+<!-- glab-id: 3322401732 -->
+<!-- glab-discussion: b489caabbd25f34631fba8e1a5ffa66f49279d33 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/duration.rs:381` (2026-05-07 02:05 UTC) [open]
+
+**[must-fix]** The `f064hdur_ceil` function uses `HD::MAX.to_seconds()` and `HD::MIN.to_seconds()` (f64 casts) for the out-of-range guard, but the implementation commentary and the `hd_max_secs`/`hd_min_secs` helpers were explicitly migrated away from this path because `HD::MAX`/`HD::MIN` are at `±1.03 × 10²³` s magnitude — far past `f64`'s exact-integer range of `2⁵³ ≈ 9 × 10¹⁵`. Using lossy f64 casts here means the bounds comparison may admit or reject values the integer-arithmetic path would not, causing `f064hdur_ceil` to return `PosInf` or `Finite(HD::MIN)` for inputs that should round-trip to a finite `Duration`. Replace `HD::MAX.to_seconds()` / `HD::MIN.to_seconds()` with `hd_max_nanos() as f64 / 1e9` or equivalent integer-derived constants, matching the fix already applied to `hd_max_secs`.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322401745 -->
+<!-- glab-discussion: 037b70f71b2c06c1004e3fb89f8ae69c5d1ce08b -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/duration.rs:431` (2026-05-07 02:05 UTC) [open]
+
+**[must-fix]** The `f032hdur_ceil` function similarly uses `HD::MAX.to_seconds() as f32` and `HD::MIN.to_seconds() as f32` for the saturation guards. Beyond the same f64-precision loss at `±1.03 × 10¹⁴` s already identified for `f064hdur_ceil`, the additional `as f32` narrowing can shift the threshold by ULPs further, meaning the boundary check may pass or fail one step too early. The HD range is far larger than f32 can represent distinctly at those magnitudes, so the guard should derive its limit from integer arithmetic rather than a double lossy cast.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322401757 -->
+<!-- glab-discussion: 2dbc040fd18040437725f8aaecf9ee36a3a03a7e -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/prop/arb.rs:1156` (2026-05-07 02:05 UTC) [open]
+
+**[follow-up]** The `arb_hifi_total_secs_in_range` strategy bounds are computed at strategy-construction time via `HD::MIN/MAX.total_nanoseconds()`, which are `const`-eligible values, but the range literal `min_s..=max_s` captures runtime `i64` locals. This is correct but the strategy silently excludes the `min_s - 1` and `max_s + 1` saturation points that `hdursecs_inner` maps to `NegInf`/`PosInf`; a small-weight `Just(min_s - 1)` / `Just(max_s + 1)` slot (mirroring `arb_hifi_total_nanos_in_range`'s implicit all-in-range design) would confirm the boundary exactly where `hdursecs_galois_l` is most likely to fail.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322448446 -->
+<!-- glab-discussion: b489caabbd25f34631fba8e1a5ffa66f49279d33 -->
+#### ↳ cmk (2026-05-07 02:36 UTC) [open]
+
+Fixed — `f064hdur_ceil` now derives bounds via `hd_max_secs() as f64` / `hd_min_secs() as f64`. The i64 helpers already do `total_nanoseconds() / 1_000_000_000` (i128 integer arithmetic), landing at `±10¹⁴` — well inside f64's exact-integer range (`2⁵³ ≈ 9 × 10¹⁵`), so the trailing `as f64` cast is precise. Same fix shape as round-2's `etaif064_ceil` migration on MR !64.
+
+<!-- glab-id: 3322448495 -->
+<!-- glab-discussion: 037b70f71b2c06c1004e3fb89f8ae69c5d1ce08b -->
+#### ↳ cmk (2026-05-07 02:36 UTC) [open]
+
+Fixed — same migration shape as `f064hdur_ceil`: bounds via `hd_{min,max}_secs() as f32`. The i64 helpers route through i128 integer arithmetic first, eliminating the f64 detour; the trailing `as f32` is still inherently lossy at `±10¹⁴` magnitude, but at least the *additive* boundary error from going through f64 first is gone. The walk's plateau dominates f32 precision at any non-trivial magnitude anyway, so the residual ULP shift is dwarfed by the plateau width.
+
+<!-- glab-id: 3322448569 -->
+<!-- glab-discussion: 2dbc040fd18040437725f8aaecf9ee36a3a03a7e -->
+#### ↳ cmk (2026-05-07 02:36 UTC) [open]
+
+Partial — added a separate `hdursecs_inner_saturation_boundary` spot test instead of extending the strategy. The bot's suggestion can't go directly into `arb_hifi_total_secs_in_range` because that strategy feeds `hdursecs_roundtrip_ceil`, which would fail at saturation values: `ceil(inner(min_s - 1)) = i64::MIN`, not `min_s - 1`. The targeted spot check captures the same boundary (`upper(min_s - 1) = NegInf`, `upper(max_s + 1) = PosInf`) without breaking round-trip. Galois-L coverage at the i64 extremes is already provided by `hdursecs_galois_l(b in any::<i64>())`.
