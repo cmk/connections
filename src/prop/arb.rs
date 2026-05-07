@@ -1281,10 +1281,92 @@ mod hifi_epoch {
             8 => min_n..=max_n,
         ]
     }
+
+    /// `i128` strategy bounded to the GPST-anchored round-trippable
+    /// range for `EGPSNANO`. Same asymmetric pattern as
+    /// [`arb_hifi_unix_nanos_in_range`]: lower bound is
+    /// `HD::MIN.total_ns()` (unshifted), upper bound is
+    /// `HD::MAX.total_ns() − GPST_REF_EPOCH.to_tai_duration().
+    /// total_nanoseconds()` (shifted). The reference offset
+    /// (`SECONDS_GPS_TAI_OFFSET_I64 × 10⁹`) is exact integer ns.
+    pub fn arb_hifi_gpst_nanos_in_range() -> impl Strategy<Value = i128> {
+        let off = GPST_REF_EPOCH.to_tai_duration().total_nanoseconds();
+        let min_n = HD::MIN.total_nanoseconds();
+        let max_n = HD::MAX.total_nanoseconds() - off;
+        prop_oneof![
+            1 => Just(min_n),
+            1 => Just(min_n + 1),
+            1 => Just(max_n - 1),
+            1 => Just(max_n),
+            1 => Just(0_i128),
+            1 => Just(1_i128),
+            1 => Just(-1_i128),
+            8 => min_n..=max_n,
+        ]
+    }
+
+    /// `i128` strategy bounded to the GST-anchored round-trippable
+    /// range for `EGSTNANO`. See [`arb_hifi_gpst_nanos_in_range`] for
+    /// the asymmetric-bounds rationale.
+    pub fn arb_hifi_gst_nanos_in_range() -> impl Strategy<Value = i128> {
+        let off = GST_REF_EPOCH.to_tai_duration().total_nanoseconds();
+        let min_n = HD::MIN.total_nanoseconds();
+        let max_n = HD::MAX.total_nanoseconds() - off;
+        prop_oneof![
+            1 => Just(min_n),
+            1 => Just(min_n + 1),
+            1 => Just(max_n - 1),
+            1 => Just(max_n),
+            1 => Just(0_i128),
+            1 => Just(1_i128),
+            1 => Just(-1_i128),
+            8 => min_n..=max_n,
+        ]
+    }
+
+    /// `i128` strategy bounded to the BDT-anchored round-trippable
+    /// range for `EBDTNANO`. See [`arb_hifi_gpst_nanos_in_range`].
+    pub fn arb_hifi_bdt_nanos_in_range() -> impl Strategy<Value = i128> {
+        let off = BDT_REF_EPOCH.to_tai_duration().total_nanoseconds();
+        let min_n = HD::MIN.total_nanoseconds();
+        let max_n = HD::MAX.total_nanoseconds() - off;
+        prop_oneof![
+            1 => Just(min_n),
+            1 => Just(min_n + 1),
+            1 => Just(max_n - 1),
+            1 => Just(max_n),
+            1 => Just(0_i128),
+            1 => Just(1_i128),
+            1 => Just(-1_i128),
+            8 => min_n..=max_n,
+        ]
+    }
+
+    /// `i128` strategy bounded to the QZSST-anchored round-trippable
+    /// range for `EQZSNANO`. QZSST shares GPST's reference epoch
+    /// (`QZSST_REF_EPOCH == GPST_REF_EPOCH` in hifitime), but kept as
+    /// a distinct public name so the call site documents intent.
+    pub fn arb_hifi_qzsst_nanos_in_range() -> impl Strategy<Value = i128> {
+        let off = QZSST_REF_EPOCH.to_tai_duration().total_nanoseconds();
+        let min_n = HD::MIN.total_nanoseconds();
+        let max_n = HD::MAX.total_nanoseconds() - off;
+        prop_oneof![
+            1 => Just(min_n),
+            1 => Just(min_n + 1),
+            1 => Just(max_n - 1),
+            1 => Just(max_n),
+            1 => Just(0_i128),
+            1 => Just(1_i128),
+            1 => Just(-1_i128),
+            8 => min_n..=max_n,
+        ]
+    }
 }
 
 #[cfg(feature = "hifi")]
 pub use hifi_epoch::{
-    arb_extended_hifi_epoch, arb_extended_hifi_epoch_bounded_f64, arb_hifi_epoch,
-    arb_hifi_epoch_bounded_f64, arb_hifi_tai_nanos_in_range, arb_hifi_unix_nanos_in_range,
+    arb_extended_hifi_epoch, arb_extended_hifi_epoch_bounded_f64, arb_hifi_bdt_nanos_in_range,
+    arb_hifi_epoch, arb_hifi_epoch_bounded_f64, arb_hifi_gpst_nanos_in_range,
+    arb_hifi_gst_nanos_in_range, arb_hifi_qzsst_nanos_in_range, arb_hifi_tai_nanos_in_range,
+    arb_hifi_unix_nanos_in_range,
 };

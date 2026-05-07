@@ -613,14 +613,797 @@ crate::conn_l! {
     }
 }
 
+// ── §3 GNSS scales (GPST, GST, BDT, QZSST) ───────────────────────
+//
+// Each GNSS scale is an exact integer-second offset to TAI. The
+// HDuration projection is therefore an `iso!` (degenerate ConnK);
+// the i128 nanosecond projection is `ConnL` with the same
+// OFDTNANO-shape asymmetric saturation as ETAI / EUTC; and the f64
+// seconds projection is `ConnL` with 1 ns ULP walks on the underlying
+// TAI Duration (`shift_epoch_tai`) and a per-scale comparison frame.
+//
+// References (all exact integer seconds, exposed publicly by hifitime):
+// - GPST_REF_EPOCH  = 1980-01-06 UTC ≡ TAI − 19 s (`SECONDS_GPS_TAI_OFFSET_I64 = 2_524_953_619`)
+// - QZSST_REF_EPOCH = GPST_REF_EPOCH (QZSS shares GPS's reference)
+// - GST_REF_EPOCH   = 1999-08-21      (`SECONDS_GST_TAI_OFFSET_I64 = 3_144_268_819`)
+// - BDT_REF_EPOCH   = 2005-12-31      (`SECONDS_BDT_TAI_OFFSET_I64 = 3_345_062_433`)
+//
+// Saturation bound asymmetry mirrors EUTCNANO exactly: `min_n =
+// HD::MIN.total_ns()` (unshifted, otherwise `ceil`'s subtraction
+// underflows HD); `max_n = HD::MAX.total_ns() − ref.total_ns()`
+// (shifted, otherwise the inner addition overflows HD).
+
+use hifitime::{BDT_REF_EPOCH, GPST_REF_EPOCH, GST_REF_EPOCH, QZSST_REF_EPOCH};
+
+// ── §3 per-scale offset helpers ──────────────────────────────────
+
+#[inline]
+fn gpst_ref_tai_ns() -> i128 {
+    GPST_REF_EPOCH.to_tai_duration().total_nanoseconds()
+}
+
+#[inline]
+fn qzsst_ref_tai_ns() -> i128 {
+    QZSST_REF_EPOCH.to_tai_duration().total_nanoseconds()
+}
+
+#[inline]
+fn gst_ref_tai_ns() -> i128 {
+    GST_REF_EPOCH.to_tai_duration().total_nanoseconds()
+}
+
+#[inline]
+fn bdt_ref_tai_ns() -> i128 {
+    BDT_REF_EPOCH.to_tai_duration().total_nanoseconds()
+}
+
+// Per-scale (min, max) nanosecond bounds. Each min is unshifted (=
+// HD::MIN.total_ns()); each max is `HD::MAX.total_ns() − ref_tai_ns()`.
+
+#[inline]
+fn gpst_min_nanos() -> i128 {
+    hd_min_nanos()
+}
+#[inline]
+fn gpst_max_nanos() -> i128 {
+    hd_max_nanos() - gpst_ref_tai_ns()
+}
+#[inline]
+fn qzsst_min_nanos() -> i128 {
+    hd_min_nanos()
+}
+#[inline]
+fn qzsst_max_nanos() -> i128 {
+    hd_max_nanos() - qzsst_ref_tai_ns()
+}
+#[inline]
+fn gst_min_nanos() -> i128 {
+    hd_min_nanos()
+}
+#[inline]
+fn gst_max_nanos() -> i128 {
+    hd_max_nanos() - gst_ref_tai_ns()
+}
+#[inline]
+fn bdt_min_nanos() -> i128 {
+    hd_min_nanos()
+}
+#[inline]
+fn bdt_max_nanos() -> i128 {
+    hd_max_nanos() - bdt_ref_tai_ns()
+}
+
+// Per-scale f64 second bounds via integer division (`nanos / 10⁹`,
+// landing at ~10¹⁴ — exact in f64). The MR !64 round-2 lesson:
+// going through `to_seconds()` directly f64-casts a value past
+// `2⁵³`, off-by-seconds at the boundary.
+
+#[inline]
+fn gpst_min_secs_f64() -> f64 {
+    (gpst_min_nanos() / 1_000_000_000) as f64
+}
+#[inline]
+fn gpst_max_secs_f64() -> f64 {
+    (gpst_max_nanos() / 1_000_000_000) as f64
+}
+#[inline]
+fn qzsst_min_secs_f64() -> f64 {
+    (qzsst_min_nanos() / 1_000_000_000) as f64
+}
+#[inline]
+fn qzsst_max_secs_f64() -> f64 {
+    (qzsst_max_nanos() / 1_000_000_000) as f64
+}
+#[inline]
+fn gst_min_secs_f64() -> f64 {
+    (gst_min_nanos() / 1_000_000_000) as f64
+}
+#[inline]
+fn gst_max_secs_f64() -> f64 {
+    (gst_max_nanos() / 1_000_000_000) as f64
+}
+#[inline]
+fn bdt_min_secs_f64() -> f64 {
+    (bdt_min_nanos() / 1_000_000_000) as f64
+}
+#[inline]
+fn bdt_max_secs_f64() -> f64 {
+    (bdt_max_nanos() / 1_000_000_000) as f64
+}
+
+// ── §3.1 GPST ────────────────────────────────────────────────────
+
+#[inline]
+fn egpshdur_forward(e: Epoch) -> HD {
+    e.to_gpst_duration()
+}
+
+#[inline]
+fn egpshdur_back(d: HD) -> Epoch {
+    Epoch::from_gpst_duration(d)
+}
+
+crate::iso! {
+    /// `Epoch ↔ hifitime::Duration` — GPS Time projection.
+    /// Reference: [`hifitime::GPST_REF_EPOCH`] (1980-01-06 UTC,
+    /// = TAI 1980-01-06 − 19 s).
+    ///
+    /// Same `iso!` (degenerate `ConnK`) shape as [`ETAIHDUR`] /
+    /// [`EUTCHDUR`]. The GPST offset is an exact integer-second
+    /// constant ([`hifitime::SECONDS_GPS_TAI_OFFSET_I64`]), so the
+    /// round-trip is integer subtract-then-add — no information loss.
+    /// `back ∘ forward` rebases the scale tag to GPST while
+    /// preserving the instant under `Epoch::Eq`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EGPSHDUR;
+    /// use connections::conn::{ConnL, ConnR};
+    /// use hifitime::{Duration as HDuration, GPST_REF_EPOCH};
+    ///
+    /// // GPST reference is the GPST-scale zero.
+    /// assert_eq!(EGPSHDUR.ceil(GPST_REF_EPOCH), HDuration::ZERO);
+    /// ```
+    pub EGPSHDUR : Epoch => HD {
+        forward: egpshdur_forward,
+        back:    egpshdur_back,
+    }
+}
+
+fn egpsnano_ceil(e: Extended<Epoch>) -> i128 {
+    let max_n = gpst_max_nanos();
+    match e {
+        Extended::NegInf => i128::MIN,
+        Extended::Finite(e) => e.to_gpst_duration().total_nanoseconds(),
+        Extended::PosInf => max_n + 1,
+    }
+}
+
+fn egpsnano_inner(n: i128) -> Extended<Epoch> {
+    let min_n = gpst_min_nanos();
+    let max_n = gpst_max_nanos();
+    if n < min_n {
+        Extended::NegInf
+    } else if n > max_n {
+        Extended::PosInf
+    } else {
+        // `from_gpst_duration(d)` stores `d` as the GPST-relative
+        // duration directly (no anchor shift needed, unlike
+        // `eutcnano_inner` whose `from_utc_duration` expects a J1900-
+        // anchored UTC value). For `n ∈ [gpst_min, gpst_max]`,
+        // `HD::from_total_nanoseconds(n)` is exact (in HD's range),
+        // and `to_gpst_duration()` short-circuits on the matching
+        // scale tag, so round-trip via `ceil` is exact.
+        Extended::Finite(Epoch::from_gpst_duration(HD::from_total_nanoseconds(n)))
+    }
+}
+
+crate::conn_l! {
+    /// `Extended<hifitime::Epoch> → i128` — total GPS Time
+    /// nanoseconds since [`hifitime::GPST_REF_EPOCH`].
+    ///
+    /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`),
+    /// OFDTNANO shape with asymmetric saturation:
+    /// `ceil(NegInf) = i128::MIN`, `ceil(PosInf) = gpst_max + 1`,
+    /// where `gpst_max = HD::MAX.total_ns() −
+    /// GPST_REF_EPOCH.to_tai_duration().total_nanoseconds()`. The
+    /// `inner` round-trip is exact on `[gpst_min, gpst_max]`,
+    /// where `gpst_min = HD::MIN.total_ns()` (unshifted, see the
+    /// module-level §3 banner for the asymmetry rationale).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EGPSNANO;
+    /// use connections::extended::Extended;
+    /// use hifitime::GPST_REF_EPOCH;
+    ///
+    /// assert_eq!(EGPSNANO.ceil(Extended::Finite(GPST_REF_EPOCH)), 0);
+    /// ```
+    pub EGPSNANO : Extended<Epoch> => i128 {
+        ceil:  egpsnano_ceil,
+        inner: egpsnano_inner,
+    }
+}
+
+#[inline]
+fn epoch_to_gpst_f64(e: Epoch) -> f64 {
+    e.to_gpst_seconds()
+}
+
+def_walk_helpers!(
+    f64_egps_walks,
+    f64,
+    Epoch,
+    shift_epoch_tai,
+    epoch_to_gpst_f64
+);
+
+fn egpsf064_ceil(x: F064) -> Extended<Epoch> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::PosInf;
+    }
+    if v == f64::INFINITY {
+        return Extended::PosInf;
+    }
+    if v == f64::NEG_INFINITY {
+        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+    }
+    let max_secs = gpst_max_secs_f64();
+    let min_secs = gpst_min_secs_f64();
+    if v > max_secs {
+        return Extended::PosInf;
+    }
+    // `v ≤ min_secs` short-circuits to the negative HD bound for the
+    // same reason as ETAIF064 / EUTCF064: the f64 plateau there is
+    // wide enough that walking would take ~10¹² steps and converge
+    // to the same answer. (See §1 ETAIF064 doc.)
+    if v <= min_secs {
+        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+    }
+    let est = Epoch::from_gpst_seconds(v);
+    let est_widen = est.to_gpst_seconds();
+    let (z, _) = if est_widen >= v {
+        f64_egps_walks::descend_to_ceil(est, v)
+    } else {
+        f64_egps_walks::ascend_to_ceil(est, v)
+    };
+    Extended::Finite(z)
+}
+
+fn egpsf064_inner(e: Extended<Epoch>) -> F064 {
+    match e {
+        Extended::NegInf => ExtendedFloat::Bot,
+        Extended::Finite(e) => ExtendedFloat::Extend(e.to_gpst_seconds()),
+        Extended::PosInf => ExtendedFloat::Top,
+    }
+}
+
+crate::conn_l! {
+    /// `F064 → Extended<hifitime::Epoch>` — IEEE binary64 GPST
+    /// seconds (since [`hifitime::GPST_REF_EPOCH`]) ↔ Epoch.
+    ///
+    /// `ConnL`, F064DURN-shape; walks happen on the underlying TAI
+    /// Duration in 1 ns ULPs (`shift_epoch_tai`); the comparison
+    /// frame is `Epoch::to_gpst_seconds()`. Non-injective at multi-
+    /// decade magnitudes (the f64 plateau widens with the absolute
+    /// value), so this is `ConnL` not `ConnK` (matches `F064DURN` /
+    /// `ETAIF064` rationale).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EGPSF064;
+    /// use connections::extended::Extended;
+    /// use connections::float::ExtendedFloat;
+    /// use hifitime::GPST_REF_EPOCH;
+    ///
+    /// // GPST seconds zero ↔ GPST_REF_EPOCH.
+    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// assert_eq!(EGPSF064.ceil(zero), Extended::Finite(GPST_REF_EPOCH));
+    /// ```
+    pub EGPSF064 : F064 => Extended<Epoch> {
+        ceil:  egpsf064_ceil,
+        inner: egpsf064_inner,
+    }
+}
+
+// ── §3.2 QZSST ───────────────────────────────────────────────────
+//
+// QZSST shares GPST's reference epoch in hifitime
+// (`QZSST_REF_EPOCH == GPST_REF_EPOCH`); we still ship distinct
+// const names so the call site documents intent. The Conn bodies
+// dispatch through QZSST-tagged hifitime APIs (`to_qzsst_duration`,
+// `from_qzsst_duration`, `to_qzsst_seconds`, `from_qzsst_seconds`),
+// so the resulting Epochs carry `TimeScale::QZSST` rather than
+// `TimeScale::GPST` — observably distinct under `Debug` /
+// `Display`, equal-on-instant under `Eq` / `Ord`.
+
+#[inline]
+fn eqzshdur_forward(e: Epoch) -> HD {
+    e.to_qzsst_duration()
+}
+
+#[inline]
+fn eqzshdur_back(d: HD) -> Epoch {
+    Epoch::from_qzsst_duration(d)
+}
+
+crate::iso! {
+    /// `Epoch ↔ hifitime::Duration` — QZSS Time projection.
+    /// Reference: [`hifitime::QZSST_REF_EPOCH`] (= GPST reference).
+    ///
+    /// Same shape as [`EGPSHDUR`]. QZSST and GPST share their
+    /// reference epoch; the two Conns produce instant-equal results
+    /// for any `Epoch` (different scale tag, same TAI duration).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EQZSHDUR;
+    /// use connections::conn::{ConnL, ConnR};
+    /// use hifitime::{Duration as HDuration, QZSST_REF_EPOCH};
+    ///
+    /// assert_eq!(EQZSHDUR.ceil(QZSST_REF_EPOCH), HDuration::ZERO);
+    /// ```
+    pub EQZSHDUR : Epoch => HD {
+        forward: eqzshdur_forward,
+        back:    eqzshdur_back,
+    }
+}
+
+fn eqzsnano_ceil(e: Extended<Epoch>) -> i128 {
+    let max_n = qzsst_max_nanos();
+    match e {
+        Extended::NegInf => i128::MIN,
+        Extended::Finite(e) => e.to_qzsst_duration().total_nanoseconds(),
+        Extended::PosInf => max_n + 1,
+    }
+}
+
+fn eqzsnano_inner(n: i128) -> Extended<Epoch> {
+    let min_n = qzsst_min_nanos();
+    let max_n = qzsst_max_nanos();
+    if n < min_n {
+        Extended::NegInf
+    } else if n > max_n {
+        Extended::PosInf
+    } else {
+        Extended::Finite(Epoch::from_qzsst_duration(HD::from_total_nanoseconds(n)))
+    }
+}
+
+crate::conn_l! {
+    /// `Extended<hifitime::Epoch> → i128` — total QZSS Time
+    /// nanoseconds since [`hifitime::QZSST_REF_EPOCH`] (= GPST ref).
+    ///
+    /// Mirrors [`EGPSNANO`] exactly; the only observable difference
+    /// is that `inner(n)`'s `Finite` arm returns a QZSST-tagged
+    /// `Epoch`. Numerically equal to `EGPSNANO` for every input.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EQZSNANO;
+    /// use connections::extended::Extended;
+    /// use hifitime::QZSST_REF_EPOCH;
+    ///
+    /// assert_eq!(EQZSNANO.ceil(Extended::Finite(QZSST_REF_EPOCH)), 0);
+    /// ```
+    pub EQZSNANO : Extended<Epoch> => i128 {
+        ceil:  eqzsnano_ceil,
+        inner: eqzsnano_inner,
+    }
+}
+
+#[inline]
+fn epoch_to_qzsst_f64(e: Epoch) -> f64 {
+    e.to_qzsst_seconds()
+}
+
+def_walk_helpers!(
+    f64_eqzs_walks,
+    f64,
+    Epoch,
+    shift_epoch_tai,
+    epoch_to_qzsst_f64
+);
+
+fn eqzsf064_ceil(x: F064) -> Extended<Epoch> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::PosInf;
+    }
+    if v == f64::INFINITY {
+        return Extended::PosInf;
+    }
+    if v == f64::NEG_INFINITY {
+        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+    }
+    let max_secs = qzsst_max_secs_f64();
+    let min_secs = qzsst_min_secs_f64();
+    if v > max_secs {
+        return Extended::PosInf;
+    }
+    if v <= min_secs {
+        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+    }
+    let est = Epoch::from_qzsst_seconds(v);
+    let est_widen = est.to_qzsst_seconds();
+    let (z, _) = if est_widen >= v {
+        f64_eqzs_walks::descend_to_ceil(est, v)
+    } else {
+        f64_eqzs_walks::ascend_to_ceil(est, v)
+    };
+    Extended::Finite(z)
+}
+
+fn eqzsf064_inner(e: Extended<Epoch>) -> F064 {
+    match e {
+        Extended::NegInf => ExtendedFloat::Bot,
+        Extended::Finite(e) => ExtendedFloat::Extend(e.to_qzsst_seconds()),
+        Extended::PosInf => ExtendedFloat::Top,
+    }
+}
+
+crate::conn_l! {
+    /// `F064 → Extended<hifitime::Epoch>` — QZSS Time seconds (since
+    /// [`hifitime::QZSST_REF_EPOCH`]) ↔ Epoch. Mirrors [`EGPSF064`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EQZSF064;
+    /// use connections::extended::Extended;
+    /// use connections::float::ExtendedFloat;
+    /// use hifitime::QZSST_REF_EPOCH;
+    ///
+    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// assert_eq!(EQZSF064.ceil(zero), Extended::Finite(QZSST_REF_EPOCH));
+    /// ```
+    pub EQZSF064 : F064 => Extended<Epoch> {
+        ceil:  eqzsf064_ceil,
+        inner: eqzsf064_inner,
+    }
+}
+
+// ── §3.3 GST (Galileo) ───────────────────────────────────────────
+
+#[inline]
+fn egsthdur_forward(e: Epoch) -> HD {
+    e.to_gst_duration()
+}
+
+#[inline]
+fn egsthdur_back(d: HD) -> Epoch {
+    Epoch::from_gst_duration(d)
+}
+
+crate::iso! {
+    /// `Epoch ↔ hifitime::Duration` — Galileo System Time projection.
+    /// Reference: [`hifitime::GST_REF_EPOCH`] (1999-08-21,
+    /// `SECONDS_GST_TAI_OFFSET_I64 = 3_144_268_819`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EGSTHDUR;
+    /// use connections::conn::{ConnL, ConnR};
+    /// use hifitime::{Duration as HDuration, GST_REF_EPOCH};
+    /// assert_eq!(EGSTHDUR.ceil(GST_REF_EPOCH), HDuration::ZERO);
+    /// ```
+    pub EGSTHDUR : Epoch => HD {
+        forward: egsthdur_forward,
+        back:    egsthdur_back,
+    }
+}
+
+fn egstnano_ceil(e: Extended<Epoch>) -> i128 {
+    let max_n = gst_max_nanos();
+    match e {
+        Extended::NegInf => i128::MIN,
+        Extended::Finite(e) => e.to_gst_duration().total_nanoseconds(),
+        Extended::PosInf => max_n + 1,
+    }
+}
+
+fn egstnano_inner(n: i128) -> Extended<Epoch> {
+    let min_n = gst_min_nanos();
+    let max_n = gst_max_nanos();
+    if n < min_n {
+        Extended::NegInf
+    } else if n > max_n {
+        Extended::PosInf
+    } else {
+        Extended::Finite(Epoch::from_gst_duration(HD::from_total_nanoseconds(n)))
+    }
+}
+
+crate::conn_l! {
+    /// `Extended<hifitime::Epoch> → i128` — total GST nanoseconds
+    /// since [`hifitime::GST_REF_EPOCH`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EGSTNANO;
+    /// use connections::extended::Extended;
+    /// use hifitime::GST_REF_EPOCH;
+    ///
+    /// assert_eq!(EGSTNANO.ceil(Extended::Finite(GST_REF_EPOCH)), 0);
+    /// ```
+    pub EGSTNANO : Extended<Epoch> => i128 {
+        ceil:  egstnano_ceil,
+        inner: egstnano_inner,
+    }
+}
+
+#[inline]
+fn epoch_to_gst_f64(e: Epoch) -> f64 {
+    e.to_gst_seconds()
+}
+
+def_walk_helpers!(
+    f64_egst_walks,
+    f64,
+    Epoch,
+    shift_epoch_tai,
+    epoch_to_gst_f64
+);
+
+fn egstf064_ceil(x: F064) -> Extended<Epoch> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::PosInf;
+    }
+    if v == f64::INFINITY {
+        return Extended::PosInf;
+    }
+    if v == f64::NEG_INFINITY {
+        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+    }
+    let max_secs = gst_max_secs_f64();
+    let min_secs = gst_min_secs_f64();
+    if v > max_secs {
+        return Extended::PosInf;
+    }
+    if v <= min_secs {
+        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+    }
+    let est = Epoch::from_gst_seconds(v);
+    let est_widen = est.to_gst_seconds();
+    let (z, _) = if est_widen >= v {
+        f64_egst_walks::descend_to_ceil(est, v)
+    } else {
+        f64_egst_walks::ascend_to_ceil(est, v)
+    };
+    Extended::Finite(z)
+}
+
+fn egstf064_inner(e: Extended<Epoch>) -> F064 {
+    match e {
+        Extended::NegInf => ExtendedFloat::Bot,
+        Extended::Finite(e) => ExtendedFloat::Extend(e.to_gst_seconds()),
+        Extended::PosInf => ExtendedFloat::Top,
+    }
+}
+
+crate::conn_l! {
+    /// `F064 → Extended<hifitime::Epoch>` — GST seconds (since
+    /// [`hifitime::GST_REF_EPOCH`]) ↔ Epoch. Same shape as
+    /// [`EGPSF064`] with `to_gst_seconds` as the comparison frame.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EGSTF064;
+    /// use connections::extended::Extended;
+    /// use connections::float::ExtendedFloat;
+    /// use hifitime::GST_REF_EPOCH;
+    ///
+    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// assert_eq!(EGSTF064.ceil(zero), Extended::Finite(GST_REF_EPOCH));
+    /// ```
+    pub EGSTF064 : F064 => Extended<Epoch> {
+        ceil:  egstf064_ceil,
+        inner: egstf064_inner,
+    }
+}
+
+// ── §3.4 BDT (BeiDou) ────────────────────────────────────────────
+//
+// BDT routes through `to_duration_in_time_scale(TimeScale::BDT)`
+// rather than `to_bdt_duration()`. The two are equivalent for
+// interior values, but at the rung boundary they diverge:
+// `to_bdt_duration` is implemented as `self.to_tai_duration() -
+// BDT_REF.to_tai_duration()` (`hifitime/src/epoch/mod.rs:800`),
+// which routes through TAI and saturates `HD::MAX + BDT_REF` at the
+// HD upper bound. The other GNSS `to_*_duration` methods use
+// `to_time_scale(scale).duration` (which short-circuits for the
+// matching tag), and so don't have this asymmetry. Going through
+// `to_duration_in_time_scale` here gives BDT the same short-circuit
+// path and unblocks the iso round-trip at `HD::MAX`.
+
+#[inline]
+fn ebdthdur_forward(e: Epoch) -> HD {
+    e.to_duration_in_time_scale(TimeScale::BDT)
+}
+
+#[inline]
+fn ebdthdur_back(d: HD) -> Epoch {
+    Epoch::from_bdt_duration(d)
+}
+
+crate::iso! {
+    /// `Epoch ↔ hifitime::Duration` — BeiDou Time projection.
+    /// Reference: [`hifitime::BDT_REF_EPOCH`] (2005-12-31,
+    /// `SECONDS_BDT_TAI_OFFSET_I64 = 3_345_062_433`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EBDTHDUR;
+    /// use connections::conn::{ConnL, ConnR};
+    /// use hifitime::{Duration as HDuration, BDT_REF_EPOCH};
+    /// assert_eq!(EBDTHDUR.ceil(BDT_REF_EPOCH), HDuration::ZERO);
+    /// ```
+    pub EBDTHDUR : Epoch => HD {
+        forward: ebdthdur_forward,
+        back:    ebdthdur_back,
+    }
+}
+
+fn ebdtnano_ceil(e: Extended<Epoch>) -> i128 {
+    let max_n = bdt_max_nanos();
+    match e {
+        Extended::NegInf => i128::MIN,
+        // Use `to_duration_in_time_scale(BDT)` rather than
+        // `to_bdt_duration()` for the same boundary-saturation
+        // reason as `ebdthdur_forward` — see the §3.4 banner.
+        Extended::Finite(e) => e
+            .to_duration_in_time_scale(TimeScale::BDT)
+            .total_nanoseconds(),
+        Extended::PosInf => max_n + 1,
+    }
+}
+
+fn ebdtnano_inner(n: i128) -> Extended<Epoch> {
+    let min_n = bdt_min_nanos();
+    let max_n = bdt_max_nanos();
+    if n < min_n {
+        Extended::NegInf
+    } else if n > max_n {
+        Extended::PosInf
+    } else {
+        Extended::Finite(Epoch::from_bdt_duration(HD::from_total_nanoseconds(n)))
+    }
+}
+
+crate::conn_l! {
+    /// `Extended<hifitime::Epoch> → i128` — total BDT nanoseconds
+    /// since [`hifitime::BDT_REF_EPOCH`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EBDTNANO;
+    /// use connections::extended::Extended;
+    /// use hifitime::BDT_REF_EPOCH;
+    ///
+    /// assert_eq!(EBDTNANO.ceil(Extended::Finite(BDT_REF_EPOCH)), 0);
+    /// ```
+    pub EBDTNANO : Extended<Epoch> => i128 {
+        ceil:  ebdtnano_ceil,
+        inner: ebdtnano_inner,
+    }
+}
+
+#[inline]
+fn epoch_to_bdt_f64(e: Epoch) -> f64 {
+    // Mirrors the §3.4 banner: route through
+    // `to_duration_in_time_scale(BDT)` to share the short-circuit
+    // path the other GNSS scales get from `to_*_duration` directly.
+    e.to_duration_in_time_scale(TimeScale::BDT).to_seconds()
+}
+
+def_walk_helpers!(
+    f64_ebdt_walks,
+    f64,
+    Epoch,
+    shift_epoch_tai,
+    epoch_to_bdt_f64
+);
+
+fn ebdtf064_ceil(x: F064) -> Extended<Epoch> {
+    let v = match x {
+        ExtendedFloat::Bot => return Extended::NegInf,
+        ExtendedFloat::Top => return Extended::PosInf,
+        ExtendedFloat::Extend(v) => v,
+    };
+    if v.is_nan() {
+        return Extended::PosInf;
+    }
+    if v == f64::INFINITY {
+        return Extended::PosInf;
+    }
+    if v == f64::NEG_INFINITY {
+        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+    }
+    let max_secs = bdt_max_secs_f64();
+    let min_secs = bdt_min_secs_f64();
+    if v > max_secs {
+        return Extended::PosInf;
+    }
+    if v <= min_secs {
+        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+    }
+    let est = Epoch::from_bdt_seconds(v);
+    let est_widen = epoch_to_bdt_f64(est);
+    let (z, _) = if est_widen >= v {
+        f64_ebdt_walks::descend_to_ceil(est, v)
+    } else {
+        f64_ebdt_walks::ascend_to_ceil(est, v)
+    };
+    Extended::Finite(z)
+}
+
+fn ebdtf064_inner(e: Extended<Epoch>) -> F064 {
+    match e {
+        Extended::NegInf => ExtendedFloat::Bot,
+        Extended::Finite(e) => ExtendedFloat::Extend(epoch_to_bdt_f64(e)),
+        Extended::PosInf => ExtendedFloat::Top,
+    }
+}
+
+crate::conn_l! {
+    /// `F064 → Extended<hifitime::Epoch>` — BDT seconds (since
+    /// [`hifitime::BDT_REF_EPOCH`]) ↔ Epoch. Same shape as
+    /// [`EGPSF064`] with the comparison frame routed through
+    /// `epoch_to_bdt_f64` — i.e. `to_duration_in_time_scale(BDT).to_seconds()`,
+    /// **not** `to_bdt_seconds()` — to avoid the upper-bound HD
+    /// saturation documented in the §3.4 banner.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::hifi::EBDTF064;
+    /// use connections::extended::Extended;
+    /// use connections::float::ExtendedFloat;
+    /// use hifitime::BDT_REF_EPOCH;
+    ///
+    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// assert_eq!(EBDTF064.ceil(zero), Extended::Finite(BDT_REF_EPOCH));
+    /// ```
+    pub EBDTF064 : F064 => Extended<Epoch> {
+        ceil:  ebdtf064_ceil,
+        inner: ebdtf064_inner,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     #[allow(unused_imports)]
     use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{
-        arb_extended_hifi_epoch, arb_extended_hifi_epoch_bounded_f64, arb_hifi_epoch,
-        arb_hifi_tai_nanos_in_range, arb_hifi_unix_nanos_in_range, extended_float_f64,
+        arb_extended_hifi_epoch, arb_extended_hifi_epoch_bounded_f64, arb_hifi_bdt_nanos_in_range,
+        arb_hifi_epoch, arb_hifi_gpst_nanos_in_range, arb_hifi_gst_nanos_in_range,
+        arb_hifi_qzsst_nanos_in_range, arb_hifi_tai_nanos_in_range, arb_hifi_unix_nanos_in_range,
+        extended_float_f64,
     };
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -1012,6 +1795,398 @@ mod tests {
         #[test]
         fn eutcf064_idempotent(a in extended_float_f64()) {
             prop_assert!(conn_laws::idempotent_l(&EUTCF064, a));
+        }
+    }
+
+    // ── §3 GNSS spot checks ──────────────────────────────────────
+
+    #[test]
+    fn egpshdur_ref_zero() {
+        assert_eq!(EGPSHDUR.ceil(GPST_REF_EPOCH), HD::ZERO);
+        assert_eq!(EGPSHDUR.upper(HD::ZERO), GPST_REF_EPOCH);
+    }
+
+    #[test]
+    fn egpsnano_ref_zero() {
+        assert_eq!(EGPSNANO.ceil(Extended::Finite(GPST_REF_EPOCH)), 0_i128);
+        assert_eq!(EGPSNANO.upper(0_i128), Extended::Finite(GPST_REF_EPOCH));
+    }
+
+    #[test]
+    fn egpsnano_saturation_extremes() {
+        assert_eq!(EGPSNANO.upper(i128::MAX), Extended::PosInf);
+        assert_eq!(EGPSNANO.upper(i128::MIN), Extended::NegInf);
+        assert_eq!(EGPSNANO.ceil(Extended::NegInf), i128::MIN);
+        let max_n =
+            HD::MAX.total_nanoseconds() - GPST_REF_EPOCH.to_tai_duration().total_nanoseconds();
+        assert_eq!(EGPSNANO.ceil(Extended::PosInf), max_n + 1);
+    }
+
+    #[test]
+    fn egpsf064_zero_is_ref() {
+        let zero = ExtendedFloat::Extend(0.0_f64);
+        assert_eq!(EGPSF064.ceil(zero), Extended::Finite(GPST_REF_EPOCH));
+    }
+
+    #[test]
+    fn egpsf064_nan_inf_bot_top() {
+        assert_eq!(
+            EGPSF064.ceil(ExtendedFloat::Extend(f64::NAN)),
+            Extended::PosInf,
+        );
+        assert_eq!(
+            EGPSF064.ceil(ExtendedFloat::Extend(f64::INFINITY)),
+            Extended::PosInf,
+        );
+        assert_eq!(EGPSF064.ceil(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(EGPSF064.ceil(ExtendedFloat::Top), Extended::PosInf);
+    }
+
+    #[test]
+    fn eqzshdur_ref_zero() {
+        assert_eq!(EQZSHDUR.ceil(QZSST_REF_EPOCH), HD::ZERO);
+    }
+
+    #[test]
+    fn eqzsnano_ref_zero() {
+        assert_eq!(EQZSNANO.ceil(Extended::Finite(QZSST_REF_EPOCH)), 0_i128);
+    }
+
+    #[test]
+    fn eqzsnano_saturation_extremes() {
+        assert_eq!(EQZSNANO.upper(i128::MAX), Extended::PosInf);
+        assert_eq!(EQZSNANO.upper(i128::MIN), Extended::NegInf);
+        assert_eq!(EQZSNANO.ceil(Extended::NegInf), i128::MIN);
+        let max_n =
+            HD::MAX.total_nanoseconds() - QZSST_REF_EPOCH.to_tai_duration().total_nanoseconds();
+        assert_eq!(EQZSNANO.ceil(Extended::PosInf), max_n + 1);
+    }
+
+    #[test]
+    fn eqzsf064_zero_is_ref() {
+        let zero = ExtendedFloat::Extend(0.0_f64);
+        // QZSST_REF_EPOCH and GPST_REF_EPOCH are instant-equal but
+        // the inner-side answer is constructed via from_qzsst_seconds,
+        // which produces a QZSST-tagged Epoch. Compare on instant via
+        // Epoch's Eq (which is scale-aware via to_parts).
+        assert_eq!(EQZSF064.ceil(zero), Extended::Finite(QZSST_REF_EPOCH));
+    }
+
+    #[test]
+    fn egsthdur_ref_zero() {
+        assert_eq!(EGSTHDUR.ceil(GST_REF_EPOCH), HD::ZERO);
+    }
+
+    #[test]
+    fn egstnano_ref_zero() {
+        assert_eq!(EGSTNANO.ceil(Extended::Finite(GST_REF_EPOCH)), 0_i128);
+    }
+
+    #[test]
+    fn egstnano_saturation_extremes() {
+        assert_eq!(EGSTNANO.upper(i128::MAX), Extended::PosInf);
+        assert_eq!(EGSTNANO.upper(i128::MIN), Extended::NegInf);
+        assert_eq!(EGSTNANO.ceil(Extended::NegInf), i128::MIN);
+        let max_n =
+            HD::MAX.total_nanoseconds() - GST_REF_EPOCH.to_tai_duration().total_nanoseconds();
+        assert_eq!(EGSTNANO.ceil(Extended::PosInf), max_n + 1);
+    }
+
+    #[test]
+    fn egstf064_zero_is_ref() {
+        let zero = ExtendedFloat::Extend(0.0_f64);
+        assert_eq!(EGSTF064.ceil(zero), Extended::Finite(GST_REF_EPOCH));
+    }
+
+    #[test]
+    fn ebdthdur_ref_zero() {
+        assert_eq!(EBDTHDUR.ceil(BDT_REF_EPOCH), HD::ZERO);
+    }
+
+    #[test]
+    fn ebdtnano_ref_zero() {
+        assert_eq!(EBDTNANO.ceil(Extended::Finite(BDT_REF_EPOCH)), 0_i128);
+    }
+
+    #[test]
+    fn ebdtnano_saturation_extremes() {
+        assert_eq!(EBDTNANO.upper(i128::MAX), Extended::PosInf);
+        assert_eq!(EBDTNANO.upper(i128::MIN), Extended::NegInf);
+        assert_eq!(EBDTNANO.ceil(Extended::NegInf), i128::MIN);
+        let max_n =
+            HD::MAX.total_nanoseconds() - BDT_REF_EPOCH.to_tai_duration().total_nanoseconds();
+        assert_eq!(EBDTNANO.ceil(Extended::PosInf), max_n + 1);
+    }
+
+    #[test]
+    fn ebdtf064_zero_is_ref() {
+        let zero = ExtendedFloat::Extend(0.0_f64);
+        assert_eq!(EBDTF064.ceil(zero), Extended::Finite(BDT_REF_EPOCH));
+    }
+
+    #[test]
+    fn egps_known_offset_at_interior_epoch() {
+        // Pick an interior TAI epoch well past GPST inception
+        // (1980-01-06 UTC) and confirm `EGPSHDUR` projects it
+        // through the ±19-leap-second-equivalent integer offset.
+        // `SECONDS_GPS_TAI_OFFSET` is the J1900-TAI seconds at GPST
+        // inception; for any TAI Epoch `e`,
+        // `EGPSHDUR.ceil(e).to_seconds() == e.to_tai_seconds() − offset`.
+        let e = Epoch::from_tai_seconds(3_000_000_000.0); // ~rough 1995 TAI
+        let gpst_secs = EGPSHDUR.ceil(e).to_seconds();
+        let expected = e.to_tai_seconds() - hifitime::SECONDS_GPS_TAI_OFFSET;
+        assert!((gpst_secs - expected).abs() < 1e-6);
+    }
+
+    // ── §3 GNSS HDUR iso law batteries ───────────────────────────
+
+    crate::law_battery! {
+        mod egpshdur_laws,
+        conn: EGPSHDUR,
+        fine:   arb_hifi_epoch(),
+        coarse: crate::prop::arb::arb_hifi_duration(),
+        subset: iso_only,
+    }
+
+    crate::law_battery! {
+        mod eqzshdur_laws,
+        conn: EQZSHDUR,
+        fine:   arb_hifi_epoch(),
+        coarse: crate::prop::arb::arb_hifi_duration(),
+        subset: iso_only,
+    }
+
+    crate::law_battery! {
+        mod egsthdur_laws,
+        conn: EGSTHDUR,
+        fine:   arb_hifi_epoch(),
+        coarse: crate::prop::arb::arb_hifi_duration(),
+        subset: iso_only,
+    }
+
+    crate::law_battery! {
+        mod ebdthdur_laws,
+        conn: EBDTHDUR,
+        fine:   arb_hifi_epoch(),
+        coarse: crate::prop::arb::arb_hifi_duration(),
+        subset: iso_only,
+    }
+
+    // ── §3 GNSS NANO ConnL batteries (hand-rolled) ───────────────
+
+    proptest! {
+        #[test]
+        fn egpsnano_galois_l(e in arb_extended_hifi_epoch(), b in any::<i128>()) {
+            prop_assert!(conn_laws::galois_l(&EGPSNANO, e, b));
+        }
+        #[test]
+        fn egpsnano_closure_l(e in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::closure_l(&EGPSNANO, e));
+        }
+        #[test]
+        fn egpsnano_kernel_l(b in any::<i128>()) {
+            prop_assert!(conn_laws::kernel_l(&EGPSNANO, b));
+        }
+        #[test]
+        fn egpsnano_monotone_l(a in arb_extended_hifi_epoch(),
+                               b in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::monotone_l(&EGPSNANO, a, b));
+        }
+        #[test]
+        fn egpsnano_idempotent(e in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::idempotent(&EGPSNANO, e));
+        }
+        #[test]
+        fn egpsnano_roundtrip_ceil(b in arb_hifi_gpst_nanos_in_range()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&EGPSNANO, b));
+        }
+
+        #[test]
+        fn eqzsnano_galois_l(e in arb_extended_hifi_epoch(), b in any::<i128>()) {
+            prop_assert!(conn_laws::galois_l(&EQZSNANO, e, b));
+        }
+        #[test]
+        fn eqzsnano_closure_l(e in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::closure_l(&EQZSNANO, e));
+        }
+        #[test]
+        fn eqzsnano_kernel_l(b in any::<i128>()) {
+            prop_assert!(conn_laws::kernel_l(&EQZSNANO, b));
+        }
+        #[test]
+        fn eqzsnano_monotone_l(a in arb_extended_hifi_epoch(),
+                               b in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::monotone_l(&EQZSNANO, a, b));
+        }
+        #[test]
+        fn eqzsnano_idempotent(e in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::idempotent(&EQZSNANO, e));
+        }
+        #[test]
+        fn eqzsnano_roundtrip_ceil(b in arb_hifi_qzsst_nanos_in_range()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&EQZSNANO, b));
+        }
+
+        #[test]
+        fn egstnano_galois_l(e in arb_extended_hifi_epoch(), b in any::<i128>()) {
+            prop_assert!(conn_laws::galois_l(&EGSTNANO, e, b));
+        }
+        #[test]
+        fn egstnano_closure_l(e in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::closure_l(&EGSTNANO, e));
+        }
+        #[test]
+        fn egstnano_kernel_l(b in any::<i128>()) {
+            prop_assert!(conn_laws::kernel_l(&EGSTNANO, b));
+        }
+        #[test]
+        fn egstnano_monotone_l(a in arb_extended_hifi_epoch(),
+                               b in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::monotone_l(&EGSTNANO, a, b));
+        }
+        #[test]
+        fn egstnano_idempotent(e in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::idempotent(&EGSTNANO, e));
+        }
+        #[test]
+        fn egstnano_roundtrip_ceil(b in arb_hifi_gst_nanos_in_range()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&EGSTNANO, b));
+        }
+
+        #[test]
+        fn ebdtnano_galois_l(e in arb_extended_hifi_epoch(), b in any::<i128>()) {
+            prop_assert!(conn_laws::galois_l(&EBDTNANO, e, b));
+        }
+        #[test]
+        fn ebdtnano_closure_l(e in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::closure_l(&EBDTNANO, e));
+        }
+        #[test]
+        fn ebdtnano_kernel_l(b in any::<i128>()) {
+            prop_assert!(conn_laws::kernel_l(&EBDTNANO, b));
+        }
+        #[test]
+        fn ebdtnano_monotone_l(a in arb_extended_hifi_epoch(),
+                               b in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::monotone_l(&EBDTNANO, a, b));
+        }
+        #[test]
+        fn ebdtnano_idempotent(e in arb_extended_hifi_epoch()) {
+            prop_assert!(conn_laws::idempotent(&EBDTNANO, e));
+        }
+        #[test]
+        fn ebdtnano_roundtrip_ceil(b in arb_hifi_bdt_nanos_in_range()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&EBDTNANO, b));
+        }
+
+        // GPST and QZSST share their reference epoch in hifitime; the
+        // two NANO Conns must agree numerically on every input
+        // regardless of the input Epoch's scale tag.
+        #[test]
+        fn egpsnano_eq_eqzsnano(e in arb_extended_hifi_epoch()) {
+            prop_assert_eq!(EGPSNANO.ceil(e), EQZSNANO.ceil(e));
+        }
+        #[test]
+        fn egpshdur_eq_eqzshdur(e in arb_hifi_epoch()) {
+            prop_assert_eq!(EGPSHDUR.ceil(e), EQZSHDUR.ceil(e));
+        }
+    }
+
+    // ── §3 GNSS F064 ConnL batteries (bounded float strats) ──────
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, .. ProptestConfig::default() })]
+
+        #[test]
+        fn egpsf064_galois_l(a in extended_float_f64(),
+                             b in arb_extended_hifi_epoch_bounded_f64()) {
+            prop_assert!(conn_laws::galois_l(&EGPSF064, a, b));
+        }
+        #[test]
+        fn egpsf064_closure_l(a in extended_float_f64()) {
+            prop_assert!(conn_laws::closure_l(&EGPSF064, a));
+        }
+        #[test]
+        fn egpsf064_kernel_l(b in arb_extended_hifi_epoch_bounded_f64()) {
+            prop_assert!(conn_laws::kernel_l(&EGPSF064, b));
+        }
+        #[test]
+        fn egpsf064_monotone_l(a1 in extended_float_f64(),
+                               a2 in extended_float_f64()) {
+            prop_assert!(conn_laws::monotone_l(&EGPSF064, a1, a2));
+        }
+        #[test]
+        fn egpsf064_idempotent(a in extended_float_f64()) {
+            prop_assert!(conn_laws::idempotent_l(&EGPSF064, a));
+        }
+
+        #[test]
+        fn eqzsf064_galois_l(a in extended_float_f64(),
+                             b in arb_extended_hifi_epoch_bounded_f64()) {
+            prop_assert!(conn_laws::galois_l(&EQZSF064, a, b));
+        }
+        #[test]
+        fn eqzsf064_closure_l(a in extended_float_f64()) {
+            prop_assert!(conn_laws::closure_l(&EQZSF064, a));
+        }
+        #[test]
+        fn eqzsf064_kernel_l(b in arb_extended_hifi_epoch_bounded_f64()) {
+            prop_assert!(conn_laws::kernel_l(&EQZSF064, b));
+        }
+        #[test]
+        fn eqzsf064_monotone_l(a1 in extended_float_f64(),
+                               a2 in extended_float_f64()) {
+            prop_assert!(conn_laws::monotone_l(&EQZSF064, a1, a2));
+        }
+        #[test]
+        fn eqzsf064_idempotent(a in extended_float_f64()) {
+            prop_assert!(conn_laws::idempotent_l(&EQZSF064, a));
+        }
+
+        #[test]
+        fn egstf064_galois_l(a in extended_float_f64(),
+                             b in arb_extended_hifi_epoch_bounded_f64()) {
+            prop_assert!(conn_laws::galois_l(&EGSTF064, a, b));
+        }
+        #[test]
+        fn egstf064_closure_l(a in extended_float_f64()) {
+            prop_assert!(conn_laws::closure_l(&EGSTF064, a));
+        }
+        #[test]
+        fn egstf064_kernel_l(b in arb_extended_hifi_epoch_bounded_f64()) {
+            prop_assert!(conn_laws::kernel_l(&EGSTF064, b));
+        }
+        #[test]
+        fn egstf064_monotone_l(a1 in extended_float_f64(),
+                               a2 in extended_float_f64()) {
+            prop_assert!(conn_laws::monotone_l(&EGSTF064, a1, a2));
+        }
+        #[test]
+        fn egstf064_idempotent(a in extended_float_f64()) {
+            prop_assert!(conn_laws::idempotent_l(&EGSTF064, a));
+        }
+
+        #[test]
+        fn ebdtf064_galois_l(a in extended_float_f64(),
+                             b in arb_extended_hifi_epoch_bounded_f64()) {
+            prop_assert!(conn_laws::galois_l(&EBDTF064, a, b));
+        }
+        #[test]
+        fn ebdtf064_closure_l(a in extended_float_f64()) {
+            prop_assert!(conn_laws::closure_l(&EBDTF064, a));
+        }
+        #[test]
+        fn ebdtf064_kernel_l(b in arb_extended_hifi_epoch_bounded_f64()) {
+            prop_assert!(conn_laws::kernel_l(&EBDTF064, b));
+        }
+        #[test]
+        fn ebdtf064_monotone_l(a1 in extended_float_f64(),
+                               a2 in extended_float_f64()) {
+            prop_assert!(conn_laws::monotone_l(&EBDTF064, a1, a2));
+        }
+        #[test]
+        fn ebdtf064_idempotent(a in extended_float_f64()) {
+            prop_assert!(conn_laws::idempotent_l(&EBDTF064, a));
         }
     }
 }

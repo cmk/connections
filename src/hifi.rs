@@ -13,14 +13,17 @@
 //!
 //! - [`duration`] — `hifitime::Duration` connections
 //!   ([`HDURNANO`], [`HDURSECS`], [`F064HDUR`], [`F032HDUR`]).
-//! - [`epoch`] — `hifitime::Epoch` projections in two scale-families
-//!   (Sprint 2): TAI ([`ETAIHDUR`], [`ETAINANO`], [`ETAIF064`]) and
-//!   UTC ([`EUTCHDUR`], [`EUTCNANO`], [`EUTCF064`]).
+//! - [`epoch`] — `hifitime::Epoch` projections across six scale-
+//!   families: TAI ([`ETAIHDUR`], [`ETAINANO`], [`ETAIF064`]),
+//!   UTC ([`EUTCHDUR`], [`EUTCNANO`], [`EUTCF064`]),
+//!   GPST ([`EGPSHDUR`], [`EGPSNANO`], [`EGPSF064`]),
+//!   QZSST ([`EQZSHDUR`], [`EQZSNANO`], [`EQZSF064`]),
+//!   GST ([`EGSTHDUR`], [`EGSTNANO`], [`EGSTF064`]),
+//!   BDT ([`EBDTHDUR`], [`EBDTNANO`], [`EBDTF064`]).
 //!
-//! Sprints 3-6 add the GNSS scales (GPST/GST/BDT/QZSST), the
-//! relativistic scales (TT/ET/TDB), the calendar enums
-//! (`MonthName`, `Weekday`), and cross-crate bridges to `time` /
-//! `std::time` / `SystemTime`.
+//! Sprints 4-6 add the relativistic scales (TT/ET/TDB), the calendar
+//! enums (`MonthName`, `Weekday`), and cross-crate bridges to
+//! `time` / `std::time` / `SystemTime`.
 //!
 //! # Naming convention
 //!
@@ -33,15 +36,19 @@
 //! | `HDUR` | `hifitime::Duration` / `Extended<hifitime::Duration>`      |
 //! | `ETAI` | `hifitime::Epoch` projected in **TAI** scale (J1900 reference) |
 //! | `EUTC` | `hifitime::Epoch` projected in **UTC** scale (UNIX reference) |
+//! | `EGPS` | `hifitime::Epoch` projected in **GPST** scale (1980-01-06 UTC reference) |
+//! | `EQZS` | `hifitime::Epoch` projected in **QZSST** scale (= GPST reference) |
+//! | `EGST` | `hifitime::Epoch` projected in **GST** scale (Galileo, 1999-08-21 reference) |
+//! | `EBDT` | `hifitime::Epoch` projected in **BDT** scale (BeiDou, 2005-12-31 reference) |
 //! | `NANO` | `i128` total nanoseconds (vs `time/`'s i64 — hifitime is wider) |
 //! | `SECS` | `i64` whole seconds                                        |
 //! | `F064` | [`F064`](crate::float::F064)                               |
 //! | `F032` | [`F032`](crate::float::F032)                               |
 //!
-//! Sprints 3-onward will add `EGPS` / `EGST` / `EBDT` / `EQZS` /
-//! `ETDT` / `ETDE` / `ETDB` for the remaining `hifitime::Epoch`
-//! scale projections (1-letter `E` + 3-letter time-scale code;
-//! `ETD*` is the dynamical-time family marker for TT/ET/TDB).
+//! Sprints 4-onward will add `ETDT` / `ETDE` / `ETDB` for the
+//! remaining `hifitime::Epoch` scale projections (1-letter `E` +
+//! 3-letter time-scale code; `ETD*` is the dynamical-time family
+//! marker for TT/ET/TDB).
 //!
 //! ## Reference epochs (per scale family)
 //!
@@ -57,6 +64,15 @@
 //!   values match [`OFDTNANO`](crate::time::OFDTNANO)'s convention
 //!   for callers bridging `time::OffsetDateTime` ↔
 //!   `hifitime::Epoch`.
+//! - **`E{GPS,QZS}*`** → [`hifitime::GPST_REF_EPOCH`] (1980-01-06 UTC,
+//!   = TAI 1980-01-06 − 19 s). GPST and QZSST share this reference;
+//!   the two Conn families differ only in scale-tag dispatch
+//!   (`to_gpst_*` vs `to_qzsst_*`). **`EGST*`** → 1999-08-21
+//!   ([`hifitime::GST_REF_EPOCH`]). **`EBDT*`** → 2005-12-31
+//!   ([`hifitime::BDT_REF_EPOCH`]). All four GNSS scales are exact
+//!   integer-second offsets to TAI; the HDUR / NANO projections lose
+//!   no information, only the F064 projection is lossy at multi-
+//!   decade magnitudes.
 //!
 //! # Constants
 //!
@@ -72,6 +88,18 @@
 //! | [`EUTCHDUR`]  | `Conn<Epoch, Duration>`                             | Epoch ↔ UTC Duration since **J1900 UTC** (leap-second-aware iso; UNIX-anchored variants live in [`EUTCNANO`] / [`EUTCF064`] below) |
 //! | [`EUTCNANO`]  | `Conn<Extended<Epoch>, i128>`                       | UNIX nanoseconds (matches [`OFDTNANO`](crate::time::OFDTNANO)) |
 //! | [`EUTCF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 UNIX seconds ↔ Epoch (ULP walks on TAI Duration) |
+//! | [`EGPSHDUR`]  | `Conn<Epoch, Duration>`                             | Epoch ↔ GPST Duration since 1980-01-06 UTC (degenerate iso) |
+//! | [`EGPSNANO`]  | `Conn<Extended<Epoch>, i128>`                       | GPST nanoseconds since 1980-01-06 UTC |
+//! | [`EGPSF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 GPST seconds since 1980-01-06 UTC ↔ Epoch (ULP walks on TAI Duration) |
+//! | [`EQZSHDUR`]  | `Conn<Epoch, Duration>`                             | Epoch ↔ QZSST Duration (= GPST reference, distinct scale tag) |
+//! | [`EQZSNANO`]  | `Conn<Extended<Epoch>, i128>`                       | QZSST nanoseconds (= GPST numerics, QZSST tag) |
+//! | [`EQZSF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 QZSST seconds ↔ Epoch (ULP walks on TAI Duration) |
+//! | [`EGSTHDUR`]  | `Conn<Epoch, Duration>`                             | Epoch ↔ GST (Galileo) Duration since 1999-08-21 (degenerate iso) |
+//! | [`EGSTNANO`]  | `Conn<Extended<Epoch>, i128>`                       | GST nanoseconds since 1999-08-21 |
+//! | [`EGSTF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 GST seconds since 1999-08-21 ↔ Epoch (ULP walks on TAI Duration) |
+//! | [`EBDTHDUR`]  | `Conn<Epoch, Duration>`                             | Epoch ↔ BDT (BeiDou) Duration since 2005-12-31 (degenerate iso) |
+//! | [`EBDTNANO`]  | `Conn<Extended<Epoch>, i128>`                       | BDT nanoseconds since 2005-12-31 |
+//! | [`EBDTF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 BDT seconds since 2005-12-31 ↔ Epoch (ULP walks on TAI Duration) |
 //!
 //! Each constant ships with a runnable `# Examples` doctest and
 //! `proptest!` blocks driving the laws in [`crate::prop::conn`].
@@ -80,4 +108,7 @@ pub mod duration;
 pub mod epoch;
 
 pub use duration::{F032HDUR, F064HDUR, HDURNANO, HDURSECS};
-pub use epoch::{ETAIF064, ETAIHDUR, ETAINANO, EUTCF064, EUTCHDUR, EUTCNANO};
+pub use epoch::{
+    EBDTF064, EBDTHDUR, EBDTNANO, EGPSF064, EGPSHDUR, EGPSNANO, EGSTF064, EGSTHDUR, EGSTNANO,
+    EQZSF064, EQZSHDUR, EQZSNANO, ETAIF064, ETAIHDUR, ETAINANO, EUTCF064, EUTCHDUR, EUTCNANO,
+};
