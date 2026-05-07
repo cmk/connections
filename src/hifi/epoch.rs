@@ -104,6 +104,20 @@ fn hd_max_secs_f64() -> f64 {
     (hd_max_nanos() / 1_000_000_000) as f64
 }
 
+// `unix_min_secs_f64` / `unix_max_secs_f64` derive from
+// `unix_{min,max}_nanos` (which serve EUTCNANO's i128 inner threshold)
+// rather than from a UNIX-shifted `from_unix_seconds` boundary. The
+// asymmetry: `unix_min_nanos == hd_min_nanos` (unshifted, see its
+// doc), so `unix_min_secs_f64 == hd_min_secs_f64`. This **is** the
+// correct fast-path threshold for `eutcf064_ceil` despite the naming
+// mismatch — the inner side's HD-subtraction saturation collapses
+// every Finite epoch with TAI ≤ `HD::MIN + UNIX_REF.utc` to the same
+// `to_unix_seconds()` value (`hd_min_secs_f64`), so any input v ≤
+// that threshold has `Finite(HD::MIN_TAI epoch)` as its Galois-L
+// adjoint (the smallest Finite b satisfying v ≤ inner(b)). The walk
+// would converge to the same answer; the fast-path just skips the
+// 10¹² descend steps. (MR !64 rounds 3-4 review discussion.)
+
 #[inline]
 fn unix_min_secs_f64() -> f64 {
     (unix_min_nanos() / 1_000_000_000) as f64

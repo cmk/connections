@@ -230,3 +230,33 @@ Marked as `## Non-identity zone` in the EUTCNANO doc to make this explicit (carr
 #### ↳ cmk (2026-05-07 02:47 UTC) [open]
 
 Fixed — added a **Non-identity zone** paragraph to the EUTCNANO doc that spells out exactly the boundary the bot described: epochs in `[HD::MIN, HD::MIN + UNIX_REF.utc.total_ns())` (a ~70-year window at the negative HD extreme) collapse via `ceil` saturation onto `unix_min_nanos`, then `inner` maps that single value to a single epoch at UTC = `HD::MIN + UNIX_REF.utc`. Closure and Galois L still hold, but the round-trip is non-injective there. Same root cause as the EUTCF064 fast-path discussion in the sibling thread (3322410140) — the inner-side HD subtraction is the underlying saturation.
+
+<!-- glab-id: 3322488129 -->
+<!-- glab-discussion: 8a7829ce345d34e66af632cc286841cc32e482b7 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:107` (2026-05-07 02:55 UTC) [open]
+
+**[must-fix]** The `unix_min_secs_f64()` helper returns `(unix_min_nanos() / 1_000_000_000) as f64`, and `unix_min_nanos()` returns `hd_min_nanos()` (unshifted). So `unix_min_secs_f64() == hd_min_secs_f64()`. In `eutcf064_ceil`, the `v <= unix_min_secs` fast-path fires at the same threshold as ETAI's lower bound, not at the UNIX-anchored lower bound (`hd_min_secs_f64() - unix_ref_utc_secs`, a ~70-year shift). Any finite `v` in the interval `(unix_min_secs_f64(), hd_min_secs_f64()]` — which is actually `(hd_min_secs_f64(), hd_min_secs_f64()]`, an empty set — wait: since both are identical, the interval is empty and no fast-path error occurs. However, the upper bound has the same problem in reverse: `unix_max_secs_f64()` is derived from `unix_max_nanos() = hd_max_nanos() - unix_ref_utc_ns()`, which IS shifted, so the upper bound is correctly ~70 years less than `hd_max_secs_f64()`. The lower bound is NOT shifted, meaning `eutcf064_ceil` accepts inputs down to `hd_min_secs_f64()` as in-range and walks them, but `epoch_to_unix_f64(est)` for estimates near the HD::MIN TAI epoch will produce unix-seconds near `hd_min_secs_f64() - 70y`, which is below `unix_min_secs_f64()` — causing the ascend walk to diverge. The fix is `unix_min_secs_f64()` should return `(unix_min_nanos() / 1_000_000_000) as f64` where `unix_min_nanos` is `hd_min_nanos() - unix_ref_utc_ns()` (shifted downward), or the fast-path threshold must be `hd_min_secs_f64()` (same as ETAI) rather than a UNIX-shifted value, matching the cmk push-back in the review thread but ensuring the helper name matches its semantics.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322488134 -->
+<!-- glab-discussion: 6f887680ea713846ca10bd807106f77b40461f04 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/prop/arb.rs:1238` (2026-05-07 02:55 UTC) [open]
+
+**[follow-up]** The `arb_hifi_unix_nanos_in_range` strategy includes `Just(2_147_483_648_000_000_000_i128)` as a Y2038 boundary value. This is approximately 2.15 × 10¹⁸ ns past the UNIX epoch, which is well within the strategy's `max_n` (~9.2 × 10²³ ns), so it is a valid in-range value. However, the strategy does not include a value near `max_n` minus a small delta (e.g. `max_n - 1`) to probe the upper saturation boundary of `eutcnano_inner`. Adding `Just(max_n - 1)` would improve boundary coverage symmetrically with `Just(min_n)`.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322505974 -->
+<!-- glab-discussion: 8a7829ce345d34e66af632cc286841cc32e482b7 -->
+#### ↳ cmk (2026-05-07 03:11 UTC) [open]
+
+Acknowledged — the bot's own text mid-paragraph (`"wait: since both are identical, the interval is empty and no fast-path error occurs"`) recognizes the lower-bound fast-path is correct. The naming-mismatch concern is fair: `unix_min_secs_f64` does equal `hd_min_secs_f64` despite the name suggesting a UNIX-anchored shift. Added a paragraph above the helpers (`commit 6a8b31e`) spelling this out: the asymmetric `unix_min_nanos = hd_min_nanos` design (motivated by EUTCNANO's ceil saturation) means the f64 fast-path threshold IS `hd_min_secs_f64`, and that's correct because the inner side's HD-subtraction saturation aligns the plateau at that value. Renaming the helpers would cascade into the EUTCNANO doc and the asymmetric-range commentary — keeping the names unified with `unix_{min,max}_nanos` and documenting the equivalence is less churny than splitting them. The "ascend walk diverges" sub-claim doesn't hold either: `epoch_to_unix_f64(HD::MIN_TAI epoch)` returns `hd_min_secs_f64` (verified by the round-3 trace), not `hd_min_secs_f64 - 70y`, so the walk converges normally.
+
+<!-- glab-id: 3322506170 -->
+<!-- glab-discussion: 6f887680ea713846ca10bd807106f77b40461f04 -->
+#### ↳ cmk (2026-05-07 03:11 UTC) [open]
+
+Fixed — added `Just(max_n - 1)` to `arb_hifi_unix_nanos_in_range`, plus the symmetric `Just(min_n + 1)` partner so both saturation boundaries are probed in the same way as the existing `Just(min_n)` / `Just(max_n)` endpoints. Lands in the same fix commit (`6a8b31e`).
