@@ -209,3 +209,50 @@ Push-back — the fast-path bound is **not** conservative by one second. `HD::MI
 #### ↳ cmk (2026-05-07 03:06 UTC) [open]
 
 Fixed — added `hd_min_max_total_ns_divisible_by_billion` test that asserts `HD::{MIN, MAX}.total_nanoseconds() % 1_000_000_000 == 0`. Currently both hold (per-century arithmetic is divisible by 10⁹), so the strategy never includes a `min_s - 1` value that would flip `inner` to NegInf. The test pins the invariant against future hifitime drift.
+
+<!-- glab-id: 3322528165 -->
+<!-- glab-discussion: c280b475ac90bca0b5b4186d7d308c364a887d9d -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/duration.rs:304` (2026-05-07 03:27 UTC) [open]
+
+**[must-fix]** The comment in `hdursecs_ceil`'s `Finite` arm says `div_euclid` / `rem_euclid` give "floor-division semantics" and then describes rounding "away from zero on the floor side", but the function is `ceil` — it rounds toward +∞. The description "away from zero on the floor side" is a copy-paste error from an older draft; for negative sub-second values the residue is non-zero and the function returns `s_floor + 1`, which is *toward* +∞ (toward zero for negative inputs), not away from zero. This contradicts the corrected doc comment on `HDURSECS` itself (which was fixed in review round 1) and will mislead anyone reading the implementation body.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322528180 -->
+<!-- glab-discussion: 2c13b16f6285220f45294cd2a24daf2e39d524ba -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/duration.rs:372` (2026-05-07 03:27 UTC) [open]
+
+**[must-fix]** In `f064hdur_ceil` the `v == f64::NEG_INFINITY` arm returns `Extended::Finite(HD::MIN)`, but the doc comment for `F064HDUR` states `ceil(Extend(−∞)) → Finite(HD::MIN)` as intended behavior. However, `F064DURN` (the model this is ported from) maps `NEG_INFINITY` to `Finite(Duration::MIN)` because `Duration::MIN` is the smallest *finite* rung value; the Galois law requires `ceil(a) ≤ b ⇔ a ≤ inner(b)`, so for `a = Extend(NEG_INFINITY)` we need `ceil(a)` to be the *least* rung element reachable by `inner`. If `Extended::NegInf` is already handled (it returns `Extended::NegInf` ≤ everything), then `f64::NEG_INFINITY` as a distinct arm returning `Finite(HD::MIN)` is correct only if the rung order treats `Finite(HD::MIN)` as the bottom of the `Extended<HD>` lattice — but `Extended::NegInf` is the actual bottom. Any rung value `b` for which `inner(b) = Extended::NegInf` would satisfy `Finite(HD::MIN) ≤ inner(b)` vacuously only if `Finite(HD::MIN) ≤ Extended::NegInf`, which is false. Verify that no `Extended<HD>` rung value `b` exists for which `inner(b) = Extended::NegInf` while `Finite(HD::MIN) ≤ b`; if such `b` exists, the Galois law fails for the `a = Extend(NEG_INFINITY)` case.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322528194 -->
+<!-- glab-discussion: 4848997b487331b1caeb18d6d321b599f7b5bdf3 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/prop/arb.rs:1062` (2026-05-07 03:27 UTC) [open]
+
+**[follow-up]** The `arb_hifi_duration` strategy gates its `#[cfg]` on `feature = "hifi"` but the strategies are also needed by `#[cfg(all(feature = "testing", feature = "hifi"))]` test blocks — the arb functions themselves are unconditionally pub-re-exported under `#[cfg(feature = "hifi")]` rather than `#[cfg(all(feature = "testing", feature = "hifi"))]`. This means a downstream crate that enables only `hifi` (not `testing`) gets the proptest strategy symbols exported into their dependency, pulling in the `proptest` dev-dep into production builds. The re-export should be gated on `all(feature = "testing", feature = "hifi")` to match the convention used by the rest of `arb.rs`.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322653979 -->
+<!-- glab-discussion: c280b475ac90bca0b5b4186d7d308c364a887d9d -->
+#### ↳ cmk (2026-05-07 04:48 UTC) [open]
+
+Fixed — reworded the inline comment to "ceiling division — `s_floor + 1` is toward zero for negatives, away from zero for positives" (commit `37db2be`). Good catch; the prior phrasing only held for positive inputs and contradicted the doc-comment fix from round 1.
+
+<!-- glab-id: 3322654306 -->
+<!-- glab-discussion: 2c13b16f6285220f45294cd2a24daf2e39d524ba -->
+#### ↳ cmk (2026-05-07 04:48 UTC) [open]
+
+Push-back — the analysis conflates two distinct match arms. `f064hdur_ceil`'s match dispatches on `ExtendedFloat<f64>`, which has three variants: `Bot` (the synthetic NegInf), `Top` (PosInf), and `Extend(f64)` (a finite or non-finite f64). The first two return `Extended::NegInf` / `Extended::PosInf` directly. The `f64::NEG_INFINITY` check fires *only* for `Extend(NEG_INFINITY)` — i.e., the user passed an f64 that happens to be -∞ wrapped inside `Extend`, NOT the synthetic `Bot`.
+
+Returning `Finite(HD::MIN)` for `Extend(NEG_INFINITY)` is correct per Galois L: we need the smallest `b ∈ Extended<HD>` such that `Extend(NEG_INFINITY) ≤ inner(b)`. `inner(NegInf) = Bot` (extreme), `inner(Finite(HD::MIN)) = Extend(HD::MIN.to_seconds())` (a finite f64). For `Extend(NEG_INFINITY) ≤ Bot`, false (NegInf < Extend(NEG_INFINITY) per `ExtendedFloat`'s order: Bot < every Extend < Top). For `Extend(NEG_INFINITY) ≤ Extend(HD::MIN.to_seconds())`, true (NEG_INFINITY < any finite f64). So the smallest valid `b` is `Finite(HD::MIN)` — exactly what we return. Same pattern as `F064DURN`.
+
+<!-- glab-id: 3322654453 -->
+<!-- glab-discussion: 4848997b487331b1caeb18d6d321b599f7b5bdf3 -->
+#### ↳ cmk (2026-05-07 04:48 UTC) [open]
+
+Push-back — the entire `arb` module is gated `#[cfg(any(test, feature = "testing"))]` at `src/prop.rs:64-66`. So all of `arb`'s contents — including the `hifi_dur` submodule and its `pub use` — only compile when the `testing` feature is on (or under `cargo test`). Inner `cfg(feature = "hifi")` gates stack on top, so the effective gating IS `all(test_or_testing, hifi)`. A downstream that enables only `hifi` (no `testing`) does not pull in `arb` at all; `proptest` stays a dev-dep. No leak.

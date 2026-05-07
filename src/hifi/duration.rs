@@ -180,7 +180,9 @@ fn hdursecs_ceil(d: Extended<HD>) -> i64 {
             // mathematician's floor-division semantics — for
             // negative total_ns the sub-second residue lives in
             // `[0, 10⁹)`, matching how we then "round up" sub-second
-            // tails away from zero on the floor side.
+            // tails toward +∞ (i.e., this is ceiling division —
+            // `s_floor + 1` is *toward* zero for negatives, *away*
+            // from zero for positives). (MR !63 round-5.)
             let one_billion: i128 = 1_000_000_000;
             let s_floor: i64 = total_ns.div_euclid(one_billion) as i64;
             let sub: i128 = total_ns.rem_euclid(one_billion);
