@@ -63,16 +63,24 @@ fn hd_max_nanos() -> i128 {
 
 #[inline]
 fn hd_min_secs() -> i64 {
-    // `to_seconds()` returns f64; for `MIN` the value is exactly
-    // representable at this magnitude (i16::MIN × SECONDS_PER_CENTURY
-    // ≈ -1.03e14 — well inside f64's exact-integer range up to 2^53),
-    // so the `as i64` cast is lossless.
-    HD::MIN.to_seconds() as i64
+    // Integer-arithmetic derivation: `total_nanoseconds()` is `i128`
+    // and exact, so `/ 1_000_000_000` followed by `as i64` is too
+    // (the result is `≈ ±1.03 × 10¹⁴`, well inside `i64`'s
+    // `±9.22 × 10¹⁸`). Going through `to_seconds() as i64` would
+    // f64-cast a value at `±1.03 × 10²³` magnitude — far past `f64`'s
+    // exact-integer range (`2⁵³ ≈ 9 × 10¹⁵`) — losing ones of seconds
+    // of precision and producing an off-by-one boundary value. The
+    // `roundtrip_ceil` proptest at the boundary catches this; the
+    // integer path avoids it entirely. (Spotted in MR !63 review.)
+    (HD::MIN.total_nanoseconds() / 1_000_000_000) as i64
 }
 
 #[inline]
 fn hd_max_secs() -> i64 {
-    HD::MAX.to_seconds() as i64
+    // Same integer path as `hd_min_secs` — see its docs. `HD::MAX` is
+    // a non-canonical sentinel (`nanoseconds == NANOSECONDS_PER_CENTURY`)
+    // which makes the `to_seconds()` route especially fragile here.
+    (HD::MAX.total_nanoseconds() / 1_000_000_000) as i64
 }
 
 // ── HDURNANO ─────────────────────────────────────────────────────
@@ -204,13 +212,14 @@ crate::conn_l! {
     /// wires `floor = ceil` as a fn pointer so `floor(a) ≤ ceil(a)`
     /// holds structurally.
     ///
-    /// **Behavioral note on rounding:** `ceil(Finite(d))` rounds
-    /// **away from zero** on positive sub-second residues
-    /// (`s_floor + 1`) and toward zero on negative residues
-    /// (because `div_euclid` + `rem_euclid` produce a non-negative
-    /// remainder, the negative-side rounds **toward** the next-larger
-    /// whole second, e.g. `-5.000_000_001 s → -5`). Callers who need
-    /// the truncating direction can compute
+    /// **Behavioral note on rounding:** `ceil(Finite(d))` is
+    /// **ceiling division** (rounds toward +∞), uniform across both
+    /// signs. On a positive sub-second residue (e.g. `5.000_000_001 s`),
+    /// the result is `s_floor + 1 = 6`. On a negative sub-second residue
+    /// (e.g. `−5.000_000_001 s`), `div_euclid` + `rem_euclid` produce a
+    /// `s_floor = -6` and a positive `sub` of `999_999_999`, so the
+    /// result is `s_floor + 1 = -5` — still toward +∞, not away from
+    /// zero. Callers who need the truncating direction can compute
     /// `d.total_nanoseconds() / 1_000_000_000` directly.
     ///
     /// # Examples
@@ -443,7 +452,7 @@ mod tests {
     use crate::prop::arb::{
         arb_extended_hifi_duration, arb_extended_hifi_duration_bounded_f32,
         arb_extended_hifi_duration_bounded_f64, arb_hifi_duration, arb_hifi_total_nanos_in_range,
-        extended_float_f32, extended_float_f64,
+        arb_hifi_total_secs_in_range, extended_float_f32, extended_float_f64,
     };
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -626,6 +635,15 @@ mod tests {
         #[test]
         fn hdursecs_idempotent(d in arb_extended_hifi_duration()) {
             prop_assert!(conn_laws::idempotent(&HDURSECS, d));
+        }
+
+        // Round-trip on Finite rung values: for every i64 second in
+        // HDURSECS's representable range, `inner` is exact and
+        // `ceil` recovers the same integer. Mirror of
+        // `hdurnano_roundtrip_ceil`.
+        #[test]
+        fn hdursecs_roundtrip_ceil(s in arb_hifi_total_secs_in_range()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&HDURSECS, s));
         }
     }
 

@@ -1056,8 +1056,17 @@ mod hifi_dur {
             // ±(MAX-1ns), ±(MIN+1ns)
             1 => Just(HD::from_total_nanoseconds(HD::MAX.total_nanoseconds() - 1)),
             1 => Just(HD::from_total_nanoseconds(HD::MIN.total_nanoseconds() + 1)),
-            // Full-range uniform sample. `from_total_nanoseconds`
-            // saturates to MIN/MAX outside the i16-century range.
+            // Full-range uniform sample. `Duration::from_total_nanoseconds`
+            // (hifitime 4.3, `src/duration/mod.rs:172`) saturates to
+            // `Duration::MIN` / `Duration::MAX` when the implied
+            // `centuries` value falls outside `i16`'s range — confirmed
+            // by reading hifitime's source. Drawing from `any::<i128>()`
+            // therefore over-weights the `MIN` / `MAX` boundary by a
+            // factor of `(i128 range) / (HD range) ≈ 1.6 × 10¹⁵`, which
+            // would mask interior failures. The explicit `Just`s above
+            // cover canonical interior values; this slot is left
+            // unbounded so the saturation arms also see proportional
+            // sampling. (MR !63 review follow-up.)
             12 => any::<i128>().prop_map(HD::from_total_nanoseconds),
         ]
     }
@@ -1140,11 +1149,32 @@ mod hifi_dur {
             8 => min_n..=max_n,
         ]
     }
+
+    /// `i64` strategy bounded to the round-trippable range for
+    /// `HDURSECS`. The bounds are derived **via integer arithmetic**
+    /// (`total_nanoseconds() / 1_000_000_000`) rather than
+    /// `to_seconds() as i64` — the latter f64-casts a value at
+    /// `±10²³` magnitude, which is far past `f64`'s exact-integer
+    /// range (`2⁵³ ≈ 9 × 10¹⁵`) and could produce an off-by-one
+    /// boundary value, silently narrowing the strategy. (MR !63
+    /// review.)
+    pub fn arb_hifi_total_secs_in_range() -> impl Strategy<Value = i64> {
+        let min_s = (HD::MIN.total_nanoseconds() / 1_000_000_000) as i64;
+        let max_s = (HD::MAX.total_nanoseconds() / 1_000_000_000) as i64;
+        prop_oneof![
+            1 => Just(min_s),
+            1 => Just(max_s),
+            1 => Just(0_i64),
+            1 => Just(1_i64),
+            1 => Just(-1_i64),
+            8 => min_s..=max_s,
+        ]
+    }
 }
 
 #[cfg(feature = "hifi")]
 pub use hifi_dur::{
     arb_extended_hifi_duration, arb_extended_hifi_duration_bounded_f32,
     arb_extended_hifi_duration_bounded_f64, arb_hifi_duration, arb_hifi_duration_bounded_f32,
-    arb_hifi_duration_bounded_f64, arb_hifi_total_nanos_in_range,
+    arb_hifi_duration_bounded_f64, arb_hifi_total_nanos_in_range, arb_hifi_total_secs_in_range,
 };
