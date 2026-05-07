@@ -87,3 +87,48 @@ Both commits follow conventional-commit format (`feat:`) and are scoped to their
 
 - Consider adding a spot-check for `eutcnano_saturation_extremes` that also checks `ceil(NegInf)` and `ceil(PosInf)` values. Only `upper(i128::MAX/MIN)` is tested explicitly; the `ceil` direction is covered by `galois_l` proptest-side but explicit spot checks make failures easier to diagnose.
 
+
+<!-- glab-id: 3322166444 -->
+<!-- glab-discussion: 3a2f9304b9e43cc77624f25b471ea3d025043723 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:87` (2026-05-06 23:31 UTC) [open]
+
+**[must-fix]** The `EUTCHDUR` constants table in `src/hifi.rs` (line 68) documents `EUTCHDUR` as `Conn<Epoch, Duration>` with reference "UNIX EPOCH", but the implementation anchors at J1900 UTC (per the Review section's flip). The table entry reads `Epoch ↔ UTC Duration since UNIX EPOCH (leap-second-aware iso)` — this is wrong after the flip. The consequence is that users reading the table will supply UNIX-anchored numeric values to `EUTCHDUR.upper()` and get J1900-relative epochs, silently producing ~70-year errors.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322166625 -->
+<!-- glab-discussion: 2e821badcc0bf3356287aeb58a09a91882d37fae -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/prop/arb.rs:1152` (2026-05-06 23:31 UTC) [open]
+
+**[must-fix]** `arb_hifi_total_secs_in_range` casts `HD::MIN.to_seconds()` and `HD::MAX.to_seconds()` with `as i64`, which silently truncates if the `f64` value exceeds `i64::MAX` / `i64::MIN` (saturating cast behavior in Rust). `HD::MAX.to_seconds()` is on the order of `2^63 / 1e9 ≈ 9.2e9` seconds, which fits in `i64`, but `HD::MIN.to_seconds()` is a large negative `f64`; if hifitime ever widens its range, or if the `f64→i64` cast produces `i64::MIN` due to float-representation rounding at the boundary, the range becomes wrong and the `roundtrip_ceil` proptest silently covers a narrower set of values than the impl supports. Use `to_seconds().floor() as i64` paired with a debug-assert that the cast is in range, or derive min/max from `total_nanoseconds() / 1_000_000_000` to stay in integer arithmetic.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322166666 -->
+<!-- glab-discussion: f15d8c527285e0e9f29b10941c9afea87ba08f46 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:310` (2026-05-06 23:31 UTC) [open]
+
+**[follow-up]** `eutcf064_ceil` computes `unix_max_secs` and `unix_min_secs` by converting `HD::MAX`/`HD::MIN` TAI Durations through `epoch_to_unix_f64`, which does a UTC leap-second conversion on every call to `ceil`. These are constant values that could be computed once (e.g. via `once_cell`/`LazyLock` or just `const` if hifitime exposes the values) to avoid the repeated conversion overhead in tight loops.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322338056 -->
+<!-- glab-discussion: 3a2f9304b9e43cc77624f25b471ea3d025043723 -->
+#### ↳ cmk (2026-05-07 01:14 UTC) [open]
+
+Fixed — updated both the family-level reference-epoch note (`src/hifi.rs` lines 51–55) and the constants-table entry (line 68) to spell out the mixed-reference reality: EUTCHDUR uses J1900 UTC, EUTCNANO/EUTCF064 use UNIX EPOCH UTC. The per-Conn doc on EUTCHDUR already explained the J1900 anchor; the family-level docs hadn't caught up.
+
+<!-- glab-id: 3322338350 -->
+<!-- glab-discussion: 2e821badcc0bf3356287aeb58a09a91882d37fae -->
+#### ↳ cmk (2026-05-07 01:14 UTC) [open]
+
+Fixed — same integer-arithmetic switch as MR !63's hd_min_secs/hd_max_secs fix: `(HD::{MIN,MAX}.total_nanoseconds() / 1_000_000_000) as i64` lands at ±10¹⁴, well inside i64, and the i128 division is exact. The f64 cast was vulnerable to the same precision wall as the other call sites.
+
+<!-- glab-id: 3322338624 -->
+<!-- glab-discussion: f15d8c527285e0e9f29b10941c9afea87ba08f46 -->
+#### ↳ cmk (2026-05-07 01:14 UTC) [open]
+
+Deferred — accepted as a follow-up. The recomputation is a few-nanosecond hifitime call against the compile-time-baked LatestLeapSeconds table, not a hot-loop concern. If profiling later shows the EUTCF064 ceil path matters, hoisting to a LazyLock is straightforward.

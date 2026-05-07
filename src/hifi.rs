@@ -49,9 +49,13 @@
 //! the projection. Document this in any new Conn that joins:
 //!
 //! - **`ETAI*`** → **J1900 TAI** (hifitime's storage-native zero).
-//! - **`EUTC*`** → **UNIX EPOCH UTC** (1970-01-01 00:00:00 UTC) so
-//!   numerical values match [`OFDTNANO`](crate::time::OFDTNANO)'s
-//!   convention for callers bridging `time::OffsetDateTime` ↔
+//! - **`EUTC*`** has a **mixed reference**: [`EUTCHDUR`] uses
+//!   **J1900 UTC** (UNIX-anchoring would push the iso's round-trip
+//!   boundary outside `HD`'s range — see the `EUTCHDUR` doc for the
+//!   derivation), while [`EUTCNANO`] and [`EUTCF064`] use
+//!   **UNIX EPOCH UTC** (1970-01-01 00:00:00 UTC) so numerical
+//!   values match [`OFDTNANO`](crate::time::OFDTNANO)'s convention
+//!   for callers bridging `time::OffsetDateTime` ↔
 //!   `hifitime::Epoch`.
 //!
 //! # Constants
@@ -65,7 +69,7 @@
 //! | [`ETAIHDUR`]  | `Conn<Epoch, Duration>`                             | Epoch ↔ TAI Duration since J1900 (degenerate iso) |
 //! | [`ETAINANO`]  | `Conn<Extended<Epoch>, i128>`                       | TAI nanoseconds since J1900 |
 //! | [`ETAIF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 TAI seconds since J1900 ↔ Epoch (ULP walks on TAI Duration) |
-//! | [`EUTCHDUR`]  | `Conn<Epoch, Duration>`                             | Epoch ↔ UTC Duration since UNIX EPOCH (leap-second-aware iso) |
+//! | [`EUTCHDUR`]  | `Conn<Epoch, Duration>`                             | Epoch ↔ UTC Duration since **J1900 UTC** (leap-second-aware iso; UNIX-anchored variants live in [`EUTCNANO`] / [`EUTCF064`] below) |
 //! | [`EUTCNANO`]  | `Conn<Extended<Epoch>, i128>`                       | UNIX nanoseconds (matches [`OFDTNANO`](crate::time::OFDTNANO)) |
 //! | [`EUTCF064`]  | `Conn<F064, Extended<Epoch>>`                       | f64 UNIX seconds ↔ Epoch (ULP walks on TAI Duration) |
 //!
