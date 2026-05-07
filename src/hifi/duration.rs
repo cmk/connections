@@ -72,6 +72,13 @@ fn hd_min_secs() -> i64 {
     // of precision and producing an off-by-one boundary value. The
     // `roundtrip_ceil` proptest at the boundary catches this; the
     // integer path avoids it entirely. (Spotted in MR !63 review.)
+    //
+    // `total_nanoseconds()` for `HD::MIN` / `HD::MAX` is an **exact
+    // multiple of 10⁹** (each `NANOSECONDS_PER_CENTURY` is 100 × 365.25
+    // × 86400 × 10⁹ = 3 155 760 000 × 10⁹ ns, divisible by 10⁹), so
+    // truncation-vs-floor doesn't matter at the boundary —
+    // `hd_min_max_total_ns_divisible_by_billion` (test below) guards
+    // this invariant. (MR !63 round-4 follow-up.)
     (HD::MIN.total_nanoseconds() / 1_000_000_000) as i64
 }
 
@@ -80,6 +87,8 @@ fn hd_max_secs() -> i64 {
     // Same integer path as `hd_min_secs` — see its docs. `HD::MAX` is
     // a non-canonical sentinel (`nanoseconds == NANOSECONDS_PER_CENTURY`)
     // which makes the `to_seconds()` route especially fragile here.
+    // The boundary is also exactly divisible by 10⁹ (same per-century
+    // derivation as `hd_min_secs`).
     (HD::MAX.total_nanoseconds() / 1_000_000_000) as i64
 }
 
@@ -468,6 +477,17 @@ mod tests {
     };
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
+
+    // Sanity-guards the `hd_min_secs` / `hd_max_secs` derivation: if
+    // hifitime ever introduced a non-second-aligned MIN / MAX, the
+    // i128-truncation `total_nanoseconds() / 1_000_000_000` would silently
+    // disagree with floor-division and the `roundtrip_ceil` boundary
+    // would slip by one second. (MR !63 round-4 follow-up.)
+    #[test]
+    fn hd_min_max_total_ns_divisible_by_billion() {
+        assert_eq!(HD::MIN.total_nanoseconds() % 1_000_000_000, 0);
+        assert_eq!(HD::MAX.total_nanoseconds() % 1_000_000_000, 0);
+    }
 
     // ── Preorder laws on `hifitime::Duration` ──────────────────
 

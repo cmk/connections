@@ -162,3 +162,50 @@ Fixed — same migration shape as `f064hdur_ceil`: bounds via `hd_{min,max}_secs
 #### ↳ cmk (2026-05-07 02:36 UTC) [open]
 
 Partial — added a separate `hdursecs_inner_saturation_boundary` spot test instead of extending the strategy. The bot's suggestion can't go directly into `arb_hifi_total_secs_in_range` because that strategy feeds `hdursecs_roundtrip_ceil`, which would fail at saturation values: `ceil(inner(min_s - 1)) = i64::MIN`, not `min_s - 1`. The targeted spot check captures the same boundary (`upper(min_s - 1) = NegInf`, `upper(max_s + 1) = PosInf`) without breaking round-trip. Galois-L coverage at the i64 extremes is already provided by `hdursecs_galois_l(b in any::<i64>())`.
+
+<!-- glab-id: 3322469631 -->
+<!-- glab-discussion: ae240a23c3eb10397d628ebef922ce897d392640 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/duration.rs:270` (2026-05-07 02:44 UTC) [open]
+
+**[must-fix]** The `hdursecs_ceil` doc comment says `inner` saturates `i64` outside `[MIN.to_secs(), MAX.to_secs()]`, but `hd_min_secs()` / `hd_max_secs()` use `total_nanoseconds() / 1_000_000_000` (floor division), which truncates toward negative infinity for `HD::MIN` and toward zero for `HD::MAX`. This means `min_s = floor(MIN_ns / 1e9)` and `max_s = floor(MAX_ns / 1e9)`, so `hdursecs_inner(max_s)` returns `Finite(HD::from_total_nanoseconds(max_s * 1e9))` — a Duration potentially one second less than `HD::MAX` — while `hdursecs_inner(max_s + 1)` returns `PosInf`. The `hdursecs_roundtrip_ceil` strategy draws `max_s` and asserts `ceil(inner(max_s)) == max_s`, but `inner(max_s)` constructs a Duration at exactly `max_s` seconds, which `ceil` returns as `max_s` only if it has no sub-second nanoseconds; verify that `HD::MAX.total_nanoseconds() % 1_000_000_000 == 0` (i.e., `HD::MAX` is a whole number of seconds) or the round-trip will fail silently.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322469651 -->
+<!-- glab-discussion: f66fb02af8eab6168aecda88b2a963d6c1959312 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/duration.rs:375` (2026-05-07 02:44 UTC) [open]
+
+**[follow-up]** The `f064hdur_ceil` fast-path `if v <= min_secs { return Extended::Finite(HD::MIN) }` uses `hd_min_secs() as f64` as the threshold. Since `hd_min_secs()` floors `HD::MIN.total_nanoseconds() / 1_000_000_000` (truncation toward −∞), the threshold may be one second more negative than the true minimum representable whole-second value, causing `f64` values in `(true_min_f64, min_secs_as_f64]` to be fast-pathed to `HD::MIN` instead of entering the walk — which is correct behavior but should be documented explicitly, since the existing comment only explains why `HD::MAX.to_seconds()` was replaced, not why the fast-path bound is conservative by one second.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322469669 -->
+<!-- glab-discussion: 671ad11395d9efce61d5cca1a1288cf28d9238d5 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/prop/arb.rs:1156` (2026-05-07 02:44 UTC) [open]
+
+**[follow-up]** The `arb_hifi_total_secs_in_range` strategy comment says bounds are derived via integer arithmetic rather than `to_seconds() as i64`, which is correct, but `hd_min_secs()` uses `total_nanoseconds() / 1_000_000_000` (Rust integer truncation, not Euclidean division). For `HD::MIN` whose `total_nanoseconds()` is negative, truncation gives a result closer to zero than floor division would — i.e., `min_s` is one larger than the true floor. This means the strategy may include the value `true_floor_min_s = min_s - 1` (an i64 that `hdursecs_inner` maps to `NegInf`) if `HD::MIN.total_nanoseconds() % 1_000_000_000 != 0`, breaking `hdursecs_roundtrip_ceil`. Add an assertion or static check confirming `HD::MIN.total_nanoseconds() % 1_000_000_000 == 0`.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322499014 -->
+<!-- glab-discussion: ae240a23c3eb10397d628ebef922ce897d392640 -->
+#### ↳ cmk (2026-05-07 03:05 UTC) [open]
+
+Push-back — `HD::MIN.total_nanoseconds()` and `HD::MAX.total_nanoseconds()` are both **exact multiples of 10⁹**, so truncation-vs-floor is moot at the boundary. Each `NANOSECONDS_PER_CENTURY` is `100 × 365.25 × 86400 × 10⁹` ns = `3 155 760 000 × 10⁹` (divisible by 10⁹), and HD::{MIN, MAX} are integer-century multiples of that constant (HD::MAX uses `nanoseconds == NANOSECONDS_PER_CENTURY` at i16::MAX-1 century, which `from_total_nanoseconds` normalizes to i16::MAX with ns=0 — still divisible). The `hdursecs_roundtrip_ceil(max_s)` proptest verifies `ceil(inner(max_s)) == max_s` and is currently green; that wouldn't hold under the divisibility-failure scenario the comment describes.
+
+Pinned the invariant explicitly via a new `hd_min_max_total_ns_divisible_by_billion` test (`commit 4ad05e5`) so any future hifitime change that breaks divisibility flips the test red immediately.
+
+<!-- glab-id: 3322499150 -->
+<!-- glab-discussion: f66fb02af8eab6168aecda88b2a963d6c1959312 -->
+#### ↳ cmk (2026-05-07 03:06 UTC) [open]
+
+Push-back — the fast-path bound is **not** conservative by one second. `HD::MIN.total_nanoseconds() % 1_000_000_000 == 0` (each `NANOSECONDS_PER_CENTURY` is divisible by 10⁹), so `hd_min_secs() = HD::MIN.total_ns() / 10⁹` is the exact floor, not "one second more negative than the true minimum." The interval `(true_min_f64, hd_min_secs() as f64]` the comment posits is empty. The new `hd_min_max_total_ns_divisible_by_billion` test (commit `4ad05e5`) guards the invariant.
+
+<!-- glab-id: 3322499213 -->
+<!-- glab-discussion: 671ad11395d9efce61d5cca1a1288cf28d9238d5 -->
+#### ↳ cmk (2026-05-07 03:06 UTC) [open]
+
+Fixed — added `hd_min_max_total_ns_divisible_by_billion` test that asserts `HD::{MIN, MAX}.total_nanoseconds() % 1_000_000_000 == 0`. Currently both hold (per-century arithmetic is divisible by 10⁹), so the strategy never includes a `min_s - 1` value that would flip `inner` to NegInf. The test pins the invariant against future hifitime drift.
