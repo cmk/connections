@@ -896,6 +896,15 @@ crate::conn_l! {
     /// value), so this is `ConnL` not `ConnK` (matches `F064DURN` /
     /// `ETAIF064` rationale).
     ///
+    /// **NEG_INFINITY arm tag.** `ceil(Extend(f64::NEG_INFINITY))`
+    /// returns `Finite(Epoch::from_tai_duration(HD::MIN))` — a
+    /// **TAI**-tagged Epoch, not a GPST-tagged one. Inherited from
+    /// the §1 `ETAIF064` design. The ConnL idempotent law still
+    /// holds (`Epoch::Eq` is instant-based; the saturated subtraction
+    /// in `to_gpst_seconds` makes successive `ceil ∘ inner` round-
+    /// trips collapse to the same instant), but readers should not
+    /// assume the result carries the GPST scale tag throughout.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -1058,7 +1067,11 @@ fn eqzsf064_inner(e: Extended<Epoch>) -> F064 {
 
 crate::conn_l! {
     /// `F064 → Extended<hifitime::Epoch>` — QZSS Time seconds (since
-    /// [`hifitime::QZSST_REF_EPOCH`]) ↔ Epoch. Mirrors [`EGPSF064`].
+    /// [`hifitime::QZSST_REF_EPOCH`]) ↔ Epoch. Mirrors [`EGPSF064`],
+    /// including the [NEG_INFINITY arm tag](EGPSF064) caveat
+    /// (the `f64::NEG_INFINITY` arm yields a **TAI**-tagged Epoch,
+    /// not a QZSST-tagged one — laws still hold under instant-based
+    /// `Epoch::Eq`).
     ///
     /// # Examples
     ///
@@ -1206,6 +1219,9 @@ crate::conn_l! {
     /// `F064 → Extended<hifitime::Epoch>` — GST seconds (since
     /// [`hifitime::GST_REF_EPOCH`]) ↔ Epoch. Same shape as
     /// [`EGPSF064`] with `to_gst_seconds` as the comparison frame.
+    /// Same NEG_INFINITY tag caveat as [`EGPSF064`] (the arm yields
+    /// a **TAI**-tagged Epoch, not a GST-tagged one — laws still
+    /// hold under instant-based `Epoch::Eq`).
     ///
     /// # Examples
     ///
@@ -1375,7 +1391,9 @@ crate::conn_l! {
     /// [`EGPSF064`] with the comparison frame routed through
     /// `epoch_to_bdt_f64` — i.e. `to_duration_in_time_scale(BDT).to_seconds()`,
     /// **not** `to_bdt_seconds()` — to avoid the upper-bound HD
-    /// saturation documented in the §3.4 banner.
+    /// saturation documented in the §3.4 banner. Same NEG_INFINITY
+    /// tag caveat as [`EGPSF064`] (the arm yields a **TAI**-tagged
+    /// Epoch — laws hold under instant-based `Epoch::Eq`).
     ///
     /// # Examples
     ///

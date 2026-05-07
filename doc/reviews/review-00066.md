@@ -143,3 +143,33 @@ Partial: replaced `hifitime::SECONDS_GPS_TAI_OFFSET` with the literal `2_524_953
 #### ↳ cmk (2026-05-07 06:45 UTC) [open]
 
 Push-back: `Epoch::from_bdt_duration(d)` is `Self::from_duration(d, TimeScale::BDT)` (`hifitime/src/epoch/initializers.rs:106`) — bare struct construction storing `d` as the BDT-relative duration with the BDT scale tag. No arithmetic, no TAI routing, no saturation. The §3.4 banner's workaround only addresses the `to_*_duration` direction (where the `to_bdt_duration` impl detours through `to_tai_duration`). The `back ∘ forward` round-trip at `HD::MAX` is the failing case that originally surfaced this issue; it's now covered by `ebdthdur_laws::roundtrip_ceil` and passes after the forward-side fix.
+
+<!-- glab-id: 3322935002 -->
+<!-- glab-discussion: 0277a237b509ea58fd6c73aeb53d1f44af881a3e -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:764` (2026-05-07 07:00 UTC) [open]
+
+**[follow-up]** The `f64::NEG_INFINITY` arm in `egpsf064_ceil` (and the identical arms in `eqzsf064_ceil`, `egstf064_ceil`, `ebdtf064_ceil`) returns `Extended::Finite(Epoch::from_tai_duration(HD::MIN))`, a TAI-tagged Epoch. The CI reviewer raised this as a `must-fix` idempotent violation; cmk's reply shows the law holds because `inner` routes through `to_*_seconds()` which saturates back to the same value, and `Epoch::Eq` is instant-based. The idempotent proptest passes. However, the doc comments for all four F064 Conns are silent on this TAI-tag behaviour, which the local review also flagged as a follow-up: add a note to each F064 doc (mirroring the `ETAIF064` precedent) that the `NEG_INFINITY` arm yields a TAI-tagged Epoch, so future maintainers don't assume GPST/QZSST/GST/BDT tags throughout.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322935033 -->
+<!-- glab-discussion: 3eb45d02543c44c9809808e39fa9e892f88dfa94 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/prop/arb.rs:1310` (2026-05-07 07:00 UTC) [open]
+
+**[follow-up]** Plan T1 specifies factoring the four `arb_hifi_*_nanos_in_range` bodies through a single private helper `arb_hifi_scale_nanos_in_range(offset_ns: i128)` to eliminate copy-paste drift risk. The four functions are identical modulo the `REF_EPOCH` constant; any future change to the boundary strategy (e.g. adding a `max_n - 1` partner) must be applied in four places. Extract the shared body into a private helper as the plan required.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3322964184 -->
+<!-- glab-discussion: 0277a237b509ea58fd6c73aeb53d1f44af881a3e -->
+#### ↳ cmk (2026-05-07 07:10 UTC) [open]
+
+Fixed — added a NEG_INFINITY tag note to each of EGPSF064, EQZSF064, EGSTF064, EBDTF064 (commit 32442a3, round 2). The note explicitly flags that the arm yields a TAI-tagged Epoch and that the ConnL idempotent law still holds under instant-based `Epoch::Eq`.
+
+<!-- glab-id: 3322964388 -->
+<!-- glab-discussion: 3eb45d02543c44c9809808e39fa9e892f88dfa94 -->
+#### ↳ cmk (2026-05-07 07:11 UTC) [open]
+
+Fixed — extracted the shared body into a private `arb_hifi_scale_nanos_in_range(offset_ns: i128)` helper (commit 32442a3, round 2). The four public strategies are now thin shims; future boundary-strategy changes apply once.
