@@ -51,11 +51,16 @@ pub mod one;
 pub mod sixteen;
 pub mod two;
 
-pub use eight::{F064OBYT, I064OBYT, U064OBYT};
-pub use four::{F032OBYT, I032OBYT, U032OBYT};
+pub use eight::{I064OBYT, U064OBYT};
+pub use four::{I032OBYT, U032OBYT};
 pub use one::{BOOLOBYT, I008OBYT, U008OBYT};
 pub use sixteen::{I128OBYT, U128OBYT};
 pub use two::{I016OBYT, U016OBYT};
 
-#[cfg(feature = "f16")]
-pub use two::F016OBYT;
+// Float OBYT Conns (`F016OBYT`, `F032OBYT`, `F064OBYT`) are deferred from
+// this sprint — see `doc/plans/plan-2026-05-07-03.md` §Review for the
+// design rationale. The byte encoding (totalOrder pre-encoding + BE
+// bytes) preserves IEEE 754 totalOrder, but the host endpoint's
+// `PartialOrd` returns `None` for any NaN comparison, which would make
+// the emitted `iso!` claim a Galois law it does not satisfy at
+// NaN-decoding byte arrays.

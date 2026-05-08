@@ -1,4 +1,4 @@
-//! 2-byte hosts: `u16`, `i16`, `f16` (gated on the `f16` cargo feature).
+//! 2-byte hosts: `u16`, `i16`. (`f16` host deferred — see `src/byte.rs`.)
 
 // ── u16 ─────────────────────────────────────────────────────────────
 
@@ -60,47 +60,7 @@ crate::iso! {
     }
 }
 
-// ── f16 (gated) ─────────────────────────────────────────────────────
-
-#[cfg(feature = "f16")]
-mod f16_impl {
-    /// totalOrder pre-encoding: positive flips the sign bit; negative inverts all bits.
-    const fn f16_to_obyt(x: f16) -> [u8; 2] {
-        let bits = x.to_bits();
-        let sortable = if bits & 0x8000 == 0 {
-            bits ^ 0x8000
-        } else {
-            !bits
-        };
-        sortable.to_be_bytes()
-    }
-
-    const fn obyt_to_f16(b: [u8; 2]) -> f16 {
-        let sortable = u16::from_be_bytes(b);
-        let bits = if sortable & 0x8000 != 0 {
-            sortable ^ 0x8000
-        } else {
-            !sortable
-        };
-        f16::from_bits(bits)
-    }
-
-    crate::iso! {
-        /// `f16 ↔ [u8; 2]` — IEEE 754 totalOrder iso.
-        ///
-        /// Uses the standard "sortable float" bit trick: positive
-        /// values flip the sign bit; negatives invert all bits.
-        /// Result: byte-lex order matches `f16::total_cmp`. Round-trip
-        /// is bit-exact, including NaN payloads.
-        pub F016OBYT : f16 => [u8; 2] {
-            forward: f16_to_obyt,
-            back:    obyt_to_f16,
-        }
-    }
-}
-
-#[cfg(feature = "f16")]
-pub use f16_impl::F016OBYT;
+// `F016OBYT` deferred — see `src/byte.rs` for the NaN/PartialOrd rationale.
 
 // ── tests ───────────────────────────────────────────────────────────
 
@@ -185,49 +145,6 @@ mod tests {
         #[test]
         fn i016_obyt_order_preserving(a in arb_i16(), b in arb_i16()) {
             prop_assert_eq!(a.cmp(&b), I016OBYT.ceil(a).cmp(&I016OBYT.ceil(b)));
-        }
-    }
-
-    #[cfg(feature = "f16")]
-    proptest! {
-        #[test]
-        fn f016_obyt_iso_roundtrip_bits(bits in any::<u16>()) {
-            // f16 round-trip is bit-exact (NaN payloads preserved). Test on bits
-            // rather than values so NaN equality doesn't bite.
-            let a = f16::from_bits(bits);
-            let b = F016OBYT.ceil(a);
-            prop_assert_eq!(F016OBYT.upper(b).to_bits(), bits);
-        }
-
-        #[test]
-        fn f016_obyt_roundtrip_ceil(b in arb_byte2()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&F016OBYT.conn_l(), b));
-        }
-
-        #[test]
-        fn f016_obyt_order_preserving(a_bits in any::<u16>(), b_bits in any::<u16>()) {
-            // Compare via f16::total_cmp, the IEEE 754 totalOrder.
-            let a = f16::from_bits(a_bits);
-            let b = f16::from_bits(b_bits);
-            prop_assert_eq!(a.total_cmp(&b), F016OBYT.ceil(a).cmp(&F016OBYT.ceil(b)));
-        }
-
-        #[test]
-        fn f016_obyt_galois_l_total(a_bits in any::<u16>(), b in arb_byte2()) {
-            let a = f16::from_bits(a_bits);
-            let c = F016OBYT.conn_l();
-            let lhs = c.ceil(a) <= b;
-            let rhs = a.total_cmp(&c.upper(b)).is_le();
-            prop_assert_eq!(lhs, rhs);
-        }
-
-        #[test]
-        fn f016_obyt_galois_r_total(a_bits in any::<u16>(), b in arb_byte2()) {
-            let a = f16::from_bits(a_bits);
-            let c = F016OBYT.conn_r();
-            let lhs = c.lower(b).total_cmp(&a).is_le();
-            let rhs = b <= c.floor(a);
-            prop_assert_eq!(lhs, rhs);
         }
     }
 }

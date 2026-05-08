@@ -3,29 +3,29 @@
 ## Summary
 
 - Add `byte` cargo feature gating a new `connections::byte::*` module
-  that ships **14 sortable byte-encoding Conns**: `{u,i}{8..128} ↔
-  [u8; N]` (big-endian for unsigned; sign-flipped BE for signed),
-  `f{16,32,64} ↔ [u8; N]` (IEEE 754 totalOrder pre-encoding via the
-  same algebra `signed32` already uses for ULP walks), and a one-sided
-  `BOOLOBYT`. Right-side constant code is `OBYT` ("Ordered BYTes").
-- All 13 isos are degenerate Galois (`floor = ceil = forward`) with
-  bit-exact round-trip; lex byte order matches host numeric order
-  (`total_cmp` for floats). No new third-party dependencies — the
-  implementation only touches std's `to_be_bytes` / `from_be_bytes`.
-  Default builds (no `byte` feature) are unaffected.
-- Verification: 73 proptests + 7 doctests + **43 Kani SMT proofs**
+  that ships **11 sortable byte-encoding Conns**: `{u,i}{8..128} ↔
+  [u8; N]` (big-endian for unsigned; sign-flipped BE for signed) plus
+  a one-sided `BOOLOBYT`. Right-side constant code is `OBYT`
+  ("Ordered BYTes"). Float OBYT Conns (`F016OBYT`, `F032OBYT`,
+  `F064OBYT`) deferred — see the round-2 §Review note in the plan.
+- All 10 integer Conns are degenerate Galois (`floor = ceil =
+  forward`) with bit-exact round-trip; lex byte order matches host
+  numeric order. No new third-party dependencies — the implementation
+  only touches std's `to_be_bytes` / `from_be_bytes`. Default builds
+  (no `byte` feature) are unaffected.
+- Verification: 63 proptests + 6 doctests + **38 Kani SMT proofs**
   (1- and 2-byte hosts exhaustive; 4-byte under 64-bit symex on the
   two-input order-preservation predicate). 8/16-byte hosts are
   proptest-only; CBMC stalls on 128/256-bit two-input symex.
 
 ## Test plan
 
-- `cargo test --workspace` — default-feature build, all 1166 existing
-  tests pass; byte module is invisible.
-- `cargo test --workspace --features byte` — adds 69 byte proptests +
-  7 byte doctests, all green.
+- `cargo test --workspace` — default-feature build, existing tests
+  pass; byte module is invisible.
+- `cargo test --workspace --features byte` — adds 63 byte proptests +
+  6 byte doctests, all green.
 - `cargo clippy --all-targets --features byte -- -D warnings` — clean.
-- `cargo kani --features byte --harness 'byte_'` — 43/43 SMT proofs
+- `cargo kani --features byte --harness 'byte_'` — 38/38 SMT proofs
   green.
 - `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features byte`
   — docs render without intra-link breakage.
@@ -89,3 +89,28 @@ Fixed — added an inline comment to `obyt_to_f32` (and the parallel comment to 
 #### ↳ cmk (2026-05-08 01:54 UTC) [open]
 
 Pushing back — the 255:1 byte split doesn't translate into a solver-budget skew since CBMC explores the symbolic `u8` exhaustively and both bool cases (`n=0` and `n>0`) are reachable; the solver unifies the analysis at the abstract bool level, not per-byte. `kani::any::<bool>()` was the original construction and triggered the spurious-counterexample bug we documented (`bool/PartialOrd` interaction in Kani 0.67), which is why the workaround exists. Switching to `n >= 128` would change the byte distribution without affecting either correctness or coverage, and would trade a clear documented workaround for a comment-less encoding.
+
+## Codex review (2026-05-08, round 2)
+
+### [P1] Do not expose raw-float OBYT values as lawful Conns — `src/byte/four.rs:100`
+
+For NaN-decoding byte arrays, this `iso!` does not satisfy the crate's standard `Conn` law over `f32`'s `PartialOrd`: with `a = 0.0` and `b = F032OBYT.ceil(f32::NAN)`, `ceil(a) <= b` is true in byte order, but `a <= upper(b)` is false because `upper(b)` is NaN. The same issue applies to `F016OBYT` and `F064OBYT`, so these need a total-order wrapper / `ExtendedFloat` endpoint or should not be exposed as lawful raw-float `ConnK` values.
+
+#### ↳ cmk reply
+
+Acknowledged, this is a real soundness issue — the round-1 §Review only acknowledged the *test* deviation (using `total_cmp` in harnesses), not the trait-claim violation. Considered fixes:
+
+1. Wrap source as `ExtendedFloat<f*>` — doesn't help; `partial_cmp(Extend(NaN), Extend(0.0))` returns `None` and `<=` returns `false`. The same NaN problem leaks through.
+2. Introduce a totalOrder newtype around `[u8; N]` — feasible but heavyweight.
+3. Type-level `NonNan<f*>` source — feasible and clean.
+4. Defer to a follow-up sprint.
+
+Picking **option 4** for round 2 to land the 11 integer + bool Conns now and let the float strategy be designed without rushing. Removed `F016OBYT`, `F032OBYT`, `F064OBYT` along with their helpers, proptests, and Kani harnesses (63 proptests + 6 doctests + 38 SMT proofs remain, all green). The byte algebra is correct as proven; only the host-endpoint shape is open. Plan 47 §Review item 5 documents the deferral and the candidate follow-up shapes.
+
+### [P1] Run rustfmt before merging — `src/byte/one.rs:130`
+
+`cargo fmt --all -- --check` fails on this commit at this proptest line and at the chained `BOOLOBYT` comparison in `src/kani_proofs/byte_one.rs`, so the blocking `fmt` job in `.gitlab-ci.yml` will reject the MR even though the tests pass. Please run rustfmt on the tree before merging.
+
+#### ↳ cmk reply
+
+Already fixed in `240ab37` (CI-repair fixup against the sprint commit). `cargo fmt --all -- --check` exits 0 against the current branch HEAD. The fixup will be autosquashed into the sprint commit before merge per CLAUDE.md's CI-repair policy, so `main` won't gain a commit that temporarily failed fmt. The Codex review was likely against the pre-fixup sha (`7fce952`).

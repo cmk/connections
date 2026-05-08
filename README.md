@@ -371,16 +371,20 @@ call into calendar / leap-second tables — `TIMENANO`, `TIMESECS`,
 `ETAINANO`, and the `ETAIHDUR` iso — pick up the standard
 Galois-law battery.
 
-Plan 47 (`byte` cargo feature) adds **43 SMT proofs** for the new
+Plan 47 (`byte` cargo feature) adds **38 SMT proofs** for the new
 sortable-byte-encoding family in `src/kani_proofs/byte_{one,two,four}.rs`.
 1- and 2-byte hosts (`U008OBYT`, `I008OBYT`, `U016OBYT`, `I016OBYT`,
 plus the one-sided `BOOLOBYT`) are proven exhaustively; 4-byte hosts
-(`U032OBYT`, `I032OBYT`, `F032OBYT`) verify under full 32-bit symbolic
-input. The 8- and 16-byte hosts (`U064OBYT`, `F064OBYT`, `U128OBYT`, …)
-are proptest-only — 128/256-bit two-input symex stalls CBMC. The float
-harnesses use `f32::total_cmp` rather than the partial `<=`, since
-IEEE NaN otherwise breaks the `(ceil(a) ≤ b) == (a ≤ upper(b))`
-predicate at NaN-decoding byte arrays.
+(`U032OBYT`, `I032OBYT`) verify under full 32-bit symbolic input. The
+8- and 16-byte hosts (`U064OBYT`, `U128OBYT`, …) are proptest-only —
+128/256-bit two-input symex stalls CBMC. **Float OBYT Conns
+(`F016OBYT`, `F032OBYT`, `F064OBYT`) are deferred** — the byte
+encoding preserves IEEE 754 totalOrder, but the host endpoint's
+`PartialOrd` returns `None` for NaN comparisons, which would force
+the emitted `iso!` to claim a Galois law it does not satisfy at
+NaN-decoding byte arrays. A follow-up will pick a NaN-handling
+strategy (totalOrder newtype, type-level NonNan constraint, or
+ExtendedFloat with custom ordering).
 
 Still out of scope: address Conns, full Galois laws on float Conns
 over the unrestricted IEEE bit space (intractable for CBMC's FP
@@ -437,7 +441,7 @@ implement `ConnK`.
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) and the `std::time::Duration` family (`STDRU064`, `STDRU128`, `F064STDR`, `F032STDR`) for users on `std::time` | `time` |
 | `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
 | `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
-| Sortable byte encodings (`U008OBYT`, `I008OBYT`, `BOOLOBYT`, `U016OBYT`, `I016OBYT`, `F016OBYT`, `U032OBYT`, `I032OBYT`, `F032OBYT`, `U064OBYT`, `I064OBYT`, `F064OBYT`, `U128OBYT`, `I128OBYT`) — `byte` cargo feature | `byte` |
+| Sortable byte encodings (`U008OBYT`, `I008OBYT`, `BOOLOBYT`, `U016OBYT`, `I016OBYT`, `U032OBYT`, `I032OBYT`, `U064OBYT`, `I064OBYT`, `U128OBYT`, `I128OBYT`) — `byte` cargo feature; float OBYT Conns deferred (NaN/PartialOrd) | `byte` |
 
 Constant-name prefixes are letter-disambiguated: `Q` for Q-format
 wrappers (sign and host bit-width come from the module path), `I`/`U`

@@ -1,8 +1,6 @@
 //! Kani harnesses for [`crate::byte::two`] — 2-byte sortable byte-encoding isos.
 //!
-//! `U016OBYT`, `I016OBYT`. (`F016OBYT` is gated on the separate `f16`
-//! cargo feature and would only run on a nightly toolchain — covered
-//! by proptest unconditionally; not added to the Kani battery here.)
+//! `U016OBYT`, `I016OBYT`. (`F016OBYT` deferred — see `src/byte.rs`.)
 //!
 //! T0 (full domain). Symbolic input is at most 32 bits (a u16 + a
 //! [u8; 2]); CBMC handles this within seconds.

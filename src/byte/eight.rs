@@ -1,4 +1,5 @@
-//! 8-byte hosts: `u64`, `i64`, `f64`. Kani-deferred (proptest only).
+//! 8-byte hosts: `u64`, `i64`. Kani-deferred (proptest only). (`f64`
+//! host deferred — see `src/byte.rs`.)
 
 // ── u64 ─────────────────────────────────────────────────────────────
 
@@ -36,42 +37,7 @@ crate::iso! {
     }
 }
 
-// ── f64 ─────────────────────────────────────────────────────────────
-
-const fn f64_to_obyt(x: f64) -> [u8; 8] {
-    let bits = x.to_bits();
-    let sortable = if bits & 0x8000_0000_0000_0000 == 0 {
-        bits ^ 0x8000_0000_0000_0000
-    } else {
-        !bits
-    };
-    sortable.to_be_bytes()
-}
-
-const fn obyt_to_f64(b: [u8; 8]) -> f64 {
-    let sortable = u64::from_be_bytes(b);
-    // Sortable MSB set → original was positive (forward flipped the MSB);
-    // sortable MSB clear → original was negative (forward inverted all bits).
-    // See `obyt_to_f32` for the algebraic justification.
-    let bits = if sortable & 0x8000_0000_0000_0000 != 0 {
-        sortable ^ 0x8000_0000_0000_0000
-    } else {
-        !sortable
-    };
-    f64::from_bits(bits)
-}
-
-crate::iso! {
-    /// `f64 ↔ [u8; 8]` — IEEE 754 totalOrder iso.
-    ///
-    /// Same algebra as [`F032OBYT`](super::F032OBYT) at 64 bits.
-    /// Round-trip is bit-exact (NaN payloads preserved); byte-lex
-    /// order matches [`f64::total_cmp`].
-    pub F064OBYT : f64 => [u8; 8] {
-        forward: f64_to_obyt,
-        back:    obyt_to_f64,
-    }
-}
+// `F064OBYT` deferred — see `src/byte.rs` for the NaN/PartialOrd rationale.
 
 // ── tests ───────────────────────────────────────────────────────────
 
@@ -148,39 +114,6 @@ mod tests {
         #[test]
         fn i064_obyt_order_preserving(a in arb_i64(), b in arb_i64()) {
             prop_assert_eq!(a.cmp(&b), I064OBYT.ceil(a).cmp(&I064OBYT.ceil(b)));
-        }
-
-        // f64 — same totalOrder pattern as F032OBYT (see byte/four.rs).
-        #[test]
-        fn f064_obyt_iso_roundtrip_bits(bits in any::<u64>()) {
-            let a = f64::from_bits(bits);
-            prop_assert_eq!(F064OBYT.upper(F064OBYT.ceil(a)).to_bits(), bits);
-        }
-        #[test]
-        fn f064_obyt_roundtrip_ceil(b in arb_byte8()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&F064OBYT.conn_l(), b));
-        }
-        #[test]
-        fn f064_obyt_order_preserving(a_bits in any::<u64>(), b_bits in any::<u64>()) {
-            let a = f64::from_bits(a_bits);
-            let b = f64::from_bits(b_bits);
-            prop_assert_eq!(a.total_cmp(&b), F064OBYT.ceil(a).cmp(&F064OBYT.ceil(b)));
-        }
-        #[test]
-        fn f064_obyt_galois_l_total(a_bits in any::<u64>(), b in arb_byte8()) {
-            let a = f64::from_bits(a_bits);
-            let c = F064OBYT.conn_l();
-            let lhs = c.ceil(a) <= b;
-            let rhs = a.total_cmp(&c.upper(b)).is_le();
-            prop_assert_eq!(lhs, rhs);
-        }
-        #[test]
-        fn f064_obyt_galois_r_total(a_bits in any::<u64>(), b in arb_byte8()) {
-            let a = f64::from_bits(a_bits);
-            let c = F064OBYT.conn_r();
-            let lhs = c.lower(b).total_cmp(&a).is_le();
-            let rhs = b <= c.floor(a);
-            prop_assert_eq!(lhs, rhs);
         }
     }
 }
