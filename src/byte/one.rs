@@ -76,7 +76,9 @@ const fn bool_to_obyt(x: bool) -> [u8; 1] {
 /// Lossy back: any non-zero byte is `true`, only `[0]` is `false`.
 /// This makes `BOOLOBYT` a one-sided `conn_l!` (not an iso) — the
 /// `roundtrip_ceil` law fails for bytes `0x02..=0xFF` (they all
-/// collapse to `true → [1]`). Galois L still holds.
+/// collapse to `true → [1]`). Galois L still holds: `ceil(true) = [1]`
+/// and `inner` returns `true` exactly for `b ≥ [1]`, so the threshold
+/// `b ≥ ceil(a)` matches `inner(b) ≥ a` for both `a` values.
 const fn obyt_to_bool(b: [u8; 1]) -> bool {
     b[0] != 0
 }
@@ -220,9 +222,12 @@ mod tests {
         }
 
         #[test]
-        fn bool_obyt_iso_roundtrip_l(a: bool) {
-            // Even though BOOLOBYT is one-sided, the host-side round-trip
-            // (inner ∘ ceil = id) holds exactly.
+        fn bool_obyt_host_roundtrip_l(a: bool) {
+            // Host-side round-trip only: `inner ∘ ceil = id`. Byte-side
+            // (`ceil ∘ inner = id`) is intentionally absent — see the doc
+            // comment on `obyt_to_bool`. The `iso_roundtrip_l` predicate is
+            // misnamed for one-sided Conns; it asserts only the host-side
+            // identity, which holds here.
             prop_assert!(conn_laws::iso_roundtrip_l(&BOOLOBYT, a));
         }
 

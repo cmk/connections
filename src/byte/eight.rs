@@ -50,6 +50,9 @@ const fn f64_to_obyt(x: f64) -> [u8; 8] {
 
 const fn obyt_to_f64(b: [u8; 8]) -> f64 {
     let sortable = u64::from_be_bytes(b);
+    // Sortable MSB set → original was positive (forward flipped the MSB);
+    // sortable MSB clear → original was negative (forward inverted all bits).
+    // See `obyt_to_f32` for the algebraic justification.
     let bits = if sortable & 0x8000_0000_0000_0000 != 0 {
         sortable ^ 0x8000_0000_0000_0000
     } else {

@@ -86,8 +86,9 @@ mod bool_obyt {
     // The proptest battery in `src/byte/one.rs` covers this law.
 
     #[kani::proof]
-    fn iso_roundtrip_l() {
-        // inner ∘ ceil = id holds on the host side (false → [0] → false; true → [1] → true).
+    fn host_roundtrip_l() {
+        // Host-side only: `inner ∘ ceil = id` (false → [0] → false; true → [1] → true).
+        // Byte-side (`ceil ∘ inner = id`) doesn't hold for `BOOLOBYT` and isn't asserted.
         let a = any_bool();
         assert!(conn_laws::iso_roundtrip_l(&crate::byte::BOOLOBYT, a));
     }

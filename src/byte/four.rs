@@ -65,6 +65,10 @@ const fn f32_to_obyt(x: f32) -> [u8; 4] {
 
 const fn obyt_to_f32(b: [u8; 4]) -> f32 {
     let sortable = u32::from_be_bytes(b);
+    // Sortable MSB is set (1) → original was *positive* (forward XORed the MSB).
+    // Sortable MSB is clear (0) → original was *negative* (forward inverted all bits).
+    // The branch direction here is the mirror of the forward branch; both work out
+    // to "undo whatever the forward did".
     let bits = if sortable & 0x8000_0000 != 0 {
         sortable ^ 0x8000_0000
     } else {
