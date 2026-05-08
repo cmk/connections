@@ -280,12 +280,14 @@ round-trip (`/pull-reviews` → fix → `/reply-reviews` → push).
    loop back to step 4.
 9. Push and open the MR:
    ```
-   git push -u origin sprint/<name>
+   git push -o ci.skip -u origin sprint/<name>
    glab mr create --title "<title>" \
      --description "$(scripts/extract_mr_body.sh NNNNN)"
    ```
-   Tier 2 CI (`.gitlab-ci.yml`) and any configured reviewers start
-   immediately.
+   Use `ci.skip` only for this first publication push: before the MR
+   exists, GitLab cannot suppress the duplicate branch pipeline. The
+   merge-request pipeline starts when `glab mr create` opens the MR;
+   later review-round pushes do not use `ci.skip`.
 10. **Per review round**: `/pull-reviews <N>` fetches new discussions,
     fix them as a single **unpushed** fix commit, then `/reply-reviews <N>`
     posts replies, mirrors them back into the review doc, and amends
@@ -340,13 +342,13 @@ unbypassable safety net.
 `git push`, before any refs are sent to the remote. Runs checks too
 expensive to gate every commit but cheap once a sprint:
 
-1. `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features testing
-   --document-private-items` — fails on broken intra-doc links and
-   rustdoc warnings. Mirrors the CI `doc:` job. CI catches these on
-   MR pipelines and post-merge `main`, but mid-sprint feature-branch
-   pushes don't trigger an MR pipeline, so accumulated link rot can
-   land unnoticed until an MR is opened. Running locally before push
-   closes that gap.
+1. `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features
+   byte,testing,macros --document-private-items` — fails on broken
+   intra-doc links and rustdoc warnings. Mirrors the CI `doc:` job and
+   docs.rs feature surface. CI catches these on MR pipelines and
+   post-merge `main`, but mid-sprint feature-branch pushes don't
+   trigger an MR pipeline, so accumulated link rot can land unnoticed
+   until an MR is opened. Running locally before push closes that gap.
 
 Activate Layers 2 and 3 on a fresh clone:
 

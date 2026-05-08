@@ -9,14 +9,15 @@
 #
 # Currently runs:
 #
-#   1. cargo doc --no-deps --document-private-items
+#   1. cargo doc --no-deps --features byte,testing,macros
+#      --document-private-items
 #      with `RUSTDOCFLAGS=-D warnings` — fails on broken intra-doc
 #      links and rustdoc warnings. Mirrors the CI `doc:` job in
-#      `.gitlab-ci.yml`. CI catches these on MR pipelines and
-#      post-merge main, but mid-sprint feature-branch pushes don't
-#      trigger an MR pipeline, so accumulated link rot can land
-#      unnoticed until an MR is opened. Running locally before push
-#      closes that gap.
+#      `.gitlab-ci.yml` and the stable docs.rs feature surface. CI
+#      catches these on MR pipelines and post-merge main, but
+#      mid-sprint feature-branch pushes don't trigger an MR pipeline,
+#      so accumulated link rot can land unnoticed until an MR is
+#      opened. Running locally before push closes that gap.
 #
 # Activate alongside pre-commit via:
 #
@@ -34,4 +35,4 @@ cd "$repo_root"
 # 1. cargo doc — blocking. Catches broken intra-doc links and rustdoc
 #    warnings before they reach CI. Mirrors the `.gitlab-ci.yml` doc:
 #    job's invocation so the local check and CI agree.
-RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features testing --document-private-items
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features byte,testing,macros --document-private-items

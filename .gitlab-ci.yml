@@ -1,10 +1,13 @@
 # One pipeline per push. When an MR is open, the merge-request pipeline
 # is canonical (and is what GitLab attaches to the MR view); when no MR
-# is open, the branch pipeline runs the same jobs. This means `fmt`,
-# `clippy`, `test`, `deny`, `gitleaks` show up on the MR pipeline page
-# the moment an MR is opened, instead of being hidden in a separate
-# "Branch pipelines" tab.
+# is open, source-changing branch pushes run the Rust gate directly.
+# Docs-only and review-only pushes skip the Rust jobs; main keeps the
+# landed-change audits, Pages deploy, and Rust gate only for
+# source-impacting direct pushes.
 workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+    on_job_failure: all
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
@@ -19,9 +22,10 @@ stages:
 
 default:
   image: rust:1.85
+  interruptible: true
   # Cache only the Cargo registry index + cache + git DB — never
   # `target/`. `target/` was 2.6 GB locally and was being pulled +
-  # pushed by every job (fmt/clippy/doc/test) under a single shared
+  # pushed by every job (clippy/doc/test) under a single shared
   # `cargo` key, moving ~20 GB of cache traffic per pipeline. The
   # registry directories total ~50 MB and only invalidate when
   # `Cargo.lock` changes, so most pipelines hit a warm cache with no
@@ -48,46 +52,53 @@ variables:
   # image and is not cacheable.
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
 
-fmt:
-  stage: check
-  # `cargo fmt --check` reads source only; no cargo registry needed.
-  # Skip the cache to avoid pulling ~50 MB of registry tarball for
-  # nothing.
-  cache: []
-  before_script:
-    - rustup component add rustfmt
-  script:
-    - cargo fmt --all -- --check
-
 clippy:
   stage: check
   before_script:
+    - rustup component add rustfmt
     - rustup component add clippy
   script:
+    # Keep formatting blocking without paying a separate runner
+    # startup for a standalone fmt job.
+    - cargo fmt --all -- --check
     - cargo clippy --all-targets -- -D warnings
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: &rust_source_paths
+        - Cargo.toml
+        - Cargo.lock
+        - README.md
+        - rust-toolchain.toml
+        - rustfmt.toml
+        - .gitlab-ci.yml
+        - .config/nextest.toml
+        - .githooks/**/*
+        - deny.toml
+        - scripts/**/*
+        - src/**/*
+        - tests/**/*
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH
+      changes: *rust_source_paths
 
 doc:
   stage: check
   # Catch broken intra-doc links and rustdoc warnings before docs.rs
   # builds the published release. The feature set
-  # `testing,macros` matches the docs.rs config in Cargo.toml so
-  # feature-gated items (`prop::arb`, `connections::macros`) render
-  # the same way locally as on docs.rs. Cannot use `--all-features`
-  # here: the `f16` feature activates
+  # `byte,testing,macros` matches the docs.rs config in Cargo.toml so
+  # feature-gated items (`connections::byte`, `prop::arb`,
+  # `connections::macros`) render the same way locally as on docs.rs.
+  # Cannot use `--all-features` here: the `f16` feature activates
   # `#![cfg_attr(feature = "f16", feature(f16))]`, a nightly-only
   # attribute that errors on this CI image's stable rustc.
   variables:
     RUSTDOCFLAGS: "-D warnings"
   script:
-    - cargo doc --no-deps --features testing,macros --document-private-items
-  # Gate doc to MR pipelines + post-merge main runs. Mid-sprint pushes
-  # to a feature branch with no MR open don't need doc validation
-  # (rustdoc warnings won't have shifted between sibling commits).
-  # MR pipelines still gate the merge; main confirms the rendered
-  # state landed.
+    - cargo doc --no-deps --features byte,testing,macros --document-private-items
+  # MR pipelines gate source changes. Post-merge main docs are rendered
+  # by the strict `pages` job, so this check skips duplicated main work.
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "main"
+      changes: *rust_source_paths
 
 test:
   stage: test
@@ -95,8 +106,8 @@ test:
   # `cargo nextest run --workspace` resolves and downloads every
   # transitive dependency. Override the default `policy: pull` to
   # `pull-push` so this job is the one that populates the cache for
-  # the next pipeline. Other jobs (fmt has cache: []; clippy/doc
-  # inherit pull only) consume what the most-recent test job pushed.
+  # the next pipeline. Other Rust jobs inherit pull only and consume
+  # what the most-recent test job pushed.
   cache:
     key:
       files:
@@ -124,6 +135,11 @@ test:
     # nextest doesn't run doctests; keep `cargo test --doc` as a
     # separate, fast pass to maintain doctest coverage.
     - cargo test --workspace --doc
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *rust_source_paths
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH
+      changes: *rust_source_paths
 
 deny:
   stage: audit
@@ -235,8 +251,8 @@ claude-review:
 # Advisory: `allow_failure: true`. A Kani regression on a tagged
 # release is informative — surface in the job log; triage via a
 # follow-up MR or an unbump tag — but does not block the release
-# itself. The full pre-merge gate stays on `fmt`, `clippy`, `test`,
-# `deny`, `gitleaks`.
+# itself. The full pre-merge gate stays on format+clippy and tests;
+# landed-change audits stay on `deny` and `gitleaks`.
 kani:
   stage: audit
   # kani-verifier 0.67+ pulls in `home` 0.5.12+ which requires
@@ -299,10 +315,10 @@ kani:
     # waiting for the next tag.
     - if: $KANI_RUN
 
-# Build rustdoc and publish to GitLab Pages. Runs only on main, after
-# `check` / `test` / `audit` have passed — so a doc warning that
-# slipped past the local pre-commit hook still blocks the deploy via
-# the existing `doc` check job (RUSTDOCFLAGS=-D warnings).
+# Build rustdoc and publish to GitLab Pages. Runs only on main with
+# `RUSTDOCFLAGS=-D warnings` and `--document-private-items`, so the
+# deployed docs use the same strict rustdoc lint surface as the MR
+# `doc` job without running both jobs on main.
 #
 # `cargo doc` writes the rendered crate to `target/doc/connections/`,
 # but Pages serves whatever is at the root of `public/`. We move the
@@ -310,15 +326,16 @@ kani:
 # that the Pages root URL lands on the crate index. Resulting URL:
 # `https://<group>.gitlab.io/<project>/connections/`.
 #
-# `--features testing,macros` matches the docs.rs config in Cargo.toml
-# so the Pages build renders the same surface as the published docs
-# (in particular `connections::prop::arb` and `connections::macros`).
-# The `f16` feature stays off because it requires nightly; users
-# wanting that path build locally.
+# `--features byte,testing,macros` matches the docs.rs config in
+# Cargo.toml so the Pages build renders the same stable feature surface
+# as the published docs. The `f16` feature stays off because it
+# requires nightly; users wanting that path build locally.
 pages:
   stage: deploy
+  variables:
+    RUSTDOCFLAGS: "-D warnings"
   script:
-    - cargo doc --no-deps --features testing,macros
+    - cargo doc --no-deps --features byte,testing,macros --document-private-items
     - rm -rf public
     - mv target/doc public
     - echo '<meta http-equiv="refresh" content="0; url=connections/">' > public/index.html

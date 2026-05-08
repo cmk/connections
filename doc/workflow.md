@@ -24,8 +24,8 @@ stateDiagram-v2
     impl_green --> plan_finalized: append Deferred + Review, draft MR description
     plan_finalized --> local_reviewed: /sprint-review
     local_reviewed --> impl_green: must-fix items surfaced
-    local_reviewed --> pushed: clean, git push
-    pushed --> glab_review: CI runs + reviewers post
+    local_reviewed --> pushed: clean, git push -o ci.skip
+    pushed --> glab_review: glab mr create; CI runs
     glab_review --> items_pulled: /pull-reviews
     items_pulled --> fix_unpushed: address items, local fix commit
     fix_unpushed --> replies_amended: /reply-reviews (post + mirror + amend)
@@ -45,6 +45,10 @@ stateDiagram-v2
 - `local_reviewed → impl_green` is the must-fix loop-back. The fix
   commits stay on the same branch; re-append any new Deferred/Review
   notes, then `/sprint-review` re-runs against the new tip.
+- `local_reviewed → pushed` uses `ci.skip` only for the first branch
+  publication. Before the MR exists, GitLab cannot suppress the
+  duplicate branch pipeline; `glab mr create` starts the canonical MR
+  pipeline immediately afterward.
 - `plan_finalized` sits deliberately *before* `local_reviewed`: the
   reviewer reads the plan as context and should see its final form,
   including what was intentionally cut and why. It's also when
