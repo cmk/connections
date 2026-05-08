@@ -346,17 +346,6 @@ pub fn arb_std_duration() -> impl Strategy<Value = std::time::Duration> {
     ]
 }
 
-/// `Extended<std::time::Duration>` over `NegInf`, `PosInf`, and `Finite`
-/// values from [`arb_std_duration`] — 1:1:2 weighting. Used by Conn
-/// batteries that don't drive a magnitude-sensitive walk.
-pub fn arb_extended_std_duration() -> impl Strategy<Value = Extended<std::time::Duration>> {
-    prop_oneof![
-        1 => Just(Extended::NegInf),
-        1 => Just(Extended::PosInf),
-        2 => arb_std_duration().prop_map(Extended::Finite),
-    ]
-}
-
 /// `std::time::Duration` strategy bounded to `secs ≤ 1e9` — for
 /// `F064SDUR` proptests. Same plateau-walk reasoning as
 /// `arb_duration_bounded_f64`.
@@ -384,85 +373,6 @@ pub fn arb_std_duration_bounded_f32() -> impl Strategy<Value = std::time::Durati
         1 => Just(std::time::Duration::from_secs(1)),
         12 => (0_u64..=10_u64, 0_u32..=999_999_999_u32)
             .prop_map(|(s, n)| std::time::Duration::new(s, n)),
-    ]
-}
-
-/// `Extended<std::time::Duration>` over `NegInf`, `PosInf`, and bounded
-/// `Finite` values from [`arb_std_duration_bounded_f64`] — 1:1:2 weighting.
-/// Used by the `F064SDUR` galois battery.
-pub fn arb_extended_std_duration_bounded_f64()
--> impl Strategy<Value = Extended<std::time::Duration>> {
-    prop_oneof![
-        1 => Just(Extended::NegInf),
-        1 => Just(Extended::PosInf),
-        2 => arb_std_duration_bounded_f64().prop_map(Extended::Finite),
-    ]
-}
-
-/// `Extended<std::time::Duration>` over `NegInf`, `PosInf`, and bounded
-/// `Finite` values from [`arb_std_duration_bounded_f32`] — 1:1:2 weighting.
-/// Used by the `F032SDUR` galois battery.
-pub fn arb_extended_std_duration_bounded_f32()
--> impl Strategy<Value = Extended<std::time::Duration>> {
-    prop_oneof![
-        1 => Just(Extended::NegInf),
-        1 => Just(Extended::PosInf),
-        2 => arb_std_duration_bounded_f32().prop_map(Extended::Finite),
-    ]
-}
-
-/// `Extended<u64>` over `NegInf`, `PosInf`, and `Finite` values —
-/// 1:1:8 weighting with explicit bias toward `Finite::{0, MAX}`.
-///
-/// Currently used only by the `SDURU064` Galois battery; exported for
-/// downstream crates that need the same generic shape (matches
-/// [`arb_extended_i64`]).
-pub fn arb_extended_u64() -> impl Strategy<Value = Extended<u64>> {
-    prop_oneof![
-        1 => Just(Extended::NegInf),
-        1 => Just(Extended::PosInf),
-        1 => Just(Extended::Finite(0_u64)),
-        1 => Just(Extended::Finite(u64::MAX)),
-        8 => any::<u64>().prop_map(Extended::Finite),
-    ]
-}
-
-/// `Extended<u128>` over `NegInf`, `PosInf`, and `Finite` values —
-/// 1:1:8 weighting with explicit bias toward `Finite::{0, MAX,
-/// std::time::Duration::MAX.as_nanos()}`. The third boundary is the
-/// largest rung value `SDURU128.upper` round-trips bijectively.
-///
-/// Not currently driven by any Conn battery in this crate (the
-/// `SDURU128` battery uses [`arb_extended_sdur_nanos_in_range`] to stay
-/// within the bijective image); exported for downstream crates that
-/// want the full unbounded generator.
-pub fn arb_extended_u128() -> impl Strategy<Value = Extended<u128>> {
-    let max_dur_nanos = std::time::Duration::MAX.as_nanos();
-    prop_oneof![
-        1 => Just(Extended::NegInf),
-        1 => Just(Extended::PosInf),
-        1 => Just(Extended::Finite(0_u128)),
-        1 => Just(Extended::Finite(u128::MAX)),
-        1 => Just(Extended::Finite(max_dur_nanos)),
-        8 => any::<u128>().prop_map(Extended::Finite),
-    ]
-}
-
-/// `Extended<u128>` bounded to `Finite(b)` with `b ≤
-/// StdDuration::MAX.as_nanos()`. Used by the `SDURU128` Galois battery
-/// — outside this range the rung exceeds StdDuration's bijective image
-/// and `inner` saturates, so the law check is restricted to the
-/// representable region (mirrors `arb_unix_nanos_in_range` for
-/// `ODTMNANO`). NegInf/PosInf are still sampled.
-pub fn arb_extended_sdur_nanos_in_range() -> impl Strategy<Value = Extended<u128>> {
-    let max_dur_nanos = std::time::Duration::MAX.as_nanos();
-    prop_oneof![
-        1 => Just(Extended::NegInf),
-        1 => Just(Extended::PosInf),
-        1 => Just(Extended::Finite(0_u128)),
-        1 => Just(Extended::Finite(max_dur_nanos)),
-        1 => Just(Extended::Finite(1_500_000_000_u128)),
-        8 => (0_u128..=max_dur_nanos).prop_map(Extended::Finite),
     ]
 }
 
