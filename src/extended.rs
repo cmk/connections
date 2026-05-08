@@ -20,6 +20,98 @@
 //! dispatches through the parent. Every law in
 //! [`crate::prop::conn`] that holds on the parent carries to the lifted
 //! Conn for free.
+//!
+//! ### Combining with `compose_*!`
+//!
+//! The lift macros are designed to interoperate with the existing
+//! [`compose_l!`](crate::compose_l) / [`compose_r!`](crate::compose_r) /
+//! [`compose_k!`](crate::compose_k) family. The output shape determines
+//! which `compose_*!` accepts each form:
+//!
+//! - `lift_l!(parent)` returns a [`Conn<Extended<A>, Extended<B>, L>`]
+//!   *value*. It composes into [`compose_l!`](crate::compose_l) as
+//!   either operand. If `parent` is a stable path (a `pub const` or a
+//!   marker), the lift is a const expression and the entire chain
+//!   const-evaluates.
+//! - `lift_r!(parent)` returns a [`Conn<…, R>`] value; same story for
+//!   [`compose_r!`](crate::compose_r).
+//! - `lift_k!(NAME : A => B = parent)` emits a unit-struct **marker**
+//!   that impls `ConnL`+`ConnR` (i.e. `ConnK`). Such a marker flows
+//!   into all three forms — [`compose_l!`](crate::compose_l) /
+//!   [`compose_r!`](crate::compose_r) at runtime via `.conn_l()` /
+//!   `.conn_r()`, and [`compose_k!`](crate::compose_k) directly as a
+//!   path operand.
+//! - The output of [`compose_k!`](crate::compose_k) is itself a `ConnK`
+//!   marker, so chains can nest arbitrarily — `lift_k!` over the result
+//!   of a `compose_k!`, or vice versa.
+//!
+//! Const-init combo (`lift_l!` value into `compose_l!`):
+//!
+//! ```rust
+//! use connections::compose_l;
+//! use connections::conn::{Conn, ConnL, L};
+//! use connections::extended::Extended;
+//! use connections::lift_l;
+//!
+//! const ID:     Conn<i64, i64, L>                     = Conn::identity();
+//! const LIFTED: Conn<Extended<i64>, Extended<i64>, L> = lift_l!(ID);
+//! const ID_E:   Conn<Extended<i64>, Extended<i64>, L> = Conn::identity();
+//!
+//! // compose_l! splices the lifted Conn into a chain whose other leg
+//! // already operates on Extended<i64>. Const-init throughout.
+//! const CHAIN: Conn<Extended<i64>, Extended<i64>, L> =
+//!     compose_l!(LIFTED, ID_E);
+//!
+//! assert_eq!(CHAIN.ceil(Extended::Finite(7)),  Extended::Finite(7));
+//! assert_eq!(CHAIN.upper(Extended::PosInf),    Extended::PosInf);
+//! ```
+//!
+//! Marker combo (`lift_k!` marker into `compose_k!`, then back into
+//! `compose_l!`):
+//!
+//! ```rust
+//! use connections::compose_k;
+//! use connections::conn::{Conn, ConnL, ConnR, L};
+//! use connections::extended::Extended;
+//! use connections::fixed::i16::Q000I016;
+//! use connections::{compose_l, lift_k};
+//! use fixed::FixedI16;
+//! use fixed::types::extra::U0;
+//!
+//! // Lift the iso Q000I016 through Extended on both sides.
+//! lift_k!(EXTQ : FixedI16<U0> => i16 = Q000I016);
+//!
+//! // compose_k! takes the lift_k! marker as a path operand, chains
+//! // it with another ConnK marker (here: the same lift again,
+//! // standing in for any Extended<i16> ↔ Extended<X> bridge),
+//! // and emits a fresh marker for the composed chain.
+//! compose_k!(CHAIN_K : Extended<FixedI16<U0>> => Extended<i16> => Extended<i16>
+//!            = EXTQ, EXTQ_IDENTITY);
+//!
+//! // Stand-in identity bridge to make the doctest self-contained.
+//! // In real code the second leg would be another lift_k! / iso! /
+//! // conn_k! marker covering the bridged segment.
+//! pub struct EXTQ_IDENTITY;
+//! impl ConnL<Extended<i16>, Extended<i16>> for EXTQ_IDENTITY {
+//!     fn conn_l(&self) -> Conn<Extended<i16>, Extended<i16>, L> {
+//!         Conn::identity()
+//!     }
+//! }
+//! impl ConnR<Extended<i16>, Extended<i16>> for EXTQ_IDENTITY {
+//!     fn conn_r(&self) -> Conn<Extended<i16>, Extended<i16>, connections::conn::R> {
+//!         Conn::<Extended<i16>, Extended<i16>, L>::identity().swap_l()
+//!     }
+//! }
+//!
+//! // The composed marker can flow back into compose_l! as either
+//! // operand at runtime via `.conn_l()`.
+//! let final_chain = compose_l!(CHAIN_K.conn_l(), EXTQ_IDENTITY.conn_l());
+//! let q = FixedI16::<U0>::from_bits(7);
+//! assert_eq!(final_chain.ceil(Extended::Finite(q)), Extended::Finite(7_i16));
+//! ```
+//!
+//! [`Conn<Extended<A>, Extended<B>, L>`]: crate::conn::Conn
+//! [`Conn<…, R>`]: crate::conn::Conn
 
 /// A totally-ordered `T` extended with synthetic `NegInf` (bottom) and
 /// `PosInf` (top) sentinels.
