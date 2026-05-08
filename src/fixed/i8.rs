@@ -81,15 +81,14 @@ crate::iso! {
 // ── §4 Q-format ladder over `FixedI8<Frac>` ─────────────────────────
 
 /// `I<frac> = FixedI8<U<frac>>` — i8-backed binary fixed-point with
-/// `<frac>` fractional bits. Frac digits are zero-padded to 3 chars
-/// to fit the X123Y456 conn-name shape.
-pub type I000 = FixedI8<U0>;
-pub type I001 = FixedI8<U1>;
-pub type I002 = FixedI8<U2>;
-pub type I003 = FixedI8<U3>;
-pub type I004 = FixedI8<U4>;
-pub type I006 = FixedI8<U6>;
-pub type I008 = FixedI8<U8>;
+/// `<frac>` fractional bits.
+pub type I0 = FixedI8<U0>;
+pub type I1 = FixedI8<U1>;
+pub type I2 = FixedI8<U2>;
+pub type I3 = FixedI8<U3>;
+pub type I4 = FixedI8<U4>;
+pub type I6 = FixedI8<U6>;
+pub type I8 = FixedI8<U8>;
 
 macro_rules! fix_fix_i8 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {

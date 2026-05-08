@@ -1,8 +1,8 @@
 //! Binary fixed-point ladder over `fixed::FixedU128<Frac>`.
 //!
-//! Frac level set: `{U0, U16, U32, U64, U96, U127, U128}` → 21 ordered
+//! Frac level set: `{F0, F16, F32, F64, F96, F127, F128}` → 21 ordered
 //! pairs. Mirrors [`super::i128`] with `FixedU128` backing and adds
-//! `U127` (Q1.127), the canonical 128-bit normalised-amplitude format.
+//! `F127` (Q1.127), the canonical 128-bit normalised-amplitude format.
 //!
 //! Stable Rust has no native `u256` to widen through, so the u64-style
 //! `(x.to_bits() as u128) * RATIO` pattern doesn't compose. Instead we
@@ -12,7 +12,9 @@
 
 use super::{int_uint, nz_uint_ext, uint_uint};
 use ::fixed::FixedU128;
-use ::fixed::types::extra::{U0, U16, U32, U64, U96, U127, U128, Unsigned};
+use ::fixed::types::extra::{
+    U0 as F0, U16 as F16, U32 as F32, U64 as F64, U96 as F96, U127 as F127, U128 as F128, Unsigned,
+};
 use core::num::NonZeroU128;
 
 // ── §1 std-int Conns landing on `u128` ──────────────────────────────
@@ -31,18 +33,18 @@ int_uint!(I128U128, i128, u128);
 
 nz_uint_ext!(U128N128, u128, NonZeroU128);
 
-// ── §3 cross-crate iso: FixedU128<U0> ↔ u128 ───────────────────────
+// ── §3 cross-crate iso: FixedU128<F0> ↔ u128 ───────────────────────
 
-const fn q000u128_fwd(q: FixedU128<U0>) -> u128 {
+const fn q000u128_fwd(q: FixedU128<F0>) -> u128 {
     q.to_bits()
 }
-const fn q000u128_bk(i: u128) -> FixedU128<U0> {
-    FixedU128::<U0>::from_bits(i)
+const fn q000u128_bk(i: u128) -> FixedU128<F0> {
+    FixedU128::<F0>::from_bits(i)
 }
 
 crate::iso! {
-    /// `FixedU128<U0> ↔ u128` — Q128.0 unsigned lossless iso. Degenerate Galois.
-    pub Q000U128 : FixedU128<U0> => u128 {
+    /// `FixedU128<F0> ↔ u128` — Q128.0 unsigned lossless iso. Degenerate Galois.
+    pub Q000U128 : FixedU128<F0> => u128 {
         forward: q000u128_fwd,
         back:    q000u128_bk,
     }
@@ -50,12 +52,14 @@ crate::iso! {
 
 // ── §4 Q-format ladder over `FixedU128<Frac>` ───────────────────────
 
-// No `pub type U<frac>` aliases here: the module's frac levels include
-// `U127` and `U128`, which are also the typenum `extra::U127` /
-// `extra::U128` names imported above. Using a 4-digit padded form
-// (`U0127`/`U0128`) would side-step the collision but break uniformity
-// with the rest of the unsigned ladder; downstream callers can spell
-// `FixedU128<typenum::U127>` directly when they need a level alias.
+/// `U<frac> = FixedU128<U<frac>>` — u128-backed binary fixed-point.
+pub type U0 = FixedU128<F0>;
+pub type U16 = FixedU128<F16>;
+pub type U32 = FixedU128<F32>;
+pub type U64 = FixedU128<F64>;
+pub type U96 = FixedU128<F96>;
+pub type U127 = FixedU128<F127>;
+pub type U128 = FixedU128<F128>;
 
 macro_rules! fix_fix_u128 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {
@@ -133,28 +137,28 @@ macro_rules! fix_fix_u128 {
     };
 }
 
-// 21 ordered pairs from {U0, U16, U32, U64, U96, U127, U128}.
-fix_fix_u128!(Q016Q000, U16, U0);
-fix_fix_u128!(Q032Q000, U32, U0);
-fix_fix_u128!(Q064Q000, U64, U0);
-fix_fix_u128!(Q096Q000, U96, U0);
-fix_fix_u128!(Q127Q000, U127, U0);
-fix_fix_u128!(Q128Q000, U128, U0);
-fix_fix_u128!(Q032Q016, U32, U16);
-fix_fix_u128!(Q064Q016, U64, U16);
-fix_fix_u128!(Q096Q016, U96, U16);
-fix_fix_u128!(Q127Q016, U127, U16);
-fix_fix_u128!(Q128Q016, U128, U16);
-fix_fix_u128!(Q064Q032, U64, U32);
-fix_fix_u128!(Q096Q032, U96, U32);
-fix_fix_u128!(Q127Q032, U127, U32);
-fix_fix_u128!(Q128Q032, U128, U32);
-fix_fix_u128!(Q096Q064, U96, U64);
-fix_fix_u128!(Q127Q064, U127, U64);
-fix_fix_u128!(Q128Q064, U128, U64);
-fix_fix_u128!(Q127Q096, U127, U96);
-fix_fix_u128!(Q128Q096, U128, U96);
-fix_fix_u128!(Q128Q127, U128, U127);
+// 21 ordered pairs from {F0, F16, F32, F64, F96, F127, F128}.
+fix_fix_u128!(Q016Q000, F16, F0);
+fix_fix_u128!(Q032Q000, F32, F0);
+fix_fix_u128!(Q064Q000, F64, F0);
+fix_fix_u128!(Q096Q000, F96, F0);
+fix_fix_u128!(Q127Q000, F127, F0);
+fix_fix_u128!(Q128Q000, F128, F0);
+fix_fix_u128!(Q032Q016, F32, F16);
+fix_fix_u128!(Q064Q016, F64, F16);
+fix_fix_u128!(Q096Q016, F96, F16);
+fix_fix_u128!(Q127Q016, F127, F16);
+fix_fix_u128!(Q128Q016, F128, F16);
+fix_fix_u128!(Q064Q032, F64, F32);
+fix_fix_u128!(Q096Q032, F96, F32);
+fix_fix_u128!(Q127Q032, F127, F32);
+fix_fix_u128!(Q128Q032, F128, F32);
+fix_fix_u128!(Q096Q064, F96, F64);
+fix_fix_u128!(Q127Q064, F127, F64);
+fix_fix_u128!(Q128Q064, F128, F64);
+fix_fix_u128!(Q127Q096, F127, F96);
+fix_fix_u128!(Q128Q096, F128, F96);
+fix_fix_u128!(Q128Q127, F128, F127);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -188,25 +192,25 @@ mod tests {
     fn degenerate_max_shift() {
         // inner: only 0 stays in range; everything else saturates to MAX.
         assert_eq!(
-            Q128Q000.upper(FixedU128::<U0>::from_bits(0)),
-            FixedU128::<U128>::from_bits(0),
+            Q128Q000.upper(FixedU128::<F0>::from_bits(0)),
+            FixedU128::<F128>::from_bits(0),
         );
         assert_eq!(
-            Q128Q000.upper(FixedU128::<U0>::from_bits(1)),
-            FixedU128::<U128>::from_bits(u128::MAX),
+            Q128Q000.upper(FixedU128::<F0>::from_bits(1)),
+            FixedU128::<F128>::from_bits(u128::MAX),
         );
         assert_eq!(
-            Q128Q000.upper(FixedU128::<U0>::from_bits(u128::MAX)),
-            FixedU128::<U128>::from_bits(u128::MAX),
+            Q128Q000.upper(FixedU128::<F0>::from_bits(u128::MAX)),
+            FixedU128::<F128>::from_bits(u128::MAX),
         );
         // ceil: positive inputs round up to 1; zero → 0.
         assert_eq!(
-            Q128Q000.ceil(FixedU128::<U128>::from_bits(0)),
-            FixedU128::<U0>::from_bits(0),
+            Q128Q000.ceil(FixedU128::<F128>::from_bits(0)),
+            FixedU128::<F0>::from_bits(0),
         );
         assert_eq!(
-            Q128Q000.ceil(FixedU128::<U128>::from_bits(1)),
-            FixedU128::<U0>::from_bits(1),
+            Q128Q000.ceil(FixedU128::<F128>::from_bits(1)),
+            FixedU128::<F0>::from_bits(1),
         );
         // (Plan 32: floor truth-table rows removed.)
     }
@@ -216,17 +220,17 @@ mod tests {
     /// to 1<<127 in Q0.128 (= 0.5).
     #[test]
     fn spot_q127_to_q128() {
-        let q127 = FixedU128::<U127>::from_bits(1 << 126);
+        let q127 = FixedU128::<F127>::from_bits(1 << 126);
         let q128 = Q128Q127.upper(q127);
-        assert_eq!(q128, FixedU128::<U128>::from_bits(1 << 127));
+        assert_eq!(q128, FixedU128::<F128>::from_bits(1 << 127));
         assert_eq!(Q128Q127.ceil(q128), q127);
     }
 
     #[test]
     fn spot_boundary_fixups() {
         // (Plan 32: floor removed.)
-        let fmin = FixedU128::<U128>::from_bits(0);
-        assert_eq!(Q128Q064.ceil(fmin), FixedU128::<U64>::from_bits(0));
+        let fmin = FixedU128::<F128>::from_bits(0);
+        assert_eq!(Q128Q064.ceil(fmin), FixedU128::<F64>::from_bits(0));
     }
 
     /// Inner-saturation regression: for non-degenerate pairs where the
@@ -237,10 +241,10 @@ mod tests {
         // Q128Q016: SHIFT=112. Coarse = u128::MAX → product = u128::MAX
         // × 2^112 ≫ u128::MAX, so checked_mul returns None and we
         // saturate to FINE_MAX.
-        let big_coarse = FixedU128::<U16>::from_bits(u128::MAX);
+        let big_coarse = FixedU128::<F16>::from_bits(u128::MAX);
         assert_eq!(
             Q128Q016.upper(big_coarse),
-            FixedU128::<U128>::from_bits(u128::MAX),
+            FixedU128::<F128>::from_bits(u128::MAX),
         );
     }
 
@@ -254,11 +258,11 @@ mod tests {
     fn ceil_at_fine_max_no_overflow() {
         // Q128Q127: SHIFT=1, the smallest RATIO and therefore the
         // largest `q` for any given `bits`.
-        let fmax = FixedU128::<U128>::from_bits(u128::MAX);
+        let fmax = FixedU128::<F128>::from_bits(u128::MAX);
         // bits = 2^128 - 1, RATIO = 2. q = 2^127 - 1, r = 1, q+1 = 2^127.
         assert_eq!(
             Q128Q127.ceil(fmax),
-            FixedU128::<U127>::from_bits(1_u128 << 127),
+            FixedU128::<F127>::from_bits(1_u128 << 127),
         );
     }
 

@@ -1,12 +1,14 @@
 //! Binary fixed-point ladder over `fixed::FixedU64<Frac>`.
 //!
-//! Frac level set: `{U0, U8, U16, U32, U48, U63, U64}` → 21 ordered
+//! Frac level set: `{F0, F8, F16, F32, F48, F63, F64}` → 21 ordered
 //! pairs. Mirrors [`super::i64`] with `FixedU64` backing and adds
-//! `U63` (Q1.63), the canonical 64-bit normalised-amplitude format.
+//! `F63` (Q1.63), the canonical 64-bit normalised-amplitude format.
 
 use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
 use ::fixed::FixedU64;
-use ::fixed::types::extra::{U0, U8, U16, U32, U48, U63, U64, Unsigned};
+use ::fixed::types::extra::{
+    U0 as F0, U8 as F8, U16 as F16, U32 as F32, U48 as F48, U63 as F63, U64 as F64, Unsigned,
+};
 use core::num::NonZeroU64;
 
 // ── §1 std-int Conns landing on `u64` ───────────────────────────────
@@ -27,18 +29,18 @@ int_uint_narrow!(I128U064, i128, u64);
 
 nz_uint_ext!(U064N064, u64, NonZeroU64);
 
-// ── §3 cross-crate iso: FixedU64<U0> ↔ u64 ─────────────────────────
+// ── §3 cross-crate iso: FixedU64<F0> ↔ u64 ─────────────────────────
 
-const fn q000u064_fwd(q: FixedU64<U0>) -> u64 {
+const fn q000u064_fwd(q: FixedU64<F0>) -> u64 {
     q.to_bits()
 }
-const fn q000u064_bk(i: u64) -> FixedU64<U0> {
-    FixedU64::<U0>::from_bits(i)
+const fn q000u064_bk(i: u64) -> FixedU64<F0> {
+    FixedU64::<F0>::from_bits(i)
 }
 
 crate::iso! {
-    /// `FixedU64<U0> ↔ u64` — Q64.0 unsigned lossless iso. Degenerate Galois.
-    pub Q000U064 : FixedU64<U0> => u64 {
+    /// `FixedU64<F0> ↔ u64` — Q64.0 unsigned lossless iso. Degenerate Galois.
+    pub Q000U064 : FixedU64<F0> => u64 {
         forward: q000u064_fwd,
         back:    q000u064_bk,
     }
@@ -47,13 +49,13 @@ crate::iso! {
 // ── §4 Q-format ladder over `FixedU64<Frac>` ────────────────────────
 
 /// `U<frac> = FixedU64<U<frac>>` — u64-backed binary fixed-point.
-pub type U000 = FixedU64<U0>;
-pub type U008 = FixedU64<U8>;
-pub type U016 = FixedU64<U16>;
-pub type U032 = FixedU64<U32>;
-pub type U048 = FixedU64<U48>;
-pub type U063 = FixedU64<U63>;
-pub type U064 = FixedU64<U64>;
+pub type U0 = FixedU64<F0>;
+pub type U8 = FixedU64<F8>;
+pub type U16 = FixedU64<F16>;
+pub type U32 = FixedU64<F32>;
+pub type U48 = FixedU64<F48>;
+pub type U63 = FixedU64<F63>;
+pub type U64 = FixedU64<F64>;
 
 macro_rules! fix_fix_u64 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {
@@ -108,28 +110,28 @@ macro_rules! fix_fix_u64 {
     };
 }
 
-// 21 ordered pairs from {U0, U8, U16, U32, U48, U63, U64}.
-fix_fix_u64!(Q008Q000, U8, U0);
-fix_fix_u64!(Q016Q000, U16, U0);
-fix_fix_u64!(Q032Q000, U32, U0);
-fix_fix_u64!(Q048Q000, U48, U0);
-fix_fix_u64!(Q063Q000, U63, U0);
-fix_fix_u64!(Q064Q000, U64, U0);
-fix_fix_u64!(Q016Q008, U16, U8);
-fix_fix_u64!(Q032Q008, U32, U8);
-fix_fix_u64!(Q048Q008, U48, U8);
-fix_fix_u64!(Q063Q008, U63, U8);
-fix_fix_u64!(Q064Q008, U64, U8);
-fix_fix_u64!(Q032Q016, U32, U16);
-fix_fix_u64!(Q048Q016, U48, U16);
-fix_fix_u64!(Q063Q016, U63, U16);
-fix_fix_u64!(Q064Q016, U64, U16);
-fix_fix_u64!(Q048Q032, U48, U32);
-fix_fix_u64!(Q063Q032, U63, U32);
-fix_fix_u64!(Q064Q032, U64, U32);
-fix_fix_u64!(Q063Q048, U63, U48);
-fix_fix_u64!(Q064Q048, U64, U48);
-fix_fix_u64!(Q064Q063, U64, U63);
+// 21 ordered pairs from {F0, F8, F16, F32, F48, F63, F64}.
+fix_fix_u64!(Q008Q000, F8, F0);
+fix_fix_u64!(Q016Q000, F16, F0);
+fix_fix_u64!(Q032Q000, F32, F0);
+fix_fix_u64!(Q048Q000, F48, F0);
+fix_fix_u64!(Q063Q000, F63, F0);
+fix_fix_u64!(Q064Q000, F64, F0);
+fix_fix_u64!(Q016Q008, F16, F8);
+fix_fix_u64!(Q032Q008, F32, F8);
+fix_fix_u64!(Q048Q008, F48, F8);
+fix_fix_u64!(Q063Q008, F63, F8);
+fix_fix_u64!(Q064Q008, F64, F8);
+fix_fix_u64!(Q032Q016, F32, F16);
+fix_fix_u64!(Q048Q016, F48, F16);
+fix_fix_u64!(Q063Q016, F63, F16);
+fix_fix_u64!(Q064Q016, F64, F16);
+fix_fix_u64!(Q048Q032, F48, F32);
+fix_fix_u64!(Q063Q032, F63, F32);
+fix_fix_u64!(Q064Q032, F64, F32);
+fix_fix_u64!(Q063Q048, F63, F48);
+fix_fix_u64!(Q064Q048, F64, F48);
+fix_fix_u64!(Q064Q063, F64, F63);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -176,40 +178,40 @@ mod tests {
     /// to 1<<63 in Q0.64 (= 0.5).
     #[test]
     fn spot_q63_to_q64() {
-        let q63 = FixedU64::<U63>::from_bits(1 << 62);
+        let q63 = FixedU64::<F63>::from_bits(1 << 62);
         let q64 = Q064Q063.upper(q63);
-        assert_eq!(q64, FixedU64::<U64>::from_bits(1 << 63));
+        assert_eq!(q64, FixedU64::<F64>::from_bits(1 << 63));
         assert_eq!(Q064Q063.ceil(q64), q63);
     }
 
     #[test]
     fn spot_q032q016_on_grid() {
         // 1.5 in Q32.32; same in Q48.16 is bits 98304.
-        let q3232 = FixedU64::<U32>::from_bits(6_442_450_944);
-        assert_eq!(Q032Q016.ceil(q3232), FixedU64::<U16>::from_bits(98304));
-        assert_eq!(Q032Q016.upper(FixedU64::<U16>::from_bits(98304)), q3232);
+        let q3232 = FixedU64::<F32>::from_bits(6_442_450_944);
+        assert_eq!(Q032Q016.ceil(q3232), FixedU64::<F16>::from_bits(98304));
+        assert_eq!(Q032Q016.upper(FixedU64::<F16>::from_bits(98304)), q3232);
     }
 
     #[test]
     fn spot_q064q000_degenerate() {
         // SHIFT = 64. Only Coarse(0) round-trips; bits ≥ 1 saturates inner.
         assert_eq!(
-            Q064Q000.upper(FixedU64::<U0>::from_bits(0)),
-            FixedU64::<U64>::from_bits(0),
+            Q064Q000.upper(FixedU64::<F0>::from_bits(0)),
+            FixedU64::<F64>::from_bits(0),
         );
         assert_eq!(
-            Q064Q000.upper(FixedU64::<U0>::from_bits(1)),
-            FixedU64::<U64>::from_bits(u64::MAX),
+            Q064Q000.upper(FixedU64::<F0>::from_bits(1)),
+            FixedU64::<F64>::from_bits(u64::MAX),
         );
         // ceil: any nonzero Fine bit pattern → 1 (the smallest
         // representable Coarse value above zero); zero → 0.
         assert_eq!(
-            Q064Q000.ceil(FixedU64::<U64>::from_bits(0)),
-            FixedU64::<U0>::from_bits(0),
+            Q064Q000.ceil(FixedU64::<F64>::from_bits(0)),
+            FixedU64::<F0>::from_bits(0),
         );
         assert_eq!(
-            Q064Q000.ceil(FixedU64::<U64>::from_bits(1)),
-            FixedU64::<U0>::from_bits(1),
+            Q064Q000.ceil(FixedU64::<F64>::from_bits(1)),
+            FixedU64::<F0>::from_bits(1),
         );
         // (Plan 32: floor truth-table rows removed.)
     }
@@ -217,8 +219,8 @@ mod tests {
     #[test]
     fn spot_boundary_fixups() {
         // (Plan 32: floor removed.)
-        let fmin = FixedU64::<U32>::from_bits(0);
-        assert_eq!(Q032Q016.ceil(fmin), FixedU64::<U16>::from_bits(0));
+        let fmin = FixedU64::<F32>::from_bits(0);
+        assert_eq!(Q032Q016.ceil(fmin), FixedU64::<F16>::from_bits(0));
     }
 
     // The Galois proptest battery (189 generated tests across 21

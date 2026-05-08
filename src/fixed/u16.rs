@@ -1,17 +1,17 @@
 //! Binary fixed-point ladder over `fixed::FixedU16<Frac>`.
 //!
-//! Frac level set: `{U0, U2, U4, U8, U12, U14, U15, U16}` → 28 ordered
+//! Frac level set: `{F0, F2, F4, F8, F12, F14, F15, F16}` → 28 ordered
 //! pairs `(Fine, Coarse)` with `Fine > Coarse`. Mirrors [`super::i16`]
 //! with `FixedU16` backing instead of `FixedI16`, and adds two
 //! unsigned-natural Q-formats:
 //!
-//! - **`U14`** (Q2.14): canonical packing for 14-bit MIDI control
+//! - **`F14`** (Q2.14): canonical packing for 14-bit MIDI control
 //!   values (pitch bend, channel pressure with high resolution) into
 //!   a 16-bit word.
-//! - **`U15`** (Q1.15): canonical 16-bit unsigned audio amplitude /
+//! - **`F15`** (Q1.15): canonical 16-bit unsigned audio amplitude /
 //!   normalised-pixel format.
 //!
-//! `U16` (Q0.16) is the fully-fractional 16-bit normalised integer.
+//! `F16` (Q0.16) is the fully-fractional 16-bit normalised integer.
 //!
 //! Same totality + Galois-axiom guarantees as `i16`. The signed
 //! `FINE_MIN` boundary fixup is dropped (unsigned has no negative
@@ -22,7 +22,10 @@
 
 use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
 use ::fixed::FixedU16;
-use ::fixed::types::extra::{U0, U2, U4, U8, U12, U14, U15, U16, Unsigned};
+use ::fixed::types::extra::{
+    U0 as F0, U2 as F2, U4 as F4, U8 as F8, U12 as F12, U14 as F14, U15 as F15, U16 as F16,
+    Unsigned,
+};
 use core::num::NonZeroU16;
 
 // ── §1 std-int Conns landing on `u16` ───────────────────────────────
@@ -43,18 +46,18 @@ int_uint_narrow!(I128U016, i128, u16);
 
 nz_uint_ext!(U016N016, u16, NonZeroU16);
 
-// ── §3 cross-crate iso: FixedU16<U0> ↔ u16 ─────────────────────────
+// ── §3 cross-crate iso: FixedU16<F0> ↔ u16 ─────────────────────────
 
-const fn q000u016_fwd(q: FixedU16<U0>) -> u16 {
+const fn q000u016_fwd(q: FixedU16<F0>) -> u16 {
     q.to_bits()
 }
-const fn q000u016_bk(i: u16) -> FixedU16<U0> {
-    FixedU16::<U0>::from_bits(i)
+const fn q000u016_bk(i: u16) -> FixedU16<F0> {
+    FixedU16::<F0>::from_bits(i)
 }
 
 crate::iso! {
-    /// `FixedU16<U0> ↔ u16` — Q16.0 unsigned lossless iso. Degenerate Galois.
-    pub Q000U016 : FixedU16<U0> => u16 {
+    /// `FixedU16<F0> ↔ u16` — Q16.0 unsigned lossless iso. Degenerate Galois.
+    pub Q000U016 : FixedU16<F0> => u16 {
         forward: q000u016_fwd,
         back:    q000u016_bk,
     }
@@ -63,14 +66,14 @@ crate::iso! {
 // ── §4 Q-format ladder over `FixedU16<Frac>` ────────────────────────
 
 /// `U<frac> = FixedU16<U<frac>>` — u16-backed binary fixed-point.
-pub type U000 = FixedU16<U0>;
-pub type U002 = FixedU16<U2>;
-pub type U004 = FixedU16<U4>;
-pub type U008 = FixedU16<U8>;
-pub type U012 = FixedU16<U12>;
-pub type U014 = FixedU16<U14>;
-pub type U015 = FixedU16<U15>;
-pub type U016 = FixedU16<U16>;
+pub type U0 = FixedU16<F0>;
+pub type U2 = FixedU16<F2>;
+pub type U4 = FixedU16<F4>;
+pub type U8 = FixedU16<F8>;
+pub type U12 = FixedU16<F12>;
+pub type U14 = FixedU16<F14>;
+pub type U15 = FixedU16<F15>;
+pub type U16 = FixedU16<F16>;
 
 macro_rules! fix_fix_u16 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {
@@ -127,35 +130,35 @@ macro_rules! fix_fix_u16 {
     };
 }
 
-// 28 ordered pairs from {U0, U2, U4, U8, U12, U14, U15, U16}.
-fix_fix_u16!(Q002Q000, U2, U0);
-fix_fix_u16!(Q004Q000, U4, U0);
-fix_fix_u16!(Q008Q000, U8, U0);
-fix_fix_u16!(Q012Q000, U12, U0);
-fix_fix_u16!(Q014Q000, U14, U0);
-fix_fix_u16!(Q015Q000, U15, U0);
-fix_fix_u16!(Q016Q000, U16, U0);
-fix_fix_u16!(Q004Q002, U4, U2);
-fix_fix_u16!(Q008Q002, U8, U2);
-fix_fix_u16!(Q012Q002, U12, U2);
-fix_fix_u16!(Q014Q002, U14, U2);
-fix_fix_u16!(Q015Q002, U15, U2);
-fix_fix_u16!(Q016Q002, U16, U2);
-fix_fix_u16!(Q008Q004, U8, U4);
-fix_fix_u16!(Q012Q004, U12, U4);
-fix_fix_u16!(Q014Q004, U14, U4);
-fix_fix_u16!(Q015Q004, U15, U4);
-fix_fix_u16!(Q016Q004, U16, U4);
-fix_fix_u16!(Q012Q008, U12, U8);
-fix_fix_u16!(Q014Q008, U14, U8);
-fix_fix_u16!(Q015Q008, U15, U8);
-fix_fix_u16!(Q016Q008, U16, U8);
-fix_fix_u16!(Q014Q012, U14, U12);
-fix_fix_u16!(Q015Q012, U15, U12);
-fix_fix_u16!(Q016Q012, U16, U12);
-fix_fix_u16!(Q015Q014, U15, U14);
-fix_fix_u16!(Q016Q014, U16, U14);
-fix_fix_u16!(Q016Q015, U16, U15);
+// 28 ordered pairs from {F0, F2, F4, F8, F12, F14, F15, F16}.
+fix_fix_u16!(Q002Q000, F2, F0);
+fix_fix_u16!(Q004Q000, F4, F0);
+fix_fix_u16!(Q008Q000, F8, F0);
+fix_fix_u16!(Q012Q000, F12, F0);
+fix_fix_u16!(Q014Q000, F14, F0);
+fix_fix_u16!(Q015Q000, F15, F0);
+fix_fix_u16!(Q016Q000, F16, F0);
+fix_fix_u16!(Q004Q002, F4, F2);
+fix_fix_u16!(Q008Q002, F8, F2);
+fix_fix_u16!(Q012Q002, F12, F2);
+fix_fix_u16!(Q014Q002, F14, F2);
+fix_fix_u16!(Q015Q002, F15, F2);
+fix_fix_u16!(Q016Q002, F16, F2);
+fix_fix_u16!(Q008Q004, F8, F4);
+fix_fix_u16!(Q012Q004, F12, F4);
+fix_fix_u16!(Q014Q004, F14, F4);
+fix_fix_u16!(Q015Q004, F15, F4);
+fix_fix_u16!(Q016Q004, F16, F4);
+fix_fix_u16!(Q012Q008, F12, F8);
+fix_fix_u16!(Q014Q008, F14, F8);
+fix_fix_u16!(Q015Q008, F15, F8);
+fix_fix_u16!(Q016Q008, F16, F8);
+fix_fix_u16!(Q014Q012, F14, F12);
+fix_fix_u16!(Q015Q012, F15, F12);
+fix_fix_u16!(Q016Q012, F16, F12);
+fix_fix_u16!(Q015Q014, F15, F14);
+fix_fix_u16!(Q016Q014, F16, F14);
+fix_fix_u16!(Q016Q015, F16, F15);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -225,9 +228,9 @@ mod tests {
     /// to 32768 in Q0.16 (= 0.5).
     #[test]
     fn spot_q15_audio_to_q16() {
-        let q15 = FixedU16::<U15>::from_bits(16384);
+        let q15 = FixedU16::<F15>::from_bits(16384);
         let q16 = Q016Q015.upper(q15);
-        assert_eq!(q16, FixedU16::<U16>::from_bits(32768));
+        assert_eq!(q16, FixedU16::<F16>::from_bits(32768));
         // RATIO=2 exact: ceil round-trips. (Plan 32: ConnL only.)
         assert_eq!(Q016Q015.ceil(q16), q15);
     }
@@ -237,24 +240,24 @@ mod tests {
     /// 32768 in Q0.16. RATIO = 4.
     #[test]
     fn spot_q14_midi_to_q16() {
-        let q14 = FixedU16::<U14>::from_bits(8192);
+        let q14 = FixedU16::<F14>::from_bits(8192);
         let q16 = Q016Q014.upper(q14);
-        assert_eq!(q16, FixedU16::<U16>::from_bits(32768));
+        assert_eq!(q16, FixedU16::<F16>::from_bits(32768));
     }
 
     #[test]
     fn spot_q008q004_on_grid() {
         // 1.5 in Q8.8 (bits 384) — exactly representable in Q12.4.
-        let q88 = FixedU16::<U8>::from_bits(384);
-        assert_eq!(Q008Q004.ceil(q88), FixedU16::<U4>::from_bits(24));
-        assert_eq!(Q008Q004.upper(FixedU16::<U4>::from_bits(24)), q88);
+        let q88 = FixedU16::<F8>::from_bits(384);
+        assert_eq!(Q008Q004.ceil(q88), FixedU16::<F4>::from_bits(24));
+        assert_eq!(Q008Q004.upper(FixedU16::<F4>::from_bits(24)), q88);
     }
 
     #[test]
     fn spot_q008q004_off_grid() {
         // 1.398... (bits 358) — Q12.4 ceil rounds up to 23.
-        let off = FixedU16::<U8>::from_bits(358);
-        assert_eq!(Q008Q004.ceil(off), FixedU16::<U4>::from_bits(23));
+        let off = FixedU16::<F8>::from_bits(358);
+        assert_eq!(Q008Q004.ceil(off), FixedU16::<F4>::from_bits(23));
     }
 
     #[test]
@@ -262,24 +265,24 @@ mod tests {
         // SHIFT = 16, RATIO = 65 536. Every Coarse value with bits ≥ 1
         // saturates inner. Only Coarse(0) round-trips.
         assert_eq!(
-            Q016Q000.upper(FixedU16::<U0>::from_bits(0)),
-            FixedU16::<U16>::from_bits(0),
+            Q016Q000.upper(FixedU16::<F0>::from_bits(0)),
+            FixedU16::<F16>::from_bits(0),
         );
         assert_eq!(
-            Q016Q000.upper(FixedU16::<U0>::from_bits(1)),
-            FixedU16::<U16>::from_bits(u16::MAX),
+            Q016Q000.upper(FixedU16::<F0>::from_bits(1)),
+            FixedU16::<F16>::from_bits(u16::MAX),
         );
         assert_eq!(
-            Q016Q000.upper(FixedU16::<U0>::from_bits(u16::MAX)),
-            FixedU16::<U16>::from_bits(u16::MAX),
+            Q016Q000.upper(FixedU16::<F0>::from_bits(u16::MAX)),
+            FixedU16::<F16>::from_bits(u16::MAX),
         );
     }
 
     #[test]
     fn spot_boundary_fixups() {
         // (Plan 32: floor removed.) No FINE_MIN fixup for unsigned.
-        let fmin = FixedU16::<U8>::from_bits(0);
-        assert_eq!(Q008Q004.ceil(fmin), FixedU16::<U4>::from_bits(0));
+        let fmin = FixedU16::<F8>::from_bits(0);
+        assert_eq!(Q008Q004.ceil(fmin), FixedU16::<F4>::from_bits(0));
     }
 
     // The Galois proptest battery (252 generated tests across 28

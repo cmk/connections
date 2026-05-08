@@ -80,11 +80,11 @@ crate::iso! {
 // ── §4 Q-format ladder over `FixedI128<Frac>` ──────────────────────
 
 /// `I<frac> = FixedI128<U<frac>>` — i128-backed binary fixed-point.
-pub type I000 = FixedI128<U0>;
-pub type I016 = FixedI128<U16>;
-pub type I032 = FixedI128<U32>;
-pub type I064 = FixedI128<U64>;
-pub type I096 = FixedI128<U96>;
+pub type I0 = FixedI128<U0>;
+pub type I16 = FixedI128<U16>;
+pub type I32 = FixedI128<U32>;
+pub type I64 = FixedI128<U64>;
+pub type I96 = FixedI128<U96>;
 pub type I128 = FixedI128<U128>;
 
 macro_rules! fix_fix_i128 {
