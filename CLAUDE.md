@@ -446,6 +446,22 @@ of the MR-event env vars, fetches the MR's base/head SHAs from
 are present locally (`git fetch origin <sha>`), then runs the same
 review and posts findings to the same MR.
 
+#### Documented blind spot: type-claim soundness
+
+The automated reviewers (local `/sprint-review` agent, GitLab
+`claude-review` bot) are advisory — treat them as a coverage net,
+not a soundness gate. MR !70 shipped three float Conns whose `iso!`
+declaration claimed a Galois law the impl violated on NaN, and both
+Claude reviewers ratified the author's "weaker test predicate"
+framing instead of auditing the type claim. Codex one-shot it in
+round 2. The mitigations are: (a) the reviewer prompts now require
+a trait-claim audit before any other review work; (b)
+`/sprint-review` runs in two passes so the plan doesn't pre-frame
+the diff; (c) Pattern 9 in `doc/reviews/review-calibration.md`
+captures the failure shape as a few-shot example. None of those is
+a guarantee — type-system soundness on the diff you wrote remains
+your responsibility, not the bot's.
+
 ## Sprint plan format
 
 ```markdown

@@ -97,14 +97,25 @@ Read these files and include them in the reviewer prompt:
 Spawn a **new agent** with `subagent_type: "feature-dev:code-reviewer"` and
 `model: "sonnet"`.
 
-The prompt must be self-contained. Include:
+The prompt must be self-contained and ordered so the reviewer reads
+the diff cold before the plan can frame their analysis. Include, in
+this order:
 
 1. The full diff
 2. The commit log
 3. The repo conventions from CLAUDE.md
-4. The plan text (if found), clearly labeled as optional context
-5. Calibration examples from `doc/reviews/review-calibration.md` (if found)
-6. The review instructions (below)
+4. Calibration examples from `doc/reviews/review-calibration.md` (if found)
+5. **Pass 1** review instructions (cold, no plan)
+6. The plan text (if found), labeled as Pass 2 input
+7. **Pass 2** review instructions (plan-aware)
+
+The plan ordering is deliberate: feeding the plan in alongside the
+diff primes the reviewer to ratify the author's framing. The two-pass
+structure was added after MR !70 — where both Claude reviewers
+accepted a §Review note that "we use a weaker test predicate" as a
+test deviation, missing that the type still claimed the unrelaxed
+law. Pass 1 forces a cold trait-claim audit; Pass 2 surfaces
+plan-vs-claim mismatches.
 
 ### Reviewer voice and calibration
 
@@ -135,7 +146,9 @@ reviewing the diff between `origin/main` and the branch HEAD.
 
 You are an independent reviewer. You did not write this code and have no
 context beyond what is provided here. Review what you see, not what you
-assume.
+assume. The author's framing — in the plan, in commit messages, in
+comments — is one input, not a verdict. Your job is to challenge it
+where the diff disagrees.
 
 ## Diff (origin/main...HEAD)
 
@@ -149,16 +162,6 @@ assume.
 
 {CLAUDE.md contents}
 
-{IF plan exists:}
-## Sprint plan (optional context)
-
-{plan text}
-
-The plan is context, not a contract. Focus on whether the code is correct,
-tested, and follows conventions. If the plan specifies verification criteria
-(property tests, spot checks), confirm they exist in the diff.
-{END IF}
-
 {IF calibration examples exist:}
 ## Examples of high-quality review comments
 
@@ -169,7 +172,42 @@ code violates it, and name the consequence. When something is fine, one
 sentence is enough. Don't invent concerns to fill space.
 {END IF}
 
-## Review instructions
+# Pass 1 — Cold review (no plan)
+
+The sprint plan is **not** in your context yet. Do this pass on the
+diff alone. The whole point is to reach an independent verdict before
+the author's framing arrives.
+
+## P1.A — Trait-claim audit (do this first, before anything else)
+
+For every new or changed item in the diff that fits any of:
+
+- a `pub const` of `Conn<_, _>` / `Conn<_, _, K>` type
+- an `iso!`, `conn_l!`, `conn_r!`, `compose!`, or `triple!` macro invocation
+- a new `impl` of any law-bearing trait (`Lattice`, `Heyting`,
+  `Boolean`, `Ord`, `PartialOrd`, `Eq`, `PartialEq` where the impl is
+  not derived)
+
+write down, in this order:
+
+1. **The contract.** Quote the type definition or trait doc — what
+   law does this declaration claim? (e.g. `iso!` produces
+   `ConnK<A, B>`, claiming `(ceil(a) ≤ b) == (a ≤ upper(b))` over `<=`
+   on both sides.)
+2. **The implementation.** Quote the closures, arms, or impl body.
+3. **Consistency.** State whether (1) and (2) are consistent. If
+   the impl satisfies the contract only on a subset of the input
+   domain (NaN-free floats, finite ints, non-empty strings, …), say
+   so explicitly and flag it `must-fix` unless the type itself was
+   weakened to match.
+
+A test renamed with a relaxation suffix (`*_total`, `*_relaxed`,
+`*_partial`, `*_weak`) is a load-bearing signal: the author found the
+strong predicate fails, and unless the type declaration was also
+weakened, the type is now claiming a law its tests don't check.
+That mismatch is `must-fix`, not a test-style nit.
+
+## P1.B — Standard review (after the audit)
 
 For each section, state what you found concretely. When something is wrong,
 cite the specific file, line, and consequence. When something is fine, one
@@ -187,9 +225,6 @@ sentence is enough — don't pad.
   lint config in Cargo.toml)?
 - Are error messages specific enough to diagnose from a log line?
 - Any dead code, redundant logic, or clippy-level issues?
-- Were any features, config options, or feature gates described in the
-  plan but absent from the implementation? This is the highest-value
-  check — plans often specify build configuration that gets lost.
 
 ### Test Coverage
 
@@ -203,16 +238,6 @@ sentence is enough — don't pad.
   subnormal coverage in the f64↔f32 generator" is useful; "more tests
   would be good" is not.
 
-{IF plan exists:}
-### Plan Conformance
-
-- Walk each task (T1, T2, ...) and each row in the Verification table:
-  was it implemented?
-- For each planned test, does a corresponding test exist in the diff?
-- Is there code in the diff that wasn't in the plan? Justified emergent
-  requirement or undocumented scope creep?
-{END IF}
-
 ### Risks
 
 - TODOs, stubs, or placeholder implementations?
@@ -221,21 +246,60 @@ sentence is enough — don't pad.
   shell-outs? Unsanitized input passed to subprocesses?
 - New dependencies justified and maintained?
 
-### Recommendations
+{IF plan exists:}
+# Pass 2 — Plan-aware review (read the plan now)
+
+## Sprint plan
+
+{plan text}
+
+## P2.A — Test-exception escalation
+
+Scan the plan's Implementation, Verification, and §Review sections
+for any of: "weaker predicate", "exclude", "saturate instead", "this
+case is excluded", "deferred from", "exception", "use … instead of",
+"relaxed", "total order analog", "skip on …".
+
+For each occurrence, ask: **does the type declaration in the diff
+still claim the unrelaxed law?** If yes, that is a P1 soundness bug,
+not a test deviation. Promote your Pass 1 trait-claim audit findings
+to `must-fix` if the plan's relaxation note matches. If the audit
+already flagged it, cross-reference both findings in the report so
+the reader sees the two-pass agreement.
+
+## P2.B — Plan conformance
+
+- Walk each task (T1, T2, ...) and each row in the Verification table:
+  was it implemented?
+- For each planned test, does a corresponding test exist in the diff?
+- Is there code in the diff that wasn't in the plan? Justified emergent
+  requirement, or undocumented scope creep?
+- Were any features, config options, or feature gates described in the
+  plan but absent from the implementation? Plans often specify build
+  configuration that gets lost.
+
+The plan is one input. If your Pass 1 findings disagree with what the
+plan says is OK, report the disagreement — don't downgrade Pass 1.
+{END IF}
+
+# Recommendations
 
 Separate into two lists:
 
 **Must fix before push:**
 - Issues that violate conventions, break tests, or introduce bugs.
+- Trait-claim mismatches from P1.A (or P2.A escalations).
 
 **Follow-up (future work):**
 - Improvements that are acceptable now but should be tracked.
 
-## Output format
+# Output format
 
-Structure your review as markdown with the H3 sections above. Be direct
-and specific. Cite file paths and line numbers. Keep the total review under
-400 lines. Prioritize by impact.
+Structure your review as markdown with the section headers above.
+Include the trait-claim audit verbatim — even if every item is
+consistent, the audit log is the artifact that proves you did it.
+Be direct and specific. Cite file paths and line numbers. Keep the
+total review under 500 lines. Prioritize by impact.
 ~~~
 
 ## Step 5: Place the output

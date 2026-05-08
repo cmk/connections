@@ -189,3 +189,44 @@ the sign convention through two definitions and shows the contradiction.
 *should* agree but don't. Names the specific parameter space where they
 diverge, and explains the observable consequence. This is the kind of
 cross-system bug that unit tests per-system would never catch.
+
+---
+
+## Pattern 9: Type claims a law the impl doesn't satisfy
+
+> **File:** `src/byte/four.rs`
+>
+> **Diff context:**
+> ```
+> +crate::iso! {
+> +    pub F032OBYT : f32 => Bytes<4> {
+> +        forward: f32_to_obyt,
+> +        back:    obyt_to_f32,
+> +    }
+> +}
+> +
+> +// In src/byte/four.rs's #[cfg(test)] block:
+> +proptest_battery_iso_total!(F032OBYT, arb_f32(), arb_byte4());
+> ```
+>
+> **Comment:** `iso!` declares `F032OBYT: ConnK<f32, Bytes<4>>` — a
+> both-sided Galois connection over `<=`. The proptest battery was
+> renamed to `*_iso_total` (using `f32::total_cmp`) because the
+> classical predicate `(ceil(a) ≤ b) == (a ≤ upper(b))` fails on bytes
+> that decode to NaN: `<=` returns false for NaN on either side, while
+> `total_cmp` ranks NaN distinctly. The test rename masks a
+> type-system violation, not just a test choice — `iso!` still claims
+> the `<=` law, which the impl doesn't satisfy on the full `f32`
+> domain. Either weaken the declaration (e.g. `conn_l!` over a
+> NaN-aware host like a `NonNan` newtype, a totalOrder byte-newtype,
+> or `ExtendedFloat` with a custom ordering), or drop the float Conns
+> until a sound shape exists.
+
+**Why this is good:** Catches the real bug — a *type-system claim* the
+impl doesn't satisfy — by reading the type declaration and the test
+rename together. The author's framing ("we use `total_cmp` because the
+classical predicate fails on NaN") was the trap; both Claude reviewers
+on the original MR accepted that framing and missed that the type still
+claims the unrelaxed law. The fix isn't to keep the type and weaken the
+test — it's to reconcile the two by weakening the type to match what
+the impl can actually deliver.
