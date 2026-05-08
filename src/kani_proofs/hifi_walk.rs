@@ -3,7 +3,7 @@
 //! the hifi domain.
 //!
 //! Each harness proves the ULP walk inside the production
-//! `f???hdur_ceil` / `etaif064_ceil` closures converges in ≤ 1
+//! `f???hdur_ceil` / `f064etai_ceil` closures converges in ≤ 1
 //! iteration on a magnitude-bounded slice. The structure mirrors
 //! `crate::kani_proofs::time_walk`: T0 (full finite non-NaN) was
 //! attempted but stalls in CBMC's SAT loop past the practical

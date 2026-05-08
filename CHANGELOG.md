@@ -81,7 +81,7 @@ cumulative in-development state.
   `inner` being an order-embedding (proof in `prop::conn::floor_le_ceil`
   docstring), and these connections violate it at the saturation
   boundary. Affected:
-  - **`STDRU128`** (`time::Duration` ↔ unsigned u128 nanoseconds)
+  - **`SDURU128`** (`time::Duration` ↔ unsigned u128 nanoseconds)
   - **`ext_int!` family** (20 widening Conns: `I008I016`, `U008I016`,
     `I008I032`, `U008I032`, `I016I032`, `U016I032`, `I008I064`,
     `U008I064`, `I016I064`, `U016I064`, `I032I064`, `U032I064`,
@@ -89,7 +89,7 @@ cumulative in-development state.
     `U032I128`, `I064I128`, `U064I128`)
   - **`fix_fix_*!` family** (~119 Q-format Conns across i8/i16/i32/
     i64/i128 and u8/u16/u32/u64/u128 host types)
-  - **`F064DURN`, `F032DURN`, `F064STDR`, `F032STDR`** (float ↔
+  - **`F064TDUR`, `F032TDUR`, `F064SDUR`, `F032SDUR`** (float ↔
     duration: f64/f32 plateaus collapse multiple Durations onto the
     same float)
 
@@ -217,7 +217,7 @@ hierarchy of lattice-based numerical conversions on top.
 - **`conn::float::f32`** — `F032F016`, `F032B016`. (IEEE binary16
   and Google bfloat16 via the [`half`](https://docs.rs/half) crate.)
 - **`conn::time`** — time-crate types: `DATEJDAY`, `TIMENANO`,
-  `TIMESECS`, `DURNSECS`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`.
+  `TIMESECS`, `TDURSECS`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`.
 
 #### Conventions
 

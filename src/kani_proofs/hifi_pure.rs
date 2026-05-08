@@ -7,8 +7,8 @@
 //! - `ETAINANO` (`conn_l!`) — `Extended<Epoch> → i128` TAI nanoseconds.
 //! - `ETAIHDUR` (`iso!`) — `Epoch ↔ HD` TAI-scale projection.
 //!
-//! Out of scope (leap-second / UTC-scale internals): `EUTCNANO`,
-//! `EUTCHDUR`, `ETAIF064` Conn-level laws, `EUTCF064`. See plan
+//! Out of scope (leap-second / UTC-scale internals): `EUNXNANO`,
+//! `EUTCHDUR`, `F064ETAI` Conn-level laws, `F064EUNX`. See plan
 //! §Tier 2.
 //!
 //! All `Extended<_>` sources use the same 3-way `kani::any::<u8>()`

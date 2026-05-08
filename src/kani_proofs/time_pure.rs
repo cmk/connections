@@ -4,12 +4,12 @@
 //! In scope:
 //! - `TIMENANO` (`conn_l!`) — `Extended<Time> → i64` nanoseconds since midnight.
 //! - `TIMESECS` (`conn_l!`) — `Extended<Time> → i64` whole seconds.
-//! - `DURNSECS` (`conn_k!`) — `Duration → Extended<i64>` whole seconds (full triple).
-//! - `STDRU064` (`conn_k!`) — `Extended<StdDuration> → Extended<u64>` (full triple).
-//! - `STDRU128` (`conn_l!`) — `Extended<StdDuration> → Extended<u128>` total nanoseconds.
+//! - `TDURSECS` (`conn_k!`) — `Duration → Extended<i64>` whole seconds (full triple).
+//! - `SDURU064` (`conn_k!`) — `Extended<StdDuration> → Extended<u64>` (full triple).
+//! - `SDURU128` (`conn_l!`) — `Extended<StdDuration> → Extended<u128>` total nanoseconds.
 //!
 //! Out of scope (calendar / leap-second internals): `DATEJDAY`,
-//! `PDTMDATE`, `OFDTNANO`, `OFDTSECS`. See plan §Tier 2.
+//! `PDTMDATE`, `ODTMNANO`, `ODTMSECS`. See plan §Tier 2.
 //!
 //! Source-side `Extended<T>` values are constructed via a 3-way
 //! discriminator on a `kani::any::<u8>()` tag (same shape as
@@ -23,7 +23,7 @@
 use crate::conn::{ConnL, ConnR};
 use crate::extended::Extended;
 use crate::prop::conn as conn_laws;
-use crate::time::{DURNSECS, STDRU064, STDRU128, TIMENANO, TIMESECS};
+use crate::time::{SDURU064, SDURU128, TDURSECS, TIMENANO, TIMESECS};
 use std::time::Duration as StdDuration;
 use time::{Duration, Time};
 
@@ -234,24 +234,24 @@ macro_rules! prove_lr {
 prove_l!(timenano, TIMENANO, arb_ext_time, arb_i64);
 prove_l!(timesecs, TIMESECS, arb_ext_time, arb_i64);
 
-// ── DURNSECS / STDRU064 — full triples (`conn_k!`) ─────────────────
+// ── TDURSECS / SDURU064 — full triples (`conn_k!`) ─────────────────
 
 prove_lr!(
-    durnsecs,
-    DURNSECS.conn_l(),
-    DURNSECS.conn_r(),
+    tdursecs,
+    TDURSECS.conn_l(),
+    TDURSECS.conn_r(),
     arb_duration,
     arb_ext_i64
 );
 
 prove_lr!(
-    stdru064,
-    STDRU064.conn_l(),
-    STDRU064.conn_r(),
+    sduru064,
+    SDURU064.conn_l(),
+    SDURU064.conn_r(),
     arb_ext_std_duration,
     arb_ext_u64
 );
 
-// ── STDRU128 — `conn_l!` ───────────────────────────────────────────
+// ── SDURU128 — `conn_l!` ───────────────────────────────────────────
 
-prove_l!(stdru128, STDRU128, arb_ext_std_duration, arb_ext_u128);
+prove_l!(sduru128, SDURU128, arb_ext_std_duration, arb_ext_u128);

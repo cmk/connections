@@ -9,7 +9,7 @@
 //!
 //! In scope:
 //! - `MONTU008` (`conn_l!`) — `Extended<MonthName> → u8`.
-//! - `MONTNZ08` (`conn_l!`) — `Extended<MonthName> → NonZeroU8`.
+//! - `MONTN008` (`conn_l!`) — `Extended<MonthName> → NonZeroU8`.
 //! - `WKDYU008` (`conn_l!`) — `Extended<Weekday> → u8`.
 //!
 //! Plus three saturate-arm spot-check harnesses proving the
@@ -23,7 +23,7 @@
 
 use crate::conn::ConnL;
 use crate::extended::Extended;
-use crate::hifi::{MONTNZ08, MONTU008, WKDYU008};
+use crate::hifi::{MONTN008, MONTU008, WKDYU008};
 use crate::prop::conn as conn_laws;
 use core::num::NonZeroU8;
 use hifitime::{MonthName, Weekday};
@@ -115,7 +115,7 @@ macro_rules! prove_l {
 }
 
 prove_l!(montu008, MONTU008, arb_ext_month, arb_u8);
-prove_l!(montnz08, MONTNZ08, arb_ext_month, arb_nz_u8);
+prove_l!(montn008, MONTN008, arb_ext_month, arb_nz_u8);
 prove_l!(wkdyu008, WKDYU008, arb_ext_weekday, arb_u8);
 
 // ── Saturation-arm theorems ─────────────────────────────────────
@@ -152,11 +152,11 @@ fn wkdyu008_at_least_seven_is_pos_inf() {
 }
 
 #[kani::proof]
-fn montnz08_at_least_thirteen_is_pos_inf() {
+fn montn008_at_least_thirteen_is_pos_inf() {
     // Every NonZeroU8 ≥ 13 must saturate to PosInf.
     let n: u8 = kani::any();
     kani::assume(n >= 13);
     let nz = NonZeroU8::new(n).unwrap();
-    let r = MONTNZ08.upper(nz);
+    let r = MONTN008.upper(nz);
     assert!(matches!(r, Extended::PosInf));
 }

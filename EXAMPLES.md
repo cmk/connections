@@ -245,14 +245,14 @@ rustdoc, so `cargo test --doc` keeps the two in sync):
 
 ```rust
 use connections::conn::{ConnL, ConnR};
-use connections::time::DURNSECS;
+use connections::time::TDURSECS;
 use connections::extended::Extended;
 use time::Duration;
 
 let half = Duration::seconds(5) + Duration::nanoseconds(1);
-assert_eq!(DURNSECS.ceil(half),  Extended::Finite(6));
-assert_eq!(DURNSECS.floor(half), Extended::Finite(5));
-assert_eq!(DURNSECS.upper(Extended::Finite(42)), Duration::seconds(42));
+assert_eq!(TDURSECS.ceil(half),  Extended::Finite(6));
+assert_eq!(TDURSECS.floor(half), Extended::Finite(5));
+assert_eq!(TDURSECS.upper(Extended::Finite(42)), Duration::seconds(42));
 ```
 
 ## Example 8
@@ -260,13 +260,13 @@ assert_eq!(DURNSECS.upper(Extended::Finite(42)), Duration::seconds(42));
 Round-tripping a unix-timestamp through `OffsetDateTime`:
 
 ```rust
-use connections::time::OFDTNANO;
+use connections::time::ODTMNANO;
 use connections::extended::Extended;
 use time::OffsetDateTime;
 
-// OFDTNANO is a one-sided ConnL; the L-side methods are inherent.
-assert_eq!(OFDTNANO.upper(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
-assert_eq!(OFDTNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
+// ODTMNANO is a one-sided ConnL; the L-side methods are inherent.
+assert_eq!(ODTMNANO.upper(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
+assert_eq!(ODTMNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
 ```
 
 ## Example 9
@@ -276,19 +276,19 @@ Rounding an IEEE-float number of seconds up to a `Duration`:
 ```rust
 use connections::conn::ConnL;
 use connections::float::ExtendedFloat;
-use connections::time::F064DURN;
+use connections::time::F064TDUR;
 use connections::extended::Extended;
 use time::Duration;
 
 let half_sec = ExtendedFloat::Extend(0.5_f64);
-assert_eq!(F064DURN.ceil(half_sec), Extended::Finite(Duration::milliseconds(500)));
+assert_eq!(F064TDUR.ceil(half_sec), Extended::Finite(Duration::milliseconds(500)));
 
 // f64 NaN: ceil → +∞ (forced by `Top > Extend(NaN) > Bot`).
 let nan = ExtendedFloat::Extend(f64::NAN);
-assert_eq!(F064DURN.ceil(nan), Extended::PosInf);
+assert_eq!(F064TDUR.ceil(nan), Extended::PosInf);
 ```
 
-`F064DURN` is `ConnL` (left-Galois only) — `inner` collapses every f64
+`F064TDUR` is `ConnL` (left-Galois only) — `inner` collapses every f64
 plateau (multiple `Duration`s map to the same `f64`) so it isn't
 order-reflecting and no true triple exists. See *Why one-sided?* below.
 

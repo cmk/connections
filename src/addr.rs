@@ -47,7 +47,7 @@
 //!   bijections trivially; `IPV6IPV4` because `inner` is
 //!   order-reflecting (the v4-mapped block is a strict subset of
 //!   `Ipv6Addr`, giving the same "subsec room" pattern that lets
-//!   `DURNSECS` survive at `Duration::MIN`).
+//!   `TDURSECS` survive at `Duration::MIN`).
 //! - **One-sided** ([`IPVXIPV4`] / [`SOVXSOV4`] via [`Conn::new_l`];
 //!   [`IPVXIPV6`] / [`SOVXSOV6`] via [`Conn::new_r`]) — the sum
 //!   types' MIN/MAX coincide with `inner`'s synthetic-end values, so

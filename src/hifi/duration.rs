@@ -7,7 +7,7 @@
 //!   Duration::MAX.total_nanoseconds()]`; `i128` values outside that
 //!   range saturate the source side to `Extended::NegInf` /
 //!   `Extended::PosInf`. Same shape as
-//!   [`OFDTNANO`](crate::time::OFDTNANO): source-side `Extended`,
+//!   [`ODTMNANO`](crate::time::ODTMNANO): source-side `Extended`,
 //!   plain `i128` rung. **One-sided ConnL.**
 //!
 //! - [`HDURSECS`] — `Extended<Duration> ↔ i64` whole seconds.
@@ -16,15 +16,15 @@
 //!   extremes; the whole-seconds value at MAX/MIN fits a plain `i64`.
 //!   Sub-second source inputs round up via `floor = ceil` under
 //!   `new_left`. Same shape as
-//!   [`OFDTSECS`](crate::time::OFDTSECS). **One-sided ConnL.**
+//!   [`ODTMSECS`](crate::time::ODTMSECS). **One-sided ConnL.**
 //!
 //! - [`F064HDUR`] / [`F032HDUR`] — IEEE float seconds ↔ Duration.
 //!   Walks happen on the Duration rung in 1 ns ULPs; ULP-bounded
 //!   correction loops driven by the crate's `def_walk_helpers!`
 //!   macro (see `crate::float`) handle the float-precision plateau
 //!   where multiple Durations map to the same f-value. Direct port of
-//!   [`F064DURN`](crate::time::F064DURN) /
-//!   [`F032DURN`](crate::time::F032DURN). **One-sided ConnL.**
+//!   [`F064TDUR`](crate::time::F064TDUR) /
+//!   [`F032TDUR`](crate::time::F032TDUR). **One-sided ConnL.**
 //!
 //! ## No two-sided `Extended`
 //!
@@ -34,7 +34,7 @@
 //! rungs (`i128` / `i64`) are wide enough to absorb the full
 //! `Duration` range with a one-step saturation marker, so the
 //! source side hosts the synthetic `NegInf` / `PosInf` arms. The
-//! float bridges follow the existing `F???DURN` shape: float on
+//! float bridges follow the existing `F???TDUR` shape: float on
 //! the left (already extended via `ExtendedFloat`), `Extended<HD>`
 //! on the right.
 
@@ -101,7 +101,7 @@ fn hdurnano_ceil(d: Extended<HD>) -> i128 {
         // minimum so `ceil(NegInf) ≤ b` holds for **all** `b`, matching
         // the Galois RHS `NegInf ≤ inner(b)` which is always true.
         // PosInf ceils to `max_n + 1`, the smallest `b` such that
-        // `inner(b) = PosInf`. Mirrors `OFDTNANO`'s shape exactly
+        // `inner(b) = PosInf`. Mirrors `ODTMNANO`'s shape exactly
         // (see time/offset.rs:123-138 for the derivation).
         Extended::NegInf => i128::MIN,
         Extended::Finite(d) => d.total_nanoseconds(),
@@ -129,7 +129,7 @@ crate::conn_l! {
     /// `Duration::total_nanoseconds`, `inner` is
     /// `Duration::from_total_nanoseconds` (which always normalizes).
     ///
-    /// Saturation (asymmetric — see `OFDTNANO` for the same shape):
+    /// Saturation (asymmetric — see `ODTMNANO` for the same shape):
     /// - `ceil(NegInf) = i128::MIN`
     /// - `ceil(PosInf) = HD::MAX.total_nanoseconds() + 1`
     /// - `inner(n)` outside `[MIN.total_ns(), MAX.total_ns()]`
@@ -137,7 +137,7 @@ crate::conn_l! {
     ///   than collapsing onto `Finite(MIN)` / `Finite(MAX)` — the
     ///   collapse would break order-reflection on the synthetic
     ///   extremes (which is exactly why this is shipped as `ConnL`
-    ///   rather than `conn_k!`, mirroring [`OFDTNANO`](crate::time::OFDTNANO)).
+    ///   rather than `conn_k!`, mirroring [`ODTMNANO`](crate::time::ODTMNANO)).
     ///
     /// `i128` is wide enough for the full HD range:
     /// `HD::MAX.total_nanoseconds()` ≈ 1.03 × 10²³, comfortably
@@ -318,7 +318,7 @@ fn f064hdur_ceil(x: F064) -> Extended<HD> {
     if v > max_secs {
         return Extended::PosInf;
     }
-    // Same `<=` rationale as F064DURN (see time/duration.rs): when
+    // Same `<=` rationale as F064TDUR (see time/duration.rs): when
     // `v == min_secs` (the round-trip `inner(ceil(NEG_INFINITY))` value),
     // HD::MIN IS the correct ceil. The walk would converge to MIN
     // anyway but takes ~10¹² nanosecond steps at this magnitude (the
@@ -354,7 +354,7 @@ crate::conn_l! {
     /// |Duration| > 2⁵³ ns ≈ 104 days (multiple Durations map to the
     /// same f64). That non-injectivity → not order-reflecting → no
     /// true triple, so shipped as `ConnL` (matches the rationale for
-    /// [`F064DURN`](crate::time::F064DURN), Plan 32).
+    /// [`F064TDUR`](crate::time::F064TDUR), Plan 32).
     ///
     /// Saturation arms:
     /// - `ceil(Bot)` = `NegInf`.
@@ -658,7 +658,7 @@ mod tests {
 
     // ── Galois law batteries — HDURNANO / HDURSECS (one-sided L) ─
     //
-    // OFDTNANO/OFDTSECS template: hand-rolled proptest!s since
+    // ODTMNANO/ODTMSECS template: hand-rolled proptest!s since
     // law_battery! is for marker-struct `conn_k!`-shaped Conns and
     // these are bare `pub const`s.
 
@@ -772,7 +772,7 @@ mod tests {
         assert_eq!(F064HDUR.upper(Extended::PosInf), ExtendedFloat::Top);
     }
 
-    // Regression guard mirroring F064DURN's `f64_ceil_min_secs_fast_path`.
+    // Regression guard mirroring F064TDUR's `f64_ceil_min_secs_fast_path`.
     // Uses the same integer-derived bound as the implementation
     // (`hd_min_secs() as f64`) — `HD::MIN.to_seconds()` would f64-cast
     // a `±10²³`-magnitude value past the exact-integer range and could

@@ -6,7 +6,7 @@
 //! 4 chars per side (smaller-resolution / coarser tier on the right).
 //! Most families take a 1-letter prefix and 3 zero-padded digits;
 //! the time-crate Conns use the all-letter `ABCDXYZW` shape (e.g.
-//! `DURNSECS`).
+//! `TDURSECS`).
 //!
 //! | code     | type                         | meaning              |
 //! |----------|------------------------------|----------------------|

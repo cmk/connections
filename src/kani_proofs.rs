@@ -41,13 +41,13 @@
 //! | [`float_walk`]         | F064F032 ULP-walk iteration upper bound               |
 //! | [`float_weaker`]       | F064F032 finite-domain weaker properties              |
 //! | [`time_walk`]          | float→Duration walk-step ≤ 2 (Plan 43)                |
-//! | [`time_pure`]          | TIMENANO / TIMESECS / DURNSECS / STDRU064 / STDRU128 (Plan 43) |
+//! | [`time_pure`]          | TIMENANO / TIMESECS / TDURSECS / SDURU064 / SDURU128 (Plan 43) |
 //! | [`hifi_walk`]          | float→hifi-Duration / TAI-Epoch walk-step ≤ 2 (Plan 43) |
 //! | [`hifi_pure`]          | HDURNANO / HDURSECS / ETAINANO / ETAIHDUR (Plan 43)   |
 //! | [`byte_one`]           | U008OBYT / I008OBYT / BOOLOBYT (Plan 47, `byte` feature) |
 //! | [`byte_two`]           | U016OBYT / I016OBYT (Plan 47, `byte` feature) |
 //! | [`byte_four`]          | U032OBYT / I032OBYT (Plan 47, `byte` feature) |
-//! | [`hifi_calendar`]      | MONTU008 / MONTNZ08 / WKDYU008 (Plan 46)              |
+//! | [`hifi_calendar`]      | MONTU008 / MONTN008 / WKDYU008 (Plan 46)              |
 //!
 //! [Kani]: https://model-checking.github.io/kani/
 

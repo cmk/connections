@@ -19,7 +19,7 @@
 //!   whose source and target are both float-shaped.
 //! - [`arb_f32_bounded`] / [`arb_f64_bounded`] — restricted uniform
 //!   range plus a slimmer boundary set. Use for connections feeding
-//!   bounded-resolution rungs (`F032DURN`, `F064DURN`, FD06, FD09,
+//!   bounded-resolution rungs (`F032TDUR`, `F064TDUR`, FD06, FD09,
 //!   FD12, …). Unbounded `any::<f64>()` shrinks bit-by-bit through
 //!   the mantissa on saturation failures and dominates runtime
 //!   without finding structural bugs; bounded ranges plus explicit
@@ -188,7 +188,7 @@ pub fn extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
 /// Arbitrary `f32` bounded to `|x| ≤ 10` plus the full boundary set.
 ///
 /// Mirrors [`arb_f64_bounded`] for the f32 width but with a tighter
-/// uniform range. `F032DURN`'s ceil/floor walk a 1-nanosecond Duration
+/// uniform range. `F032TDUR`'s ceil/floor walk a 1-nanosecond Duration
 /// rung and stop at the f32-precision plateau boundary; at magnitudes
 /// above ~10 s the f32 plateau exceeds ~10⁴ ns and proptest budgets
 /// blow out. The boundary slot still pins MAX/MIN/INF/MIN_POSITIVE so
@@ -241,7 +241,7 @@ pub fn arb_extended_duration() -> impl Strategy<Value = Extended<Duration>> {
     ]
 }
 
-/// `Duration` strategy bounded to `|secs| ≤ 1e9` — for `F064DURN`
+/// `Duration` strategy bounded to `|secs| ≤ 1e9` — for `F064TDUR`
 /// proptests.
 ///
 /// Above ~10⁹ s the f64 plateau alone is ~120 ns wide (manageable),
@@ -268,7 +268,7 @@ pub fn arb_duration_bounded_f64() -> impl Strategy<Value = Duration> {
     ]
 }
 
-/// `Duration` strategy bounded to `|secs| ≤ 10` — for `F032DURN`
+/// `Duration` strategy bounded to `|secs| ≤ 10` — for `F032TDUR`
 /// proptests.
 ///
 /// f32's coarser precision means walks beyond magnitude ~10 s become
@@ -294,7 +294,7 @@ pub fn arb_duration_bounded_f32() -> impl Strategy<Value = Duration> {
 
 /// `Extended<Duration>` over `NegInf`, `PosInf`, and bounded `Finite`
 /// values from [`arb_duration_bounded_f64`] — 1:1:2 weighting. Used
-/// by the `F064DURN` galois battery.
+/// by the `F064TDUR` galois battery.
 pub fn arb_extended_duration_bounded_f64() -> impl Strategy<Value = Extended<Duration>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -305,7 +305,7 @@ pub fn arb_extended_duration_bounded_f64() -> impl Strategy<Value = Extended<Dur
 
 /// `Extended<Duration>` over `NegInf`, `PosInf`, and bounded `Finite`
 /// values from [`arb_duration_bounded_f32`] — 1:1:2 weighting. Used
-/// by the `F032DURN` galois battery.
+/// by the `F032TDUR` galois battery.
 pub fn arb_extended_duration_bounded_f32() -> impl Strategy<Value = Extended<Duration>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -353,7 +353,7 @@ pub fn arb_extended_std_duration() -> impl Strategy<Value = Extended<std::time::
 }
 
 /// `std::time::Duration` strategy bounded to `secs ≤ 1e9` — for
-/// `F064STDR` proptests. Same plateau-walk reasoning as
+/// `F064SDUR` proptests. Same plateau-walk reasoning as
 /// [`arb_duration_bounded_f64`].
 pub fn arb_std_duration_bounded_f64() -> impl Strategy<Value = std::time::Duration> {
     prop_oneof![
@@ -368,7 +368,7 @@ pub fn arb_std_duration_bounded_f64() -> impl Strategy<Value = std::time::Durati
 }
 
 /// `std::time::Duration` strategy bounded to `secs ≤ 10` — for
-/// `F032STDR` proptests. Same plateau-walk reasoning as
+/// `F032SDUR` proptests. Same plateau-walk reasoning as
 /// [`arb_duration_bounded_f32`].
 pub fn arb_std_duration_bounded_f32() -> impl Strategy<Value = std::time::Duration> {
     prop_oneof![
@@ -384,7 +384,7 @@ pub fn arb_std_duration_bounded_f32() -> impl Strategy<Value = std::time::Durati
 
 /// `Extended<std::time::Duration>` over `NegInf`, `PosInf`, and bounded
 /// `Finite` values from [`arb_std_duration_bounded_f64`] — 1:1:2 weighting.
-/// Used by the `F064STDR` galois battery.
+/// Used by the `F064SDUR` galois battery.
 pub fn arb_extended_std_duration_bounded_f64()
 -> impl Strategy<Value = Extended<std::time::Duration>> {
     prop_oneof![
@@ -396,7 +396,7 @@ pub fn arb_extended_std_duration_bounded_f64()
 
 /// `Extended<std::time::Duration>` over `NegInf`, `PosInf`, and bounded
 /// `Finite` values from [`arb_std_duration_bounded_f32`] — 1:1:2 weighting.
-/// Used by the `F032STDR` galois battery.
+/// Used by the `F032SDUR` galois battery.
 pub fn arb_extended_std_duration_bounded_f32()
 -> impl Strategy<Value = Extended<std::time::Duration>> {
     prop_oneof![
@@ -409,7 +409,7 @@ pub fn arb_extended_std_duration_bounded_f32()
 /// `Extended<u64>` over `NegInf`, `PosInf`, and `Finite` values —
 /// 1:1:8 weighting with explicit bias toward `Finite::{0, MAX}`.
 ///
-/// Currently used only by the `STDRU064` Galois battery; exported for
+/// Currently used only by the `SDURU064` Galois battery; exported for
 /// downstream crates that need the same generic shape (matches
 /// [`arb_extended_i64`]).
 pub fn arb_extended_u64() -> impl Strategy<Value = Extended<u64>> {
@@ -425,10 +425,10 @@ pub fn arb_extended_u64() -> impl Strategy<Value = Extended<u64>> {
 /// `Extended<u128>` over `NegInf`, `PosInf`, and `Finite` values —
 /// 1:1:8 weighting with explicit bias toward `Finite::{0, MAX,
 /// std::time::Duration::MAX.as_nanos()}`. The third boundary is the
-/// largest rung value `STDRU128.upper` round-trips bijectively.
+/// largest rung value `SDURU128.upper` round-trips bijectively.
 ///
 /// Not currently driven by any Conn battery in this crate (the
-/// `STDRU128` battery uses [`arb_extended_stdr_nanos_in_range`] to stay
+/// `SDURU128` battery uses [`arb_extended_sdur_nanos_in_range`] to stay
 /// within the bijective image); exported for downstream crates that
 /// want the full unbounded generator.
 pub fn arb_extended_u128() -> impl Strategy<Value = Extended<u128>> {
@@ -444,12 +444,12 @@ pub fn arb_extended_u128() -> impl Strategy<Value = Extended<u128>> {
 }
 
 /// `Extended<u128>` bounded to `Finite(b)` with `b ≤
-/// StdDuration::MAX.as_nanos()`. Used by the `STDRU128` Galois battery
+/// StdDuration::MAX.as_nanos()`. Used by the `SDURU128` Galois battery
 /// — outside this range the rung exceeds StdDuration's bijective image
 /// and `inner` saturates, so the law check is restricted to the
 /// representable region (mirrors `arb_unix_nanos_in_range` for
-/// `OFDTNANO`). NegInf/PosInf are still sampled.
-pub fn arb_extended_stdr_nanos_in_range() -> impl Strategy<Value = Extended<u128>> {
+/// `ODTMNANO`). NegInf/PosInf are still sampled.
+pub fn arb_extended_sdur_nanos_in_range() -> impl Strategy<Value = Extended<u128>> {
     let max_dur_nanos = std::time::Duration::MAX.as_nanos();
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -1258,7 +1258,7 @@ mod hifi_epoch {
     }
 
     /// `i128` strategy bounded to the UNIX-anchored round-trippable
-    /// range for `EUTCNANO`. **Asymmetric** about the UNIX offset:
+    /// range for `EUNXNANO`. **Asymmetric** about the UNIX offset:
     /// lower bound is `HD::MIN.total_ns()` (not shifted, because
     /// `ceil`'s `epoch.to_utc_duration() − UNIX_REF.utc` subtraction
     /// would underflow HD if the stored UTC duration were already

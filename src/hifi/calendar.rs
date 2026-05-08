@@ -3,7 +3,7 @@
 //! Three `Conn`s wrapping hifitime's two `repr(u8)` calendar enums:
 //!
 //! - [`MONTU008`] — `Extended<MonthName> → u8` (1=Jan…12=Dec).
-//! - [`MONTNZ08`] — `Extended<MonthName> → NonZeroU8`, the natural
+//! - [`MONTN008`] — `Extended<MonthName> → NonZeroU8`, the natural
 //!   representation when the caller already knows months are ≥ 1.
 //! - [`WKDYU008`] — `Extended<Weekday> → u8` (0=Mon…6=Sun, ISO 8601
 //!   ordering).
@@ -21,7 +21,7 @@
 //!
 //! Both behaviors break the [`crate::iso!`] adjoint laws. These Conns
 //! ship as [`crate::conn_l!`] (one-sided left-Galois) following the
-//! **OFDTNANO shape** (single-side `Extended`, asymmetric saturation
+//! **ODTMNANO shape** (single-side `Extended`, asymmetric saturation
 //! on the integer rung): `Extended` lives only on the enum side; the
 //! `u8` / `NonZeroU8` rung uses saturation arms (`ceil(NegInf) = 0`
 //! or smallest-valid; `ceil(PosInf) = max_valid + 1`). Callers
@@ -31,9 +31,11 @@
 //! ## Naming
 //!
 //! Per CLAUDE.md §Conn-name format: `MONT` and `WKDY` are 4-letter
-//! `ABCD`-shape source codes; `U008` is the `Extended<…> → u8`
-//! target code; `NZ08` is the `AB12` shape for the `NonZeroU8`
-//! target (this crate's first public use of the `AB12` shape).
+//! `ABCD`-shape source codes; `U008` is the canonical `Extended<…>
+//! → u8` target code (`A123` shape, `U` = unsigned int + 8-bit
+//! width). `N008` is the matching canonical form for the
+//! `NonZeroU8` target (`A123` shape, `N` = `NonZero<*>` + 8-bit
+//! width), parallel to [`crate::fixed::i8::I008N008`].
 
 use crate::extended::Extended;
 use core::num::NonZeroU8;
@@ -51,7 +53,7 @@ fn montu008_ceil(m: Extended<MonthName>) -> u8 {
         // `#[default]` sits at January, position 0). Canonical month
         // numbering is 1-indexed, so add 1.
         Extended::Finite(month) => month as u8 + 1,
-        // u8=13 is `max_valid + 1` — the OFDTNANO-shape PosInf sentinel.
+        // u8=13 is `max_valid + 1` — the ODTMNANO-shape PosInf sentinel.
         Extended::PosInf => 13,
     }
 }
@@ -71,7 +73,7 @@ crate::conn_l! {
     /// integer (1=Jan…12=Dec).
     ///
     /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`),
-    /// OFDTNANO shape: `Extended` only on the source; the `u8` rung
+    /// ODTMNANO shape: `Extended` only on the source; the `u8` rung
     /// uses saturation arms (`ceil(NegInf) = 0`, `ceil(PosInf) = 13`).
     /// `inner: u8 → Extended<MonthName>` saturates `u8` values
     /// outside `[1, 12]` onto `Extended::NegInf` (u8=0) or
@@ -106,9 +108,9 @@ crate::conn_l! {
     }
 }
 
-// ── MONTNZ08 ─────────────────────────────────────────────────────
+// ── MONTN008 ─────────────────────────────────────────────────────
 
-fn montnz08_ceil(m: Extended<MonthName>) -> NonZeroU8 {
+fn montn008_ceil(m: Extended<MonthName>) -> NonZeroU8 {
     // NonZeroU8 has no value below 1 — there's no "below valid"
     // sentinel available. Collapse `Extended::NegInf` to the smallest
     // valid (`NonZeroU8::new(1)`, January's slot). The Galois law
@@ -126,7 +128,7 @@ fn montnz08_ceil(m: Extended<MonthName>) -> NonZeroU8 {
     }
 }
 
-fn montnz08_inner(nz: NonZeroU8) -> Extended<MonthName> {
+fn montn008_inner(nz: NonZeroU8) -> Extended<MonthName> {
     let n = nz.get();
     match n {
         1..=12 => Extended::Finite(MonthName::from(n)),
@@ -155,24 +157,24 @@ crate::conn_l! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::hifi::MONTNZ08;
+    /// use connections::hifi::MONTN008;
     /// use connections::extended::Extended;
     /// use core::num::NonZeroU8;
     /// use hifitime::MonthName;
     ///
     /// let one = NonZeroU8::new(1).unwrap();
-    /// assert_eq!(MONTNZ08.ceil(Extended::Finite(MonthName::January)), one);
+    /// assert_eq!(MONTN008.ceil(Extended::Finite(MonthName::January)), one);
     ///
     /// let twelve = NonZeroU8::new(12).unwrap();
-    /// assert_eq!(MONTNZ08.ceil(Extended::Finite(MonthName::December)), twelve);
+    /// assert_eq!(MONTN008.ceil(Extended::Finite(MonthName::December)), twelve);
     ///
     /// // NonZeroU8 > 12 saturates.
     /// let thirteen = NonZeroU8::new(13).unwrap();
-    /// assert_eq!(MONTNZ08.upper(thirteen), Extended::PosInf);
+    /// assert_eq!(MONTN008.upper(thirteen), Extended::PosInf);
     /// ```
-    pub MONTNZ08 : Extended<MonthName> => NonZeroU8 {
-        ceil:  montnz08_ceil,
-        inner: montnz08_inner,
+    pub MONTN008 : Extended<MonthName> => NonZeroU8 {
+        ceil:  montn008_ceil,
+        inner: montn008_inner,
     }
 }
 
@@ -183,13 +185,13 @@ fn wkdyu008_ceil(w: Extended<Weekday>) -> u8 {
         // Weekday::Monday = 0, so `u8 = 0` is the smallest valid slot
         // — no sub-Monday sentinel available. Collapse `NegInf` onto
         // `0` (Monday's slot); same monotone-with-equality argument
-        // as MONTNZ08.
+        // as MONTN008.
         Extended::NegInf => 0,
         // Weekday::Monday = 0…Sunday = 6 by explicit discriminant
         // (`hifitime/src/weekday.rs:28-37`). No offset needed — the
         // cast is direct.
         Extended::Finite(day) => day as u8,
-        // u8=7 is `max_valid + 1` — the OFDTNANO-shape PosInf sentinel.
+        // u8=7 is `max_valid + 1` — the ODTMNANO-shape PosInf sentinel.
         Extended::PosInf => 7,
     }
 }
@@ -210,7 +212,7 @@ crate::conn_l! {
     /// integer (0=Mon…6=Sun, ISO 8601 ordering).
     ///
     /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`),
-    /// OFDTNANO shape: `Extended` only on the source. `ceil(NegInf)`
+    /// ODTMNANO shape: `Extended` only on the source. `ceil(NegInf)`
     /// collapses to `0` (Monday's slot — no sub-Monday u8 available);
     /// `ceil(PosInf) = 7`. `inner: u8 → Extended<Weekday>` saturates
     /// `u8` values ≥ 7 onto `Extended::PosInf` rather than wrapping
@@ -350,32 +352,32 @@ mod tests {
     }
 
     #[test]
-    fn montnz08_january_is_nonzero_one() {
+    fn montn008_january_is_nonzero_one() {
         let one = NonZeroU8::new(1).unwrap();
-        assert_eq!(MONTNZ08.ceil(Extended::Finite(MonthName::January)), one);
+        assert_eq!(MONTN008.ceil(Extended::Finite(MonthName::January)), one);
     }
 
     #[test]
-    fn montnz08_december_is_nonzero_twelve() {
+    fn montn008_december_is_nonzero_twelve() {
         let twelve = NonZeroU8::new(12).unwrap();
-        assert_eq!(MONTNZ08.ceil(Extended::Finite(MonthName::December)), twelve);
+        assert_eq!(MONTN008.ceil(Extended::Finite(MonthName::December)), twelve);
     }
 
     #[test]
-    fn montnz08_thirteen_saturates_pos_inf() {
+    fn montn008_thirteen_saturates_pos_inf() {
         let thirteen = NonZeroU8::new(13).unwrap();
-        assert_eq!(MONTNZ08.upper(thirteen), Extended::PosInf);
+        assert_eq!(MONTN008.upper(thirteen), Extended::PosInf);
     }
 
     #[test]
-    fn montnz08_neg_inf_collapses_to_one() {
+    fn montn008_neg_inf_collapses_to_one() {
         // NonZeroU8 has no sub-1 sentinel; NegInf collapses to 1.
         let one = NonZeroU8::new(1).unwrap();
-        assert_eq!(MONTNZ08.ceil(Extended::NegInf), one);
+        assert_eq!(MONTN008.ceil(Extended::NegInf), one);
     }
 
     #[test]
-    fn montnz08_one_recovers_january_not_neg_inf() {
+    fn montn008_one_recovers_january_not_neg_inf() {
         // Inverse of the NegInf-collapse: `upper(NonZeroU8(1))` must
         // recover `Finite(January)`, NOT `NegInf`. The collapse on
         // `ceil` is one-way; a refactor that inverted the inner arm
@@ -383,7 +385,7 @@ mod tests {
         // round-trip while still satisfying monotonicity. (MR !69
         // round-1.)
         let one = NonZeroU8::new(1).unwrap();
-        assert_eq!(MONTNZ08.upper(one), Extended::Finite(MonthName::January),);
+        assert_eq!(MONTN008.upper(one), Extended::Finite(MonthName::January),);
     }
 
     #[test]
@@ -455,25 +457,25 @@ mod tests {
         }
 
         #[test]
-        fn montnz08_galois_l(a in arb_extended_hifi_month(), b in arb_nz_u8_calendar()) {
-            prop_assert!(conn_laws::galois_l(&MONTNZ08, a, b));
+        fn montn008_galois_l(a in arb_extended_hifi_month(), b in arb_nz_u8_calendar()) {
+            prop_assert!(conn_laws::galois_l(&MONTN008, a, b));
         }
         #[test]
-        fn montnz08_closure_l(a in arb_extended_hifi_month()) {
-            prop_assert!(conn_laws::closure_l(&MONTNZ08, a));
+        fn montn008_closure_l(a in arb_extended_hifi_month()) {
+            prop_assert!(conn_laws::closure_l(&MONTN008, a));
         }
         #[test]
-        fn montnz08_kernel_l(b in arb_nz_u8_calendar()) {
-            prop_assert!(conn_laws::kernel_l(&MONTNZ08, b));
+        fn montn008_kernel_l(b in arb_nz_u8_calendar()) {
+            prop_assert!(conn_laws::kernel_l(&MONTN008, b));
         }
         #[test]
-        fn montnz08_monotone_l(a1 in arb_extended_hifi_month(),
+        fn montn008_monotone_l(a1 in arb_extended_hifi_month(),
                                a2 in arb_extended_hifi_month()) {
-            prop_assert!(conn_laws::monotone_l(&MONTNZ08, a1, a2));
+            prop_assert!(conn_laws::monotone_l(&MONTN008, a1, a2));
         }
         #[test]
-        fn montnz08_idempotent(a in arb_extended_hifi_month()) {
-            prop_assert!(conn_laws::idempotent(&MONTNZ08, a));
+        fn montn008_idempotent(a in arb_extended_hifi_month()) {
+            prop_assert!(conn_laws::idempotent(&MONTN008, a));
         }
 
         #[test]

@@ -25,17 +25,17 @@ this doc explains how those names get earned.
 
 ```rust
 use connections::conn::{ConnL, ConnR};
-use connections::time::DURNSECS;
+use connections::time::TDURSECS;
 use connections::extended::Extended;
 use time::Duration;
 
 let pos = Duration::seconds(5) + Duration::nanoseconds(1);
-assert_eq!(DURNSECS.ceil(pos),  Extended::Finite(6));   // round up
-assert_eq!(DURNSECS.floor(pos), Extended::Finite(5));   // round down
+assert_eq!(TDURSECS.ceil(pos),  Extended::Finite(6));   // round up
+assert_eq!(TDURSECS.floor(pos), Extended::Finite(5));   // round down
 
 let neg = Duration::seconds(-5) - Duration::nanoseconds(1);
-assert_eq!(DURNSECS.ceil(neg),  Extended::Finite(-5));  // round up
-assert_eq!(DURNSECS.floor(neg), Extended::Finite(-6));  // round down
+assert_eq!(TDURSECS.ceil(neg),  Extended::Finite(-5));  // round up
+assert_eq!(TDURSECS.floor(neg), Extended::Finite(-6));  // round down
 ```
 
 See [EXAMPLES.md](https://gitlab.com/cmk/connections/-/blob/main/EXAMPLES.md)
@@ -367,7 +367,7 @@ theorem on **seven** walks (`f64`/`f32` over `time::Duration` and
 `f64` over `Epoch` in TAI scale) over the full non-fast-path
 finite-non-NaN domain. Pure-arithmetic Conns whose closures don't
 call into calendar / leap-second tables — `TIMENANO`, `TIMESECS`,
-`DURNSECS`, `STDRU064`, `STDRU128`, `HDURNANO`, `HDURSECS`,
+`TDURSECS`, `SDURU064`, `SDURU128`, `HDURNANO`, `HDURSECS`,
 `ETAINANO`, and the `ETAIHDUR` iso — pick up the standard
 Galois-law battery.
 
@@ -391,8 +391,8 @@ over the unrestricted IEEE bit space (intractable for CBMC's FP
 theory; `src/kani_proofs/float_weaker.rs` covers the productive
 finite-domain subset), `Date` / `OffsetDateTime` / UTC-scale
 hifi Conns whose closures consult leap-second / calendar tables
-(`DATEJDAY`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`, `EUTCNANO`,
-`EUTCHDUR`, `EUTCF064`), and composed-Conn lattice axioms.
+(`DATEJDAY`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`, `EUNXNANO`,
+`EUTCHDUR`, `F064EUNX`), and composed-Conn lattice axioms.
 
 Run with:
 
@@ -438,7 +438,7 @@ implement `ConnK`.
 | `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `fixed::{i8,…,i128, u8,…,u128}` |
 | Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) | `fixed::{i8,…,i128, u8,…,u128}` |
 | Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
-| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `DURNSECS`, `F032DURN`, `F064DURN`, `PDTMDATE`, `OFDTNANO`, `OFDTSECS`) and the `std::time::Duration` family (`STDRU064`, `STDRU128`, `F064STDR`, `F032STDR`) for users on `std::time` | `time` |
+| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` |
 | `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
 | `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
 | Sortable byte encodings (`U008OBYT`, `I008OBYT`, `BOOLOBYT`, `U016OBYT`, `I016OBYT`, `U032OBYT`, `I032OBYT`, `U064OBYT`, `I064OBYT`, `U128OBYT`, `I128OBYT`) — `byte` cargo feature; float OBYT Conns deferred (NaN/PartialOrd) | `byte` |

@@ -161,7 +161,7 @@ crate::conn_k! {
     /// ::ffff:0:0`, and `inner(PosInf) = MAX` is strictly above
     /// `inner(Finite(255.255.255.255)) = ::ffff:ffff:ffff` — the
     /// pre-block and post-block "room" plays the role that subsec
-    /// precision plays in `DURNSECS`. Ceil and floor agree at the Ipv6
+    /// precision plays in `TDURSECS`. Ceil and floor agree at the Ipv6
     /// extremes (`::`, `Ipv6Addr::MAX`) and inside the v4-mapped block;
     /// below or above the block they diverge:
     ///
