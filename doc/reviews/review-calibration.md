@@ -224,9 +224,13 @@ cross-system bug that unit tests per-system would never catch.
 
 **Why this is good:** Catches the real bug — a *type-system claim* the
 impl doesn't satisfy — by reading the type declaration and the test
-rename together. The author's framing ("we use `total_cmp` because the
-classical predicate fails on NaN") was the trap; both Claude reviewers
-on the original MR accepted that framing and missed that the type still
-claims the unrelaxed law. The fix isn't to keep the type and weaken the
-test — it's to reconcile the two by weakening the type to match what
-the impl can actually deliver.
+rename together. A relaxation-renamed test is a signal that the strong
+law failed; the type claim is only resolved when the declaration was
+also weakened to match. The fix isn't to keep the type and weaken the
+test — it's to reconcile the two by weakening the type to what the
+impl can actually deliver. The same shape applies anywhere a
+host-type domain has elements the law doesn't reach (NaN in floats,
+sentinel rows in saturating integer Conns, empty strings in lex
+encodings, …) — the trigger isn't NaN specifically, it's any
+declaration claiming a law it can't satisfy on the full host
+domain.
