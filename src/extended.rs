@@ -428,10 +428,10 @@ mod tests {
 // 3. Drive lifted `Q000I016` (an iso ConnK from `fixed::i16`) through
 //    the `full` battery — exercises both ConnL and ConnR sides plus
 //    `floor_le_ceil`, the full triple-marker law set.
-// 4. Drive lifted `F064F032` (an iso ConnK from `float::f32`) through
-//    `iso_only`, since the float side double-wraps `Extended<ExtendedFloat<f64>>`
-//    which is structurally fine for the iso laws but doesn't satisfy
-//    `Ord` in the way `full` requires.
+// 4. Smoke-test that a `lift_l!` value composes into a `compose_l!`
+//    chain at const-init position, and that a `lift_k!` marker
+//    composes at runtime — together these cover the linklab
+//    `F64_SECS_EPOCH_VIA_UTC` chain shape against in-tree types only.
 
 #[cfg(test)]
 mod lift_tests {
@@ -574,5 +574,51 @@ mod lift_tests {
         conn: EXTQ000I016,
         fine:   arb_ext_q000(),
         coarse: arb_ext_i16(),
+    }
+
+    // ── T5 smoke: lift integrates into compose_l! chains ──────────
+    //
+    // Mirrors the linklab `F64_SECS_EPOCH_VIA_UTC` chain shape — a
+    // Conn whose endpoint is `Extended<…>` composed with a lifted
+    // bridge — against `connections`-internal types only. Two flavors:
+    //
+    // - **Const-init** (`lift_l!` value composing with an `Extended`-
+    //   sided identity at const position). Proves the lift produces
+    //   a const Conn that flows through `compose_l!` without leaving
+    //   const context.
+    // - **Runtime** (`lift_k!` marker composing with an identity-
+    //   shaped Conn value). Proves a marker emitted by `lift_k!`
+    //   integrates into the runtime `compose_l!` form via
+    //   `marker.conn_l()`.
+
+    #[test]
+    fn lift_l_compose_chain_const_smoke() {
+        const ID_I64: Conn<i64, i64, L> = Conn::identity();
+        const LIFTED: Conn<Extended<i64>, Extended<i64>, L> = lift_l!(ID_I64);
+        const ID_EXT: Conn<Extended<i64>, Extended<i64>, L> = Conn::identity();
+        // The chain: Extended<i64> → Extended<i64> → Extended<i64>.
+        // Const-init through compose_l!; the lift slot replaces the
+        // motivating-use-case L-only Conn that lands in `Extended<…>`.
+        const CHAIN: Conn<Extended<i64>, Extended<i64>, L> = crate::compose_l!(LIFTED, ID_EXT);
+        assert_eq!(CHAIN.ceil(Extended::Finite(7)), Extended::Finite(7));
+        assert_eq!(CHAIN.upper(Extended::PosInf), Extended::PosInf);
+    }
+
+    #[test]
+    fn lift_k_compose_chain_runtime_smoke() {
+        // EXTQ000I016 is a `lift_k!` marker. Its `.conn_l()` returns a
+        // `Conn<Extended<FixedI16<U0>>, Extended<i16>, L>` at runtime —
+        // sufficient for the runtime form of `compose_l!`. The chain
+        // proves a `lift_k!`-emitted marker integrates with the
+        // surrounding compose plumbing. Both compose_l! operands must
+        // be referenceable as paths (so the macro's fresh closures
+        // don't capture); `EXTQ000I016` is a unit-struct path,
+        // `ID_EXT_I16` is a function-scope `const`.
+        const ID_EXT_I16: Conn<Extended<i16>, Extended<i16>, L> = Conn::identity();
+        let chain: Conn<Extended<FixedI16<U0>>, Extended<i16>, L> =
+            crate::compose_l!(EXTQ000I016.conn_l(), ID_EXT_I16);
+        let q = FixedI16::<U0>::from_bits(99);
+        assert_eq!(chain.ceil(Extended::Finite(q)), Extended::Finite(99_i16));
+        assert_eq!(chain.ceil(Extended::NegInf), Extended::NegInf);
     }
 }
