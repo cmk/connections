@@ -289,7 +289,7 @@ mod kani_proofs;
 pub mod macros {
     pub use crate::{
         compose, compose_k, compose_l, compose_r, conn_k, conn_l, conn_r, ext_int, int_int_narrow,
-        int_uint, int_uint_narrow, iso, nz_int_ext, nz_uint_ext, uint_int_sat, uint_uint,
-        uint_uint_narrow,
+        int_uint, int_uint_narrow, iso, lift_k, lift_l, lift_r, nz_int_ext, nz_uint_ext,
+        uint_int_sat, uint_uint, uint_uint_narrow,
     };
 }

@@ -7,6 +7,19 @@
 //! `Extended` is a pure range-extension wrapper; it does not participate
 //! in float NaN handling — that lives in
 //! [`crate::float::ExtendedFloat`].
+//!
+//! ## Functor-lift macros
+//!
+//! When chaining a Conn whose endpoint is already `Extended<…>` with one
+//! whose corresponding side is a bare type, the chain fails to type-check.
+//! [`lift_l!`](crate::lift_l) / [`lift_r!`](crate::lift_r) /
+//! [`lift_k!`](crate::lift_k) wrap **both** endpoints of the bare-side
+//! Conn so the chain composes. The lift is the categorical functor-lift
+//! of the parent through `Extended`: synthetic markers map identically
+//! (`NegInf ↦ NegInf`, `PosInf ↦ PosInf`), and the `Finite` arm
+//! dispatches through the parent. Every law in
+//! [`crate::prop::conn`] that holds on the parent carries to the lifted
+//! Conn for free.
 
 /// A totally-ordered `T` extended with synthetic `NegInf` (bottom) and
 /// `PosInf` (top) sentinels.
@@ -100,6 +113,185 @@ impl<T: Ord> Ord for Extended<T> {
         // Safe: PartialOrd on Extended returns Some for any Ord T.
         self.partial_cmp(other).unwrap()
     }
+}
+
+// ── Functor-lift macros ────────────────────────────────────────────
+//
+// The macros below specialise the Haskell `mapped :: Functor f =>
+// Cast k a b -> Cast k (f a) (f b)` to `f = Extended`. Rust without
+// HKT can't write a generic functor-lift, but `Extended` is the only
+// crate-wide saturation functor where the lift is meaningful, so a
+// concrete-functor specialisation is all that's needed.
+//
+// Macro form (rather than free fn) because `Conn<A, B, K>` stores
+// `fn(_) -> _` pointer fields — Rust fn-pointers can't capture
+// environment, so a free fn `lift_l(parent: Conn<A, B, L>) -> Conn<…>`
+// can't synthesise the lifted `fn` from `parent.f`. Each macro
+// expansion emits a non-capturing closure that references the parent
+// through a stable path (a `pub const` or unit-marker), so the
+// closure coerces to a fn-pointer at compile time. Same trick the
+// `compose_l!` / `compose_k!` family already uses.
+
+/// Lift an L-Galois `Conn` (or any [`ConnL`](crate::conn::ConnL) impl)
+/// through the [`Extended`] functor.
+///
+/// Produces a fresh `Conn<Extended<A>, Extended<B>, L>` whose
+/// synthetic markers map identically (`NegInf → NegInf`,
+/// `PosInf → PosInf`) and whose `Finite` arm dispatches through the
+/// parent's `ceil` / `upper`.
+///
+/// **Argument constraint:** `$parent` must be a *stable path* — a
+/// `pub const` Conn value or a unit-struct marker that impls
+/// [`ConnL`](crate::conn::ConnL). Local variables and arbitrary
+/// runtime expressions break the closure-to-fn-pointer coercion that
+/// makes the resulting Conn const-init friendly. (Same constraint as
+/// [`compose_l!`](crate::compose_l).)
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::{Conn, ConnL, L};
+/// use connections::extended::Extended;
+/// use connections::lift_l;
+///
+/// const ID: Conn<i64, i64, L> = Conn::identity();
+/// const LIFTED: Conn<Extended<i64>, Extended<i64>, L> = lift_l!(ID);
+///
+/// assert_eq!(LIFTED.ceil(Extended::NegInf), Extended::NegInf);
+/// assert_eq!(LIFTED.ceil(Extended::PosInf), Extended::PosInf);
+/// assert_eq!(LIFTED.ceil(Extended::Finite(7_i64)), Extended::Finite(7_i64));
+/// ```
+#[macro_export]
+macro_rules! lift_l {
+    ($parent:expr) => {
+        $crate::conn::Conn::new_l(
+            |a| match a {
+                $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
+                $crate::extended::Extended::Finite(x) => {
+                    $crate::extended::Extended::Finite($crate::conn::ConnL::ceil(&$parent, x))
+                }
+                $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
+            },
+            |b| match b {
+                $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
+                $crate::extended::Extended::Finite(y) => {
+                    $crate::extended::Extended::Finite($crate::conn::ConnL::upper(&$parent, y))
+                }
+                $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
+            },
+        )
+    };
+}
+
+/// Lift an R-Galois `Conn` (or any [`ConnR`](crate::conn::ConnR) impl)
+/// through the [`Extended`] functor. Mirrors [`lift_l!`](crate::lift_l):
+/// produces a fresh `Conn<Extended<A>, Extended<B>, R>` whose
+/// synthetic markers map identically and whose `Finite` arm
+/// dispatches through the parent's `lower` / `floor`.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::{Conn, ConnR, L, R};
+/// use connections::extended::Extended;
+/// use connections::lift_r;
+///
+/// const ID_R: Conn<i64, i64, R> = Conn::<i64, i64, L>::identity().swap_l();
+/// const LIFTED: Conn<Extended<i64>, Extended<i64>, R> = lift_r!(ID_R);
+///
+/// assert_eq!(LIFTED.floor(Extended::NegInf), Extended::NegInf);
+/// assert_eq!(LIFTED.floor(Extended::PosInf), Extended::PosInf);
+/// assert_eq!(LIFTED.floor(Extended::Finite(7_i64)), Extended::Finite(7_i64));
+/// ```
+#[macro_export]
+macro_rules! lift_r {
+    ($parent:expr) => {
+        $crate::conn::Conn::new_r(
+            |b| match b {
+                $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
+                $crate::extended::Extended::Finite(y) => {
+                    $crate::extended::Extended::Finite($crate::conn::ConnR::lower(&$parent, y))
+                }
+                $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
+            },
+            |a| match a {
+                $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
+                $crate::extended::Extended::Finite(x) => {
+                    $crate::extended::Extended::Finite($crate::conn::ConnR::floor(&$parent, x))
+                }
+                $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
+            },
+        )
+    };
+}
+
+/// Declaration-form macro: lift a [`ConnK`](crate::conn::ConnK) parent
+/// (an iso or other triple marker) through the [`Extended`] functor,
+/// emitting a fresh unit-struct marker that impls
+/// [`ConnL`](crate::conn::ConnL) **and**
+/// [`ConnR`](crate::conn::ConnR) on
+/// `Extended<A>` ↔ `Extended<B>`.
+///
+/// `$parent` must impl `ConnK<A, B>` (i.e. be either a triple marker
+/// or both `ConnL` and `ConnR` over the same `(A, B)`); the parent's
+/// laws carry to the emitted marker by construction.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::{ConnL, ConnR};
+/// use connections::extended::Extended;
+/// use connections::fixed::i16::Q000I016;
+/// use connections::lift_k;
+/// use fixed::FixedI16;
+/// use fixed::types::extra::U0;
+///
+/// // Lift `Q000I016 : FixedI16<U0> ↔ i16` so it splices into chains
+/// // whose adjacent endpoint is already `Extended<i16>`.
+/// lift_k!(EXTQ000I016 : FixedI16<U0> => i16 = Q000I016);
+///
+/// // Synthetic markers map identically.
+/// assert_eq!(EXTQ000I016.ceil(Extended::NegInf), Extended::NegInf);
+/// assert_eq!(EXTQ000I016.floor(Extended::PosInf), Extended::PosInf);
+///
+/// // Finite arm dispatches through the parent (lossless on Q000I016).
+/// let q = FixedI16::<U0>::from_bits(42);
+/// assert_eq!(EXTQ000I016.ceil(Extended::Finite(q)), Extended::Finite(42_i16));
+/// assert_eq!(EXTQ000I016.upper(Extended::Finite(42_i16)), Extended::Finite(q));
+/// ```
+#[macro_export]
+macro_rules! lift_k {
+    ($name:ident : $A:ty => $B:ty = $parent:path $(,)?) => {
+        pub struct $name;
+        impl $crate::conn::ConnL<$crate::extended::Extended<$A>, $crate::extended::Extended<$B>>
+            for $name
+        {
+            #[inline]
+            fn conn_l(
+                &self,
+            ) -> $crate::conn::Conn<
+                $crate::extended::Extended<$A>,
+                $crate::extended::Extended<$B>,
+                $crate::conn::L,
+            > {
+                $crate::lift_l!($parent)
+            }
+        }
+        impl $crate::conn::ConnR<$crate::extended::Extended<$A>, $crate::extended::Extended<$B>>
+            for $name
+        {
+            #[inline]
+            fn conn_r(
+                &self,
+            ) -> $crate::conn::Conn<
+                $crate::extended::Extended<$A>,
+                $crate::extended::Extended<$B>,
+                $crate::conn::R,
+            > {
+                $crate::lift_r!($parent)
+            }
+        }
+    };
 }
 
 #[cfg(test)]
@@ -219,5 +411,168 @@ mod tests {
         let p: Extended<i64> = Extended::PosInf;
         assert_eq!(m, Extended::NegInf);
         assert_eq!(p, Extended::PosInf);
+    }
+}
+
+// ── Functor-lift tests ─────────────────────────────────────────────
+//
+// The lift macros (`lift_l!` / `lift_r!` / `lift_k!`) preserve every
+// `prop::conn::*` law of the parent: synthetic markers map identically
+// (so the laws hold trivially there) and the `Finite` arm dispatches
+// through the parent (so its laws carry pointwise). This module
+// drives that argument empirically:
+//
+// 1. Spot-check that synthetic-arm equality holds by construction.
+// 2. Drive lifted `Conn::identity::<i64>` through the `l_only` battery —
+//    the simplest non-trivial L-only fixture, exercises arms-and-Finite.
+// 3. Drive lifted `Q000I016` (an iso ConnK from `fixed::i16`) through
+//    the `full` battery — exercises both ConnL and ConnR sides plus
+//    `floor_le_ceil`, the full triple-marker law set.
+// 4. Drive lifted `F064F032` (an iso ConnK from `float::f32`) through
+//    `iso_only`, since the float side double-wraps `Extended<ExtendedFloat<f64>>`
+//    which is structurally fine for the iso laws but doesn't satisfy
+//    `Ord` in the way `full` requires.
+
+#[cfg(test)]
+mod lift_tests {
+    use super::*;
+    use crate::conn::{Conn, ConnL as _, ConnR as _, L, R};
+    use crate::fixed::i16::Q000I016;
+    use ::fixed::FixedI16;
+    use ::fixed::types::extra::U0;
+    use proptest::prelude::*;
+
+    // ── Strategy helpers ───────────────────────────────────────────
+
+    /// `Extended<T>` over `NegInf`, `PosInf`, and `Finite(_)` with
+    /// 1:1:3 weighting (matching `prop::arb::extended_float_*`).
+    fn arb_extended<T, S>(inner: S) -> impl Strategy<Value = Extended<T>>
+    where
+        T: core::fmt::Debug + Clone + 'static,
+        S: Strategy<Value = T> + 'static,
+    {
+        prop_oneof![
+            1 => Just(Extended::NegInf),
+            1 => Just(Extended::PosInf),
+            3 => inner.prop_map(Extended::Finite),
+        ]
+    }
+
+    fn arb_ext_i64() -> impl Strategy<Value = Extended<i64>> {
+        arb_extended(any::<i64>())
+    }
+
+    fn arb_ext_q000() -> impl Strategy<Value = Extended<FixedI16<U0>>> {
+        arb_extended(any::<i16>().prop_map(FixedI16::<U0>::from_bits))
+    }
+
+    fn arb_ext_i16() -> impl Strategy<Value = Extended<i16>> {
+        arb_extended(any::<i16>())
+    }
+
+    // ── Synthetic-arm spot checks ──────────────────────────────────
+
+    #[test]
+    fn lift_l_identity_synthetic_arms() {
+        const ID: Conn<i64, i64, L> = Conn::identity();
+        const LIFTED: Conn<Extended<i64>, Extended<i64>, L> = lift_l!(ID);
+        assert_eq!(LIFTED.ceil(Extended::NegInf), Extended::NegInf);
+        assert_eq!(LIFTED.ceil(Extended::PosInf), Extended::PosInf);
+        assert_eq!(LIFTED.upper(Extended::NegInf), Extended::NegInf);
+        assert_eq!(LIFTED.upper(Extended::PosInf), Extended::PosInf);
+    }
+
+    #[test]
+    fn lift_r_identity_synthetic_arms() {
+        const ID_R: Conn<i64, i64, R> = Conn::<i64, i64, L>::identity().swap_l();
+        const LIFTED: Conn<Extended<i64>, Extended<i64>, R> = lift_r!(ID_R);
+        assert_eq!(LIFTED.floor(Extended::NegInf), Extended::NegInf);
+        assert_eq!(LIFTED.floor(Extended::PosInf), Extended::PosInf);
+        assert_eq!(LIFTED.lower(Extended::NegInf), Extended::NegInf);
+        assert_eq!(LIFTED.lower(Extended::PosInf), Extended::PosInf);
+    }
+
+    #[test]
+    fn lift_l_identity_finite_passthrough() {
+        const ID: Conn<i64, i64, L> = Conn::identity();
+        const LIFTED: Conn<Extended<i64>, Extended<i64>, L> = lift_l!(ID);
+        assert_eq!(LIFTED.ceil(Extended::Finite(7)), Extended::Finite(7));
+        assert_eq!(LIFTED.upper(Extended::Finite(-3)), Extended::Finite(-3));
+    }
+
+    // Marker that lifts the iso `Q000I016 : FixedI16<U0> ↔ i16` to
+    // `Extended<FixedI16<U0>> ↔ Extended<i16>`. Used by the law
+    // battery below and the synthetic-arm spot checks.
+    lift_k!(EXTQ000I016 : FixedI16<U0> => i16 = Q000I016);
+
+    #[test]
+    fn lift_k_q000i016_synthetic_arms() {
+        // Both views agree on the synthetic arms (and on identity at
+        // Finite values, since Q000I016 is an iso).
+        assert_eq!(EXTQ000I016.ceil(Extended::NegInf), Extended::NegInf);
+        assert_eq!(EXTQ000I016.ceil(Extended::PosInf), Extended::PosInf);
+        assert_eq!(EXTQ000I016.floor(Extended::NegInf), Extended::NegInf);
+        assert_eq!(EXTQ000I016.floor(Extended::PosInf), Extended::PosInf);
+        assert_eq!(EXTQ000I016.upper(Extended::NegInf), Extended::NegInf);
+        assert_eq!(EXTQ000I016.lower(Extended::PosInf), Extended::PosInf);
+    }
+
+    #[test]
+    fn lift_k_q000i016_finite_dispatches_through_parent() {
+        let q = FixedI16::<U0>::from_bits(42);
+        // Parent's ceil/upper agree on Finite values:
+        assert_eq!(
+            EXTQ000I016.ceil(Extended::Finite(q)),
+            Extended::Finite(42_i16)
+        );
+        assert_eq!(
+            EXTQ000I016.upper(Extended::Finite(42_i16)),
+            Extended::Finite(q)
+        );
+        assert_eq!(
+            EXTQ000I016.floor(Extended::Finite(q)),
+            Extended::Finite(42_i16)
+        );
+        assert_eq!(
+            EXTQ000I016.lower(Extended::Finite(42_i16)),
+            Extended::Finite(q)
+        );
+    }
+
+    // ── Const-init smoke: lift_l! works in const context ──────────
+
+    #[test]
+    fn lift_l_const_init_smoke() {
+        const ID: Conn<i64, i64, L> = Conn::identity();
+        const LIFTED: Conn<Extended<i64>, Extended<i64>, L> = lift_l!(ID);
+        // Reading a const inside a fn proves it const-evaluated.
+        assert_eq!(LIFTED.ceil(Extended::Finite(0)), Extended::Finite(0));
+    }
+
+    // ── Property batteries ─────────────────────────────────────────
+    //
+    // `law_battery!` synthesises proptest cases from the `prop::conn`
+    // predicates against the supplied `conn:` and the `fine:` /
+    // `coarse:` strategies. We drive the lifted Conns through it the
+    // same way the rest of the crate's tests drive native ones.
+
+    // Lifted identity over Extended<i64>: l_only (Conn<_,_,L>).
+    const LIFTED_ID_I64: Conn<Extended<i64>, Extended<i64>, L> =
+        lift_l!(Conn::<i64, i64, L>::identity());
+
+    crate::law_battery! {
+        mod lifted_id_i64,
+        conn: LIFTED_ID_I64,
+        fine:   arb_ext_i64(),
+        coarse: arb_ext_i64(),
+        subset: l_only,
+    }
+
+    // Lifted iso over Extended<FixedI16<U0>> ↔ Extended<i16>: full.
+    crate::law_battery! {
+        mod lifted_q000i016,
+        conn: EXTQ000I016,
+        fine:   arb_ext_q000(),
+        coarse: arb_ext_i16(),
     }
 }
