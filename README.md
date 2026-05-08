@@ -201,10 +201,10 @@ x ≤ floor(inner(x))     -- kernel of inner ⊣ floor, with b = x
 So `x ≤ y`. ∎
 
 (Categorically: in an adjoint triple `f ⊣ g ⊣ h` over posets, `g`
-fully faithful ⟺  the counit of `g ⊣ h` is iso ⟺  the unit of `f ⊣ g` is iso
-⟺ `h ≤ f`. The two displays above are that equivalence written for
-posets, where "fully faithful" reduces to "order-reflecting" and
-"iso" to "equality".)
+fully faithful ⟺  the counit of `g ⊣ h` is iso ⟺  the unit of `f ⊣ g` 
+is iso ⟺ `h ≤ f`. The two displays above are that equivalence written for
+posets, where "fully faithful" reduces to "order-reflecting" and "iso" to
+"equality".)
 
 **Counterexample** — necessity is sharp. Let `A = {a}` (one element)
 and `B = {b₁ < b₂ < b₃}`, with `inner: B → A` the constant map
@@ -250,14 +250,14 @@ are **not** a good fit when:
    primitives and let them assemble the policy at the call site.
 
 3. **The conversion takes a runtime parameter.** Keep the helper
-   as a normal named function whose body *visibly composes* the
-   lawful Conns it depends on.
-
-The discipline of pushing runtime parameters and policy choices *close
-to the static Conn call site* tends to make conversion code clearer,
-not more verbose — the policy and the static cast are both visible in
-the same body. A boundary helper that names what it does and visibly
-composes lawful Conns is a feature, not a workaround.
+   as a normal named function whose body *visibly composes* the lawful
+   Conns it depends on.
+   
+   The discipline of pushing runtime parameters and policy choices *close
+   to the static Conn call site* tends to make conversion code clearer,
+   not more verbose: the policy and the static cast are both visible in
+   the same body. A boundary helper that names what it does and visibly
+   composes lawful Conns is a feature, not a workaround.
 
 # Installation
 
