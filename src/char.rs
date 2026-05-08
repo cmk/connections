@@ -1,110 +1,87 @@
 //! `char` connections.
 //!
-//! Houses [`U032CHAR`] — `Extended<u32> → Extended<char>` — projecting
-//! a 32-bit codepoint candidate into the validated Unicode range
+//! Houses [`U032CHAR`] — `u32 → char` — projecting a 32-bit codepoint
+//! candidate into the validated Unicode range
 //! `[0, 0xD7FF] ∪ [0xE000, 0x10FFFF]`. The surrogate gap and the
-//! `> 0x10FFFF` overflow are handled by ceil/floor asymmetry; both
-//! Galois laws hold over the lattice ordering of `Extended<char>`.
+//! `> 0x10FFFF` overflow are handled by saturating `ceil`. Galois L
+//! holds via synthetic-top promotion of `inner('\u{10FFFF}') = u32::MAX`.
 //!
 //! Per CLAUDE.md § Conn placement, char wins the same-tier tie over
 //! `u32` (right wins → coarser side → 21-bit char), so this is the
-//! natural module for u32↔char. To compose into `u8 → char` from
-//! downstream code, chain `compose_l!(U008U032.conn_l(), U032CHAR.conn_l())` (or
-//! the analogous `_r` chain).
-
-use crate::extended::Extended;
+//! natural module for u32↔char. To compose `u8 → char` from
+//! downstream code, lift `u8 → u32 → char` through `Extended` first
+//! (`lift_l!(U008U032)` then `compose_l!`-chain with `lift_l!(U032CHAR)`).
 
 const SURROGATE_LO: u32 = 0xD800;
 const SURROGATE_HI: u32 = 0xDFFF;
 const CHAR_MAX_U32: u32 = 0x10FFFF;
 
-const fn ceil_u32_char(x: Extended<u32>) -> Extended<char> {
-    match x {
-        Extended::NegInf => Extended::NegInf,
-        Extended::PosInf => Extended::PosInf,
-        Extended::Finite(u) => {
-            if u > CHAR_MAX_U32 {
-                Extended::PosInf
-            } else if u >= SURROGATE_LO && u <= SURROGATE_HI {
-                Extended::Finite('\u{E000}')
-            } else {
-                // u is in [0, 0xD7FF] ∪ [0xE000, 0x10FFFF]; from_u32
-                // is total here. The `match` handles the unreachable
-                // None to keep the body const-eligible (no unwrap).
-                match char::from_u32(u) {
-                    Some(c) => Extended::Finite(c),
-                    None => Extended::PosInf,
-                }
-            }
+const fn ceil_u32_char(u: u32) -> char {
+    if u > CHAR_MAX_U32 {
+        '\u{10FFFF}'
+    } else if u >= SURROGATE_LO && u <= SURROGATE_HI {
+        '\u{E000}'
+    } else {
+        // u is in [0, 0xD7FF] ∪ [0xE000, 0x10FFFF]; from_u32 is total
+        // here. The `match` keeps the body const-eligible (no unwrap).
+        match char::from_u32(u) {
+            Some(c) => c,
+            None => '\u{10FFFF}',
         }
     }
 }
 
-const fn floor_u32_char(x: Extended<u32>) -> Extended<char> {
-    match x {
-        Extended::NegInf => Extended::NegInf,
-        Extended::PosInf => Extended::PosInf,
-        Extended::Finite(u) => {
-            if u > CHAR_MAX_U32 {
-                Extended::Finite('\u{10FFFF}')
-            } else if u >= SURROGATE_LO && u <= SURROGATE_HI {
-                Extended::Finite('\u{D7FF}')
-            } else {
-                match char::from_u32(u) {
-                    Some(c) => Extended::Finite(c),
-                    None => Extended::NegInf,
-                }
-            }
-        }
+const fn inner_char_u32(c: char) -> u32 {
+    // Synthetic-top promotion: '\u{10FFFF}' → u32::MAX makes Galois L
+    // hold across the `u > 0x10FFFF` saturation arm in `ceil`. The
+    // round-trip on the rest of `char` is the natural `c as u32`.
+    if c as u32 == CHAR_MAX_U32 {
+        u32::MAX
+    } else {
+        c as u32
     }
 }
 
-const fn inner_char_u32(c: Extended<char>) -> Extended<u32> {
-    match c {
-        Extended::NegInf => Extended::NegInf,
-        Extended::PosInf => Extended::PosInf,
-        Extended::Finite(c) => Extended::Finite(c as u32),
-    }
-}
-
-crate::conn_k! {
-    /// `Extended<u32> → Extended<char>` — validated-codepoint projection.
+crate::conn_l! {
+    /// `u32 → char` — validated-codepoint projection (left-Galois).
     ///
-    /// `inner`: lossless `char → u32` cast (`NegInf`/`PosInf` pass
-    /// through; `Finite(c)` casts `c as u32`).
+    /// `inner`: lossless `char → u32` cast on the natural range, with
+    /// synthetic-top promotion of `'\u{10FFFF}' → u32::MAX` so that
+    /// Galois L holds across the `u > 0x10FFFF` saturation arm.
     ///
-    /// `ceil`: smallest `char` whose `u32` embedding is `≥` the input.
-    /// Maps `u in [0xD800, 0xDFFF]` to `Finite('\u{E000}')` (jump over
-    /// the surrogate gap) and `u > 0x10FFFF` to `PosInf` (saturate
-    /// above the Unicode max).
+    /// `ceil`: smallest `char` whose `u32` embedding is `≥` the input,
+    /// saturating to `'\u{10FFFF}'` when `u > 0x10FFFF`. Maps
+    /// `u in [0xD800, 0xDFFF]` to `'\u{E000}'` (jump over the
+    /// surrogate gap).
     ///
-    /// `floor`: largest `char` whose `u32` embedding is `≤` the input.
-    /// Maps `u in [0xD800, 0xDFFF]` to `Finite('\u{D7FF}')` and any
-    /// `u > 0x10FFFF` to `Finite('\u{10FFFF}')`.
+    /// **One-sided.** Shipped as `ConnL` rather than `conn_k!` because
+    /// the synthetic-top promotion in `inner` makes the dual adjunction
+    /// fail at the top boundary; no `floor` admits the symmetric
+    /// `inner ⊣ floor` law.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::char::U032CHAR;
-    /// use connections::conn::{ConnL, ConnR};
-    /// use connections::extended::Extended;
+    /// use connections::conn::ConnL;
     ///
     /// // Valid codepoints pass through.
-    /// assert_eq!(U032CHAR.ceil(Extended::Finite('A' as u32)), Extended::Finite('A'));
-    /// assert_eq!(U032CHAR.floor(Extended::Finite('A' as u32)), Extended::Finite('A'));
+    /// assert_eq!(U032CHAR.ceil('A' as u32), 'A');
     ///
-    /// // Surrogate gap: ceil jumps up, floor jumps down.
-    /// assert_eq!(U032CHAR.ceil(Extended::Finite(0xD800)), Extended::Finite('\u{E000}'));
-    /// assert_eq!(U032CHAR.floor(Extended::Finite(0xD800)), Extended::Finite('\u{D7FF}'));
+    /// // Surrogate gap: ceil jumps up over [0xD800, 0xDFFF].
+    /// assert_eq!(U032CHAR.ceil(0xD800), '\u{E000}');
     ///
-    /// // Above CHAR_MAX: ceil → PosInf, floor → Finite(CHAR_MAX).
-    /// assert_eq!(U032CHAR.ceil(Extended::Finite(0x110000)), Extended::PosInf);
-    /// assert_eq!(U032CHAR.floor(Extended::Finite(0x110000)), Extended::Finite('\u{10FFFF}'));
+    /// // Above CHAR_MAX: ceil saturates at '\u{10FFFF}'.
+    /// assert_eq!(U032CHAR.ceil(0x110000), '\u{10FFFF}');
+    /// assert_eq!(U032CHAR.ceil(u32::MAX),  '\u{10FFFF}');
+    ///
+    /// // Synthetic-top promotion: inner('\u{10FFFF}') == u32::MAX.
+    /// assert_eq!(U032CHAR.upper('\u{10FFFF}'), u32::MAX);
+    /// assert_eq!(U032CHAR.upper('A'),          'A' as u32);
     /// ```
-    pub U032CHAR : Extended<u32> => Extended<char> {
+    pub U032CHAR : u32 => char {
         ceil:  ceil_u32_char,
         inner: inner_char_u32,
-        floor: floor_u32_char,
     }
 }
 
@@ -112,81 +89,39 @@ crate::conn_k! {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ConnL, ConnR};
-    use crate::prop::arb::{arb_extended_char, arb_extended_u32};
-    use crate::prop::conn as conn_laws;
-    use proptest::prelude::*;
+    use crate::conn::ConnL;
+    use crate::prop::arb::{arb_char, arb_u32_char_boundary};
 
     // ── Spot checks ────────────────────────────────────────────────
 
     #[test]
     fn surrogate_gap_ceil() {
         for u in [0xD800_u32, 0xD900, 0xDFFF] {
-            assert_eq!(
-                U032CHAR.ceil(Extended::Finite(u)),
-                Extended::Finite('\u{E000}'),
-                "ceil({:#x})",
-                u
-            );
+            assert_eq!(U032CHAR.ceil(u), '\u{E000}', "ceil({:#x})", u);
         }
     }
 
     #[test]
-    fn surrogate_gap_floor() {
-        for u in [0xD800_u32, 0xD900, 0xDFFF] {
-            assert_eq!(
-                U032CHAR.floor(Extended::Finite(u)),
-                Extended::Finite('\u{D7FF}'),
-                "floor({:#x})",
-                u
-            );
-        }
-    }
-
-    #[test]
-    fn beyond_max_ceil() {
-        assert_eq!(U032CHAR.ceil(Extended::Finite(0x110000)), Extended::PosInf);
-        assert_eq!(U032CHAR.ceil(Extended::Finite(u32::MAX)), Extended::PosInf);
-    }
-
-    #[test]
-    fn beyond_max_floor() {
-        assert_eq!(
-            U032CHAR.floor(Extended::Finite(0x110000)),
-            Extended::Finite('\u{10FFFF}')
-        );
-        assert_eq!(
-            U032CHAR.floor(Extended::Finite(u32::MAX)),
-            Extended::Finite('\u{10FFFF}')
-        );
+    fn above_max_ceil_saturates() {
+        assert_eq!(U032CHAR.ceil(0x110000), '\u{10FFFF}');
+        assert_eq!(U032CHAR.ceil(u32::MAX), '\u{10FFFF}');
     }
 
     #[test]
     fn valid_passthrough() {
-        for &c in &['\u{0}', 'A', '\n', '\u{D7FF}', '\u{E000}', '\u{10FFFF}'] {
-            assert_eq!(
-                U032CHAR.ceil(Extended::Finite(c as u32)),
-                Extended::Finite(c)
-            );
-            assert_eq!(
-                U032CHAR.floor(Extended::Finite(c as u32)),
-                Extended::Finite(c)
-            );
-            assert_eq!(
-                U032CHAR.upper(Extended::Finite(c)),
-                Extended::Finite(c as u32)
-            );
+        for &c in &['\u{0}', 'A', '\n', '\u{D7FF}', '\u{E000}'] {
+            assert_eq!(U032CHAR.ceil(c as u32), c);
+            assert_eq!(U032CHAR.upper(c), c as u32);
         }
     }
 
     #[test]
-    fn extremes_pass_through() {
-        assert_eq!(U032CHAR.ceil(Extended::NegInf), Extended::NegInf);
-        assert_eq!(U032CHAR.floor(Extended::NegInf), Extended::NegInf);
-        assert_eq!(U032CHAR.ceil(Extended::PosInf), Extended::PosInf);
-        assert_eq!(U032CHAR.floor(Extended::PosInf), Extended::PosInf);
-        assert_eq!(U032CHAR.upper(Extended::NegInf), Extended::NegInf);
-        assert_eq!(U032CHAR.upper(Extended::PosInf), Extended::PosInf);
+    fn synthetic_top() {
+        // `inner('\u{10FFFF}')` returns `u32::MAX`, not `0x10FFFF`.
+        // This is the synthetic-top promotion that lets Galois L hold
+        // across the `u > 0x10FFFF` saturation arm in `ceil`.
+        assert_eq!(U032CHAR.upper('\u{10FFFF}'), u32::MAX);
+        assert_eq!(U032CHAR.ceil(0x10FFFF), '\u{10FFFF}');
     }
 
     // ── Property tests ─────────────────────────────────────────────
@@ -194,17 +129,8 @@ mod tests {
     crate::law_battery! {
         mod laws,
         conn: U032CHAR,
-        fine:   arb_extended_u32(),
-        coarse: arb_extended_char(),
-    }
-
-    // `floor_le_ceil` isn't part of the law_battery!(full) set
-    // (ConnK-bound rather than per-side) — kept as a standalone
-    // proptest below.
-    proptest! {
-        #[test]
-        fn floor_le_ceil(a in arb_extended_u32()) {
-            prop_assert!(conn_laws::floor_le_ceil(&U032CHAR, a));
-        }
+        fine:   arb_u32_char_boundary(),
+        coarse: arb_char(),
+        subset: l_only,
     }
 }

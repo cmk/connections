@@ -877,33 +877,20 @@ pub fn arb_char() -> impl Strategy<Value = char> {
     ]
 }
 
-/// `Extended<char>` over `NegInf`, `PosInf`, and `Finite` values from
-/// [`arb_char`] — 1:1:2 weighting.
-pub fn arb_extended_char() -> impl Strategy<Value = Extended<char>> {
+/// `u32` strategy biased toward the char-relevant boundaries
+/// (`0xD7FF`, `0xD800`, `0xDFFF`, `0xE000`, `0x10FFFF`, `0x110000`)
+/// plus `{0, MAX}`. Used by `U032CHAR` proptests.
+pub fn arb_u32_char_boundary() -> impl Strategy<Value = u32> {
     prop_oneof![
-        1 => Just(Extended::NegInf),
-        1 => Just(Extended::PosInf),
-        2 => arb_char().prop_map(Extended::Finite),
-    ]
-}
-
-/// `Extended<u32>` over `NegInf`, `PosInf`, and `Finite` values —
-/// 1:1:8 weighting with explicit bias toward the char-relevant
-/// boundaries (`0xD7FF`, `0xD800`, `0xDFFF`, `0xE000`, `0x10FFFF`,
-/// `0x110000`) plus `{0, MAX}`.
-pub fn arb_extended_u32() -> impl Strategy<Value = Extended<u32>> {
-    prop_oneof![
-        1 => Just(Extended::NegInf),
-        1 => Just(Extended::PosInf),
-        1 => Just(Extended::Finite(0_u32)),
-        1 => Just(Extended::Finite(u32::MAX)),
-        1 => Just(Extended::Finite(0xD7FF)),
-        1 => Just(Extended::Finite(0xD800)),
-        1 => Just(Extended::Finite(0xDFFF)),
-        1 => Just(Extended::Finite(0xE000)),
-        1 => Just(Extended::Finite(0x10FFFF)),
-        1 => Just(Extended::Finite(0x110000)),
-        8 => any::<u32>().prop_map(Extended::Finite),
+        1 => Just(0_u32),
+        1 => Just(u32::MAX),
+        1 => Just(0xD7FF_u32),
+        1 => Just(0xD800_u32),
+        1 => Just(0xDFFF_u32),
+        1 => Just(0xE000_u32),
+        1 => Just(0x10FFFF_u32),
+        1 => Just(0x110000_u32),
+        8 => any::<u32>(),
     ]
 }
 
