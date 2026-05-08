@@ -30,9 +30,10 @@
 //!
 //! - `lift_l!(parent)` returns a [`Conn<Extended<A>, Extended<B>, L>`]
 //!   *value*. It composes into [`compose_l!`](crate::compose_l) as
-//!   either operand. If `parent` is a stable path (a `pub const` or a
-//!   marker), the lift is a const expression and the entire chain
-//!   const-evaluates.
+//!   either operand. The macro takes `$parent:path` (a `pub const`
+//!   Conn or a unit-struct marker), so the lift is always a const
+//!   expression — the whole compose chain const-evaluates if its
+//!   other operands are also const.
 //! - `lift_r!(parent)` returns a [`Conn<…, R>`] value; same story for
 //!   [`compose_r!`](crate::compose_r).
 //! - `lift_k!(NAME : A => B = parent)` emits a unit-struct **marker**
@@ -234,10 +235,16 @@ impl<T: Ord> Ord for Extended<T> {
 ///
 /// **Argument constraint:** `$parent` must be a *stable path* — a
 /// `pub const` Conn value or a unit-struct marker that impls
-/// [`ConnL`](crate::conn::ConnL). Local variables and arbitrary
-/// runtime expressions break the closure-to-fn-pointer coercion that
-/// makes the resulting Conn const-init friendly. (Same constraint as
-/// [`compose_l!`](crate::compose_l).)
+/// [`ConnL`](crate::conn::ConnL). The fragment specifier is `:path`,
+/// matching `lift_k!`'s constraint, which (a) prevents the
+/// double-evaluation hazard that an `:expr` fragment would allow
+/// (the parent is referenced inside two separate fn-pointer-coerced
+/// closures, so a non-path expression like `build_conn()` would be
+/// re-evaluated on each `ceil` / `upper` call), and (b) gives a
+/// parse-time error rather than the deferred fn-pointer-coercion
+/// type error you'd get from a let-bound `Conn` value. To lift
+/// something built at runtime, bind it to a `const` first (or use
+/// `lift_k!` with a marker parent).
 ///
 /// # Examples
 ///
@@ -255,7 +262,7 @@ impl<T: Ord> Ord for Extended<T> {
 /// ```
 #[macro_export]
 macro_rules! lift_l {
-    ($parent:expr) => {
+    ($parent:path) => {
         $crate::conn::Conn::new_l(
             |a| match a {
                 $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
@@ -281,6 +288,10 @@ macro_rules! lift_l {
 /// synthetic markers map identically and whose `Finite` arm
 /// dispatches through the parent's `lower` / `floor`.
 ///
+/// `$parent` is `:path` for the same reasons as
+/// [`lift_l!`](crate::lift_l) — see that macro's docs for the
+/// double-evaluation rationale.
+///
 /// # Examples
 ///
 /// ```rust
@@ -297,7 +308,7 @@ macro_rules! lift_l {
 /// ```
 #[macro_export]
 macro_rules! lift_r {
-    ($parent:expr) => {
+    ($parent:path) => {
         $crate::conn::Conn::new_r(
             |b| match b {
                 $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
@@ -649,8 +660,10 @@ mod lift_tests {
     // same way the rest of the crate's tests drive native ones.
 
     // Lifted identity over Extended<i64>: l_only (Conn<_,_,L>).
-    const LIFTED_ID_I64: Conn<Extended<i64>, Extended<i64>, L> =
-        lift_l!(Conn::<i64, i64, L>::identity());
+    // `lift_l!` requires `:path`, so the parent Conn is pre-bound to
+    // a `const` rather than inlined as `Conn::<…>::identity()`.
+    const ID_I64: Conn<i64, i64, L> = Conn::identity();
+    const LIFTED_ID_I64: Conn<Extended<i64>, Extended<i64>, L> = lift_l!(ID_I64);
 
     crate::law_battery! {
         mod lifted_id_i64,
@@ -702,10 +715,20 @@ mod lift_tests {
         // `Conn<Extended<FixedI16<U0>>, Extended<i16>, L>` at runtime —
         // sufficient for the runtime form of `compose_l!`. The chain
         // proves a `lift_k!`-emitted marker integrates with the
-        // surrounding compose plumbing. Both compose_l! operands must
-        // be referenceable as paths (so the macro's fresh closures
-        // don't capture); `EXTQ000I016` is a unit-struct path,
-        // `ID_EXT_I16` is a function-scope `const`.
+        // surrounding compose plumbing.
+        //
+        // `compose_l!` is `:expr`-fragmented, not `:path`-fragmented
+        // like `lift_l!`/`lift_r!`. Its real constraint is that each
+        // operand expression must compile to a non-capturing closure
+        // body (so the macro-synthesised closures coerce to
+        // `fn(_) -> _`). Method-call expressions like
+        // `EXTQ000I016.conn_l()` qualify because `EXTQ000I016` is a
+        // unit-struct path with static dispatch — the closure body
+        // re-evaluates `.conn_l()` on every invocation but captures
+        // nothing from local scope. A function-scope `const` like
+        // `ID_EXT_I16` qualifies for the same reason. A `let`-bound
+        // local `Conn` value would NOT qualify — it would force a
+        // capture and fail fn-pointer coercion.
         const ID_EXT_I16: Conn<Extended<i16>, Extended<i16>, L> = Conn::identity();
         let chain: Conn<Extended<FixedI16<U0>>, Extended<i16>, L> =
             crate::compose_l!(EXTQ000I016.conn_l(), ID_EXT_I16);
