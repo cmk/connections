@@ -73,7 +73,9 @@ mod hifi_walk;
 mod int_narrow;
 mod iso_family;
 mod nz_ext;
+#[cfg(feature = "time")]
 mod time_pure;
+#[cfg(feature = "time")]
 mod time_walk;
 mod uint_narrow;
 mod uint_sat;

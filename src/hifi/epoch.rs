@@ -16,7 +16,7 @@
 //! - **`EUNX*`** uses **UNIX EPOCH UTC** (1970-01-01 00:00:00) as
 //!   the implicit zero — the integer-rung / float-rung bridges
 //!   ([`EUNXNANO`], [`F064EUNX`]) that match
-//!   [`ODTMNANO`](crate::time::ODTMNANO)'s convention so callers
+//!   `ODTMNANO`'s convention so callers
 //!   moving values between `time::OffsetDateTime` and
 //!   `hifitime::Epoch` get numerically matching projections.
 //!
@@ -207,7 +207,7 @@ crate::conn_l! {
     ///
     /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`).
     /// Same shape as [`HDURNANO`](crate::hifi::HDURNANO) and
-    /// [`ODTMNANO`](crate::time::ODTMNANO): source-side `Extended`,
+    /// `ODTMNANO`: source-side `Extended`,
     /// plain `i128` rung, asymmetric saturation
     /// (`ceil(NegInf) = i128::MIN`, `ceil(PosInf) = HD::MAX.total_ns()
     /// + 1`).
@@ -459,7 +459,7 @@ fn eunxnano_inner(n: i128) -> Extended<Epoch> {
 crate::conn_l! {
     /// `Extended<hifitime::Epoch> → i128` — UNIX nanoseconds (since
     /// 1970-01-01 00:00:00 UTC). **Same numeric semantic as
-    /// [`ODTMNANO`](crate::time::ODTMNANO)** for callers moving
+    /// `ODTMNANO`** for callers moving
     /// values between `time::OffsetDateTime` and `hifitime::Epoch`.
     ///
     /// One-sided left-Galois Conn (`Conn::new_l(ceil, inner)`),

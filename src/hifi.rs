@@ -1,7 +1,7 @@
 //! Galois connections among
 //! [`hifitime`](https://docs.rs/hifitime) types.
 //!
-//! Where [`crate::time`] covers civil-calendar arithmetic via the
+//! Where `crate::time` covers civil-calendar arithmetic via the
 //! `time` crate (microsecond-ish, leap-second-naive), this module
 //! covers nanosecond-precision absolute time across multiple
 //! relativistic / civil time scales (TAI, UTC, GPST, …) via
@@ -9,7 +9,7 @@
 //! whichever resolution / scale system fits the application.
 //!
 //! Submodules group the connections by source domain so the file
-//! layout mirrors [`crate::time`]:
+//! layout mirrors `crate::time`:
 //!
 //! - [`duration`] — `hifitime::Duration` connections
 //!   ([`HDURNANO`], [`HDURSECS`], [`F064HDUR`], [`F032HDUR`]).
@@ -27,13 +27,13 @@
 //!
 //! # Naming convention
 //!
-//! Constants use the same **8-character** name shape as [`crate::time`]
+//! Constants use the same **8-character** name shape as `crate::time`
 //! — two 4-character halves drawn independently from `A123` / `AB12` /
 //! `ABC1` / `ABCD`. Domain-mnemonic prefixes used by this module
 //! follow two sub-conventions:
 //!
 //! - **Suffix-`DUR`** for the Duration family (parallel to
-//!   [`crate::time`]'s `TDUR` / `SDUR` and this module's `HDUR`).
+//!   `crate::time`'s `TDUR` / `SDUR` and this module's `HDUR`).
 //! - **Prefix-`E`** for the `hifitime::Epoch` scale-projection family
 //!   — a single type carrying nine projections, where the 3-letter
 //!   suffix names the scale (TAI/UTC/GPS/etc.).
@@ -43,7 +43,7 @@
 //! | `HDUR` | `hifitime::Duration` / `Extended<hifitime::Duration>`      |
 //! | `ETAI` | `hifitime::Epoch` projected in **TAI** scale (J1900 reference) |
 //! | `EUTC` | `hifitime::Epoch` projected in **UTC** scale (J1900 reference, leap-aware) |
-//! | `EUNX` | `hifitime::Epoch` projected in **UTC** scale, **UNIX-anchored** (1970-01-01 zero, matches [`crate::time::ODTMNANO`]) |
+//! | `EUNX` | `hifitime::Epoch` projected in **UTC** scale, **UNIX-anchored** (1970-01-01 zero, matches `ODTMNANO`) |
 //! | `EGPS` | `hifitime::Epoch` projected in **GPST** scale (1980-01-06 UTC reference) |
 //! | `EQZS` | `hifitime::Epoch` projected in **QZSST** scale (= GPST reference) |
 //! | `EGST` | `hifitime::Epoch` projected in **GST** scale (Galileo, 1999-08-21 reference) |
@@ -73,7 +73,7 @@
 //!   float-rung bridges live in `EUNX*` instead.
 //! - **`EUNX*`** → **UNIX EPOCH UTC** (1970-01-01 00:00:00 UTC).
 //!   [`EUNXNANO`] and [`F064EUNX`] are the bridges that match
-//!   [`ODTMNANO`](crate::time::ODTMNANO)'s convention for callers
+//!   `ODTMNANO`'s convention for callers
 //!   round-tripping `time::OffsetDateTime` ↔ `hifitime::Epoch`.
 //! - **`E{GPS,QZS}*`** → [`hifitime::GPST_REF_EPOCH`] (1980-01-06 UTC,
 //!   = TAI 1980-01-06 − 19 s). GPST and QZSST share this reference;
@@ -97,7 +97,7 @@
 //! | [`ETAINANO`]  | `Conn<Extended<Epoch>, i128>`                       | TAI nanoseconds since J1900 |
 //! | [`F064ETAI`]  | `Conn<F064, Extended<Epoch>>`                       | f64 TAI seconds since J1900 ↔ Epoch (ULP walks on TAI Duration) |
 //! | [`EUTCHDUR`]  | `Conn<Epoch, Duration>`                             | Epoch ↔ UTC Duration since **J1900 UTC** (leap-second-aware iso; UNIX-anchored variants live in [`EUNXNANO`] / [`F064EUNX`] below) |
-//! | [`EUNXNANO`]  | `Conn<Extended<Epoch>, i128>`                       | UNIX nanoseconds (matches [`ODTMNANO`](crate::time::ODTMNANO)) |
+//! | [`EUNXNANO`]  | `Conn<Extended<Epoch>, i128>`                       | UNIX nanoseconds (matches `ODTMNANO`) |
 //! | [`F064EUNX`]  | `Conn<F064, Extended<Epoch>>`                       | f64 UNIX seconds ↔ Epoch (ULP walks on TAI Duration) |
 //! | [`EGPSHDUR`]  | `Conn<Epoch, Duration>`                             | Epoch ↔ GPST Duration since 1980-01-06 UTC (degenerate iso) |
 //! | [`EGPSNANO`]  | `Conn<Extended<Epoch>, i128>`                       | GPST nanoseconds since 1980-01-06 UTC |

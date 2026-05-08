@@ -7,7 +7,7 @@
 //!   Duration::MAX.total_nanoseconds()]`; `i128` values outside that
 //!   range saturate the source side to `Extended::NegInf` /
 //!   `Extended::PosInf`. Same shape as
-//!   [`ODTMNANO`](crate::time::ODTMNANO): source-side `Extended`,
+//!   `ODTMNANO`: source-side `Extended`,
 //!   plain `i128` rung. **One-sided ConnL.**
 //!
 //! - [`HDURSECS`] — `Extended<Duration> ↔ i64` whole seconds.
@@ -16,15 +16,15 @@
 //!   extremes; the whole-seconds value at MAX/MIN fits a plain `i64`.
 //!   Sub-second source inputs round up via `floor = ceil` under
 //!   `new_left`. Same shape as
-//!   [`ODTMSECS`](crate::time::ODTMSECS). **One-sided ConnL.**
+//!   `ODTMSECS`. **One-sided ConnL.**
 //!
 //! - [`F064HDUR`] / [`F032HDUR`] — IEEE float seconds ↔ Duration.
 //!   Walks happen on the Duration rung in 1 ns ULPs; ULP-bounded
 //!   correction loops driven by the crate's `def_walk_helpers!`
 //!   macro (see `crate::float`) handle the float-precision plateau
 //!   where multiple Durations map to the same f-value. Direct port of
-//!   [`F064TDUR`](crate::time::F064TDUR) /
-//!   [`F032TDUR`](crate::time::F032TDUR). **One-sided ConnL.**
+//!   `F064TDUR` /
+//!   `F032TDUR`. **One-sided ConnL.**
 //!
 //! ## No two-sided `Extended`
 //!
@@ -137,7 +137,7 @@ crate::conn_l! {
     ///   than collapsing onto `Finite(MIN)` / `Finite(MAX)` — the
     ///   collapse would break order-reflection on the synthetic
     ///   extremes (which is exactly why this is shipped as `ConnL`
-    ///   rather than `conn_k!`, mirroring [`ODTMNANO`](crate::time::ODTMNANO)).
+    ///   rather than `conn_k!`, mirroring `ODTMNANO`).
     ///
     /// `i128` is wide enough for the full HD range:
     /// `HD::MAX.total_nanoseconds()` ≈ 1.03 × 10²³, comfortably
@@ -354,7 +354,7 @@ crate::conn_l! {
     /// |Duration| > 2⁵³ ns ≈ 104 days (multiple Durations map to the
     /// same f64). That non-injectivity → not order-reflecting → no
     /// true triple, so shipped as `ConnL` (matches the rationale for
-    /// [`F064TDUR`](crate::time::F064TDUR), Plan 32).
+    /// `F064TDUR`, Plan 32).
     ///
     /// Saturation arms:
     /// - `ceil(Bot)` = `NegInf`.

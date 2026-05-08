@@ -196,6 +196,8 @@ pub mod float;
 pub mod hifi;
 pub mod interval;
 pub mod lattice;
+#[cfg_attr(docsrs, doc(cfg(feature = "time")))]
+#[cfg(feature = "time")]
 pub mod time;
 
 pub use interval::Interval;

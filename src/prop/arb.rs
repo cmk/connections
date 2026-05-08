@@ -233,6 +233,7 @@ pub fn extended_float_f32() -> impl Strategy<Value = ExtendedFloat<f32>> {
 /// `Extended<Duration>` generators that don't drive a
 /// magnitude-sensitive walk. NegInf/PosInf each get 25% so the
 /// saturation arms are sampled even at low case counts.
+#[cfg(feature = "time")]
 pub fn arb_extended_duration() -> impl Strategy<Value = Extended<Duration>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -253,6 +254,7 @@ pub fn arb_extended_duration() -> impl Strategy<Value = Extended<Duration>> {
 /// Boundary slot kept rich (Duration::ZERO, ±1ns, ±1s, the bounded
 /// extremes); the uniform slot is a Duration::new(s, n) with
 /// `s ∈ -10⁹..=10⁹`, `n ∈ -999_999_999..=999_999_999`.
+#[cfg(feature = "time")]
 pub fn arb_duration_bounded_f64() -> impl Strategy<Value = Duration> {
     prop_oneof![
         1 => Just(Duration::ZERO),
@@ -277,6 +279,7 @@ pub fn arb_duration_bounded_f64() -> impl Strategy<Value = Duration> {
 /// and the rung-side `inner(b)` then `ceil/floor` round-trip in the
 /// kernel laws hangs proptest. Bound the rung-side magnitude to where
 /// f32 maintains microsecond precision so walks stay under ~10⁴ steps.
+#[cfg(feature = "time")]
 pub fn arb_duration_bounded_f32() -> impl Strategy<Value = Duration> {
     prop_oneof![
         1 => Just(Duration::ZERO),
@@ -295,6 +298,7 @@ pub fn arb_duration_bounded_f32() -> impl Strategy<Value = Duration> {
 /// `Extended<Duration>` over `NegInf`, `PosInf`, and bounded `Finite`
 /// values from [`arb_duration_bounded_f64`] — 1:1:2 weighting. Used
 /// by the `F064TDUR` galois battery.
+#[cfg(feature = "time")]
 pub fn arb_extended_duration_bounded_f64() -> impl Strategy<Value = Extended<Duration>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -306,6 +310,7 @@ pub fn arb_extended_duration_bounded_f64() -> impl Strategy<Value = Extended<Dur
 /// `Extended<Duration>` over `NegInf`, `PosInf`, and bounded `Finite`
 /// values from [`arb_duration_bounded_f32`] — 1:1:2 weighting. Used
 /// by the `F032TDUR` galois battery.
+#[cfg(feature = "time")]
 pub fn arb_extended_duration_bounded_f32() -> impl Strategy<Value = Extended<Duration>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -321,7 +326,7 @@ pub fn arb_extended_duration_bounded_f32() -> impl Strategy<Value = Extended<Dur
 
 /// Arbitrary `std::time::Duration` over the full unsigned range with
 /// bias toward `ZERO`, `MAX`, sub-second values, and exact-second
-/// values. Mirrors [`arb_duration`]'s shape sans the negative arms.
+/// values. Mirrors `arb_duration`'s shape sans the negative arms.
 pub fn arb_std_duration() -> impl Strategy<Value = std::time::Duration> {
     prop_oneof![
         // Named extremes
@@ -354,7 +359,7 @@ pub fn arb_extended_std_duration() -> impl Strategy<Value = Extended<std::time::
 
 /// `std::time::Duration` strategy bounded to `secs ≤ 1e9` — for
 /// `F064SDUR` proptests. Same plateau-walk reasoning as
-/// [`arb_duration_bounded_f64`].
+/// `arb_duration_bounded_f64`.
 pub fn arb_std_duration_bounded_f64() -> impl Strategy<Value = std::time::Duration> {
     prop_oneof![
         1 => Just(std::time::Duration::ZERO),
@@ -369,7 +374,7 @@ pub fn arb_std_duration_bounded_f64() -> impl Strategy<Value = std::time::Durati
 
 /// `std::time::Duration` strategy bounded to `secs ≤ 10` — for
 /// `F032SDUR` proptests. Same plateau-walk reasoning as
-/// [`arb_duration_bounded_f32`].
+/// `arb_duration_bounded_f32`.
 pub fn arb_std_duration_bounded_f32() -> impl Strategy<Value = std::time::Duration> {
     prop_oneof![
         1 => Just(std::time::Duration::ZERO),
@@ -483,12 +488,14 @@ pub fn extended_float_f16() -> impl Strategy<Value = ExtendedFloat<f16>> {
 // other strategies bias toward boundary values (MIN/MAX/ZERO/MIDNIGHT)
 // because the Galois rounding edge cases live there.
 
+#[cfg(feature = "time")]
 use time::{Date, Duration, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset, Weekday};
 
 /// Arbitrary `time::Date` over the full default Date range
 /// (year ±9999) with explicit bias toward `Date::{MIN, MAX, EPOCH}`,
 /// the Unix epoch start (`1970-01-01`), the Y2038 cutover
 /// (`2038-01-19`), and the year-10K boundary (`9999-12-31`).
+#[cfg(feature = "time")]
 pub fn arb_date() -> impl Strategy<Value = Date> {
     let min_jd = Date::MIN.to_julian_day();
     let max_jd = Date::MAX.to_julian_day();
@@ -506,6 +513,7 @@ pub fn arb_date() -> impl Strategy<Value = Date> {
 /// Arbitrary `time::Time` over the full nanosecond range
 /// `[0, 86_400 × 10⁹)` with bias toward `MIDNIGHT`, end-of-day,
 /// and noon (the canonical doc-example anchor).
+#[cfg(feature = "time")]
 pub fn arb_time() -> impl Strategy<Value = Time> {
     const NS_PER_DAY: i64 = 86_400 * 1_000_000_000;
     prop_oneof![
@@ -525,6 +533,7 @@ pub fn arb_time() -> impl Strategy<Value = Time> {
 /// `Duration::MIN/MAX` exercised only by explicit boundary `Just`s.
 /// The widened range exposes float-Duration bridges and DURNFD09's
 /// out-of-range path to proportional proptest coverage.
+#[cfg(feature = "time")]
 pub fn arb_duration() -> impl Strategy<Value = Duration> {
     prop_oneof![
         // Named extremes
@@ -552,12 +561,14 @@ pub fn arb_duration() -> impl Strategy<Value = Duration> {
 
 /// Arbitrary `time::PrimitiveDateTime` from the cartesian product of
 /// [`arb_date`] and [`arb_time`].
+#[cfg(feature = "time")]
 pub fn arb_primitive_dt() -> impl Strategy<Value = PrimitiveDateTime> {
     (arb_date(), arb_time()).prop_map(|(d, t)| PrimitiveDateTime::new(d, t))
 }
 
 /// `Extended<Date>` over `NegInf`, `PosInf`, and `Finite` values from
 /// [`arb_date`] — 1:1:2 weighting.
+#[cfg(feature = "time")]
 pub fn arb_extended_date() -> impl Strategy<Value = Extended<Date>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -569,6 +580,7 @@ pub fn arb_extended_date() -> impl Strategy<Value = Extended<Date>> {
 /// `i32` strategy bounded to `[Date::MIN.to_julian_day(),
 /// Date::MAX.to_julian_day()]` — the round-trippable range for the
 /// `Date ↔ julian day` connection.
+#[cfg(feature = "time")]
 pub fn arb_jd_in_range() -> impl Strategy<Value = i32> {
     let min_jd = Date::MIN.to_julian_day();
     let max_jd = Date::MAX.to_julian_day();
@@ -582,6 +594,7 @@ pub fn arb_jd_in_range() -> impl Strategy<Value = i32> {
 
 /// `Extended<Time>` over `NegInf`, `PosInf`, and `Finite` values
 /// from [`arb_time`] — 1:1:2 weighting.
+#[cfg(feature = "time")]
 pub fn arb_extended_time() -> impl Strategy<Value = Extended<Time>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -593,6 +606,7 @@ pub fn arb_extended_time() -> impl Strategy<Value = Extended<Time>> {
 /// `i64` strategy bounded to `[0, 86_400 × 10⁹)` — the
 /// round-trippable nanoseconds-since-midnight range for the
 /// `Time ↔ ns` connection.
+#[cfg(feature = "time")]
 pub fn arb_ns_in_range() -> impl Strategy<Value = i64> {
     const NS_MAX: i64 = 86_400 * 1_000_000_000 - 1;
     prop_oneof![
@@ -607,6 +621,7 @@ pub fn arb_ns_in_range() -> impl Strategy<Value = i64> {
 /// `i64` strategy bounded to `[0, 86_400)` — the round-trippable
 /// whole-seconds-since-midnight range for the `Time ↔ secs`
 /// connection.
+#[cfg(feature = "time")]
 pub fn arb_secs_in_range() -> impl Strategy<Value = i64> {
     const SECS_MAX: i64 = 86_400 - 1;
     prop_oneof![
@@ -636,6 +651,7 @@ pub fn arb_extended_i64() -> impl Strategy<Value = Extended<i64>> {
 /// real-world offsets (whole hours `+01:00`, half-hour `+05:30`
 /// India, quarter-hour `+05:45` Nepal, `+12:45` Chatham), and the
 /// negative side (`-08:00`, `-04:00`).
+#[cfg(feature = "time")]
 pub fn arb_utc_offset() -> impl Strategy<Value = UtcOffset> {
     prop_oneof![
         1 => Just(UtcOffset::UTC),
@@ -655,6 +671,7 @@ pub fn arb_utc_offset() -> impl Strategy<Value = UtcOffset> {
 
 /// `Extended<UtcOffset>` over `NegInf`, `PosInf`, and `Finite`
 /// values from [`arb_utc_offset`] — 1:1:2 weighting.
+#[cfg(feature = "time")]
 pub fn arb_extended_utc_offset() -> impl Strategy<Value = Extended<UtcOffset>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -667,6 +684,7 @@ pub fn arb_extended_utc_offset() -> impl Strategy<Value = Extended<UtcOffset>> {
 /// `(arb_date, arb_time, arb_utc_offset)` plus the canonical
 /// landmarks: `UNIX_EPOCH`, the type-level extremes, ±1 ns from
 /// epoch, and the Y2038 cutover.
+#[cfg(feature = "time")]
 pub fn arb_offset_dt() -> impl Strategy<Value = OffsetDateTime> {
     let y2038 =
         OffsetDateTime::from_unix_timestamp(2_147_483_648).expect("Y2038 in OffsetDateTime range");
@@ -695,6 +713,7 @@ pub fn arb_offset_dt() -> impl Strategy<Value = OffsetDateTime> {
 
 /// `Extended<OffsetDateTime>` over `NegInf`, `PosInf`, and `Finite`
 /// values from [`arb_offset_dt`] — 1:1:2 weighting.
+#[cfg(feature = "time")]
 pub fn arb_extended_offset_dt() -> impl Strategy<Value = Extended<OffsetDateTime>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -704,6 +723,7 @@ pub fn arb_extended_offset_dt() -> impl Strategy<Value = Extended<OffsetDateTime
 }
 
 /// Arbitrary `time::Weekday` — uniform over the seven variants.
+#[cfg(feature = "time")]
 pub fn arb_weekday() -> impl Strategy<Value = Weekday> {
     prop_oneof![
         Just(Weekday::Monday),
@@ -724,6 +744,7 @@ pub fn arb_weekday() -> impl Strategy<Value = Weekday> {
 /// 2/9 ÷ 7 ≈ 3.2%. At 1:1:1 each variant samples at 1/3 ÷ 7 ≈ 4.8%
 /// while NegInf and PosInf each get 33% — keeps every variant within
 /// striking distance of >5% even at low case counts.
+#[cfg(feature = "time")]
 pub fn arb_extended_weekday() -> impl Strategy<Value = Extended<Weekday>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -733,6 +754,7 @@ pub fn arb_extended_weekday() -> impl Strategy<Value = Extended<Weekday>> {
 }
 
 /// Arbitrary `time::Month` — uniform over the twelve variants.
+#[cfg(feature = "time")]
 pub fn arb_month() -> impl Strategy<Value = Month> {
     prop_oneof![
         Just(Month::January),
@@ -754,6 +776,7 @@ pub fn arb_month() -> impl Strategy<Value = Month> {
 /// from [`arb_month`] — 1:1:1 weighting (matches
 /// [`arb_extended_weekday`]'s reasoning for equal-leg ratio on
 /// finite-variant enums).
+#[cfg(feature = "time")]
 pub fn arb_extended_month() -> impl Strategy<Value = Extended<Month>> {
     prop_oneof![
         1 => Just(Extended::NegInf),
@@ -765,6 +788,7 @@ pub fn arb_extended_month() -> impl Strategy<Value = Extended<Month>> {
 /// `i128` strategy bounded to `[OffsetDateTime::MIN.unix_timestamp_nanos(),
 /// OffsetDateTime::MAX.unix_timestamp_nanos()]` — the round-trippable
 /// unix-nanosecond range for the `OffsetDateTime ↔ i128` connection.
+#[cfg(feature = "time")]
 pub fn arb_unix_nanos_in_range() -> impl Strategy<Value = i128> {
     let min_ns = OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC)
         .unix_timestamp_nanos();
@@ -786,6 +810,7 @@ pub fn arb_unix_nanos_in_range() -> impl Strategy<Value = i128> {
 }
 
 /// `i64` strategy bounded to OffsetDateTime's whole-second range.
+#[cfg(feature = "time")]
 pub fn arb_unix_secs_in_range() -> impl Strategy<Value = i64> {
     let min_s =
         OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC).unix_timestamp();
@@ -808,6 +833,7 @@ pub fn arb_unix_secs_in_range() -> impl Strategy<Value = i64> {
 
 /// `i32` strategy bounded to UtcOffset's `whole_seconds` range
 /// (`±93599`).
+#[cfg(feature = "time")]
 pub fn arb_offset_secs_in_range() -> impl Strategy<Value = i32> {
     prop_oneof![
         1 => Just(-93599_i32),
@@ -822,12 +848,14 @@ pub fn arb_offset_secs_in_range() -> impl Strategy<Value = i32> {
 
 /// `u8` strategy bounded to `1..=7` — round-trippable ISO weekday
 /// numbering for `WDAYU008`.
+#[cfg(feature = "time")]
 pub fn arb_iso_weekday_byte() -> impl Strategy<Value = u8> {
     1_u8..=7
 }
 
 /// `u8` strategy bounded to `1..=12` — round-trippable month
 /// numbering for `MNTHU008`.
+#[cfg(feature = "time")]
 pub fn arb_month_byte() -> impl Strategy<Value = u8> {
     1_u8..=12
 }

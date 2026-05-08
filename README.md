@@ -25,17 +25,18 @@ this doc explains how those names get earned.
 
 ```rust
 use connections::conn::{ConnL, ConnR};
-use connections::time::TDURSECS;
-use connections::extended::Extended;
-use time::Duration;
+use connections::fixed::i16::Q000I016;
+use fixed::types::extra::U0;
+use fixed::FixedI16;
 
-let pos = Duration::seconds(5) + Duration::nanoseconds(1);
-assert_eq!(TDURSECS.ceil(pos),  Extended::Finite(6));   // round up
-assert_eq!(TDURSECS.floor(pos), Extended::Finite(5));   // round down
+let q = FixedI16::<U0>::from_bits(5);
+assert_eq!(Q000I016.ceil(q),  5_i16);
+assert_eq!(Q000I016.floor(q), 5_i16);
+assert_eq!(Q000I016.upper(5_i16), q);
 
-let neg = Duration::seconds(-5) - Duration::nanoseconds(1);
-assert_eq!(TDURSECS.ceil(neg),  Extended::Finite(-5));  // round up
-assert_eq!(TDURSECS.floor(neg), Extended::Finite(-6));  // round down
+let neg = FixedI16::<U0>::from_bits(-5);
+assert_eq!(Q000I016.ceil(neg),  -5_i16);
+assert_eq!(Q000I016.floor(neg), -5_i16);
 ```
 
 See [EXAMPLES.md](https://gitlab.com/cmk/connections/-/blob/main/EXAMPLES.md)
@@ -438,7 +439,7 @@ implement `ConnK`.
 | `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `fixed::{i8,…,i128, u8,…,u128}` |
 | Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) | `fixed::{i8,…,i128, u8,…,u128}` |
 | Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
-| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` |
+| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` cargo feature |
 | `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
 | `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
 | Sortable byte encodings (`U008OBYT`, `I008OBYT`, `BOOLOBYT`, `U016OBYT`, `I016OBYT`, `U032OBYT`, `I032OBYT`, `U064OBYT`, `I064OBYT`, `U128OBYT`, `I128OBYT`) — `byte` cargo feature; float OBYT Conns deferred (NaN/PartialOrd) | `byte` |
@@ -449,4 +450,3 @@ for std primitives (digits = bit-width), `N` for `NonZero<*>`, `F` for
 IEEE floats. Cross-module name collisions are allowed and resolved by
 qualified import (e.g. `fixed::i8::Q008Q000` and
 `fixed::i64::Q008Q000` co-exist).
-
