@@ -1130,7 +1130,8 @@ mod float_tdur_tests {
     // ── solve_to_ceil termination + walk-equivalence ─────────────
     //
     // The walk used to take ~10¹² ns-steps at extremes; solve_to_ceil
-    // is structurally bounded to ⌈log₂(2 × 2⁴²)⌉ = 43 iterations.
+    // is structurally bounded to ⌈log₂(2 × 2⁵⁰)⌉ = 51 iterations
+    // (production cap `SOLVE_STEP_BOUND = 52` adds one slot of slack).
     // These tests exercise both the bound (interior of the MAX rim,
     // where the walk would hang) and equivalence to the legacy walk
     // on the safe range (|v| ≤ 1e6, where the walk converges in ≤ 2

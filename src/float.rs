@@ -748,7 +748,7 @@ pub(crate) fn widen_f32_f64(x: f32) -> f64 {
 /// In the 6-arg form, `solve_to_ceil` replaces the (unbounded at
 /// extreme magnitudes) `ascend_to_ceil` / `descend_to_ceil` pair with
 /// a binary-search cut-finder in `i128`-ns space — `O(log
-/// plateau_width)` ≈ 43 iterations vs. up to ~2 × 10¹² for the walk.
+/// plateau_width)` ≤ 51 iterations vs. up to ~2 × 10¹² for the walk.
 /// The walk helpers are still emitted (used by Kani harnesses and as
 /// a cross-check in proptests), but production code calls only
 /// `solve_to_ceil`.
@@ -907,7 +907,23 @@ macro_rules! def_walk_helpers {
                         }
                         steps += 1;
                     }
-                    ($from_ns(lo), steps)
+                    let z = $from_ns(lo);
+                    // Guard the bracket-correctness invariant: if the
+                    // true ceil ever falls outside `n_start ± 2⁵⁰`, the
+                    // search returns the upper bracket boundary and
+                    // `widen(z) < x` — silently violating the `ceil`
+                    // contract. The headroom table above proves this
+                    // can't happen for the in-tree instantiations, but
+                    // a future Conn or a stdlib drift in
+                    // `from_secs_f64` could break the assumption; the
+                    // debug-only check keeps it auditable. (Defense
+                    // raised by `claude-review` discussion 733bf488 on
+                    // MR !86.)
+                    debug_assert!(
+                        $widen(z) >= x,
+                        "solve_to_ceil bracket too narrow: widen(lo) < x"
+                    );
+                    (z, steps)
                 }
             )?
         }
@@ -1446,7 +1462,7 @@ mod tests {
 // ── solve_to_ceil step-count bound ───────────────────────────────────
 //
 // Plan-2026-05-08-05 Verification table: `solve_to_ceil` returns
-// `steps ≤ 44` (= ⌈log₂(2 × 2⁴²)⌉ + 1) for any input. The bound is
+// `steps ≤ 52` (= ⌈log₂(2 × 2⁵⁰)⌉ + 1) for any input. The bound is
 // structural to the binary-search loop — it doesn't depend on the
 // `$dst`/`$src`/`$widen`/etc. macro args — but exercising the macro
 // here on a toy `i64`-ns rung is the cheapest way to lock the
@@ -1498,6 +1514,24 @@ mod solve_step_bound_tests {
         i64_from_ns
     );
 
+    /// Helper: compute a production-shaped initial estimate for the
+    /// toy `i64`-ns rung. Mirrors the way real callers seed the
+    /// solver via `$dst::saturating_seconds_f$N`. Saturating because
+    /// `i64::MAX` ns ≈ 9.22 × 10⁹ s; inputs larger than that are
+    /// clamped at the rung's representable max, mimicking a real
+    /// `from_secs_f64` saturating cast.
+    #[inline]
+    fn toy_start_from(x: f64) -> i64 {
+        let n = (x * 1e9) as i128;
+        if n > i64::MAX as i128 {
+            i64::MAX
+        } else if n < i64::MIN as i128 {
+            i64::MIN
+        } else {
+            n as i64
+        }
+    }
+
     #[test]
     fn solve_to_ceil_step_bound_at_zero() {
         let (_z, steps) = toy_ns_walks::solve_to_ceil(0_i64, 0.0_f64);
@@ -1505,22 +1539,29 @@ mod solve_step_bound_tests {
     }
 
     #[test]
-    fn solve_to_ceil_step_bound_at_max_magnitude() {
-        // Bracket spans ±2⁴² ns ≈ ±4.4 × 10¹². Even with `start` = 0
-        // and an `x` outside the bracket, the search runs to
-        // exhaustion in ⌈log₂ 2⁴³⌉ = 43 iterations.
-        let (_z, steps) = toy_ns_walks::solve_to_ceil(0_i64, 1.0e15_f64);
+    fn solve_to_ceil_step_bound_at_high_magnitude() {
+        // Production-shaped: `start ≈ from_secs_f64(x)`. At |x| ≈ 1e9
+        // s the toy bracket of `±2⁵⁰` ns comfortably contains the
+        // true ceil; the search runs ⌈log₂ 2⁵¹⌉ = 51 iterations.
+        let x = 1.0e9_f64;
+        let start = toy_start_from(x);
+        let (_z, steps) = toy_ns_walks::solve_to_ceil(start, x);
         assert!(steps <= 52, "got {steps}");
     }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(64))]
 
+        // |x| ≤ 1e9 s keeps the toy-i64-ns instantiation away from
+        // its `i64::MAX ns ≈ 9.22 × 10⁹ s` saturation rim, so
+        // `toy_start_from(x)` produces a faithful initial estimate
+        // and the bracket-correctness invariant
+        // (`widen(from_ns(lo)) ≥ x` after the search) holds — the
+        // same invariant the production callers rely on. The toy
+        // never trips the `debug_assert` in `solve_to_ceil`.
         #[test]
-        fn solve_to_ceil_step_bound_holds(
-            start in (i64::MIN / 2)..(i64::MAX / 2),
-            x in -1.0e15_f64..1.0e15_f64
-        ) {
+        fn solve_to_ceil_step_bound_holds(x in -1.0e9_f64..1.0e9_f64) {
+            let start = toy_start_from(x);
             let (_z, steps) = toy_ns_walks::solve_to_ceil(start, x);
             prop_assert!(steps <= 52, "got {steps}");
         }

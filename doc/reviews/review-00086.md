@@ -290,3 +290,93 @@ Declined — the truncated-i128-div + `Duration::new(secs, subsec)` pattern with
 #### ↳ cmk (2026-05-09 05:34 UTC) [open]
 
 Declined — the "Epoch ±9.2 × 10⁹ s" range is from older hifitime versions that stored Epoch as `i64` ns since J1900. Current hifitime (4.x) stores it as `(i16 centuries, i64 ns)` for a range of `±HD::MAX.total_nanoseconds() ≈ ±1.03 × 10²³` ns ≈ `±1.03 × 10¹⁴` s. The rim guard for `f064etai_ceil` (`src/hifi/epoch.rs:305`) reads `if v > hd_max_secs_f64()`, where `hd_max_secs_f64()` (`src/hifi/duration.rs:60-62`) returns ≈ `1.03 × 10¹⁴`. Since `1e13 < 1.03e14`, the rim does not fire and the solver runs as intended.
+
+<!-- glab-id: 3330193927 -->
+<!-- glab-discussion: 733bf488edf7d3ff194d17c38b85e2e75f508c6d -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/float.rs:901` (2026-05-09 05:36 UTC) [open]
+
+**[follow-up]** When `$widen($from_ns(hi_initial)) < x` for all points in the bracket — i.e. the true ceiling lies above `n_start + 2^42` — the loop runs to exhaustion and returns `$from_ns(lo)` where `lo == hi == n_start + 2^42 - 1` (approximately), which is the largest value in the bracket but still satisfies `widen(z) < x`. This violates the `ceil` contract (`inner(ceil(x)) >= x`). The doc comment claims the bracket covers the worst f64 plateau (`f64::MAX`'s ULP ≈ 2^41 ns), but this relies on `start` being a good initial estimate; if the rim fast-paths upstream are slightly off (e.g. an `>` vs `>=` boundary), an out-of-bracket true ceiling is possible and the returned value would silently satisfy `widen(z) < x`. Consider adding a post-loop assertion `debug_assert!($widen($from_ns(lo)) >= x)` to catch this case in tests.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330193956 -->
+<!-- glab-discussion: 7cfd11ec066ffcf02de3167290081422fe3ddc67 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/time/duration.rs:110` (2026-05-09 05:36 UTC) [open]
+
+**[follow-up]** `tdur_from_ns` uses truncating division (`n / 1_000_000_000`) for the seconds component, which rounds toward zero. For negative `n` (e.g. `-1` ns), this gives `secs = 0` and `subsec = -1`, meaning the reconstructed `Duration` has a negative subsecond component with zero seconds — this may be a valid `time::Duration` representation, but the round-trip `tdur_to_ns(tdur_from_ns(n)) == n` should be verified for negative non-multiple inputs to confirm no off-by-one exists in the solver's comparison frame.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330193967 -->
+<!-- glab-discussion: b4e4a1362aa07bdede752af6198222a1e2f76d30 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:2857` (2026-05-09 05:36 UTC) [open]
+
+**[follow-up]** As noted in the round-2 local review, `1.0e13_f64` TAI seconds exceeds hifitime's epoch range (±292 years ≈ ±9.2×10⁹ s), so `F064ETAI.ceil(ExtendedFloat::Extend(1.0e13_f64))` is caught by the rim fast-path and never reaches `solve_to_ceil`. The test comment claims "pre-solver this would walk ~10⁶ ns" but the walk was also never reached for this input. Changing the test value to `Epoch::MAX.to_tai_seconds() * 0.999` would actually exercise the solver body and provide the intended coverage.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330203997 -->
+<!-- glab-discussion: f0437f6f489810000c786d8d602830b95df9a9b6 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/float.rs:878` (2026-05-09 05:43 UTC) [open]
+
+**[must-fix]** The `solve_step_bound_tests` module comment (and the inline test comment at this line) still says `⌈log₂(2 × 2⁴²)⌉ = 43 iterations` and references a `±2⁴²` bracket, but the production `solve_to_ceil` was bumped to `±2⁵⁰` (per the cmk response to discussion `dea66ea8`). The bracket in the doc and test comment is stale, creating a misleading guarantee: the true worst-case iteration count is `⌈log₂(2 × 2⁵⁰)⌉ = 51`, not 43, which is why `SOLVE_STEP_BOUND = 52` rather than 44. A reader using the comment to understand the bound will derive the wrong number.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330204009 -->
+<!-- glab-discussion: 35e4184c135fe57a8bc6ab90bd7edee544e0b533 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/float.rs:1519` (2026-05-09 05:43 UTC) [open]
+
+**[follow-up]** The `solve_to_ceil_step_bound_at_max_magnitude` test comment still says `±2⁴²` and `⌈log₂ 2⁴³⌉ = 43 iterations` — both values belong to the pre-fix bracket, which was raised to `±2⁵⁰` in `342b083`. The assertion (`steps <= 52`) is correct for the new bracket, but the comment is internally inconsistent and will mislead future maintainers auditing the step bound.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330204021 -->
+<!-- glab-discussion: 74b247549ad5145070dfb3446567132bab0ef315 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/time/duration.rs:1159` (2026-05-09 05:43 UTC) [open]
+
+**[follow-up]** The comment block above `f64_tdur_solve_terminates_at_max_rim` and `f64_tdur_solve_matches_walk_in_safe_range` says `⌈log₂(2 × 2⁴²)⌉ = 43 iterations` — the old bracket. The bracket is now `±2⁵⁰` so the correct figure is 51 iterations / bound 52; the stale comment understates the bound by 8 and could mislead an auditor comparing plan figures to code.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330234732 -->
+<!-- glab-discussion: 733bf488edf7d3ff194d17c38b85e2e75f508c6d -->
+#### ↳ cmk (2026-05-09 06:02 UTC) [open]
+
+Done in commit `66288a8` — added `debug_assert!(widen(z) >= x)` post-loop in `solve_to_ceil`, hardening the bracket-correctness invariant. The assert immediately caught a real issue in the toy `solve_step_bound_tests` module, which had been feeding pathological `(start = 0, x = 1e15)` pairs to test the structural step count; the toy now uses a `toy_start_from(x)` helper that mirrors the production initial-estimate shape, so the bracket-correctness invariant the assert checks is satisfied by the same contract production callers maintain.
+
+<!-- glab-id: 3330235047 -->
+<!-- glab-discussion: 7cfd11ec066ffcf02de3167290081422fe3ddc67 -->
+#### ↳ cmk (2026-05-09 06:02 UTC) [open]
+
+Declined — same point as discussion `fdd2350e` from round 1, same answer. The truncated-i128-div + `Duration::new(secs, subsec)` pattern is the one already used by `shift_duration` (`src/time/duration.rs:49-66`) and has shipped in production since the original walk landed. The new `f64_tdur_solve_matches_walk_in_safe_range` proptest exercises `v in -1e6..1e6` and asserts `solve_z == walk_z`, which is an empirical round-trip check on the negative-`n` path.
+
+<!-- glab-id: 3330235443 -->
+<!-- glab-discussion: b4e4a1362aa07bdede752af6198222a1e2f76d30 -->
+#### ↳ cmk (2026-05-09 06:02 UTC) [open]
+
+Declined — same point as discussion `c7030af4` from round 1, same answer. `hifitime::Epoch` in 4.x stores `(i16 centuries, i64 ns)` for a range of `±HD::MAX.total_nanoseconds() ≈ ±1.03 × 10²³` ns ≈ `±1.03 × 10¹⁴` s, not `±9.2 × 10⁹` s (the older `i64`-ns-since-J1900 storage). The rim guard reads `if v > hd_max_secs_f64()` where `hd_max_secs_f64() ≈ 1.03 × 10¹⁴`; since `1e13 < 1.03 × 10¹⁴`, the rim does not fire and the solver runs as intended.
+
+<!-- glab-id: 3330235653 -->
+<!-- glab-discussion: f0437f6f489810000c786d8d602830b95df9a9b6 -->
+#### ↳ cmk (2026-05-09 06:02 UTC) [open]
+
+Fixed in commit `66288a8` — the `def_walk_helpers!` macro doc now says "≤ 51 iterations" (was "≈ 43"), and the `solve_step_bound_tests` module banner now reads "`steps ≤ 52` (= ⌈log₂(2 × 2⁵⁰)⌉ + 1)" (was "= ⌈log₂(2 × 2⁴²)⌉ + 1 = 44"). Good catch — the round-1 bracket bump landed the constants but missed the prose.
+
+<!-- glab-id: 3330235824 -->
+<!-- glab-discussion: 35e4184c135fe57a8bc6ab90bd7edee544e0b533 -->
+#### ↳ cmk (2026-05-09 06:03 UTC) [open]
+
+Fixed in commit `66288a8` — the body comment of `solve_to_ceil_step_bound_at_max_magnitude` now reads "Bracket spans ±2⁵⁰ ns ≈ ±1.13 × 10¹⁵. … exhaustion in ⌈log₂ 2⁵¹⌉ = 51 iterations." Same pass also reshaped the test to feed production-shaped `(start, x)` (via `toy_start_from(x)`) so the bracket-correctness invariant the new `debug_assert!` checks is satisfied.
+
+<!-- glab-id: 3330235979 -->
+<!-- glab-discussion: 74b247549ad5145070dfb3446567132bab0ef315 -->
+#### ↳ cmk (2026-05-09 06:03 UTC) [open]
+
+Fixed in commit `66288a8` — the comment block above `f64_tdur_solve_terminates_at_max_rim` now reads "structurally bounded to ⌈log₂(2 × 2⁵⁰)⌉ = 51 iterations (production cap `SOLVE_STEP_BOUND = 52` adds one slot of slack)".
