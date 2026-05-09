@@ -24,7 +24,7 @@
 //! tests carry the load. ETDT is pure constant-offset arithmetic and
 //! ships normally; ETAI similarly.
 
-const SOLVE_STEP_BOUND: u32 = 44;
+use super::SOLVE_STEP_BOUND;
 
 // ── T1 — bounded magnitude ──────────────────────────────────────────
 

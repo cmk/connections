@@ -1417,3 +1417,87 @@ mod tests {
         assert_eq!(b, ExtendedFloat::Extend(std::f64::consts::E));
     }
 }
+
+// ── solve_to_ceil step-count bound ───────────────────────────────────
+//
+// Plan-2026-05-08-05 Verification table: `solve_to_ceil` returns
+// `steps ≤ 44` (= ⌈log₂(2 × 2⁴²)⌉ + 1) for any input. The bound is
+// structural to the binary-search loop — it doesn't depend on the
+// `$dst`/`$src`/`$widen`/etc. macro args — but exercising the macro
+// here on a toy `i64`-ns rung is the cheapest way to lock the
+// guarantee in `cargo test` (the per-Conn proptests in
+// `time::duration` / `hifi::*` cover the production instantiations,
+// and the Kani harnesses cover the bound formally on a slice; this
+// test plugs the gap for `cargo test` without those features).
+#[cfg(test)]
+mod solve_step_bound_tests {
+    use super::def_walk_helpers;
+    use proptest::prelude::*;
+
+    #[inline]
+    fn shift_i64(n: i32, x: i64) -> i64 {
+        x.saturating_add(n as i64)
+    }
+
+    #[inline]
+    fn widen_i64_ns(x: i64) -> f64 {
+        // Treat the i64 value as a count of nanoseconds; widen to
+        // seconds so the comparison frame is float-seconds, mirroring
+        // production instantiations.
+        (x as f64) * 1e-9
+    }
+
+    #[inline]
+    fn i64_to_ns(x: i64) -> i128 {
+        x as i128
+    }
+
+    #[inline]
+    fn i64_from_ns(n: i128) -> i64 {
+        if n > i64::MAX as i128 {
+            i64::MAX
+        } else if n < i64::MIN as i128 {
+            i64::MIN
+        } else {
+            n as i64
+        }
+    }
+
+    def_walk_helpers!(
+        toy_ns_walks,
+        f64,
+        i64,
+        shift_i64,
+        widen_i64_ns,
+        i64_to_ns,
+        i64_from_ns
+    );
+
+    #[test]
+    fn solve_to_ceil_step_bound_at_zero() {
+        let (_z, steps) = toy_ns_walks::solve_to_ceil(0_i64, 0.0_f64);
+        assert!(steps <= 44, "got {steps}");
+    }
+
+    #[test]
+    fn solve_to_ceil_step_bound_at_max_magnitude() {
+        // Bracket spans ±2⁴² ns ≈ ±4.4 × 10¹². Even with `start` = 0
+        // and an `x` outside the bracket, the search runs to
+        // exhaustion in ⌈log₂ 2⁴³⌉ = 43 iterations.
+        let (_z, steps) = toy_ns_walks::solve_to_ceil(0_i64, 1.0e15_f64);
+        assert!(steps <= 44, "got {steps}");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn solve_to_ceil_step_bound_holds(
+            start in (i64::MIN / 2)..(i64::MAX / 2),
+            x in -1.0e15_f64..1.0e15_f64
+        ) {
+            let (_z, steps) = toy_ns_walks::solve_to_ceil(start, x);
+            prop_assert!(steps <= 44, "got {steps}");
+        }
+    }
+}

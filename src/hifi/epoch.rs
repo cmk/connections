@@ -2807,4 +2807,39 @@ mod tests {
             other => panic!("expected Finite, got {:?}", other),
         }
     }
+
+    // ── ETAI: solve_to_ceil termination + walk-equivalence ───────
+    //
+    // ETAI is the representative epoch scale: pure constant-offset
+    // arithmetic relative to TAI, no leap-second table or
+    // sin/Newton-Raphson iteration. The other 8 scales share the
+    // same `shift_epoch_tai` / `epoch_to_ns` / `epoch_from_ns`
+    // plumbing so any solver bug would surface here too.
+
+    #[test]
+    fn f064_etai_solve_terminates_at_walk_pathological_magnitude() {
+        // 1e13 TAI seconds is well past the 2⁵³-ns regime where the
+        // f64 plateau widens past 1 ULP — pre-solver this would walk
+        // ~10⁶ ns. With the solver it returns within ≤ 44 iterations.
+        let v = ExtendedFloat::Extend(1.0e13_f64);
+        let _ = F064ETAI.ceil(v);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        #[test]
+        fn f64_etai_solve_matches_walk_in_safe_range(v in -1.0e6_f64..1.0e6_f64) {
+            let est = Epoch::from_tai_seconds(v);
+            let est_widen = est.to_tai_seconds();
+            let (walk_z, _) = if est_widen >= v {
+                f64_etai_walks::descend_to_ceil(est, v)
+            } else {
+                f64_etai_walks::ascend_to_ceil(est, v)
+            };
+            let (solve_z, steps) = f64_etai_walks::solve_to_ceil(est, v);
+            prop_assert_eq!(solve_z, walk_z);
+            prop_assert!(steps <= 44, "solve_to_ceil took {steps} steps");
+        }
+    }
 }

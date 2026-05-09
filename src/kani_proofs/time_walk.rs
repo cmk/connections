@@ -20,7 +20,7 @@
 //! `#[cfg(kani)]`. They omit production fast-paths; this file applies
 //! matching `kani::assume`s on the input.
 
-const SOLVE_STEP_BOUND: u32 = 44;
+use super::SOLVE_STEP_BOUND;
 
 // ── T1 — bounded magnitude ───────────────────────────────────────────
 
