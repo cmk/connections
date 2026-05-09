@@ -44,6 +44,23 @@ crate::iso! {
     }
 }
 
+// ── Sortable big-endian byte encodings ─────────────────────
+
+const fn i64_to_be08(x: i64) -> [u8; 8] {
+    ((x as u64) ^ 0x8000_0000_0000_0000).to_be_bytes()
+}
+const fn be08_to_i64(b: [u8; 8]) -> i64 {
+    (u64::from_be_bytes(b) ^ 0x8000_0000_0000_0000) as i64
+}
+
+crate::iso! {
+    /// `i64 ↔ [u8; 8]` — sign-flipped big-endian iso.
+    pub I064BE08 : i64 => [u8; 8] {
+        forward: i64_to_be08,
+        back:    be08_to_i64,
+    }
+}
+
 // ── §4 Q-format ladder over `FixedI64<Frac>` ────────────────────────
 
 /// `I<frac> = FixedI64<U<frac>>` — i64-backed binary fixed-point.
@@ -138,6 +155,7 @@ mod tests {
     #[allow(unused_imports)]
     use crate::conn::{ConnL, ConnR};
     use crate::extended::Extended;
+    use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
     // ── §1 std-int spot checks (merged from former int/i64.rs) ─────
@@ -204,6 +222,39 @@ mod tests {
         // Fine::MIN ceil fixup. (Plan 32: floor removed.)
         let fmin = FixedI64::<U32>::from_bits(i64::MIN);
         assert_eq!(Q032Q016.ceil(fmin), FixedI64::<U16>::from_bits(i64::MIN));
+    }
+
+    // ── BE byte-encoding tests ─────────────────────────────
+
+    fn arb_byte8() -> impl Strategy<Value = [u8; 8]> {
+        prop_oneof![Just([0; 8]), Just([0xFF; 8]), any::<[u8; 8]>()]
+    }
+
+    proptest! {
+        #[test]
+        fn i64_be_iso_roundtrip_l(a in prop_oneof![Just(i64::MIN), Just(0i64), Just(i64::MAX), any::<i64>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&I064BE08.conn_l(), a));
+        }
+        #[test]
+        fn i64_be_roundtrip_ceil(b in arb_byte8()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&I064BE08.conn_l(), b));
+        }
+        #[test]
+        fn i64_be_galois_l(a in any::<i64>(), b in arb_byte8()) {
+            prop_assert!(conn_laws::galois_l(&I064BE08.conn_l(), a, b));
+        }
+        #[test]
+        fn i64_be_galois_r(a in any::<i64>(), b in arb_byte8()) {
+            prop_assert!(conn_laws::galois_r(&I064BE08.conn_r(), a, b));
+        }
+        #[test]
+        fn i64_be_floor_le_ceil(a in any::<i64>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&I064BE08, a));
+        }
+        #[test]
+        fn i64_be_order_preserving(a in any::<i64>(), b in any::<i64>()) {
+            prop_assert_eq!(a.cmp(&b), I064BE08.ceil(a).cmp(&I064BE08.ceil(b)));
+        }
     }
 
     // 15 conns × 9 properties = 135 generated proptests (64 cases each)

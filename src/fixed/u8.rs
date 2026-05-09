@@ -62,6 +62,79 @@ crate::iso! {
     }
 }
 
+// ── Sortable big-endian byte encodings ─────────────────────
+
+const fn u8_to_be01(x: u8) -> [u8; 1] {
+    [x]
+}
+const fn be01_to_u8(b: [u8; 1]) -> u8 {
+    b[0]
+}
+
+crate::iso! {
+    /// `u8 ↔ [u8; 1]` — trivial big-endian iso.
+    ///
+    /// Both directions are bit-exact; byte-lex order is u8 numeric
+    /// order at one byte width.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ConnL, ConnR};
+    /// use connections::fixed::u8::U008BE01;
+    ///
+    /// assert_eq!(U008BE01.ceil(0x42_u8), [0x42]);
+    /// assert_eq!(U008BE01.upper([0x42]), 0x42_u8);
+    /// ```
+    pub U008BE01 : u8 => [u8; 1] {
+        forward: u8_to_be01,
+        back:    be01_to_u8,
+    }
+}
+
+const fn bool_to_be01(x: bool) -> [u8; 1] {
+    [x as u8]
+}
+
+/// Lossy back: any non-zero byte is `true`, only `[0]` is `false`.
+/// This makes `BOOLBE01` a one-sided `conn_l!` (not an iso) — the
+/// `roundtrip_ceil` law fails for bytes `0x02..=0xFF` (they all
+/// collapse to `true → [1]`). Galois L still holds: `ceil(true) = [1]`
+/// and `inner` returns `true` exactly for `b ≥ [1]`, so the threshold
+/// `b ≥ ceil(a)` matches `inner(b) ≥ a` for both `a` values.
+const fn be01_to_bool(b: [u8; 1]) -> bool {
+    b[0] != 0
+}
+
+crate::conn_l! {
+    /// `bool → [u8; 1]` — one-sided projection.
+    ///
+    /// Forward emits `[0]` for `false` and `[1]` for `true`. Back
+    /// (`inner`) treats any non-zero byte as `true`, which means
+    /// the byte side is non-injective: this Conn is **not** a
+    /// full iso. Shipped as a one-sided left-Galois Conn so the
+    /// adjoint law `ceil(a) ≤ b ⟺ a ≤ inner(b)` is the only
+    /// thing claimed.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::ConnL;
+    /// use connections::fixed::u8::BOOLBE01;
+    ///
+    /// assert_eq!(BOOLBE01.ceil(false), [0]);
+    /// assert_eq!(BOOLBE01.ceil(true),  [1]);
+    /// assert_eq!(BOOLBE01.upper([0]),   false);
+    /// assert_eq!(BOOLBE01.upper([1]),   true);
+    /// // Non-canonical encodings collapse to true:
+    /// assert_eq!(BOOLBE01.upper([0xFF]), true);
+    /// ```
+    pub BOOLBE01 : bool => [u8; 1] {
+        ceil:  bool_to_be01,
+        inner: be01_to_bool,
+    }
+}
+
 // ── §4 Q-format ladder over `FixedU8<Frac>` ─────────────────────────
 
 /// `U<frac> = FixedU8<U<frac>>` — u8-backed binary fixed-point with
@@ -375,6 +448,64 @@ mod tests {
         // of the natural division (0 / 16 = 0, remainder 0).
         let fmin = FixedU8::<F4>::from_bits(0);
         assert_eq!(Q004Q000.ceil(fmin), FixedU8::<F0>::from_bits(0));
+    }
+
+    // ── BE byte-encoding tests ─────────────────────────────
+
+    fn arb_byte1() -> impl Strategy<Value = [u8; 1]> {
+        prop_oneof![
+            Just([0u8]),
+            Just([u8::MAX]),
+            Just([0x80u8]),
+            any::<[u8; 1]>()
+        ]
+    }
+
+    proptest! {
+        #[test]
+        fn u008_be_iso_roundtrip_l(a in prop_oneof![Just(0u8), Just(u8::MAX), any::<u8>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&U008BE01.conn_l(), a));
+        }
+
+        #[test]
+        fn u008_be_roundtrip_ceil(b in arb_byte1()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&U008BE01.conn_l(), b));
+        }
+
+        #[test]
+        fn u008_be_galois_l(a in any::<u8>(), b in arb_byte1()) {
+            prop_assert!(conn_laws::galois_l(&U008BE01.conn_l(), a, b));
+        }
+
+        #[test]
+        fn u008_be_galois_r(a in any::<u8>(), b in arb_byte1()) {
+            prop_assert!(conn_laws::galois_r(&U008BE01.conn_r(), a, b));
+        }
+
+        #[test]
+        fn u008_be_floor_le_ceil(a in any::<u8>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&U008BE01, a));
+        }
+
+        #[test]
+        fn u008_be_order_preserving(a in any::<u8>(), b in any::<u8>()) {
+            prop_assert_eq!(a.cmp(&b), U008BE01.ceil(a).cmp(&U008BE01.ceil(b)));
+        }
+
+        #[test]
+        fn bool_be_galois_l(a: bool, b in arb_byte1()) {
+            prop_assert!(conn_laws::galois_l(&BOOLBE01, a, b));
+        }
+
+        #[test]
+        fn bool_be_host_roundtrip_l(a: bool) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&BOOLBE01, a));
+        }
+
+        #[test]
+        fn bool_be_order_preserving(a: bool, b: bool) {
+            prop_assert_eq!(a.cmp(&b), BOOLBE01.ceil(a).cmp(&BOOLBE01.ceil(b)));
+        }
     }
 
     // The Galois proptest battery (252 generated tests across 28

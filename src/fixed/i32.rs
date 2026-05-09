@@ -74,6 +74,23 @@ crate::iso! {
     }
 }
 
+// ── Sortable big-endian byte encodings ─────────────────────
+
+const fn i32_to_be04(x: i32) -> [u8; 4] {
+    ((x as u32) ^ 0x8000_0000).to_be_bytes()
+}
+const fn be04_to_i32(b: [u8; 4]) -> i32 {
+    (u32::from_be_bytes(b) ^ 0x8000_0000) as i32
+}
+
+crate::iso! {
+    /// `i32 ↔ [u8; 4]` — sign-flipped big-endian iso.
+    pub I032BE04 : i32 => [u8; 4] {
+        forward: i32_to_be04,
+        back:    be04_to_i32,
+    }
+}
+
 // ── §4 Q-format ladder over `FixedI32<Frac>` ────────────────────────
 
 /// `I<frac> = FixedI32<U<frac>>` — i32-backed binary fixed-point.
@@ -168,6 +185,7 @@ mod tests {
     #[allow(unused_imports)]
     use crate::conn::{ConnL, ConnR};
     use crate::extended::Extended;
+    use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
     // ── §1 std-int spot checks (merged from former int/i32.rs) ─────
@@ -243,6 +261,39 @@ mod tests {
         // gone with the ConnL demotion.)
         let fmin = FixedI32::<U16>::from_bits(i32::MIN);
         assert_eq!(Q016Q008.ceil(fmin), FixedI32::<U8>::from_bits(i32::MIN));
+    }
+
+    // ── BE byte-encoding tests ─────────────────────────────
+
+    fn arb_byte4() -> impl Strategy<Value = [u8; 4]> {
+        prop_oneof![Just([0; 4]), Just([0xFF; 4]), any::<[u8; 4]>()]
+    }
+
+    proptest! {
+        #[test]
+        fn i32_be_iso_roundtrip_l(a in prop_oneof![Just(i32::MIN), Just(0i32), Just(i32::MAX), any::<i32>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&I032BE04.conn_l(), a));
+        }
+        #[test]
+        fn i32_be_roundtrip_ceil(b in arb_byte4()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&I032BE04.conn_l(), b));
+        }
+        #[test]
+        fn i32_be_galois_l(a in any::<i32>(), b in arb_byte4()) {
+            prop_assert!(conn_laws::galois_l(&I032BE04.conn_l(), a, b));
+        }
+        #[test]
+        fn i32_be_galois_r(a in any::<i32>(), b in arb_byte4()) {
+            prop_assert!(conn_laws::galois_r(&I032BE04.conn_r(), a, b));
+        }
+        #[test]
+        fn i32_be_floor_le_ceil(a in any::<i32>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&I032BE04, a));
+        }
+        #[test]
+        fn i32_be_order_preserving(a in any::<i32>(), b in any::<i32>()) {
+            prop_assert_eq!(a.cmp(&b), I032BE04.ceil(a).cmp(&I032BE04.ceil(b)));
+        }
     }
 
     // 15 conns × 9 properties = 135 generated proptests, via the

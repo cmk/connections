@@ -185,8 +185,6 @@
 #![forbid(unsafe_code)]
 
 pub mod addr;
-#[cfg(feature = "byte")]
-pub mod byte;
 pub mod char;
 pub mod conn;
 pub mod extended;

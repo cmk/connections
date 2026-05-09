@@ -372,12 +372,15 @@ call into calendar / leap-second tables — `TIMENANO`, `TIMESECS`,
 `ETAINANO`, and the `ETAIHDUR` iso — pick up the standard
 Galois-law battery.
 
-Plan 47 (`byte` cargo feature) adds **38 SMT proofs** for the new
-sortable-byte-encoding family in `src/kani_proofs/byte_{one,two,four}.rs`.
-1- and 2-byte hosts (`U008BE01`, `I008BE01`, `U016BE02`, `I016BE02`,
-plus the one-sided `BOOLBE01`) are proven exhaustively; 4-byte hosts
-(`U032BE04`, `I032BE04`) verify under full 32-bit symbolic input. The
-8- and 16-byte hosts (`U064BE08`, `U128BE16`, …) are proptest-only —
+Plan 47 adds **38 SMT proofs** for the sortable-byte-encoding family
+now hosted in `fixed::{u8,i8,u16,i16,u32,i32}` proof modules.
+1- and 2-byte hosts (`fixed::u8::U008BE01`, `fixed::i8::I008BE01`,
+`fixed::u16::U016BE02`, `fixed::i16::I016BE02`, plus the one-sided
+`fixed::u8::BOOLBE01`) are proven exhaustively; 4-byte hosts
+(`fixed::u32::U032BE04`, `fixed::i32::I032BE04`) verify under full
+32-bit symbolic input. The 8- and 16-byte hosts (`fixed::u64::U064BE08`,
+`fixed::i64::I064BE08`, `fixed::u128::U128BE16`, `fixed::i128::I128BE16`)
+are proptest-only —
 128/256-bit two-input symex stalls CBMC. **Float BE Conns
 (`F016BE02`, `F032BE04`, `F064BE08`) are deferred** — the byte
 encoding preserves IEEE 754 totalOrder, but the host endpoint's
@@ -442,7 +445,7 @@ implement `ConnK`.
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` cargo feature |
 | `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
 | `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
-| Sortable byte encodings (`U008BE01`, `I008BE01`, `BOOLBE01`, `U016BE02`, `I016BE02`, `U032BE04`, `I032BE04`, `U064BE08`, `I064BE08`, `U128BE16`, `I128BE16`) — `byte` cargo feature; float BE Conns deferred (NaN/PartialOrd) | `byte` |
+| Sortable byte encodings (`fixed::{u8,i8,u16,i16,u32,i32,u64,i64,u128,i128}::*BE*`) — hosted under `fixed`; float BE Conns deferred (NaN/PartialOrd) | always on |
 
 Constant-name prefixes are letter-disambiguated: `Q` for Q-format
 wrappers (sign and host bit-width come from the module path), `I`/`U`

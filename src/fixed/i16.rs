@@ -64,6 +64,23 @@ crate::iso! {
     }
 }
 
+// ── Sortable big-endian byte encodings ─────────────────────
+
+const fn i16_to_be02(x: i16) -> [u8; 2] {
+    ((x as u16) ^ 0x8000).to_be_bytes()
+}
+const fn be02_to_i16(b: [u8; 2]) -> i16 {
+    (u16::from_be_bytes(b) ^ 0x8000) as i16
+}
+
+crate::iso! {
+    /// `i16 ↔ [u8; 2]` — sign-flipped big-endian iso.
+    pub I016BE02 : i16 => [u8; 2] {
+        forward: i16_to_be02,
+        back:    be02_to_i16,
+    }
+}
+
 // ── §4 Q-format ladder over `FixedI16<Frac>` ────────────────────────
 
 /// `I<frac> = FixedI16<U<frac>>` — i16-backed binary fixed-point.
@@ -164,6 +181,7 @@ mod tests {
     #[allow(unused_imports)]
     use crate::conn::{ConnL, ConnR};
     use crate::extended::Extended;
+    use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
     // ── §1 std-int spot checks (merged from former int/i16.rs) ─────
@@ -311,6 +329,39 @@ mod tests {
     // (`Conn::new_l` / `Conn::new_r`) so `floor_le_ceil` holds
     // structurally. Until then, the test is omitted here to avoid
     // failing CI on a pre-existing issue.
+    // ── BE byte-encoding tests ─────────────────────────────
+
+    fn arb_byte2() -> impl Strategy<Value = [u8; 2]> {
+        prop_oneof![Just([0; 2]), Just([0xFF; 2]), any::<[u8; 2]>()]
+    }
+
+    proptest! {
+        #[test]
+        fn i16_be_iso_roundtrip_l(a in prop_oneof![Just(i16::MIN), Just(0i16), Just(i16::MAX), any::<i16>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&I016BE02.conn_l(), a));
+        }
+        #[test]
+        fn i16_be_roundtrip_ceil(b in arb_byte2()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&I016BE02.conn_l(), b));
+        }
+        #[test]
+        fn i16_be_galois_l(a in any::<i16>(), b in arb_byte2()) {
+            prop_assert!(conn_laws::galois_l(&I016BE02.conn_l(), a, b));
+        }
+        #[test]
+        fn i16_be_galois_r(a in any::<i16>(), b in arb_byte2()) {
+            prop_assert!(conn_laws::galois_r(&I016BE02.conn_r(), a, b));
+        }
+        #[test]
+        fn i16_be_floor_le_ceil(a in any::<i16>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&I016BE02, a));
+        }
+        #[test]
+        fn i16_be_order_preserving(a in any::<i16>(), b in any::<i16>()) {
+            prop_assert_eq!(a.cmp(&b), I016BE02.ceil(a).cmp(&I016BE02.ceil(b)));
+        }
+    }
+
     // 15 conns × 9 properties = 135 generated proptests, via the
     // shared `crate::law_battery!` macro (Plan 31 T2).
     macro_rules! props_for_pair {

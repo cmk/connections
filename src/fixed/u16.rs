@@ -63,6 +63,23 @@ crate::iso! {
     }
 }
 
+// ── Sortable big-endian byte encodings ─────────────────────
+
+const fn u16_to_be02(x: u16) -> [u8; 2] {
+    x.to_be_bytes()
+}
+const fn be02_to_u16(b: [u8; 2]) -> u16 {
+    u16::from_be_bytes(b)
+}
+
+crate::iso! {
+    /// `u16 ↔ [u8; 2]` — big-endian iso. Byte-lex order matches u16 order.
+    pub U016BE02 : u16 => [u8; 2] {
+        forward: u16_to_be02,
+        back:    be02_to_u16,
+    }
+}
+
 // ── §4 Q-format ladder over `FixedU16<Frac>` ────────────────────────
 
 /// `U<frac> = FixedU16<U<frac>>` — u16-backed binary fixed-point.
@@ -169,6 +186,8 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use crate::conn::{ConnL, ConnR};
+    use crate::prop::conn as conn_laws;
+    use proptest::prelude::*;
 
     // ── §1 std-int spot checks (merged from former int/u16.rs) ─────
 
@@ -283,6 +302,39 @@ mod tests {
         // (Plan 32: floor removed.) No FINE_MIN fixup for unsigned.
         let fmin = FixedU16::<F8>::from_bits(0);
         assert_eq!(Q008Q004.ceil(fmin), FixedU16::<F4>::from_bits(0));
+    }
+
+    // ── BE byte-encoding tests ─────────────────────────────
+
+    fn arb_byte2() -> impl Strategy<Value = [u8; 2]> {
+        prop_oneof![Just([0; 2]), Just([0xFF; 2]), any::<[u8; 2]>()]
+    }
+
+    proptest! {
+        #[test]
+        fn u16_be_iso_roundtrip_l(a in prop_oneof![Just(0u16), Just(u16::MAX), any::<u16>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&U016BE02.conn_l(), a));
+        }
+        #[test]
+        fn u16_be_roundtrip_ceil(b in arb_byte2()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&U016BE02.conn_l(), b));
+        }
+        #[test]
+        fn u16_be_galois_l(a in any::<u16>(), b in arb_byte2()) {
+            prop_assert!(conn_laws::galois_l(&U016BE02.conn_l(), a, b));
+        }
+        #[test]
+        fn u16_be_galois_r(a in any::<u16>(), b in arb_byte2()) {
+            prop_assert!(conn_laws::galois_r(&U016BE02.conn_r(), a, b));
+        }
+        #[test]
+        fn u16_be_floor_le_ceil(a in any::<u16>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&U016BE02, a));
+        }
+        #[test]
+        fn u16_be_order_preserving(a in any::<u16>(), b in any::<u16>()) {
+            prop_assert_eq!(a.cmp(&b), U016BE02.ceil(a).cmp(&U016BE02.ceil(b)));
+        }
     }
 
     // The Galois proptest battery (252 generated tests across 28

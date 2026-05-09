@@ -78,6 +78,39 @@ crate::iso! {
     }
 }
 
+// ── Sortable big-endian byte encodings ─────────────────────
+
+const fn i8_to_be01(x: i8) -> [u8; 1] {
+    [(x as u8) ^ 0x80]
+}
+const fn be01_to_i8(b: [u8; 1]) -> i8 {
+    (b[0] ^ 0x80) as i8
+}
+
+crate::iso! {
+    /// `i8 ↔ [u8; 1]` — sign-flipped iso so byte order matches signed order.
+    ///
+    /// Forward XORs the sign bit so `i8::MIN` maps to `[0x00]` and
+    /// `i8::MAX` maps to `[0xFF]`; the reverse XOR recovers the
+    /// signed value bit-exactly.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ConnL, ConnR};
+    /// use connections::fixed::i8::I008BE01;
+    ///
+    /// assert_eq!(I008BE01.ceil(i8::MIN), [0x00]);
+    /// assert_eq!(I008BE01.ceil(0_i8),    [0x80]);
+    /// assert_eq!(I008BE01.ceil(i8::MAX), [0xFF]);
+    /// assert_eq!(I008BE01.upper([0x00]), i8::MIN);
+    /// ```
+    pub I008BE01 : i8 => [u8; 1] {
+        forward: i8_to_be01,
+        back:    be01_to_i8,
+    }
+}
+
 // ── §4 Q-format ladder over `FixedI8<Frac>` ─────────────────────────
 
 /// `I<frac> = FixedI8<U<frac>>` — i8-backed binary fixed-point with
@@ -390,6 +423,44 @@ mod tests {
         // along with the broken `floor_le_ceil` it created.)
         let fmin = FixedI8::<U4>::from_bits(i8::MIN);
         assert_eq!(Q004Q000.ceil(fmin), FixedI8::<U0>::from_bits(i8::MIN));
+    }
+
+    // ── BE byte-encoding tests ─────────────────────────────
+
+    fn arb_byte1() -> impl Strategy<Value = [u8; 1]> {
+        prop_oneof![
+            Just([0; 1]),
+            Just([0xFF; 1]),
+            Just([0x80]),
+            any::<[u8; 1]>()
+        ]
+    }
+
+    proptest! {
+        #[test]
+        fn i008_be_iso_roundtrip_l(a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&I008BE01.conn_l(), a));
+        }
+        #[test]
+        fn i008_be_roundtrip_ceil(b in arb_byte1()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&I008BE01.conn_l(), b));
+        }
+        #[test]
+        fn i008_be_galois_l(a in any::<i8>(), b in arb_byte1()) {
+            prop_assert!(conn_laws::galois_l(&I008BE01.conn_l(), a, b));
+        }
+        #[test]
+        fn i008_be_galois_r(a in any::<i8>(), b in arb_byte1()) {
+            prop_assert!(conn_laws::galois_r(&I008BE01.conn_r(), a, b));
+        }
+        #[test]
+        fn i008_be_floor_le_ceil(a in any::<i8>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&I008BE01, a));
+        }
+        #[test]
+        fn i008_be_order_preserving(a in any::<i8>(), b in any::<i8>()) {
+            prop_assert_eq!(a.cmp(&b), I008BE01.ceil(a).cmp(&I008BE01.ceil(b)));
+        }
     }
 
     // 21 conns × 5 properties = 105 generated proptests, via the

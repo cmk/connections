@@ -1,4 +1,4 @@
-//! Kani harnesses for [`crate::byte::one`] — 1-byte sortable byte-encoding isos.
+//! Kani harnesses for `fixed::u8` / `fixed::i8` — 1-byte sortable byte-encoding isos.
 //!
 //! Two `prove_iso!` invocations (`U008BE01`, `I008BE01`) plus
 //! `prove_conn_l_with_order!` for `BOOLBE01` (one-sided). Each
@@ -60,8 +60,8 @@ macro_rules! prove_iso_be {
     };
 }
 
-prove_iso_be!(u008_be, crate::byte::U008BE01, u8);
-prove_iso_be!(i008_be, crate::byte::I008BE01, i8);
+prove_iso_be!(u008_be, crate::fixed::u8::U008BE01, u8);
+prove_iso_be!(i008_be, crate::fixed::i8::I008BE01, i8);
 
 // ── BOOLBE01 — one-sided conn_l, no roundtrip_ceil (lossy back) ─────
 
@@ -83,14 +83,14 @@ mod bool_be {
     // `true == true` in a hand check and pass under proptest. Reduced
     // pure-byte models of the same predicate verify cleanly, isolating the
     // failure to the `bool` PartialOrd dispatch under symbolic execution.
-    // The proptest battery in `src/byte/one.rs` covers this law.
+    // The proptest battery in `src/fixed/u8.rs` covers this law.
 
     #[kani::proof]
     fn host_roundtrip_l() {
         // Host-side only: `inner ∘ ceil = id` (false → [0] → false; true → [1] → true).
         // Byte-side (`ceil ∘ inner = id`) doesn't hold for `BOOLBE01` and isn't asserted.
         let a = any_bool();
-        assert!(conn_laws::iso_roundtrip_l(&crate::byte::BOOLBE01, a));
+        assert!(conn_laws::iso_roundtrip_l(&crate::fixed::u8::BOOLBE01, a));
     }
 
     #[kani::proof]
@@ -98,9 +98,9 @@ mod bool_be {
         let a = any_bool();
         let b = any_bool();
         let host_ord = a.cmp(&b);
-        let byte_ord = crate::byte::BOOLBE01
+        let byte_ord = crate::fixed::u8::BOOLBE01
             .ceil(a)
-            .cmp(&crate::byte::BOOLBE01.ceil(b));
+            .cmp(&crate::fixed::u8::BOOLBE01.ceil(b));
         assert!(host_ord == byte_ord);
     }
 }

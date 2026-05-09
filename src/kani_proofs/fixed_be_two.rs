@@ -1,9 +1,9 @@
-//! Kani harnesses for [`crate::byte::four`] — 4-byte sortable byte-encoding isos.
+//! Kani harnesses for `fixed::u16` / `fixed::i16` — 2-byte sortable byte-encoding isos.
 //!
-//! `U032BE04`, `I032BE04`. (`F032BE04` deferred — see `src/byte.rs`.)
-//! T0 (full domain). The `order_preserving` predicate uses two
-//! symbolic inputs — 64 symbolic bits — comparable to the `F064F032`
-//! walk-step proofs in `float_walk.rs`.
+//! `U016BE02`, `I016BE02`. (`F016BE02` deferred — see `src/fixed.rs`.)
+//!
+//! T0 (full domain). Symbolic input is at most 32 bits (a u16 + a
+//! [u8; 2]); CBMC handles this within seconds.
 
 use crate::conn::{ConnL, ConnR};
 use crate::prop::conn as conn_laws;
@@ -16,14 +16,14 @@ macro_rules! prove_iso_be {
             #[kani::proof]
             fn galois_l() {
                 let a: $T = kani::any();
-                let b: [u8; 4] = kani::any();
+                let b: [u8; 2] = kani::any();
                 assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
             }
 
             #[kani::proof]
             fn galois_r() {
                 let a: $T = kani::any();
-                let b: [u8; 4] = kani::any();
+                let b: [u8; 2] = kani::any();
                 assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
             }
 
@@ -35,7 +35,7 @@ macro_rules! prove_iso_be {
 
             #[kani::proof]
             fn roundtrip_ceil() {
-                let b: [u8; 4] = kani::any();
+                let b: [u8; 2] = kani::any();
                 assert!(conn_laws::roundtrip_ceil(&$CONN.conn_l(), b));
             }
 
@@ -57,7 +57,5 @@ macro_rules! prove_iso_be {
     };
 }
 
-prove_iso_be!(u032_be, crate::byte::U032BE04, u32);
-prove_iso_be!(i032_be, crate::byte::I032BE04, i32);
-
-// `F032BE04` deferred — see `src/byte.rs` for the NaN/PartialOrd rationale.
+prove_iso_be!(u016_be, crate::fixed::u16::U016BE02, u16);
+prove_iso_be!(i016_be, crate::fixed::i16::I016BE02, i16);

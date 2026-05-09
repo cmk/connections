@@ -44,24 +44,21 @@
 //! | [`time_pure`]          | TIMENANO / TIMESECS / TDURSECS / SDURU064 / SDURU128 (Plan 43) |
 //! | [`hifi_walk`]          | float→hifi-Duration / TAI-Epoch walk-step ≤ 2 (Plan 43) |
 //! | [`hifi_pure`]          | HDURNANO / HDURSECS / ETAINANO / ETAIHDUR (Plan 43)   |
-//! | [`byte_one`]           | U008BE01 / I008BE01 / BOOLBE01 (Plan 47, `byte` feature) |
-//! | [`byte_two`]           | U016BE02 / I016BE02 (Plan 47, `byte` feature) |
-//! | [`byte_four`]          | U032BE04 / I032BE04 (Plan 47, `byte` feature) |
+//! | [`fixed_be_one`]       | fixed::u8::U008BE01 / fixed::i8::I008BE01 / fixed::u8::BOOLBE01 (Plan 47) |
+//! | [`fixed_be_two`]       | fixed::u16::U016BE02 / fixed::i16::I016BE02 (Plan 47) |
+//! | [`fixed_be_four`]      | fixed::u32::U032BE04 / fixed::i32::I032BE04 (Plan 47) |
 //! | [`hifi_calendar`]      | MONTU008 / MONTN008 / WKDYU008 (Plan 46)              |
 //!
 //! [Kani]: https://model-checking.github.io/kani/
 
 #![allow(dead_code, unused_imports)]
 
-#[cfg(feature = "byte")]
-mod byte_four;
-#[cfg(feature = "byte")]
-mod byte_one;
-#[cfg(feature = "byte")]
-mod byte_two;
 mod ext_int;
 mod fix_fix_signed;
 mod fix_fix_unsigned;
+mod fixed_be_four;
+mod fixed_be_one;
+mod fixed_be_two;
 mod float_walk;
 mod float_weaker;
 #[cfg(feature = "hifi")]
