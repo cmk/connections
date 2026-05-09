@@ -4,7 +4,7 @@
 //! pairs. Mirrors [`super::i64`] with `FixedU64` backing and adds
 //! `F63` (Q1.63), the canonical 64-bit normalised-amplitude format.
 
-use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
+use super::{LE, int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
 use ::fixed::FixedU64;
 use ::fixed::types::extra::{
     U0 as F0, U8 as F8, U16 as F16, U32 as F32, U48 as F48, U63 as F63, U64 as F64, Unsigned,
@@ -60,6 +60,23 @@ crate::iso! {
     pub U064BE08 : u64 => [u8; 8] {
         forward: u64_to_be08,
         back:    be08_to_u64,
+    }
+}
+
+// ── Sortable little-endian byte encodings ──────────────────
+
+const fn u64_to_le08(x: u64) -> LE<8> {
+    LE(x.to_le_bytes())
+}
+const fn le08_to_u64(b: LE<8>) -> u64 {
+    u64::from_le_bytes(b.0)
+}
+
+crate::iso! {
+    /// `u64 ↔ LE<8>` — little-endian iso with numeric-sort ordering.
+    pub U064LE08 : u64 => LE<8> {
+        forward: u64_to_le08,
+        back:    le08_to_u64,
     }
 }
 
@@ -238,6 +255,10 @@ mod tests {
         prop_oneof![Just([0; 8]), Just([0xFF; 8]), any::<[u8; 8]>()]
     }
 
+    fn arb_lebyte8() -> impl Strategy<Value = LE<8>> {
+        arb_byte8().prop_map(LE)
+    }
+
     proptest! {
         #[test]
         fn u64_be_iso_roundtrip_l(a in prop_oneof![Just(0u64), Just(u64::MAX), any::<u64>()]) {
@@ -262,6 +283,36 @@ mod tests {
         #[test]
         fn u64_be_order_preserving(a in any::<u64>(), b in any::<u64>()) {
             prop_assert_eq!(a.cmp(&b), U064BE08.ceil(a).cmp(&U064BE08.ceil(b)));
+        }
+
+        #[test]
+        fn u064_le_iso_roundtrip_l(a in prop_oneof![Just(0u64), Just(u64::MAX), any::<u64>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&U064LE08.conn_l(), a));
+        }
+
+        #[test]
+        fn u064_le_roundtrip_ceil(b in arb_lebyte8()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&U064LE08.conn_l(), b));
+        }
+
+        #[test]
+        fn u064_le_galois_l(a in any::<u64>(), b in arb_lebyte8()) {
+            prop_assert!(conn_laws::galois_l(&U064LE08.conn_l(), a, b));
+        }
+
+        #[test]
+        fn u064_le_galois_r(a in any::<u64>(), b in arb_lebyte8()) {
+            prop_assert!(conn_laws::galois_r(&U064LE08.conn_r(), a, b));
+        }
+
+        #[test]
+        fn u064_le_floor_le_ceil(a in any::<u64>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&U064LE08, a));
+        }
+
+        #[test]
+        fn u064_le_order_preserving(a in any::<u64>(), b in any::<u64>()) {
+            prop_assert_eq!(a.cmp(&b), U064LE08.ceil(a).cmp(&U064LE08.ceil(b)));
         }
     }
 

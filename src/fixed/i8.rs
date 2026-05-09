@@ -33,7 +33,7 @@
 //! Coarse plateau onto Fine::MAX/MIN, so it isn't order-reflecting and
 //! no true adjoint triple exists. See Plan 32 / `doc/design.md`.
 
-use super::{int_int_narrow, nz_int_ext, uint_int_sat};
+use super::{LE, int_int_narrow, nz_int_ext, uint_int_sat};
 use ::fixed::FixedI8;
 use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U8, Unsigned};
 use core::num::NonZeroI8;
@@ -108,6 +108,23 @@ crate::iso! {
     pub I008BE01 : i8 => [u8; 1] {
         forward: i8_to_be01,
         back:    be01_to_i8,
+    }
+}
+
+// ── Sortable little-endian byte encodings ──────────────────
+
+const fn i8_to_le01(x: i8) -> LE<1> {
+    LE([(x as u8) ^ 0x80])
+}
+const fn le01_to_i8(b: LE<1>) -> i8 {
+    (b.0[0] ^ 0x80) as i8
+}
+
+crate::iso! {
+    /// `i8 ↔ LE<1>` — sign-flipped little-endian iso with numeric-sort ordering.
+    pub I008LE01 : i8 => LE<1> {
+        forward: i8_to_le01,
+        back:    le01_to_i8,
     }
 }
 
@@ -427,6 +444,10 @@ mod tests {
         ]
     }
 
+    fn arb_lebyte1() -> impl Strategy<Value = LE<1>> {
+        arb_byte1().prop_map(LE)
+    }
+
     proptest! {
         #[test]
         fn i008_be_iso_roundtrip_l(a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]) {
@@ -451,6 +472,36 @@ mod tests {
         #[test]
         fn i008_be_order_preserving(a in any::<i8>(), b in any::<i8>()) {
             prop_assert_eq!(a.cmp(&b), I008BE01.ceil(a).cmp(&I008BE01.ceil(b)));
+        }
+
+        #[test]
+        fn i008_le_iso_roundtrip_l(a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&I008LE01.conn_l(), a));
+        }
+
+        #[test]
+        fn i008_le_roundtrip_ceil(b in arb_lebyte1()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&I008LE01.conn_l(), b));
+        }
+
+        #[test]
+        fn i008_le_galois_l(a in any::<i8>(), b in arb_lebyte1()) {
+            prop_assert!(conn_laws::galois_l(&I008LE01.conn_l(), a, b));
+        }
+
+        #[test]
+        fn i008_le_galois_r(a in any::<i8>(), b in arb_lebyte1()) {
+            prop_assert!(conn_laws::galois_r(&I008LE01.conn_r(), a, b));
+        }
+
+        #[test]
+        fn i008_le_floor_le_ceil(a in any::<i8>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&I008LE01, a));
+        }
+
+        #[test]
+        fn i008_le_order_preserving(a in any::<i8>(), b in any::<i8>()) {
+            prop_assert_eq!(a.cmp(&b), I008LE01.ceil(a).cmp(&I008LE01.ceil(b)));
         }
     }
 

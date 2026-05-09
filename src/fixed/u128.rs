@@ -10,7 +10,7 @@
 //! detect the `SHIFT == 128` degenerate case (`Q128Q000`, where
 //! `RATIO = 2^128` doesn't fit in `u128` at all).
 
-use super::{int_uint, nz_uint_ext, uint_uint};
+use super::{LE, int_uint, nz_uint_ext, uint_uint};
 use ::fixed::FixedU128;
 use ::fixed::types::extra::{
     U0 as F0, U16 as F16, U32 as F32, U64 as F64, U96 as F96, U127 as F127, U128 as F128, Unsigned,
@@ -64,6 +64,23 @@ crate::iso! {
     pub U128BE16 : u128 => [u8; 16] {
         forward: u128_to_be16,
         back:    be16_to_u128,
+    }
+}
+
+// ── Sortable little-endian byte encodings ──────────────────
+
+const fn u128_to_le16(x: u128) -> LE<16> {
+    LE(x.to_le_bytes())
+}
+const fn le16_to_u128(b: LE<16>) -> u128 {
+    u128::from_le_bytes(b.0)
+}
+
+crate::iso! {
+    /// `u128 ↔ LE<16>` — little-endian iso with numeric-sort ordering.
+    pub U128LE16 : u128 => LE<16> {
+        forward: u128_to_le16,
+        back:    le16_to_u128,
     }
 }
 
@@ -281,6 +298,10 @@ mod tests {
         prop_oneof![Just([0; 16]), Just([0xFF; 16]), any::<[u8; 16]>()]
     }
 
+    fn arb_lebyte16() -> impl Strategy<Value = LE<16>> {
+        arb_byte16().prop_map(LE)
+    }
+
     proptest! {
         #[test]
         fn u128_be_iso_roundtrip_l(a in prop_oneof![Just(0u128), Just(u128::MAX), any::<u128>()]) {
@@ -305,6 +326,36 @@ mod tests {
         #[test]
         fn u128_be_order_preserving(a in any::<u128>(), b in any::<u128>()) {
             prop_assert_eq!(a.cmp(&b), U128BE16.ceil(a).cmp(&U128BE16.ceil(b)));
+        }
+
+        #[test]
+        fn u128_le_iso_roundtrip_l(a in prop_oneof![Just(0u128), Just(u128::MAX), any::<u128>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&U128LE16.conn_l(), a));
+        }
+
+        #[test]
+        fn u128_le_roundtrip_ceil(b in arb_lebyte16()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&U128LE16.conn_l(), b));
+        }
+
+        #[test]
+        fn u128_le_galois_l(a in any::<u128>(), b in arb_lebyte16()) {
+            prop_assert!(conn_laws::galois_l(&U128LE16.conn_l(), a, b));
+        }
+
+        #[test]
+        fn u128_le_galois_r(a in any::<u128>(), b in arb_lebyte16()) {
+            prop_assert!(conn_laws::galois_r(&U128LE16.conn_r(), a, b));
+        }
+
+        #[test]
+        fn u128_le_floor_le_ceil(a in any::<u128>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&U128LE16, a));
+        }
+
+        #[test]
+        fn u128_le_order_preserving(a in any::<u128>(), b in any::<u128>()) {
+            prop_assert_eq!(a.cmp(&b), U128LE16.ceil(a).cmp(&U128LE16.ceil(b)));
         }
     }
 

@@ -4,7 +4,7 @@
 //! pairs. Mirrors [`super::i32`] with `FixedU32` backing and adds
 //! `F31` (Q1.31), the canonical 32-bit normalised-amplitude format.
 
-use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
+use super::{LE, int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
 use ::fixed::FixedU32;
 use ::fixed::types::extra::{
     U0 as F0, U4 as F4, U8 as F8, U16 as F16, U24 as F24, U31 as F31, U32 as F32, Unsigned,
@@ -60,6 +60,23 @@ crate::iso! {
     pub U032BE04 : u32 => [u8; 4] {
         forward: u32_to_be04,
         back:    be04_to_u32,
+    }
+}
+
+// ── Sortable little-endian byte encodings ──────────────────
+
+const fn u32_to_le04(x: u32) -> LE<4> {
+    LE(x.to_le_bytes())
+}
+const fn le04_to_u32(b: LE<4>) -> u32 {
+    u32::from_le_bytes(b.0)
+}
+
+crate::iso! {
+    /// `u32 ↔ LE<4>` — little-endian iso with numeric-sort ordering.
+    pub U032LE04 : u32 => LE<4> {
+        forward: u32_to_le04,
+        back:    le04_to_u32,
     }
 }
 
@@ -236,6 +253,10 @@ mod tests {
         prop_oneof![Just([0; 4]), Just([0xFF; 4]), any::<[u8; 4]>()]
     }
 
+    fn arb_lebyte4() -> impl Strategy<Value = LE<4>> {
+        arb_byte4().prop_map(LE)
+    }
+
     proptest! {
         #[test]
         fn u32_be_iso_roundtrip_l(a in prop_oneof![Just(0u32), Just(u32::MAX), any::<u32>()]) {
@@ -260,6 +281,36 @@ mod tests {
         #[test]
         fn u32_be_order_preserving(a in any::<u32>(), b in any::<u32>()) {
             prop_assert_eq!(a.cmp(&b), U032BE04.ceil(a).cmp(&U032BE04.ceil(b)));
+        }
+
+        #[test]
+        fn u032_le_iso_roundtrip_l(a in prop_oneof![Just(0u32), Just(u32::MAX), any::<u32>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&U032LE04.conn_l(), a));
+        }
+
+        #[test]
+        fn u032_le_roundtrip_ceil(b in arb_lebyte4()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&U032LE04.conn_l(), b));
+        }
+
+        #[test]
+        fn u032_le_galois_l(a in any::<u32>(), b in arb_lebyte4()) {
+            prop_assert!(conn_laws::galois_l(&U032LE04.conn_l(), a, b));
+        }
+
+        #[test]
+        fn u032_le_galois_r(a in any::<u32>(), b in arb_lebyte4()) {
+            prop_assert!(conn_laws::galois_r(&U032LE04.conn_r(), a, b));
+        }
+
+        #[test]
+        fn u032_le_floor_le_ceil(a in any::<u32>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&U032LE04, a));
+        }
+
+        #[test]
+        fn u032_le_order_preserving(a in any::<u32>(), b in any::<u32>()) {
+            prop_assert_eq!(a.cmp(&b), U032LE04.ceil(a).cmp(&U032LE04.ceil(b)));
         }
     }
 

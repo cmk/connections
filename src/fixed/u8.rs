@@ -16,7 +16,7 @@
 //! `F7` (= Q1.7) is the canonical 7-bit MIDI velocity / 7-bit DSP
 //! amplitude format, included alongside the mirror-of-signed levels.
 
-use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint_narrow};
+use super::{LE, int_uint, int_uint_narrow, nz_uint_ext, uint_uint_narrow};
 use ::fixed::FixedU8;
 use ::fixed::types::extra::{
     U0 as F0, U1 as F1, U2 as F2, U3 as F3, U4 as F4, U6 as F6, U7 as F7, U8 as F8, Unsigned,
@@ -132,6 +132,65 @@ crate::conn_l! {
     pub BOOLBE01 : bool => [u8; 1] {
         ceil:  bool_to_be01,
         inner: be01_to_bool,
+    }
+}
+
+// ── Sortable little-endian byte encodings ──────────────────
+
+const fn u8_to_le01(x: u8) -> LE<1> {
+    LE([x])
+}
+const fn le01_to_u8(b: LE<1>) -> u8 {
+    b.0[0]
+}
+
+crate::iso! {
+    /// `u8 ↔ LE<1>` — trivial little-endian iso with numeric-sort ordering.
+    pub U008LE01 : u8 => LE<1> {
+        forward: u8_to_le01,
+        back:    le01_to_u8,
+    }
+}
+
+const fn bool_to_le01(x: bool) -> LE<1> {
+    LE([x as u8])
+}
+
+/// Lossy back: any non-zero byte is `true`, only `LE([0])` is `false`.
+/// This mirrors [`BOOLBE01`] under the `LE<1>` wrapper. `BOOLLE01` is
+/// one-sided, so the byte-side `roundtrip_ceil` law is intentionally not
+/// claimed: non-canonical encodings such as `LE([2])` collapse to
+/// `true → LE([1])`. The left-Galois law still holds because `LE<1>`
+/// orders the same way as `[u8; 1]`.
+const fn le01_to_bool(b: LE<1>) -> bool {
+    b.0[0] != 0
+}
+
+crate::conn_l! {
+    /// `bool → LE<1>` — one-sided little-endian projection.
+    ///
+    /// Forward emits `LE([0])` for `false` and `LE([1])` for `true`.
+    /// Back (`inner`) treats any non-zero byte as `true`, which means
+    /// the byte side is non-injective: this Conn is **not** a full iso.
+    /// Shipped as a one-sided left-Galois Conn so the adjoint law
+    /// `ceil(a) ≤ b ⟺ a ≤ inner(b)` is the only thing claimed.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::ConnL;
+    /// use connections::fixed::{LE, u8::BOOLLE01};
+    ///
+    /// assert_eq!(BOOLLE01.ceil(false), LE([0]));
+    /// assert_eq!(BOOLLE01.ceil(true),  LE([1]));
+    /// assert_eq!(BOOLLE01.upper(LE([0])), false);
+    /// assert_eq!(BOOLLE01.upper(LE([1])), true);
+    /// // Non-canonical encodings collapse to true:
+    /// assert_eq!(BOOLLE01.upper(LE([0xFF])), true);
+    /// ```
+    pub BOOLLE01 : bool => LE<1> {
+        ceil:  bool_to_le01,
+        inner: le01_to_bool,
     }
 }
 
@@ -441,6 +500,23 @@ mod tests {
         assert_eq!(Q004Q000.ceil(fmin), FixedU8::<F0>::from_bits(0));
     }
 
+    #[test]
+    fn bool_le_upper_is_greatest_preimage_with_ceil_below_byte() {
+        for byte in 0..=u8::MAX {
+            let b = LE([byte]);
+            let upper = BOOLLE01.upper(b);
+            let greatest_preimage = BOOLLE01.ceil(true) <= b;
+
+            assert_eq!(upper, byte != 0);
+            assert_eq!(upper, greatest_preimage);
+            assert!(BOOLLE01.ceil(upper) <= b);
+
+            if !upper {
+                assert!(BOOLLE01.ceil(true) > b);
+            }
+        }
+    }
+
     // ── BE byte-encoding tests ─────────────────────────────
 
     fn arb_byte1() -> impl Strategy<Value = [u8; 1]> {
@@ -450,6 +526,10 @@ mod tests {
             Just([0x80u8]),
             any::<[u8; 1]>()
         ]
+    }
+
+    fn arb_lebyte1() -> impl Strategy<Value = LE<1>> {
+        arb_byte1().prop_map(LE)
     }
 
     proptest! {
@@ -496,6 +576,59 @@ mod tests {
         #[test]
         fn bool_be_order_preserving(a: bool, b: bool) {
             prop_assert_eq!(a.cmp(&b), BOOLBE01.ceil(a).cmp(&BOOLBE01.ceil(b)));
+        }
+
+        #[test]
+        fn u008_le_iso_roundtrip_l(a in prop_oneof![Just(0u8), Just(u8::MAX), any::<u8>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&U008LE01.conn_l(), a));
+        }
+
+        #[test]
+        fn u008_le_roundtrip_ceil(b in arb_lebyte1()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&U008LE01.conn_l(), b));
+        }
+
+        #[test]
+        fn u008_le_galois_l(a in any::<u8>(), b in arb_lebyte1()) {
+            prop_assert!(conn_laws::galois_l(&U008LE01.conn_l(), a, b));
+        }
+
+        #[test]
+        fn u008_le_galois_r(a in any::<u8>(), b in arb_lebyte1()) {
+            prop_assert!(conn_laws::galois_r(&U008LE01.conn_r(), a, b));
+        }
+
+        #[test]
+        fn u008_le_floor_le_ceil(a in any::<u8>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&U008LE01, a));
+        }
+
+        #[test]
+        fn u008_le_order_preserving(a in any::<u8>(), b in any::<u8>()) {
+            prop_assert_eq!(a.cmp(&b), U008LE01.ceil(a).cmp(&U008LE01.ceil(b)));
+        }
+
+        #[test]
+        fn bool_le_galois_l(a: bool, b in arb_lebyte1()) {
+            prop_assert!(conn_laws::galois_l(&BOOLLE01, a, b));
+        }
+
+        #[test]
+        fn bool_le_host_roundtrip_l(a: bool) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&BOOLLE01, a));
+        }
+
+        #[test]
+        fn bool_le_kernel_l_for_noncanonical_true_bytes(b in arb_lebyte1().prop_filter("noncanonical true byte", |b| b.0[0] > 1)) {
+            prop_assert_eq!(BOOLLE01.upper(b), true);
+            prop_assert_eq!(BOOLLE01.ceil(BOOLLE01.upper(b)), LE([1]));
+            prop_assert!(conn_laws::kernel_l(&BOOLLE01, b));
+            prop_assert!(!conn_laws::roundtrip_ceil(&BOOLLE01, b));
+        }
+
+        #[test]
+        fn bool_le_order_preserving(a: bool, b: bool) {
+            prop_assert_eq!(a.cmp(&b), BOOLLE01.ceil(a).cmp(&BOOLLE01.ceil(b)));
         }
     }
 

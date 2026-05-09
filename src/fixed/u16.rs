@@ -20,7 +20,7 @@
 //! the saturation plateau must return `Coarse::MAX` to keep the
 //! lower adjoint lawful.
 
-use super::{int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
+use super::{LE, int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
 use ::fixed::FixedU16;
 use ::fixed::types::extra::{
     U0 as F0, U2 as F2, U4 as F4, U8 as F8, U12 as F12, U14 as F14, U15 as F15, U16 as F16,
@@ -77,6 +77,23 @@ crate::iso! {
     pub U016BE02 : u16 => [u8; 2] {
         forward: u16_to_be02,
         back:    be02_to_u16,
+    }
+}
+
+// ── Sortable little-endian byte encodings ──────────────────
+
+const fn u16_to_le02(x: u16) -> LE<2> {
+    LE(x.to_le_bytes())
+}
+const fn le02_to_u16(b: LE<2>) -> u16 {
+    u16::from_le_bytes(b.0)
+}
+
+crate::iso! {
+    /// `u16 ↔ LE<2>` — little-endian iso with numeric-sort ordering.
+    pub U016LE02 : u16 => LE<2> {
+        forward: u16_to_le02,
+        back:    le02_to_u16,
     }
 }
 
@@ -300,6 +317,10 @@ mod tests {
         prop_oneof![Just([0; 2]), Just([0xFF; 2]), any::<[u8; 2]>()]
     }
 
+    fn arb_lebyte2() -> impl Strategy<Value = LE<2>> {
+        arb_byte2().prop_map(LE)
+    }
+
     proptest! {
         #[test]
         fn u16_be_iso_roundtrip_l(a in prop_oneof![Just(0u16), Just(u16::MAX), any::<u16>()]) {
@@ -324,6 +345,36 @@ mod tests {
         #[test]
         fn u16_be_order_preserving(a in any::<u16>(), b in any::<u16>()) {
             prop_assert_eq!(a.cmp(&b), U016BE02.ceil(a).cmp(&U016BE02.ceil(b)));
+        }
+
+        #[test]
+        fn u016_le_iso_roundtrip_l(a in prop_oneof![Just(0u16), Just(u16::MAX), any::<u16>()]) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&U016LE02.conn_l(), a));
+        }
+
+        #[test]
+        fn u016_le_roundtrip_ceil(b in arb_lebyte2()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&U016LE02.conn_l(), b));
+        }
+
+        #[test]
+        fn u016_le_galois_l(a in any::<u16>(), b in arb_lebyte2()) {
+            prop_assert!(conn_laws::galois_l(&U016LE02.conn_l(), a, b));
+        }
+
+        #[test]
+        fn u016_le_galois_r(a in any::<u16>(), b in arb_lebyte2()) {
+            prop_assert!(conn_laws::galois_r(&U016LE02.conn_r(), a, b));
+        }
+
+        #[test]
+        fn u016_le_floor_le_ceil(a in any::<u16>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&U016LE02, a));
+        }
+
+        #[test]
+        fn u016_le_order_preserving(a in any::<u16>(), b in any::<u16>()) {
+            prop_assert_eq!(a.cmp(&b), U016LE02.ceil(a).cmp(&U016LE02.ceil(b)));
         }
     }
 

@@ -47,6 +47,9 @@
 //! | [`fixed_be_one`]       | fixed::u8::U008BE01 / fixed::i8::I008BE01 / fixed::u8::BOOLBE01 (Plan 47) |
 //! | [`fixed_be_two`]       | fixed::u16::U016BE02 / fixed::i16::I016BE02 (Plan 47) |
 //! | [`fixed_be_four`]      | fixed::u32::U032BE04 / fixed::i32::I032BE04 (Plan 47) |
+//! | [`fixed_le_one`]       | fixed::u8::U008LE01 / fixed::i8::I008LE01 / fixed::u8::BOOLLE01 |
+//! | [`fixed_le_two`]       | fixed::u16::U016LE02 / fixed::i16::I016LE02 |
+//! | [`fixed_le_four`]      | fixed::u32::U032LE04 / fixed::i32::I032LE04 |
 //! | [`hifi_calendar`]      | MONTU008 / MONTN008 / WKDYU008 (Plan 46)              |
 //!
 //! [Kani]: https://model-checking.github.io/kani/
@@ -59,6 +62,9 @@ mod fix_fix_unsigned;
 mod fixed_be_four;
 mod fixed_be_one;
 mod fixed_be_two;
+mod fixed_le_four;
+mod fixed_le_one;
+mod fixed_le_two;
 mod float_walk;
 mod float_weaker;
 #[cfg(feature = "hifi")]

@@ -87,6 +87,71 @@
 // parent file doesn't need to import `Conn` or `Extended` itself —
 // the submodules pull them in.
 
+/// Little-endian byte array wrapper with numeric-sort ordering.
+///
+/// Plain `[u8; N]` uses lexicographic order from index 0 upward, which
+/// makes big-endian byte arrays sortable but breaks little-endian numeric
+/// order for multi-byte widths. `LE<N>` keeps the little-endian storage
+/// shape while ordering from the most-significant byte down to the
+/// least-significant byte.
+#[repr(transparent)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct LE<const N: usize>(pub [u8; N]);
+
+impl<const N: usize> Ord for LE<N> {
+    #[inline]
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.0.iter().rev().cmp(other.0.iter().rev())
+    }
+}
+
+impl<const N: usize> PartialOrd for LE<N> {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for LE<N> {
+    #[inline]
+    fn from(bytes: [u8; N]) -> Self {
+        Self(bytes)
+    }
+}
+
+impl<const N: usize> From<LE<N>> for [u8; N] {
+    #[inline]
+    fn from(bytes: LE<N>) -> Self {
+        bytes.0
+    }
+}
+
+impl<const N: usize> AsRef<[u8; N]> for LE<N> {
+    #[inline]
+    fn as_ref(&self) -> &[u8; N] {
+        &self.0
+    }
+}
+
+#[cfg(test)]
+mod le_tests {
+    use super::LE;
+
+    #[test]
+    fn le_order_compares_most_significant_byte_first() {
+        assert!(LE([1]) < LE([2]));
+        assert!(LE([1, 0]) < LE([2, 0]));
+        assert!(LE([255, 0]) < LE([0, 1]));
+        assert!(LE([255, 255, 0, 0]) < LE([0, 0, 1, 0]));
+    }
+
+    #[test]
+    fn le_equality_matches_inner_bytes() {
+        assert_eq!(LE([1, 2, 3, 4]), LE([1, 2, 3, 4]));
+        assert_ne!(LE([1, 2, 3, 4]), LE([1, 2, 3, 5]));
+    }
+}
+
 // ── std-int macros (lifted from former src/int.rs) ─────────────────
 
 /// `Conn<u_N, u_M>` widening (`bits(u_N) < bits(u_M)`).

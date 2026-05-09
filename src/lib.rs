@@ -198,6 +198,7 @@ pub mod lattice;
 #[cfg(feature = "time")]
 pub mod time;
 
+pub use fixed::LE;
 pub use interval::Interval;
 
 // Two-sided helpers (ConnK-bound) re-exported at the crate root for
