@@ -343,7 +343,7 @@ unbypassable safety net.
 expensive to gate every commit but cheap once a sprint:
 
 1. `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features
-   byte,testing,macros --document-private-items` — fails on broken
+   testing,macros,time --document-private-items` — fails on broken
    intra-doc links and rustdoc warnings. Mirrors the CI `doc:` job and
    docs.rs feature surface. CI catches these on MR pipelines and
    post-merge `main`, but mid-sprint feature-branch pushes don't

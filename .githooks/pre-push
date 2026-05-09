@@ -9,7 +9,7 @@
 #
 # Currently runs:
 #
-#   1. cargo doc --no-deps --features byte,testing,macros
+#   1. cargo doc --no-deps --features testing,macros,time
 #      --document-private-items
 #      with `RUSTDOCFLAGS=-D warnings` — fails on broken intra-doc
 #      links and rustdoc warnings. Mirrors the CI `doc:` job in
@@ -35,4 +35,4 @@ cd "$repo_root"
 # 1. cargo doc — blocking. Catches broken intra-doc links and rustdoc
 #    warnings before they reach CI. Mirrors the `.gitlab-ci.yml` doc:
 #    job's invocation so the local check and CI agree.
-RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features byte,testing,macros --document-private-items
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features testing,macros,time --document-private-items
