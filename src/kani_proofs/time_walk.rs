@@ -18,7 +18,7 @@
 //!
 //! ## Solver harnesses (`*_solve_*`)
 //!
-//! Pin `solve_steps ≤ SOLVE_STEP_BOUND` (= 44) for `solve_to_ceil`
+//! Pin `solve_steps ≤ SOLVE_STEP_BOUND` (= 52) for `solve_to_ceil`
 //! over the same input slices. The bound is structural to the binary
 //! search (loop body halves the bracket each iteration); the
 //! harnesses are the SMT-blessed seal on top. CBMC may take longer

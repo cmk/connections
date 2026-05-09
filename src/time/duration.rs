@@ -861,7 +861,7 @@ crate::conn_l! {
 //
 // * `*_solve_steps_for_proof` — calls `solve_to_ceil`, the new
 //   production path. The matching Kani harnesses prove
-//   `solve_steps ≤ SOLVE_STEP_BOUND` (= 44) exhaustively on the
+//   `solve_steps ≤ SOLVE_STEP_BOUND` (= 52) exhaustively on the
 //   same slice. The solver bound is structural (loop body halves
 //   the bracket each iteration) but the harness is still useful as
 //   the SMT-blessed seal.
@@ -1142,7 +1142,7 @@ mod float_tdur_tests {
         // v == Duration::MAX.as_seconds_f64(): the rim fast-path
         // (`if v > max_secs`) is `>`, not `>=`, so this exact value
         // falls through to the solver. Pre-solver this walked
-        // ~10¹² ns of plateau; solver finishes in ≤ 44 iterations.
+        // ~10¹² ns of plateau; solver finishes in ≤ 52 iterations.
         let max_secs = Duration::MAX.as_seconds_f64();
         let _ = F064TDUR.ceil(ExtendedFloat::Extend(max_secs));
     }
@@ -1587,7 +1587,7 @@ mod sdur_tests {
     //
     // At `|v| ≥ 1e10` seconds the f64 plateau is wider than 2³⁰ ns,
     // so the legacy walk would take ≳10⁹ iterations. The solver
-    // terminates in ≤ 44. `from_secs_f{64,32}` is well-defined here
+    // terminates in ≤ 52. `from_secs_f{64,32}` is well-defined here
     // (the StdDuration::MAX rim itself is unsafe — stdlib's
     // `from_secs_f64` panics on overflow — so the solver's behavior
     // at the absolute saturation rim is gated by the upstream

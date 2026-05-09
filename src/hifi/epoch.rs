@@ -2842,7 +2842,7 @@ mod tests {
     fn f064_etai_solve_terminates_at_walk_pathological_magnitude() {
         // 1e13 TAI seconds is well past the 2⁵³-ns regime where the
         // f64 plateau widens past 1 ULP — pre-solver this would walk
-        // ~10⁶ ns. With the solver it returns within ≤ 44 iterations.
+        // ~10⁶ ns. With the solver it returns within ≤ 52 iterations.
         let v = ExtendedFloat::Extend(1.0e13_f64);
         let _ = F064ETAI.ceil(v);
     }

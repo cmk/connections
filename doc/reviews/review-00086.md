@@ -380,3 +380,82 @@ Fixed in commit `66288a8` — the body comment of `solve_to_ceil_step_bound_at_m
 #### ↳ cmk (2026-05-09 06:03 UTC) [open]
 
 Fixed in commit `66288a8` — the comment block above `f64_tdur_solve_terminates_at_max_rim` now reads "structurally bounded to ⌈log₂(2 × 2⁵⁰)⌉ = 51 iterations (production cap `SOLVE_STEP_BOUND = 52` adds one slot of slack)".
+
+<!-- glab-id: 3330245771 -->
+<!-- glab-discussion: 37074f2c30c4b335316af3ad15f4df9d7f9ecfe8 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/time/duration.rs:703` (2026-05-09 06:10 UTC) [open]
+
+**[follow-up]** The `f064sdur_ceil` rim guard reads `if v > max_secs { return StdDuration::MAX }` (strict `>`), so `v == max_secs_f64` falls through to `StdDuration::from_secs_f64(v)`. The stdlib `from_secs_f64` panics (debug) or produces undefined behavior (release) when the argument exceeds `StdDuration::MAX` in nanoseconds — and `Duration::MAX.as_secs_f64()` rounds up by half a ULP, placing the exact float above the representable range. The solver then searches a bracket around a saturated `est`, which may return a value that fails the `debug_assert!(widen(z) >= x)`. Consider changing the rim guard to `>=` or clamping `est` before passing it to the solver.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330245782 -->
+<!-- glab-discussion: 784fc8ebf67bf9c42e784baaf4aab47bebf3705b -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 — (2026-05-09 06:10 UTC) [open]
+
+**[follow-up]** `src/time/duration.rs:703` — The `f064sdur_ceil` rim guard reads `if v > max_secs { return StdDuration::MAX }` (strict `>`), so `v == max_secs_f64` falls through to `StdDuration::from_secs_f64(v)`. The stdlib `from_secs_f64` panics (debug) or produces undefined behavior (release) when the argument exceeds `StdDuration::MAX` in nanoseconds — and `Duration::MAX.as_secs_f64()` rounds up by half a ULP, placing the exact float above the representable range. The solver then searches a bracket around a saturated `est`, which may return a value that fails the `debug_assert!(widen(z) >= x)`. Consider changing the rim guard to `>=` or clamping `est` before passing it to the solver.
+
+*(inline anchor rejected by GitLab: 500)*
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330245793 -->
+<!-- glab-discussion: 043de26c8364f3e4a15ece16b35c027f13c6938e -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/float.rs:877` (2026-05-09 06:10 UTC) [open]
+
+**[follow-up]** The `kani_proofs/hifi_walk.rs` and `kani_proofs/time_walk.rs` module-level doc strings both say `SOLVE_STEP_BOUND` = 44, but `SOLVE_STEP_BOUND` was set to 52 (bracket bumped to ±2⁵⁰). The bracket/ULP headroom table in the `solve_to_ceil` doc comment is correct, but the module-level summary in `kani_proofs.rs` line 44 still says `solver-step ≤ 44` rather than ≤ 52, propagating the stale figure into the public module index.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330245807 -->
+<!-- glab-discussion: 553c68121a35980f6f3e3f18948925b03769026c -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/kani_proofs/hifi_walk.rs:30` (2026-05-09 06:10 UTC) [open]
+
+**[follow-up]** The `hifi_walk` module doc says `SOLVE_STEP_BOUND` (= 44), matching the old bracket, but the constant itself is now 52. The parenthetical `(= 44)` in the `## Solver harnesses` section will mislead future readers about the actual bound used by every `assert!(steps <= SOLVE_STEP_BOUND)` in this file.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330245813 -->
+<!-- glab-discussion: c6f653d75c67ec0c57c597236d7a8de1a314271c -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 — (2026-05-09 06:10 UTC) [open]
+
+**[follow-up]** `src/kani_proofs/hifi_walk.rs:30` — The `hifi_walk` module doc says `SOLVE_STEP_BOUND` (= 44), matching the old bracket, but the constant itself is now 52. The parenthetical `(= 44)` in the `## Solver harnesses` section will mislead future readers about the actual bound used by every `assert!(steps <= SOLVE_STEP_BOUND)` in this file.
+
+*(inline anchor rejected by GitLab: 500)*
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330264656 -->
+<!-- glab-discussion: 37074f2c30c4b335316af3ad15f4df9d7f9ecfe8 -->
+#### ↳ cmk (2026-05-09 06:20 UTC) [open]
+
+Declined — false positive against the current diff. `f064sdur_ceil` at `src/time/duration.rs:702` reads `if v >= max_secs { return StdDuration::MAX }` (note `>=`, not `>`). The strict-`>` form was on `origin/main` before this branch's rebase (it's the original behavior the totality MR fixed); rebasing onto current `main` brought the `>=` in. So `v == max_secs` is caught by the rim and never reaches `from_secs_f64` or the solver.
+
+<!-- glab-id: 3330265038 -->
+<!-- glab-discussion: 784fc8ebf67bf9c42e784baaf4aab47bebf3705b -->
+#### ↳ cmk (2026-05-09 06:20 UTC) [open]
+
+Declined — same finding as discussion `37074f2c`, same answer. `src/time/duration.rs:702` reads `if v >= max_secs` in the current diff; the strict-`>` form was on pre-rebase `main` before the totality MR landed.
+
+<!-- glab-id: 3330265416 -->
+<!-- glab-discussion: 043de26c8364f3e4a15ece16b35c027f13c6938e -->
+#### ↳ cmk (2026-05-09 06:21 UTC) [open]
+
+Fixed in commit `38b5851` — `src/kani_proofs.rs` module table now reads "solver-step ≤ 52" for both `time_walk` and `hifi_walk` rows.
+
+<!-- glab-id: 3330265734 -->
+<!-- glab-discussion: 553c68121a35980f6f3e3f18948925b03769026c -->
+#### ↳ cmk (2026-05-09 06:21 UTC) [open]
+
+Fixed in commit `38b5851` — both `src/kani_proofs/hifi_walk.rs:15` and the parallel `src/kani_proofs/time_walk.rs:21` now read `SOLVE_STEP_BOUND` (= 52). Same pass picked up the remaining 44→52 references in `src/time/duration.rs` proof-shim banner + three rim-termination test comments and the matching ETAI comment in `src/hifi/epoch.rs`.
+
+<!-- glab-id: 3330266014 -->
+<!-- glab-discussion: c6f653d75c67ec0c57c597236d7a8de1a314271c -->
+#### ↳ cmk (2026-05-09 06:21 UTC) [open]
+
+Fixed in commit `38b5851` — same `(= 52)` correction; see reply on discussion `553c6812` for the full sweep.
