@@ -243,3 +243,50 @@ No weakened predicates, relaxation suffixes, or excluded-domain notes appear in 
 6. **`f064_etai_solve_terminates_at_walk_pathological_magnitude` may be hitting the rim fast-path, not the solver.** `hifitime::Epoch` spans ±292 years ≈ ±9.2×10⁹ s, so `1e13_f64` is above `epoch_max_secs` and the `> max_secs` rim guard returns before the solver runs. The test comment says "pre-solver this would walk ~10⁶ ns" — that is only true if the walk ran; with the rim fast-path it never did. The test passes and the behavior is correct (rim correctly saturates), but it gives weaker solver coverage than intended. Consider changing the input to `hifitime::Epoch::MAX.to_tai_seconds() * 0.999` (which stays inside the rim) to ensure the solver body is actually exercised. Non-blocking for push.
 
 **Round-1 must-fix items resolved:** Both issues (#1 epoch tests, #2 float.rs step-bound test) are addressed. Round-1 follow-ups #3, #4, #5 are all closed. **Branch is clear to push.**
+
+<!-- glab-id: 3330132025 -->
+<!-- glab-discussion: dea66ea8a6a96b65377729d33cb6e72df341b7e3 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/float.rs:871` (2026-05-09 04:50 UTC) [open]
+
+**[must-fix]** The binary-search bracket `[n_start - 2^42, n_start + 2^42]` is constructed around `n_start = $to_ns(start)`, where `start` is the initial estimate from `$dst::from_seconds(v)`. If the true `ceil` value falls outside this bracket — which can happen when the initial estimate is itself wrong by more than 2^42 ns — the solver will converge to the bracket boundary rather than the true ceil, silently returning a wrong answer. The plan argues the bracket is valid because "the f64 ULP at MAX is ≤ ~2 × 10^12 ns < 2^42 ≈ 4.4 × 10^12 ns", but this relies on `from_seconds` producing an estimate within one ULP of the true value; if `from_seconds` saturates or otherwise deviates by more than 2^42 ns, the Galois law `inner(ceil(x)) >= x` can be violated on the full domain, breaking the `ConnL` claim.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330132073 -->
+<!-- glab-discussion: fdd2350e731fba6dbd5de23cd913ff0bc7710941 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 — (2026-05-09 04:50 UTC) [open]
+
+**[follow-up]** `src/time/duration.rs:107` — In `tdur_from_ns`, the boundary check uses `>=` / `<=` for `max_ns` / `min_ns` respectively, but the interior branch constructs a `Duration` via `Duration::new(secs, subsec)` where `subsec = (n % 1_000_000_000) as i32`. When `n` is negative, `n % 1_000_000_000` is negative (Rust truncates toward zero), producing a negative `subsec_nanoseconds` argument; `time::Duration::new` accepts negative subsecond values for negative durations, but it is worth confirming this matches the expected representation and that the round-trip `tdur_to_ns(tdur_from_ns(n)) == n` holds for all `n` in `[min_ns, max_ns)` to ensure no off-by-one at the nanosecond boundary.
+
+*(inline anchor rejected by GitLab: 400)*
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330132075 -->
+<!-- glab-discussion: c7030af480fd44f6d6879c9e4f24de554d480a81 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/hifi/epoch.rs:2855` (2026-05-09 04:50 UTC) [open]
+
+**[follow-up]** The termination test `f064_etai_solve_terminates_at_walk_pathological_magnitude` uses `1.0e13_f64` seconds as its input, but `hifitime::Epoch` spans roughly ±9.2 × 10^9 s from J1900, so `1e13` s is above the rim guard and the test exercises the rim fast-path rather than `solve_to_ceil`. The review doc already notes this (finding #6), but the test comment claims "pre-solver this would walk ~10^6 ns" — that statement is only true if the solver body runs; as written, the comment is misleading and the solver coverage gap remains unaddressed before push.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3330190467 -->
+<!-- glab-discussion: dea66ea8a6a96b65377729d33cb6e72df341b7e3 -->
+#### ↳ cmk (2026-05-09 05:34 UTC) [open]
+
+Fixed in commit `342b083`. Bumped the bracket to `±2^50` ns (~13 days, ~275× the worst-case ULP-in-ns at `StdDuration::MAX` — the tightest of the four `$dst` types — and orders of magnitude more on the others). `SOLVE_STEP_BOUND` raised from 44 to 52, matching `kani::unwind` directives raised from 45 to 53, and proptest assertions updated. The `solve_to_ceil` doc comment now carries a per-instantiation bracket-vs-ULP headroom table.
+
+<!-- glab-id: 3330190663 -->
+<!-- glab-discussion: fdd2350e731fba6dbd5de23cd913ff0bc7710941 -->
+#### ↳ cmk (2026-05-09 05:34 UTC) [open]
+
+Declined — the truncated-i128-div + `Duration::new(secs, subsec)` pattern with same-sign `(secs, subsec)` is the same one used by `shift_duration` (`src/time/duration.rs:49-66`), which has shipped since the original walk landed and round-trips correctly via its existing proptest coverage. The new `f64_tdur_solve_matches_walk_in_safe_range` proptest exercises `v in -1e6..1e6` and asserts `solve_z == walk_z`, which is an empirical round-trip check that necessarily covers negative-`n` reconstruction.
+
+<!-- glab-id: 3330190813 -->
+<!-- glab-discussion: c7030af480fd44f6d6879c9e4f24de554d480a81 -->
+#### ↳ cmk (2026-05-09 05:34 UTC) [open]
+
+Declined — the "Epoch ±9.2 × 10⁹ s" range is from older hifitime versions that stored Epoch as `i64` ns since J1900. Current hifitime (4.x) stores it as `(i16 centuries, i64 ns)` for a range of `±HD::MAX.total_nanoseconds() ≈ ±1.03 × 10²³` ns ≈ `±1.03 × 10¹⁴` s. The rim guard for `f064etai_ceil` (`src/hifi/epoch.rs:305`) reads `if v > hd_max_secs_f64()`, where `hd_max_secs_f64()` (`src/hifi/duration.rs:60-62`) returns ≈ `1.03 × 10¹⁴`. Since `1e13 < 1.03e14`, the rim does not fire and the solver runs as intended.

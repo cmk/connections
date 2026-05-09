@@ -862,16 +862,41 @@ macro_rules! def_walk_helpers {
                 /// space.
                 ///
                 /// Replaces `descend_to_ceil` / `ascend_to_ceil` for
-                /// `$dst` types with 1 ns resolution. The plateau
-                /// search bracket of `±2⁴²` ns covers the worst f64
-                /// plateau (`f64::MAX`'s ULP ≈ 2⁴¹ ns) with one bit
-                /// of headroom; bound is ⌈log₂(2 × 2⁴²)⌉ = 43
-                /// iterations.
+                /// `$dst` types with 1 ns resolution. Bound is
+                /// `⌈log₂(2 × 2⁵⁰)⌉ = 51` iterations; production
+                /// callers bound by `SOLVE_STEP_BOUND = 52` (one
+                /// extra slot for the terminal `lo == hi` check).
+                ///
+                /// ## Bracket sizing
+                ///
+                /// The search bracket `n_start ± 2⁵⁰ ns` (≈
+                /// `±1.13 × 10¹⁵` ns ≈ `±13` days) must contain
+                /// the true ceil for the result to be correct. The
+                /// upper bound on `|n_start − true_ceil|` is the
+                /// f64 plateau width at the input magnitude (≤ 1
+                /// ULP-of-`v` in seconds, expressed in ns).
+                ///
+                /// At each `$dst`'s rim-guarded magnitude:
+                ///
+                /// | `$dst`             | `max_secs`     | ULP-in-ns         | bracket / ULP |
+                /// |--------------------|----------------|-------------------|---------------|
+                /// | `Duration` (time)  | ≈ 9.22 × 10¹⁸  | ≈ 2.05 × 10¹²     | ≈ 550×        |
+                /// | `StdDuration`      | ≈ 1.84 × 10¹⁹  | ≈ 4.1 × 10¹²      | ≈ 275×        |
+                /// | `HD` (hifitime)    | ≈ 1.03 × 10¹⁴  | ≈ 2.3 × 10⁷       | ≈ 5 × 10⁷×    |
+                /// | `Epoch` (hifitime) | (HD-bounded)   | ≈ 2.3 × 10⁷       | ≈ 5 × 10⁷×    |
+                ///
+                /// `StdDuration` is the tight side: the bracket is
+                /// 275 × ULP-in-ns at MAX, so even a `from_secs_f64`
+                /// implementation that rounded to 200 ULPs would
+                /// stay inside. The pre-Plan-2026-05-08-05 bracket
+                /// of `2⁴²` (~7% margin) was flagged as insufficient
+                /// in `claude-review` discussion `dea66ea8` on
+                /// MR !86; this is the fix.
                 #[allow(dead_code)]
                 pub(super) fn solve_to_ceil(start: $dst, x: $src) -> ($dst, u32) {
                     let n_start: i128 = $to_ns(start);
-                    let mut lo: i128 = n_start.saturating_sub(1i128 << 42);
-                    let mut hi: i128 = n_start.saturating_add(1i128 << 42);
+                    let mut lo: i128 = n_start.saturating_sub(1i128 << 50);
+                    let mut hi: i128 = n_start.saturating_add(1i128 << 50);
                     let mut steps: u32 = 0;
                     while lo < hi {
                         let mid = lo + (hi - lo) / 2;
@@ -1476,7 +1501,7 @@ mod solve_step_bound_tests {
     #[test]
     fn solve_to_ceil_step_bound_at_zero() {
         let (_z, steps) = toy_ns_walks::solve_to_ceil(0_i64, 0.0_f64);
-        assert!(steps <= 44, "got {steps}");
+        assert!(steps <= 52, "got {steps}");
     }
 
     #[test]
@@ -1485,7 +1510,7 @@ mod solve_step_bound_tests {
         // and an `x` outside the bracket, the search runs to
         // exhaustion in ⌈log₂ 2⁴³⌉ = 43 iterations.
         let (_z, steps) = toy_ns_walks::solve_to_ceil(0_i64, 1.0e15_f64);
-        assert!(steps <= 44, "got {steps}");
+        assert!(steps <= 52, "got {steps}");
     }
 
     proptest! {
@@ -1497,7 +1522,7 @@ mod solve_step_bound_tests {
             x in -1.0e15_f64..1.0e15_f64
         ) {
             let (_z, steps) = toy_ns_walks::solve_to_ceil(start, x);
-            prop_assert!(steps <= 44, "got {steps}");
+            prop_assert!(steps <= 52, "got {steps}");
         }
     }
 }

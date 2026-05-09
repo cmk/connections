@@ -114,7 +114,7 @@ fn t2_f32_sdur_walk_steps_unit_binade() {
 // ── T1 — bounded magnitude — solver path ────────────────────────────
 
 #[kani::proof]
-#[kani::unwind(45)]
+#[kani::unwind(53)]
 fn t1_f64_tdur_solve_steps_le_bound() {
     let v: f64 = kani::any();
     kani::assume(v.is_finite() && !v.is_nan());
@@ -124,7 +124,7 @@ fn t1_f64_tdur_solve_steps_le_bound() {
 }
 
 #[kani::proof]
-#[kani::unwind(45)]
+#[kani::unwind(53)]
 fn t1_f32_tdur_solve_steps_le_bound() {
     let v: f32 = kani::any();
     kani::assume(v.is_finite() && !v.is_nan());
@@ -134,7 +134,7 @@ fn t1_f32_tdur_solve_steps_le_bound() {
 }
 
 #[kani::proof]
-#[kani::unwind(45)]
+#[kani::unwind(53)]
 fn t1_f64_sdur_solve_steps_le_bound() {
     let v: f64 = kani::any();
     kani::assume(v.is_finite() && !v.is_nan());
@@ -144,7 +144,7 @@ fn t1_f64_sdur_solve_steps_le_bound() {
 }
 
 #[kani::proof]
-#[kani::unwind(45)]
+#[kani::unwind(53)]
 fn t1_f32_sdur_solve_steps_le_bound() {
     let v: f32 = kani::any();
     kani::assume(v.is_finite() && !v.is_nan());
@@ -156,7 +156,7 @@ fn t1_f32_sdur_solve_steps_le_bound() {
 // ── T2 — single binade — solver path ────────────────────────────────
 
 #[kani::proof]
-#[kani::unwind(45)]
+#[kani::unwind(53)]
 fn t2_f64_tdur_solve_steps_unit_binade() {
     let v: f64 = kani::any();
     kani::assume(v >= 1.0_f64 && v < 2.0_f64);
@@ -165,7 +165,7 @@ fn t2_f64_tdur_solve_steps_unit_binade() {
 }
 
 #[kani::proof]
-#[kani::unwind(45)]
+#[kani::unwind(53)]
 fn t2_f32_tdur_solve_steps_unit_binade() {
     let v: f32 = kani::any();
     kani::assume(v >= 1.0_f32 && v < 2.0_f32);
@@ -174,7 +174,7 @@ fn t2_f32_tdur_solve_steps_unit_binade() {
 }
 
 #[kani::proof]
-#[kani::unwind(45)]
+#[kani::unwind(53)]
 fn t2_f64_sdur_solve_steps_unit_binade() {
     let v: f64 = kani::any();
     kani::assume(v >= 1.0_f64 && v < 2.0_f64);
@@ -183,7 +183,7 @@ fn t2_f64_sdur_solve_steps_unit_binade() {
 }
 
 #[kani::proof]
-#[kani::unwind(45)]
+#[kani::unwind(53)]
 fn t2_f32_sdur_solve_steps_unit_binade() {
     let v: f32 = kani::any();
     kani::assume(v >= 1.0_f32 && v < 2.0_f32);

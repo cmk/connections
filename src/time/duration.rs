@@ -1169,7 +1169,7 @@ mod float_tdur_tests {
             };
             let (solve_z, steps) = f64_tdur_walks::solve_to_ceil(est, v);
             prop_assert_eq!(solve_z, walk_z);
-            prop_assert!(steps <= 44, "solve_to_ceil took {steps} steps");
+            prop_assert!(steps <= 52, "solve_to_ceil took {steps} steps");
         }
 
         // f32 plateau widens to ~120 ns by 1 s magnitude and ~10⁵ ns
@@ -1186,7 +1186,7 @@ mod float_tdur_tests {
             };
             let (solve_z, steps) = f32_tdur_walks::solve_to_ceil(est, v);
             prop_assert_eq!(solve_z, walk_z);
-            prop_assert!(steps <= 44, "solve_to_ceil took {steps} steps");
+            prop_assert!(steps <= 52, "solve_to_ceil took {steps} steps");
         }
     }
 }
@@ -1563,7 +1563,7 @@ mod sdur_tests {
             };
             let (solve_z, steps) = f64_sdur_walks::solve_to_ceil(est, v);
             prop_assert_eq!(solve_z, walk_z);
-            prop_assert!(steps <= 44, "solve_to_ceil took {steps} steps");
+            prop_assert!(steps <= 52, "solve_to_ceil took {steps} steps");
         }
 
         // f32 walk slows past ~1 s magnitude — see TDUR comment.
@@ -1578,7 +1578,7 @@ mod sdur_tests {
             };
             let (solve_z, steps) = f32_sdur_walks::solve_to_ceil(est, v);
             prop_assert_eq!(solve_z, walk_z);
-            prop_assert!(steps <= 44, "solve_to_ceil took {steps} steps");
+            prop_assert!(steps <= 52, "solve_to_ceil took {steps} steps");
         }
     }
 

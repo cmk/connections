@@ -57,13 +57,14 @@
 #![allow(dead_code, unused_imports)]
 
 /// Upper bound on `solve_to_ceil` iterations for the duration / epoch
-/// instantiations. The bracket is fixed at `±2⁴²` ns around the
+/// instantiations. The bracket is fixed at `±2⁵⁰` ns around the
 /// starting estimate; binary search exhausts in
-/// `⌈log₂(2 × 2⁴²)⌉ = 43` iterations, with `+1` slack for the
+/// `⌈log₂(2 × 2⁵⁰)⌉ = 51` iterations, with `+1` slack for the
 /// terminating `lo == hi` check. Shared between
 /// [`time_walk`] and [`hifi_walk`] so the two harness suites can't
-/// drift apart on the bound.
-pub(crate) const SOLVE_STEP_BOUND: u32 = 44;
+/// drift apart on the bound. Bracket-vs-ULP headroom analysis is in
+/// the `solve_to_ceil` doc comment in `crate::float::def_walk_helpers!`.
+pub(crate) const SOLVE_STEP_BOUND: u32 = 52;
 
 #[cfg(feature = "byte")]
 mod byte_four;
