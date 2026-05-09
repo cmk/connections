@@ -83,17 +83,17 @@ clippy:
 doc:
   stage: check
   # Catch broken intra-doc links and rustdoc warnings before docs.rs
-  # builds the published release. The feature set
-  # `byte,testing,macros` matches the docs.rs config in Cargo.toml so
-  # feature-gated items (`connections::byte`, `prop::arb`,
-  # `connections::macros`) render the same way locally as on docs.rs.
+  # builds the published release. The feature set `testing,macros`
+  # matches the docs.rs config in Cargo.toml so feature-gated items
+  # (`prop::arb`, `connections::macros`) render the same way locally
+  # as on docs.rs.
   # Cannot use `--all-features` here: the `f16` feature activates
   # `#![cfg_attr(feature = "f16", feature(f16))]`, a nightly-only
   # attribute that errors on this CI image's stable rustc.
   variables:
     RUSTDOCFLAGS: "-D warnings"
   script:
-    - cargo doc --no-deps --features byte,testing,macros --document-private-items
+    - cargo doc --no-deps --features testing,macros --document-private-items
   # MR pipelines gate source changes. Post-merge main docs are rendered
   # by the strict `pages` job, so this check skips duplicated main work.
   rules:
