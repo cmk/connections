@@ -644,6 +644,68 @@ pub fn arb_extended_i64() -> impl Strategy<Value = Extended<i64>> {
     ]
 }
 
+/// `Extended<u8>` over `NegInf`, `PosInf`, and `Finite` values —
+/// 1:1:1:1:8 weighting with explicit bias toward `Finite::{0, MAX}`.
+/// Mirrors the [`arb_extended_u64`] shape for the narrow rung used
+/// by `F032U008` / `F064U008` / `F016U008` law batteries.
+pub fn arb_extended_u8() -> impl Strategy<Value = Extended<u8>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(0_u8)),
+        1 => Just(Extended::Finite(u8::MAX)),
+        8 => any::<u8>().prop_map(Extended::Finite),
+    ]
+}
+
+/// `Extended<u16>` over `NegInf`, `PosInf`, and `Finite` values —
+/// 1:1:1:1:8 weighting biased toward `Finite::{0, MAX}`.
+pub fn arb_extended_u16() -> impl Strategy<Value = Extended<u16>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(0_u16)),
+        1 => Just(Extended::Finite(u16::MAX)),
+        8 => any::<u16>().prop_map(Extended::Finite),
+    ]
+}
+
+/// `Extended<i8>` over `NegInf`, `PosInf`, and `Finite` values —
+/// 1:1:1:1:8 weighting biased toward `Finite::{MIN, MAX}`.
+pub fn arb_extended_i8() -> impl Strategy<Value = Extended<i8>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(i8::MIN)),
+        1 => Just(Extended::Finite(i8::MAX)),
+        8 => any::<i8>().prop_map(Extended::Finite),
+    ]
+}
+
+/// `Extended<i16>` over `NegInf`, `PosInf`, and `Finite` values —
+/// 1:1:1:1:8 weighting biased toward `Finite::{MIN, MAX}`.
+pub fn arb_extended_i16() -> impl Strategy<Value = Extended<i16>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(i16::MIN)),
+        1 => Just(Extended::Finite(i16::MAX)),
+        8 => any::<i16>().prop_map(Extended::Finite),
+    ]
+}
+
+/// `Extended<i32>` over `NegInf`, `PosInf`, and `Finite` values —
+/// 1:1:1:1:8 weighting biased toward `Finite::{MIN, MAX}`.
+pub fn arb_extended_i32() -> impl Strategy<Value = Extended<i32>> {
+    prop_oneof![
+        1 => Just(Extended::NegInf),
+        1 => Just(Extended::PosInf),
+        1 => Just(Extended::Finite(i32::MIN)),
+        1 => Just(Extended::Finite(i32::MAX)),
+        8 => any::<i32>().prop_map(Extended::Finite),
+    ]
+}
+
 // ── time-crate v2: OffsetDateTime / UtcOffset / Weekday / Month ──
 
 /// Arbitrary `time::UtcOffset` over the full `±25:59:59` range.
