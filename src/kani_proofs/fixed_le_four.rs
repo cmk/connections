@@ -51,5 +51,5 @@ macro_rules! prove_iso_le {
     };
 }
 
-prove_iso_le!(u032_le, crate::fixed::u32::U032LE04, u32);
-prove_iso_le!(i032_le, crate::fixed::i32::I032LE04, i32);
+prove_iso_le!(u032_le, crate::fixed::u032::U032LE04, u32);
+prove_iso_le!(i032_le, crate::fixed::i032::I032LE04, i32);

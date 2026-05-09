@@ -47,6 +47,9 @@
 //! | [`byte_one`]           | U008OBYT / I008OBYT / BOOLOBYT (Plan 47, `byte` feature) |
 //! | [`byte_two`]           | U016OBYT / I016OBYT (Plan 47, `byte` feature) |
 //! | [`byte_four`]          | U032OBYT / I032OBYT (Plan 47, `byte` feature) |
+//! | [`fixed_le_one`]       | fixed::u008::U008LE01 / fixed::i008::I008LE01 / fixed::u008::BOOLLE01 |
+//! | [`fixed_le_two`]       | fixed::u016::U016LE02 / fixed::i016::I016LE02 |
+//! | [`fixed_le_four`]      | fixed::u032::U032LE04 / fixed::i032::I032LE04 |
 //! | [`hifi_calendar`]      | MONTU008 / MONTN008 / WKDYU008 (Plan 46)              |
 //!
 //! [Kani]: https://model-checking.github.io/kani/
@@ -62,6 +65,9 @@ mod byte_two;
 mod ext_int;
 mod fix_fix_signed;
 mod fix_fix_unsigned;
+mod fixed_le_four;
+mod fixed_le_one;
+mod fixed_le_two;
 mod float_walk;
 mod float_weaker;
 #[cfg(feature = "hifi")]

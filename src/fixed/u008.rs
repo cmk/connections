@@ -179,7 +179,7 @@ crate::conn_l! {
     ///
     /// ```rust
     /// use connections::conn::ConnL;
-    /// use connections::fixed::{LE, u8::BOOLLE01};
+    /// use connections::fixed::{LE, u008::BOOLLE01};
     ///
     /// assert_eq!(BOOLLE01.ceil(false), LE([0]));
     /// assert_eq!(BOOLLE01.ceil(true),  LE([1]));

@@ -51,8 +51,8 @@ macro_rules! prove_iso_le {
     };
 }
 
-prove_iso_le!(u008_le, crate::fixed::u8::U008LE01, u8);
-prove_iso_le!(i008_le, crate::fixed::i8::I008LE01, i8);
+prove_iso_le!(u008_le, crate::fixed::u008::U008LE01, u8);
+prove_iso_le!(i008_le, crate::fixed::i008::I008LE01, i8);
 
 mod bool_le {
     use super::*;
@@ -65,7 +65,7 @@ mod bool_le {
     #[kani::proof]
     fn host_roundtrip_l() {
         let a = any_bool();
-        assert!(conn_laws::iso_roundtrip_l(&crate::fixed::u8::BOOLLE01, a));
+        assert!(conn_laws::iso_roundtrip_l(&crate::fixed::u008::BOOLLE01, a));
     }
 
     #[kani::proof]
@@ -74,9 +74,9 @@ mod bool_le {
         let b = any_bool();
         assert!(
             a.cmp(&b)
-                == crate::fixed::u8::BOOLLE01
+                == crate::fixed::u008::BOOLLE01
                     .ceil(a)
-                    .cmp(&crate::fixed::u8::BOOLLE01.ceil(b))
+                    .cmp(&crate::fixed::u008::BOOLLE01.ceil(b))
         );
     }
 }
