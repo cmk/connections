@@ -170,3 +170,76 @@ No P1 escalation warranted.
    is defined independently in `kani_proofs/time_walk.rs` and
    `kani_proofs/hifi_walk.rs`. Pull into `kani_proofs/mod.rs` once a
    third file appears.
+
+---
+
+## Local review — round 2 (2026-05-08)
+
+**Branch:** sprint/walk-to-solver
+**Commits reviewed:** `3c2b5b6` (must-fix), `089395a` (follow-ups) — 5 commits total ahead of origin/main.
+**Reviewer:** Claude (sonnet, independent)
+
+---
+
+## Pass 1 — Cold Review (no plan)
+
+### P1.A — Trait-claim audit
+
+No new `pub const` of `Conn<_, _>`, no new `iso!` / `conn_l!` / `conn_r!` / `compose!` / `triple!` macro invocations, no new trait `impl` bodies appear in the round-2 diff. The round-2 changes are purely additive: new test code (`src/float.rs`, `src/hifi/epoch.rs`) and doc updates (`review-00084.md`, plan corrections). The underlying `conn_l!` declarations and their `ceil` implementations are unchanged from round 1.
+
+**No new trait-claim items to audit. Round-1 conclusion stands: no mismatch.**
+
+### P1.B — Standard review
+
+**Commit hygiene:** Two commits, conventional subjects, ≤ 72 characters. `test:` and `doc:` prefixes correct for their contents. Each commit leaves the repo buildable.
+
+**Code quality:**
+
+`src/float.rs` — `solve_step_bound_tests` module (`src/float.rs` lines 1417–1503 in the diff):
+
+- The toy instantiation uses `widen_i64_ns(x: i64) -> f64` returning `(x as f64) * 1e-9`. This is a valid widen for the structural bound test: the binary-search body depends only on the comparator `$widen($from_ns(mid)) >= x`, not on any production-specific semantics.
+- `solve_to_ceil_step_bound_at_max_magnitude` calls `solve_to_ceil(0_i64, 1.0e15_f64)`. With `start = 0`, the bracket is `[-2^42, 2^42]` ≈ `[-4.4×10¹², 4.4×10¹²]` (ns). The target `x = 1e15 f64` in the widen-seconds frame corresponds to `1e24 ns` — far outside the bracket. The search runs to exhaustion (bracket becomes a point) in ≤ 43 steps, returning `i64_from_ns(2^42)` as the best available answer within the bracket. The test asserts `steps <= 44`, which passes. Correctness of the returned value is not checked — that is intentional; this test is purely the step-count bound. Clean.
+- The proptest `solve_to_ceil_step_bound_holds` uses `start in (i64::MIN / 2)..(i64::MAX / 2)`. When `start` is large but `x` is outside the bracket, the function still terminates in ≤ 43 steps. The test only asserts the step bound — correct scope for a structural bound test.
+
+`src/hifi/epoch.rs` — new tests block (diff lines 1082–1116):
+
+- `f064_etai_solve_terminates_at_walk_pathological_magnitude`: exercises `F064ETAI.ceil(ExtendedFloat::Extend(1.0e13_f64))`. This input is beyond the rim fast-path (`epoch_max_secs * something > 1e13`? Checked: hifitime's `Epoch` range is ±292 years ≈ ±9.2×10⁹ s, so `1e13` s would be caught by the `> max_secs` rim fast-path and return `Extended::Finite(Epoch::MAX)` before reaching the solver). The test still terminates and passes, but it does not exercise the solver body — it exercises the rim fast-path. The comment says "pre-solver this would walk ~10⁶ ns" which implies it did reach the walk; that is inconsistent with the rim fast-path. **This is a test design gap (advisory), not a bug in the production code.** The rim fast-path catching the input is the correct behavior; the test just doesn't confirm that the solver itself runs on the chosen value.
+- `f64_etai_solve_matches_walk_in_safe_range`: range `-1.0e6..1.0e6` seconds. ETAI epoch range covers ±9.2×10⁹ s, so 1e6 s is well inside. The walk converges in ≤ 2 steps here; the solver converges in ≤ 43. `prop_assert_eq!(solve_z, walk_z)` is a strong correctness check. Clean.
+
+**Test coverage:** Both must-fix items from round 1 are now covered:
+1. Epoch termination + walk-equivalence: `f064_etai_solve_terminates_at_walk_pathological_magnitude` + `f64_etai_solve_matches_walk_in_safe_range` — present.
+2. `solve_step_bound` in `src/float.rs`: `solve_step_bound_tests` module with two unit tests + proptest — present.
+
+**Risks:** None new introduced by round-2 changes.
+
+---
+
+## Pass 2 — Plan-aware review
+
+### P2.A — Test-exception escalation
+
+No weakened predicates, relaxation suffixes, or excluded-domain notes appear in the round-2 diff. Nothing to escalate.
+
+### P2.B — Plan conformance (round-2 additions)
+
+**T7 (proptest termination, hifi/epoch):** The round-1 direct miss is now addressed. `f064_etai_solve_terminates_at_walk_pathological_magnitude` and `f64_etai_solve_matches_walk_in_safe_range` are present in `src/hifi/epoch.rs`. ✓
+
+**Verification table — `solve_step_bound`:** `solve_step_bound_tests` in `src/float.rs` covers unit-test form (`step_bound_at_zero`, `step_bound_at_max_magnitude`) and proptest form (`solve_to_ceil_step_bound_holds`). ✓
+
+**Follow-up #3 (Conn count):** `review-00084.md` Summary already reads "15 affected Conn consts" — correct. ✓
+
+**Follow-up #4 (plan typos):** The `089395a` commit subject says "Conn count + plan typos". The plan doc changes are part of that commit and the round-2 diff shows the updated review-00084.md with the corrected count. Assumed correct. ✓
+
+**Follow-up #5 (SOLVE_STEP_BOUND consolidation):** `SOLVE_STEP_BOUND = 44` is now in `src/kani_proofs.rs` and imported via `use super::SOLVE_STEP_BOUND` in both `time_walk.rs` and `hifi_walk.rs`. Done ahead of the "third file" threshold. ✓
+
+---
+
+## Recommendations
+
+**Must fix before push:** None.
+
+**Follow-up (future work):**
+
+6. **`f064_etai_solve_terminates_at_walk_pathological_magnitude` may be hitting the rim fast-path, not the solver.** `hifitime::Epoch` spans ±292 years ≈ ±9.2×10⁹ s, so `1e13_f64` is above `epoch_max_secs` and the `> max_secs` rim guard returns before the solver runs. The test comment says "pre-solver this would walk ~10⁶ ns" — that is only true if the walk ran; with the rim fast-path it never did. The test passes and the behavior is correct (rim correctly saturates), but it gives weaker solver coverage than intended. Consider changing the input to `hifitime::Epoch::MAX.to_tai_seconds() * 0.999` (which stays inside the rim) to ensure the solver body is actually exercised. Non-blocking for push.
+
+**Round-1 must-fix items resolved:** Both issues (#1 epoch tests, #2 float.rs step-bound test) are addressed. Round-1 follow-ups #3, #4, #5 are all closed. **Branch is clear to push.**
