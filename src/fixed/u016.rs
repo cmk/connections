@@ -52,20 +52,20 @@ uint_uint!(U016U128, u16, u128);
 
 nz_uint_ext!(U016N016, u16, NonZeroU16);
 
-// ── §3 cross-crate iso: FixedU16<F0> ↔ u16 ─────────────────────────
+// ── §3 cross-crate iso: u16 ↔ FixedU16<F0> ─────────────────────────
 
-const fn q000u016_fwd(q: FixedU16<F0>) -> u16 {
-    q.to_bits()
-}
-const fn q000u016_bk(i: u16) -> FixedU16<F0> {
+const fn u016q000_fwd(i: u16) -> FixedU16<F0> {
     FixedU16::<F0>::from_bits(i)
+}
+const fn u016q000_bk(q: FixedU16<F0>) -> u16 {
+    q.to_bits()
 }
 
 crate::iso! {
-    /// `FixedU16<F0> ↔ u16` — Q16.0 unsigned lossless iso. Degenerate Galois.
-    pub Q000U016 : FixedU16<F0> => u16 {
-        forward: q000u016_fwd,
-        back:    q000u016_bk,
+    /// `u16 ↔ FixedU16<F0>` — Q16.0 unsigned lossless iso. Degenerate Galois.
+    pub U016Q000 : u16 => FixedU16<F0> {
+        forward: u016q000_fwd,
+        back:    u016q000_bk,
     }
 }
 

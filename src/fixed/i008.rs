@@ -62,22 +62,22 @@ int_uint!(I008U128, i8, u128);
 
 nz_int_ext!(I008N008, i8, NonZeroI8);
 
-// ── §3 cross-crate iso: FixedI8<U0> ↔ i8 ───────────────────────────
+// ── §3 cross-crate iso: i8 ↔ FixedI8<U0> ───────────────────────────
 
-const fn q000i008_fwd(q: FixedI8<U0>) -> i8 {
-    q.to_bits()
-}
-const fn q000i008_bk(i: i8) -> FixedI8<U0> {
+const fn i008q000_fwd(i: i8) -> FixedI8<U0> {
     FixedI8::<U0>::from_bits(i)
+}
+const fn i008q000_bk(q: FixedI8<U0>) -> i8 {
+    q.to_bits()
 }
 
 crate::iso! {
-    /// `FixedI8<U0> ↔ i8` — Q8.0 lossless iso, the canonical bridge
+    /// `i8 ↔ FixedI8<U0>` — Q8.0 lossless iso, the canonical bridge
     /// between the Q-format and std-int views of the same 8-bit signed
     /// integer storage. Degenerate Galois (`floor = ceil`).
-    pub Q000I008 : FixedI8<U0> => i8 {
-        forward: q000i008_fwd,
-        back:    q000i008_bk,
+    pub I008Q000 : i8 => FixedI8<U0> {
+        forward: i008q000_fwd,
+        back:    i008q000_bk,
     }
 }
 
@@ -325,22 +325,23 @@ mod tests {
         }
     }
 
-    // ── §3 cross-crate iso (Q000I008) spot checks ──────────────────
+    // ── §3 cross-crate iso (I008Q000) spot checks ──────────────────
 
     #[test]
-    fn q000i008_round_trips_both_ways() {
+    fn i008q000_round_trips_both_ways() {
         for &v in &[i8::MIN, -1, 0, 1, 42, i8::MAX] {
             let q = FixedI8::<U0>::from_bits(v);
-            assert_eq!(Q000I008.ceil(q), v);
-            assert_eq!(Q000I008.floor(q), v);
-            assert_eq!(Q000I008.upper(v), q);
+            assert_eq!(I008Q000.ceil(v), q);
+            assert_eq!(I008Q000.floor(v), q);
+            assert_eq!(I008Q000.upper(q), v);
+            assert_eq!(I008Q000.lower(q), v);
             // Iso: ceil ∘ inner = identity, inner ∘ ceil = identity.
-            assert_eq!(Q000I008.ceil(Q000I008.upper(v)), v);
-            assert_eq!(Q000I008.upper(Q000I008.ceil(q)), q);
+            assert_eq!(I008Q000.ceil(I008Q000.upper(q)), q);
+            assert_eq!(I008Q000.upper(I008Q000.ceil(v)), v);
         }
     }
 
-    // ── Property tests covering I008N008 (NonZero) and Q000I008 (iso)
+    // ── Property tests covering I008N008 (NonZero) and I008Q000 (iso)
 
     fn arb_nz_i8() -> impl Strategy<Value = NonZeroI8> {
         any::<i8>().prop_filter_map("non-zero i8", NonZeroI8::new)
@@ -368,24 +369,26 @@ mod tests {
             prop_assert_eq!(I008N008.floor(I008N008.upper(nz)), nz);
         }
 
-        // Q000I008 is an iso — both Galois laws must hold.
+        // I008Q000 is an iso — both Galois laws must hold.
         #[test]
-        fn q000i008_galois_l(a_bits in any::<i8>(), b in any::<i8>()) {
-            let a = FixedI8::<U0>::from_bits(a_bits);
-            prop_assert!(conn_laws::galois_l(&Q000I008.conn_l(), a, b));
+        fn i008q000_galois_l(a in any::<i8>(), b_bits in any::<i8>()) {
+            let b = FixedI8::<U0>::from_bits(b_bits);
+            prop_assert!(conn_laws::galois_l(&I008Q000.conn_l(), a, b));
         }
 
         #[test]
-        fn q000i008_galois_r(a_bits in any::<i8>(), b in any::<i8>()) {
-            let a = FixedI8::<U0>::from_bits(a_bits);
-            prop_assert!(conn_laws::galois_r(&Q000I008.conn_r(), a, b));
+        fn i008q000_galois_r(a in any::<i8>(), b_bits in any::<i8>()) {
+            let b = FixedI8::<U0>::from_bits(b_bits);
+            prop_assert!(conn_laws::galois_r(&I008Q000.conn_r(), a, b));
         }
 
         #[test]
-        fn q000i008_round_trip_both_directions(v in any::<i8>()) {
+        fn i008q000_round_trip_both_directions(v in any::<i8>()) {
             let q = FixedI8::<U0>::from_bits(v);
-            prop_assert_eq!(Q000I008.ceil(Q000I008.upper(v)), v);
-            prop_assert_eq!(Q000I008.upper(Q000I008.ceil(q)), q);
+            prop_assert_eq!(I008Q000.upper(I008Q000.ceil(v)), v);
+            prop_assert_eq!(I008Q000.ceil(I008Q000.upper(q)), q);
+            prop_assert_eq!(I008Q000.lower(I008Q000.floor(v)), v);
+            prop_assert_eq!(I008Q000.floor(I008Q000.lower(q)), q);
         }
     }
 

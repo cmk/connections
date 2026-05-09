@@ -15,7 +15,7 @@
 //! ## §3 Cross-crate iso `FixedI128<U0>` ↔ `i128`
 //!
 //! Q128.0 lossless bridge between the Q-format and std-int views of
-//! the same 128-bit signed integer storage; `Q000I128` uses
+//! the same 128-bit signed integer storage; `I128Q000` uses
 //! the [`conn_k!`](crate::conn_k) macro.
 //!
 //! ## §4 Q-format ladder over `FixedI128<Frac>`
@@ -65,20 +65,20 @@ int_uint!(I128U128, i128, u128);
 
 nz_int_ext!(I128N128, i128, NonZeroI128);
 
-// ── §3 cross-crate iso: FixedI128<U0> ↔ i128 ───────────────────────
+// ── §3 cross-crate iso: i128 ↔ FixedI128<U0> ───────────────────────
 
-const fn q000i128_fwd(q: FixedI128<U0>) -> i128 {
-    q.to_bits()
-}
-const fn q000i128_bk(i: i128) -> FixedI128<U0> {
+const fn i128q000_fwd(i: i128) -> FixedI128<U0> {
     FixedI128::<U0>::from_bits(i)
+}
+const fn i128q000_bk(q: FixedI128<U0>) -> i128 {
+    q.to_bits()
 }
 
 crate::iso! {
-    /// `FixedI128<U0> ↔ i128` — Q128.0 lossless iso. Degenerate Galois.
-    pub Q000I128 : FixedI128<U0> => i128 {
-        forward: q000i128_fwd,
-        back:    q000i128_bk,
+    /// `i128 ↔ FixedI128<U0>` — Q128.0 lossless iso. Degenerate Galois.
+    pub I128Q000 : i128 => FixedI128<U0> {
+        forward: i128q000_fwd,
+        back:    i128q000_bk,
     }
 }
 

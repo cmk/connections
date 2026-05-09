@@ -25,18 +25,19 @@ this doc explains how those names get earned.
 
 ```rust
 use connections::conn::{ConnL, ConnR};
-use connections::fixed::i016::Q000I016;
+use connections::fixed::i016::I016Q000;
 use fixed::types::extra::U0;
 use fixed::FixedI16;
 
 let q = FixedI16::<U0>::from_bits(5);
-assert_eq!(Q000I016.ceil(q),  5_i16);
-assert_eq!(Q000I016.floor(q), 5_i16);
-assert_eq!(Q000I016.upper(5_i16), q);
+assert_eq!(I016Q000.ceil(5_i16),  q);
+assert_eq!(I016Q000.floor(5_i16), q);
+assert_eq!(I016Q000.upper(q),     5_i16);
+assert_eq!(I016Q000.lower(q),     5_i16);
 
 let neg = FixedI16::<U0>::from_bits(-5);
-assert_eq!(Q000I016.ceil(neg),  -5_i16);
-assert_eq!(Q000I016.floor(neg), -5_i16);
+assert_eq!(I016Q000.ceil(-5_i16),  neg);
+assert_eq!(I016Q000.floor(-5_i16), neg);
 ```
 
 See [EXAMPLES.md](https://gitlab.com/cmk/connections/-/blob/main/EXAMPLES.md)
@@ -435,7 +436,7 @@ implement `ConnK`.
 | Q-format binary fixed-point (`Q###Q###`, i8/u8 … i128/u128 backing) | `fixed::{i008,…,i128, u008,…,u128}` |
 | Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `fixed::{i008,…,i128, u008,…,u128}` (alongside the Q-format ladder for the source side) |
 | `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `fixed::{i008,…,i128, u008,…,u128}` |
-| Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) | `fixed::{i008,…,i128, u008,…,u128}` |
+| Cross-crate iso `{i,u}{N} ↔ Fixed{I,U}<U0>` (`I###Q000`, `U###Q000`) | `fixed::{i008,…,i128, u008,…,u128}` |
 | Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` cargo feature |
 | `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |

@@ -146,8 +146,8 @@ cumulative in-development state.
   (right-Galois fails at the unsigned bottom plateau, where there is
   no NonZero strictly below `NonZero(1)`).
 - **Cross-crate iso family** — 10 new Conns
-  `fixed::iN::Q000I{NN}` (and unsigned analogues) bridging
-  `Fixed{I,U}{NN}<U0>` and the corresponding std-int primitive.
+  `fixed::iN::I{NN}Q000` (and unsigned analogues) bridging
+  the corresponding std-int primitive and `Fixed{I,U}{NN}<U0>`.
   Lossless `to_bits` / `from_bits` via `Conn::new_iso`.
 
 ### Why

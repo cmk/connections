@@ -81,7 +81,7 @@
 //!   the canonical 32-bit normalised-amplitude format).
 //! - [`fixed::i008::I008N008`] — `i8 → NonZeroI8` (asymmetric adjoint
 //!   at zero: `floor(0) = -1`, `ceil(0) = +1`).
-//! - [`fixed::i008::Q000I008`] — `FixedI8<U0> ↔ i8` cross-crate iso
+//! - [`fixed::i008::I008Q000`] — `i8 ↔ FixedI8<U0>` cross-crate iso
 //!   (Q8.0 lossless bridge to the std primitive).
 //!
 //! `F128` is blocked on `f128` stabilisation in stable Rust.

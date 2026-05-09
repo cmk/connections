@@ -1,5 +1,5 @@
-//! Kani harnesses for [`crate::iso!`] — the cross-crate `Q<frac=0> ↔
-//! intN` lossless isos. These are degenerate Galois connections
+//! Kani harnesses for [`crate::iso!`] — the cross-crate `intN ↔
+//! Q<frac=0>` lossless isos. These are degenerate Galois connections
 //! (`ceil = floor`) so both L and R laws must hold, and additionally
 //! both round-trips must be exact (`inner ∘ ceil = id_A`,
 //! `ceil ∘ inner = id_B`).
@@ -22,38 +22,37 @@ macro_rules! prove_iso {
 
             #[kani::proof]
             fn galois_l() {
+                let a: $P = kani::any();
                 let bits: $P = kani::any();
-                let a = <$FX>::from_bits(bits);
-                let b: $P = kani::any();
+                let b = <$FX>::from_bits(bits);
                 assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
             }
 
             #[kani::proof]
             fn galois_r() {
+                let a: $P = kani::any();
                 let bits: $P = kani::any();
-                let a = <$FX>::from_bits(bits);
-                let b: $P = kani::any();
+                let b = <$FX>::from_bits(bits);
                 assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
             }
 
             // Both directions of the iso are exact.
             #[kani::proof]
             fn iso_roundtrip_l() {
-                let bits: $P = kani::any();
-                let a = <$FX>::from_bits(bits);
+                let a: $P = kani::any();
                 assert!(conn_laws::iso_roundtrip_l(&$CONN.conn_l(), a));
             }
 
             #[kani::proof]
             fn roundtrip_ceil() {
-                let b: $P = kani::any();
+                let bits: $P = kani::any();
+                let b = <$FX>::from_bits(bits);
                 assert!(conn_laws::roundtrip_ceil(&$CONN.conn_l(), b));
             }
 
             #[kani::proof]
             fn idempotent_l() {
-                let bits: $P = kani::any();
-                let a = <$FX>::from_bits(bits);
+                let a: $P = kani::any();
                 assert!(conn_laws::idempotent_l(&$CONN.conn_l(), a));
             }
         }
@@ -67,11 +66,11 @@ use crate::fixed::i032 as fi032;
 use crate::fixed::i064 as fi064;
 use crate::fixed::i128 as fi128;
 
-prove_iso!(q000i008, fi008::Q000I008, FixedI8<U0>, i8);
-prove_iso!(q000i016, fi016::Q000I016, FixedI16<U0>, i16);
-prove_iso!(q000i032, fi032::Q000I032, FixedI32<U0>, i32);
-prove_iso!(q000i064, fi064::Q000I064, FixedI64<U0>, i64);
-prove_iso!(q000i128, fi128::Q000I128, FixedI128<U0>, i128);
+prove_iso!(i008q000, fi008::I008Q000, FixedI8<U0>, i8);
+prove_iso!(i016q000, fi016::I016Q000, FixedI16<U0>, i16);
+prove_iso!(i032q000, fi032::I032Q000, FixedI32<U0>, i32);
+prove_iso!(i064q000, fi064::I064Q000, FixedI64<U0>, i64);
+prove_iso!(i128q000, fi128::I128Q000, FixedI128<U0>, i128);
 
 // ── Unsigned isos ───────────────────────────────────────────────────
 use crate::fixed::u008 as fu008;
@@ -80,8 +79,8 @@ use crate::fixed::u032 as fu032;
 use crate::fixed::u064 as fu064;
 use crate::fixed::u128 as fu128;
 
-prove_iso!(q000u008, fu008::Q000U008, FixedU8<U0>, u8);
-prove_iso!(q000u016, fu016::Q000U016, FixedU16<U0>, u16);
-prove_iso!(q000u032, fu032::Q000U032, FixedU32<U0>, u32);
-prove_iso!(q000u064, fu064::Q000U064, FixedU64<U0>, u64);
-prove_iso!(q000u128, fu128::Q000U128, FixedU128<U0>, u128);
+prove_iso!(u008q000, fu008::U008Q000, FixedU8<U0>, u8);
+prove_iso!(u016q000, fu016::U016Q000, FixedU16<U0>, u16);
+prove_iso!(u032q000, fu032::U032Q000, FixedU32<U0>, u32);
+prove_iso!(u064q000, fu064::U064Q000, FixedU64<U0>, u64);
+prove_iso!(u128q000, fu128::U128Q000, FixedU128<U0>, u128);

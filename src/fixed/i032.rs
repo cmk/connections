@@ -33,20 +33,20 @@ int_uint!(I032U128, i32, u128);
 
 nz_int_ext!(I032N032, i32, NonZeroI32);
 
-// ── §3 cross-crate iso: FixedI32<U0> ↔ i32 ─────────────────────────
+// ── §3 cross-crate iso: i32 ↔ FixedI32<U0> ─────────────────────────
 
-const fn q000i032_fwd(q: FixedI32<U0>) -> i32 {
-    q.to_bits()
-}
-const fn q000i032_bk(i: i32) -> FixedI32<U0> {
+const fn i032q000_fwd(i: i32) -> FixedI32<U0> {
     FixedI32::<U0>::from_bits(i)
+}
+const fn i032q000_bk(q: FixedI32<U0>) -> i32 {
+    q.to_bits()
 }
 
 crate::iso! {
-    /// `FixedI32<U0> ↔ i32` — Q32.0 lossless iso. Degenerate Galois.
-    pub Q000I032 : FixedI32<U0> => i32 {
-        forward: q000i032_fwd,
-        back:    q000i032_bk,
+    /// `i32 ↔ FixedI32<U0>` — Q32.0 lossless iso. Degenerate Galois.
+    pub I032Q000 : i32 => FixedI32<U0> {
+        forward: i032q000_fwd,
+        back:    i032q000_bk,
     }
 }
 

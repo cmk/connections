@@ -41,20 +41,20 @@ uint_uint_narrow!(U128U064, u128, u64);
 
 nz_uint_ext!(U128N128, u128, NonZeroU128);
 
-// ── §3 cross-crate iso: FixedU128<F0> ↔ u128 ───────────────────────
+// ── §3 cross-crate iso: u128 ↔ FixedU128<F0> ───────────────────────
 
-const fn q000u128_fwd(q: FixedU128<F0>) -> u128 {
-    q.to_bits()
-}
-const fn q000u128_bk(i: u128) -> FixedU128<F0> {
+const fn u128q000_fwd(i: u128) -> FixedU128<F0> {
     FixedU128::<F0>::from_bits(i)
+}
+const fn u128q000_bk(q: FixedU128<F0>) -> u128 {
+    q.to_bits()
 }
 
 crate::iso! {
-    /// `FixedU128<F0> ↔ u128` — Q128.0 unsigned lossless iso. Degenerate Galois.
-    pub Q000U128 : FixedU128<F0> => u128 {
-        forward: q000u128_fwd,
-        back:    q000u128_bk,
+    /// `u128 ↔ FixedU128<F0>` — Q128.0 unsigned lossless iso. Degenerate Galois.
+    pub U128Q000 : u128 => FixedU128<F0> {
+        forward: u128q000_fwd,
+        back:    u128q000_bk,
     }
 }
 

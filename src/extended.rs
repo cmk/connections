@@ -74,33 +74,33 @@
 //! use connections::compose_k;
 //! use connections::conn::{Conn, ConnL, ConnR, L};
 //! use connections::extended::Extended;
-//! use connections::fixed::i016::Q000I016;
+//! use connections::fixed::i016::I016Q000;
 //! use connections::{compose_l, lift_k};
 //! use fixed::FixedI16;
 //! use fixed::types::extra::U0;
 //!
-//! // Lift the iso Q000I016 through Extended on both sides.
-//! lift_k!(EXTQ : FixedI16<U0> => i16 = Q000I016);
+//! // Lift the iso I016Q000 through Extended on both sides.
+//! lift_k!(EXTQ : i16 => FixedI16<U0> = I016Q000);
 //!
 //! // compose_k! takes the lift_k! marker as a path operand, chains
 //! // it with another ConnK marker (here: the same lift again,
-//! // standing in for any Extended<i16> ↔ Extended<X> bridge),
+//! // standing in for any Extended<FixedI16<U0>> ↔ Extended<X> bridge),
 //! // and emits a fresh marker for the composed chain.
-//! compose_k!(CHAIN_K : Extended<FixedI16<U0>> => Extended<i16> => Extended<i16>
+//! compose_k!(CHAIN_K : Extended<i16> => Extended<FixedI16<U0>> => Extended<FixedI16<U0>>
 //!            = EXTQ, EXTQ_IDENTITY);
 //!
 //! // Stand-in identity bridge to make the doctest self-contained.
 //! // In real code the second leg would be another lift_k! / iso! /
 //! // conn_k! marker covering the bridged segment.
 //! pub struct EXTQ_IDENTITY;
-//! impl ConnL<Extended<i16>, Extended<i16>> for EXTQ_IDENTITY {
-//!     fn conn_l(&self) -> Conn<Extended<i16>, Extended<i16>, L> {
+//! impl ConnL<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>> for EXTQ_IDENTITY {
+//!     fn conn_l(&self) -> Conn<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>, L> {
 //!         Conn::identity()
 //!     }
 //! }
-//! impl ConnR<Extended<i16>, Extended<i16>> for EXTQ_IDENTITY {
-//!     fn conn_r(&self) -> Conn<Extended<i16>, Extended<i16>, connections::conn::R> {
-//!         Conn::<Extended<i16>, Extended<i16>, L>::identity().swap_l()
+//! impl ConnR<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>> for EXTQ_IDENTITY {
+//!     fn conn_r(&self) -> Conn<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>, connections::conn::R> {
+//!         Conn::<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>, L>::identity().swap_l()
 //!     }
 //! }
 //!
@@ -108,7 +108,7 @@
 //! // operand at runtime via `.conn_l()`.
 //! let final_chain = compose_l!(CHAIN_K.conn_l(), EXTQ_IDENTITY.conn_l());
 //! let q = FixedI16::<U0>::from_bits(7);
-//! assert_eq!(final_chain.ceil(Extended::Finite(q)), Extended::Finite(7_i16));
+//! assert_eq!(final_chain.ceil(Extended::Finite(7_i16)), Extended::Finite(q));
 //! ```
 //!
 //! [`Conn<Extended<A>, Extended<B>, L>`]: crate::conn::Conn
@@ -344,23 +344,23 @@ macro_rules! lift_r {
 /// ```rust
 /// use connections::conn::{ConnL, ConnR};
 /// use connections::extended::Extended;
-/// use connections::fixed::i016::Q000I016;
+/// use connections::fixed::i016::I016Q000;
 /// use connections::lift_k;
 /// use fixed::FixedI16;
 /// use fixed::types::extra::U0;
 ///
-/// // Lift `Q000I016 : FixedI16<U0> ↔ i16` so it splices into chains
-/// // whose adjacent endpoint is already `Extended<i16>`.
-/// lift_k!(EXTQ000I016 : FixedI16<U0> => i16 = Q000I016);
+/// // Lift `I016Q000 : i16 ↔ FixedI16<U0>` so it splices into chains
+/// // whose adjacent endpoint is already `Extended<FixedI16<U0>>`.
+/// lift_k!(EXTI016Q000 : i16 => FixedI16<U0> = I016Q000);
 ///
 /// // Synthetic markers map identically.
-/// assert_eq!(EXTQ000I016.ceil(Extended::NegInf), Extended::NegInf);
-/// assert_eq!(EXTQ000I016.floor(Extended::PosInf), Extended::PosInf);
+/// assert_eq!(EXTI016Q000.ceil(Extended::NegInf), Extended::NegInf);
+/// assert_eq!(EXTI016Q000.floor(Extended::PosInf), Extended::PosInf);
 ///
-/// // Finite arm dispatches through the parent (lossless on Q000I016).
+/// // Finite arm dispatches through the parent (lossless on I016Q000).
 /// let q = FixedI16::<U0>::from_bits(42);
-/// assert_eq!(EXTQ000I016.ceil(Extended::Finite(q)), Extended::Finite(42_i16));
-/// assert_eq!(EXTQ000I016.upper(Extended::Finite(42_i16)), Extended::Finite(q));
+/// assert_eq!(EXTI016Q000.ceil(Extended::Finite(42_i16)), Extended::Finite(q));
+/// assert_eq!(EXTI016Q000.upper(Extended::Finite(q)), Extended::Finite(42_i16));
 /// ```
 #[macro_export]
 macro_rules! lift_k {
@@ -528,7 +528,7 @@ mod tests {
 // 1. Spot-check that synthetic-arm equality holds by construction.
 // 2. Drive lifted `Conn::identity::<i64>` through the `l_only` battery —
 //    the simplest non-trivial L-only fixture, exercises arms-and-Finite.
-// 3. Drive lifted `Q000I016` (an iso ConnK from `fixed::i016`) through
+// 3. Drive lifted `I016Q000` (an iso ConnK from `fixed::i016`) through
 //    the `full` battery — exercises both ConnL and ConnR sides plus
 //    `floor_le_ceil`, the full triple-marker law set.
 // 4. Smoke-test that a `lift_l!` value composes into a `compose_l!`
@@ -540,7 +540,7 @@ mod tests {
 mod lift_tests {
     use super::*;
     use crate::conn::{Conn, ConnL as _, ConnR as _, L, R};
-    use crate::fixed::i016::Q000I016;
+    use crate::fixed::i016::I016Q000;
     use ::fixed::FixedI16;
     use ::fixed::types::extra::U0;
     use proptest::prelude::*;
@@ -603,42 +603,42 @@ mod lift_tests {
         assert_eq!(LIFTED.upper(Extended::Finite(-3)), Extended::Finite(-3));
     }
 
-    // Marker that lifts the iso `Q000I016 : FixedI16<U0> ↔ i16` to
-    // `Extended<FixedI16<U0>> ↔ Extended<i16>`. Used by the law
+    // Marker that lifts the iso `I016Q000 : i16 ↔ FixedI16<U0>` to
+    // `Extended<i16> ↔ Extended<FixedI16<U0>>`. Used by the law
     // battery below and the synthetic-arm spot checks.
-    lift_k!(EXTQ000I016 : FixedI16<U0> => i16 = Q000I016);
+    lift_k!(EXTI016Q000 : i16 => FixedI16<U0> = I016Q000);
 
     #[test]
-    fn lift_k_q000i016_synthetic_arms() {
+    fn lift_k_i016q000_synthetic_arms() {
         // Both views agree on the synthetic arms (and on identity at
-        // Finite values, since Q000I016 is an iso).
-        assert_eq!(EXTQ000I016.ceil(Extended::NegInf), Extended::NegInf);
-        assert_eq!(EXTQ000I016.ceil(Extended::PosInf), Extended::PosInf);
-        assert_eq!(EXTQ000I016.floor(Extended::NegInf), Extended::NegInf);
-        assert_eq!(EXTQ000I016.floor(Extended::PosInf), Extended::PosInf);
-        assert_eq!(EXTQ000I016.upper(Extended::NegInf), Extended::NegInf);
-        assert_eq!(EXTQ000I016.lower(Extended::PosInf), Extended::PosInf);
+        // Finite values, since I016Q000 is an iso).
+        assert_eq!(EXTI016Q000.ceil(Extended::NegInf), Extended::NegInf);
+        assert_eq!(EXTI016Q000.ceil(Extended::PosInf), Extended::PosInf);
+        assert_eq!(EXTI016Q000.floor(Extended::NegInf), Extended::NegInf);
+        assert_eq!(EXTI016Q000.floor(Extended::PosInf), Extended::PosInf);
+        assert_eq!(EXTI016Q000.upper(Extended::NegInf), Extended::NegInf);
+        assert_eq!(EXTI016Q000.lower(Extended::PosInf), Extended::PosInf);
     }
 
     #[test]
-    fn lift_k_q000i016_finite_dispatches_through_parent() {
+    fn lift_k_i016q000_finite_dispatches_through_parent() {
         let q = FixedI16::<U0>::from_bits(42);
         // Parent's ceil/upper agree on Finite values:
         assert_eq!(
-            EXTQ000I016.ceil(Extended::Finite(q)),
-            Extended::Finite(42_i16)
-        );
-        assert_eq!(
-            EXTQ000I016.upper(Extended::Finite(42_i16)),
+            EXTI016Q000.ceil(Extended::Finite(42_i16)),
             Extended::Finite(q)
         );
         assert_eq!(
-            EXTQ000I016.floor(Extended::Finite(q)),
+            EXTI016Q000.upper(Extended::Finite(q)),
             Extended::Finite(42_i16)
         );
         assert_eq!(
-            EXTQ000I016.lower(Extended::Finite(42_i16)),
+            EXTI016Q000.floor(Extended::Finite(42_i16)),
             Extended::Finite(q)
+        );
+        assert_eq!(
+            EXTI016Q000.lower(Extended::Finite(q)),
+            Extended::Finite(42_i16)
         );
     }
 
@@ -673,12 +673,12 @@ mod lift_tests {
         subset: l_only,
     }
 
-    // Lifted iso over Extended<FixedI16<U0>> ↔ Extended<i16>: full.
+    // Lifted iso over Extended<i16> ↔ Extended<FixedI16<U0>>: full.
     crate::law_battery! {
-        mod lifted_q000i016,
-        conn: EXTQ000I016,
-        fine:   arb_ext_q000(),
-        coarse: arb_ext_i16(),
+        mod lifted_i016q000,
+        conn: EXTI016Q000,
+        fine:   arb_ext_i16(),
+        coarse: arb_ext_q000(),
     }
 
     // ── T5 smoke: lift integrates into compose_l! chains ──────────
@@ -711,8 +711,8 @@ mod lift_tests {
 
     #[test]
     fn lift_k_compose_chain_runtime_smoke() {
-        // EXTQ000I016 is a `lift_k!` marker. Its `.conn_l()` returns a
-        // `Conn<Extended<FixedI16<U0>>, Extended<i16>, L>` at runtime —
+        // EXTI016Q000 is a `lift_k!` marker. Its `.conn_l()` returns a
+        // `Conn<Extended<i16>, Extended<FixedI16<U0>>, L>` at runtime —
         // sufficient for the runtime form of `compose_l!`. The chain
         // proves a `lift_k!`-emitted marker integrates with the
         // surrounding compose plumbing.
@@ -722,18 +722,19 @@ mod lift_tests {
         // operand expression must compile to a non-capturing closure
         // body (so the macro-synthesised closures coerce to
         // `fn(_) -> _`). Method-call expressions like
-        // `EXTQ000I016.conn_l()` qualify because `EXTQ000I016` is a
+        // `EXTI016Q000.conn_l()` qualify because `EXTI016Q000` is a
         // unit-struct path with static dispatch — the closure body
         // re-evaluates `.conn_l()` on every invocation but captures
         // nothing from local scope. A function-scope `const` like
         // `ID_EXT_I16` qualifies for the same reason. A `let`-bound
         // local `Conn` value would NOT qualify — it would force a
         // capture and fail fn-pointer coercion.
-        const ID_EXT_I16: Conn<Extended<i16>, Extended<i16>, L> = Conn::identity();
-        let chain: Conn<Extended<FixedI16<U0>>, Extended<i16>, L> =
-            crate::compose_l!(EXTQ000I016.conn_l(), ID_EXT_I16);
+        const ID_EXT_Q000: Conn<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>, L> =
+            Conn::identity();
+        let chain: Conn<Extended<i16>, Extended<FixedI16<U0>>, L> =
+            crate::compose_l!(EXTI016Q000.conn_l(), ID_EXT_Q000);
         let q = FixedI16::<U0>::from_bits(99);
-        assert_eq!(chain.ceil(Extended::Finite(q)), Extended::Finite(99_i16));
+        assert_eq!(chain.ceil(Extended::Finite(99_i16)), Extended::Finite(q));
         assert_eq!(chain.ceil(Extended::NegInf), Extended::NegInf);
     }
 }
