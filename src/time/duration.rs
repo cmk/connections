@@ -846,25 +846,49 @@ crate::conn_l! {
     }
 }
 
-// ── Proof-only solver-step probes ───────────────────────────────────
+// ── Proof-only walk + solver step probes ───────────────────────────
 //
-// Mirror production's `f???{tdur,sdur}_ceil` solver entry but return
-// `(z, steps)` from `solve_to_ceil` instead of dropping `_steps`.
-// Used by the Kani harnesses in `crate::kani_proofs::time_walk` to
-// bound the binary-search iteration count. The shims deliberately
-// omit the production fast-path checks (NaN / out-of-range / ±∞ /
-// `<= min_secs`); the harness applies the matching `kani::assume`s.
+// Two parallel families of Kani exposers per Conn:
+//
+// * `*_walk_steps_for_proof` — calls the legacy ULP walk
+//   (`ascend_to_ceil` / `descend_to_ceil`). Production no longer
+//   reaches these for the duration Conns (the solver replaced
+//   them), but the walk fns are still emitted by `def_walk_helpers!`
+//   and called from this module's `*_solve_matches_walk_in_safe_range`
+//   proptests as cross-checks. The matching Kani harnesses prove
+//   `walk_steps ≤ 1` exhaustively on a bounded slice, guarding the
+//   walk fns against silent regressions.
+//
+// * `*_solve_steps_for_proof` — calls `solve_to_ceil`, the new
+//   production path. The matching Kani harnesses prove
+//   `solve_steps ≤ SOLVE_STEP_BOUND` (= 44) exhaustively on the
+//   same slice. The solver bound is structural (loop body halves
+//   the bracket each iteration) but the harness is still useful as
+//   the SMT-blessed seal.
+//
+// All shims omit production fast-paths; matching `kani::assume`s
+// live in the harness.
 
 #[cfg(kani)]
 pub(crate) fn f64_tdur_ceil_walk_steps_for_proof(v: f64) -> (Duration, u32) {
     let est = Duration::saturating_seconds_f64(v);
-    f64_tdur_walks::solve_to_ceil(est, v)
+    let est_widen = est.as_seconds_f64();
+    if est_widen >= v {
+        f64_tdur_walks::descend_to_ceil(est, v)
+    } else {
+        f64_tdur_walks::ascend_to_ceil(est, v)
+    }
 }
 
 #[cfg(kani)]
 pub(crate) fn f32_tdur_ceil_walk_steps_for_proof(v: f32) -> (Duration, u32) {
     let est = Duration::saturating_seconds_f32(v);
-    f32_tdur_walks::solve_to_ceil(est, v)
+    let est_widen = est.as_seconds_f32();
+    if est_widen >= v {
+        f32_tdur_walks::descend_to_ceil(est, v)
+    } else {
+        f32_tdur_walks::ascend_to_ceil(est, v)
+    }
 }
 
 #[cfg(kani)]
@@ -877,11 +901,51 @@ pub(crate) fn f64_sdur_ceil_walk_steps_for_proof(v: f64) -> (StdDuration, u32) {
         return (StdDuration::ZERO, 0);
     }
     let est = StdDuration::from_secs_f64(v);
-    f64_sdur_walks::solve_to_ceil(est, v)
+    let est_widen = est.as_secs_f64();
+    if est_widen >= v {
+        f64_sdur_walks::descend_to_ceil(est, v)
+    } else {
+        f64_sdur_walks::ascend_to_ceil(est, v)
+    }
 }
 
 #[cfg(kani)]
 pub(crate) fn f32_sdur_ceil_walk_steps_for_proof(v: f32) -> (StdDuration, u32) {
+    if v <= 0.0 {
+        return (StdDuration::ZERO, 0);
+    }
+    let est = StdDuration::from_secs_f32(v);
+    let est_widen = est.as_secs_f32();
+    if est_widen >= v {
+        f32_sdur_walks::descend_to_ceil(est, v)
+    } else {
+        f32_sdur_walks::ascend_to_ceil(est, v)
+    }
+}
+
+#[cfg(kani)]
+pub(crate) fn f64_tdur_ceil_solve_steps_for_proof(v: f64) -> (Duration, u32) {
+    let est = Duration::saturating_seconds_f64(v);
+    f64_tdur_walks::solve_to_ceil(est, v)
+}
+
+#[cfg(kani)]
+pub(crate) fn f32_tdur_ceil_solve_steps_for_proof(v: f32) -> (Duration, u32) {
+    let est = Duration::saturating_seconds_f32(v);
+    f32_tdur_walks::solve_to_ceil(est, v)
+}
+
+#[cfg(kani)]
+pub(crate) fn f64_sdur_ceil_solve_steps_for_proof(v: f64) -> (StdDuration, u32) {
+    if v <= 0.0 {
+        return (StdDuration::ZERO, 0);
+    }
+    let est = StdDuration::from_secs_f64(v);
+    f64_sdur_walks::solve_to_ceil(est, v)
+}
+
+#[cfg(kani)]
+pub(crate) fn f32_sdur_ceil_solve_steps_for_proof(v: f32) -> (StdDuration, u32) {
     if v <= 0.0 {
         return (StdDuration::ZERO, 0);
     }

@@ -373,6 +373,17 @@ crate::conn_l! {
 #[cfg(kani)]
 pub(crate) fn f64_etai_ceil_walk_steps_for_proof(v: f64) -> (Epoch, u32) {
     let est = Epoch::from_tai_seconds(v);
+    let est_widen = est.to_tai_seconds();
+    if est_widen >= v {
+        f64_etai_walks::descend_to_ceil(est, v)
+    } else {
+        f64_etai_walks::ascend_to_ceil(est, v)
+    }
+}
+
+#[cfg(kani)]
+pub(crate) fn f64_etai_ceil_solve_steps_for_proof(v: f64) -> (Epoch, u32) {
+    let est = Epoch::from_tai_seconds(v);
     f64_etai_walks::solve_to_ceil(est, v)
 }
 
@@ -1596,9 +1607,20 @@ crate::conn_l! {
     }
 }
 
-// Proof-only solver-step probe — see `crate::kani_proofs::hifi_walk`.
+// Proof-only walk + solver step probes — see `crate::kani_proofs::hifi_walk`.
 #[cfg(kani)]
 pub(crate) fn f64_etdt_ceil_walk_steps_for_proof(v: f64) -> (Epoch, u32) {
+    let est = Epoch::from_tt_seconds(v);
+    let est_widen = est.to_tt_seconds();
+    if est_widen >= v {
+        f64_etdt_walks::descend_to_ceil(est, v)
+    } else {
+        f64_etdt_walks::ascend_to_ceil(est, v)
+    }
+}
+
+#[cfg(kani)]
+pub(crate) fn f64_etdt_ceil_solve_steps_for_proof(v: f64) -> (Epoch, u32) {
     let est = Epoch::from_tt_seconds(v);
     f64_etdt_walks::solve_to_ceil(est, v)
 }

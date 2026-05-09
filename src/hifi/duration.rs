@@ -493,23 +493,47 @@ crate::conn_l! {
     }
 }
 
-// ── Proof-only solver-step probes ───────────────────────────────────
+// ── Proof-only walk + solver step probes ───────────────────────────
 //
-// Mirror production's `f???hdur_ceil` solver entry but return
-// `(z, steps)` from `solve_to_ceil` instead of dropping `_steps`.
-// Used by `crate::kani_proofs::hifi_walk` to bound the binary-search
-// iteration count. Fast-paths (NaN, out-of-range, ±∞, `<= min_secs`)
-// are deliberately omitted; the harness applies matching
-// `kani::assume`s.
+// `*_walk_steps_for_proof` calls the legacy ULP walk (still emitted
+// by the macro and called from this module's
+// `*_solve_matches_walk_in_safe_range` proptest cross-checks);
+// `*_solve_steps_for_proof` calls `solve_to_ceil`. Each has a
+// matching pair of harnesses in `crate::kani_proofs::hifi_walk` —
+// see the time/duration.rs banner for the full rationale on
+// keeping both. Fast-paths are omitted; matching `kani::assume`s
+// live in the harnesses.
 
 #[cfg(kani)]
 pub(crate) fn f64_hdur_ceil_walk_steps_for_proof(v: f64) -> (HD, u32) {
+    let est = HD::from_seconds(v);
+    let est_widen = est.to_seconds();
+    if est_widen >= v {
+        f64_hdur_walks::descend_to_ceil(est, v)
+    } else {
+        f64_hdur_walks::ascend_to_ceil(est, v)
+    }
+}
+
+#[cfg(kani)]
+pub(crate) fn f32_hdur_ceil_walk_steps_for_proof(v: f32) -> (HD, u32) {
+    let est = HD::from_seconds(v as f64);
+    let est_widen = est.to_seconds() as f32;
+    if est_widen >= v {
+        f32_hdur_walks::descend_to_ceil(est, v)
+    } else {
+        f32_hdur_walks::ascend_to_ceil(est, v)
+    }
+}
+
+#[cfg(kani)]
+pub(crate) fn f64_hdur_ceil_solve_steps_for_proof(v: f64) -> (HD, u32) {
     let est = HD::from_seconds(v);
     f64_hdur_walks::solve_to_ceil(est, v)
 }
 
 #[cfg(kani)]
-pub(crate) fn f32_hdur_ceil_walk_steps_for_proof(v: f32) -> (HD, u32) {
+pub(crate) fn f32_hdur_ceil_solve_steps_for_proof(v: f32) -> (HD, u32) {
     let est = HD::from_seconds(v as f64);
     f32_hdur_walks::solve_to_ceil(est, v)
 }

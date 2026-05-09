@@ -40,9 +40,9 @@
 //! | [`iso_family`]         | [`crate::iso!`] (lossless cross-crate iso)            |
 //! | [`float_walk`]         | F064F032 ULP-walk iteration upper bound               |
 //! | [`float_weaker`]       | F064F032 finite-domain weaker properties              |
-//! | [`time_walk`]          | float→Duration solver-step ≤ 44 (binary-search bracket bound) |
+//! | [`time_walk`]          | float→Duration walk-step ≤ 1 (legacy ULP walk, bounded slice) + solver-step ≤ 44 (binary-search bracket bound) |
 //! | [`time_pure`]          | TIMENANO / TIMESECS / TDURSECS / SDURU064 / SDURU128 (Plan 43) |
-//! | [`hifi_walk`]          | float→hifi-Duration / TAI-Epoch solver-step ≤ 44 (binary-search bracket bound) |
+//! | [`hifi_walk`]          | float→hifi-Duration / TAI-Epoch walk-step ≤ 1 + solver-step ≤ 44 |
 //! | [`hifi_pure`]          | HDURNANO / HDURSECS / ETAINANO / ETAIHDUR (Plan 43)   |
 //! | [`byte_one`]           | U008OBYT / I008OBYT / BOOLOBYT (Plan 47, `byte` feature) |
 //! | [`byte_two`]           | U016OBYT / I016OBYT (Plan 47, `byte` feature) |
