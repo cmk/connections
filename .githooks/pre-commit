@@ -50,8 +50,14 @@ scripts/check-pii.sh
 #    that are mirrored from rustdoc have drifted out of sync.
 scripts/check_readme_mirror.sh
 
-# 4. Test suite — blocking.
+# 4. Ext-Ext Conn antipattern guard — blocking. Fails if any new
+#    `Conn<Extended<…>, Extended<…>>` shape is introduced outside
+#    `src/extended.rs` without a per-line `// allow(ext-ext-conn):`
+#    pragma.
+scripts/check_no_ext_ext_conn.sh
+
+# 5. Test suite — blocking.
 cargo test --workspace --quiet
 
-# 5. Lints — blocking; matches CI.
+# 6. Lints — blocking; matches CI.
 cargo clippy --all-targets --quiet -- -D warnings
