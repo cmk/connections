@@ -831,17 +831,31 @@ pub(crate) fn round_down_to_f64(b: i128) -> f64 {
 /// `$crate::float::RoundDownFromI128` must resolve in the
 /// downstream crate.
 ///
-/// The crate ships impls for `f32`, `f64`, and (under `f16` feature)
-/// `f16` — the only IEEE binary float types `connections` supports.
-/// Downstream crates should not implement this trait for custom
-/// float types: the macros assume the round-down semantics
-/// described in [`round_down_to_f32`] / [`round_down_to_f64`] /
-/// [`round_down_to_f16`], and any other impl would silently change
-/// the L-Galois law guarantee.
+/// The trait is **sealed** via the `private::Sealed` supertrait,
+/// so external impls are a compile error rather than a silent
+/// L-Galois-breaking foot-gun: `connections` ships the only three
+/// valid impls (`f32`, `f64`, and — under `f16` feature — `f16`),
+/// matching the round-down semantics described in
+/// [`round_down_to_f32`] / [`round_down_to_f64`] /
+/// [`round_down_to_f16`].
 #[doc(hidden)]
-pub trait RoundDownFromI128: Sized {
+pub trait RoundDownFromI128: private::Sealed + Sized {
     /// Cast `b: i128` to this float type, rounding toward `-∞`.
     fn from_i128_rd(b: i128) -> Self;
+}
+
+mod private {
+    /// Sealed-trait pattern: only types listed in this module can
+    /// implement [`super::RoundDownFromI128`]. Keeps the trait
+    /// `pub` (so macro expansion in downstream crates resolves
+    /// `$crate::float::RoundDownFromI128`) while preventing
+    /// downstream impls that would silently break the L-Galois
+    /// kernel law the macros depend on.
+    pub trait Sealed {}
+    impl Sealed for f32 {}
+    impl Sealed for f64 {}
+    #[cfg(feature = "f16")]
+    impl Sealed for f16 {}
 }
 
 impl RoundDownFromI128 for f32 {
@@ -1154,6 +1168,21 @@ macro_rules! __float_ext_int_ceil_body {
         } else {
             let lo = <$int>::MIN as $float;
             let hi = <$int>::MAX as $float;
+            // For `Extend(-∞)` the routing splits by source mantissa
+            // vs target width. With a finite `lo` (f32/f64 sources, or
+            // f16 sources with `i8`/`u8` targets) the `v < lo` arm
+            // fires and returns `Finite(MIN)`. With a saturated `lo`
+            // (f16 sources with `i16+`/`u16+` targets, where
+            // `<$int>::MIN as f16 = -∞`) the comparison `-∞ < -∞`
+            // is `false`, so execution falls through to the `else`
+            // arm; Rust's saturating float-to-int cast then resolves
+            // `(-∞).ceil() as $int` to `<$int>::MIN`. Both paths
+            // produce the same value, but the routing differs — keep
+            // both arms in mind before introducing an explicit
+            // `v == NEG_INFINITY` short-circuit symmetric to the
+            // `+∞` guard above (it would be a no-op for the finite-`lo`
+            // case and a redundant double-classify for the saturated-
+            // `lo` case).
             if $v > hi {
                 $crate::extended::Extended::PosInf
             } else if $v < lo {

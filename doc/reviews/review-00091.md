@@ -192,3 +192,48 @@ The plan's Review section states: **"#[ignore]d properties: none."** The diff co
 4. **Plan doc inaccuracy on f16 `ceil(-∞)` path**: The Review §Design-deviations item #2 traces a code path that doesn't fire (the `v < lo` branch). The result is correct but the doc traces the wrong arm. Fix the comment in the plan or add an inline comment in `__float_ext_int_ceil_body!`.
 
 5. **`arb_extended_u32` Unicode bias**: Consider extracting a plain `arb_extended_u32_plain()` without Unicode-specific bias for use in float-to-int tests, or accept the current distribution.
+
+<!-- glab-id: 3331180645 -->
+<!-- glab-discussion: 60abf08c160d2f7dda0cf11abc8df066e23926b6 -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/float.rs:1185` (2026-05-09 21:16 UTC) [open]
+
+**[must-fix]** The `__float_ext_int_floor_body!` macro has no explicit `v == NEG_INFINITY` guard, but it does not need one for f32/f64 sources because `f32::MIN as f32` and `f64::MIN as f64` are finite. However, for f16 sources the full-triple Conns `F016U008` and `F016I008` call this macro, and for those targets `u8::MIN as f16 = 0.0_f16` and `i8::MIN as f16 = -128.0_f16` — both finite, so the `v < lo` branch fires correctly. But `F016U008.floor(Extend(-∞_f16))`: `-∞ < 0.0` is true, so it returns `NegInf`. Correct. No actual bug here — but the `__float_ext_int_ceil_body!` macro does add an explicit `v == INFINITY → PosInf` guard while the symmetric `NEG_INFINITY` case for `ceil` is handled by the `v < lo` path. For f16 sources, `i8::MIN as f16 = -128.0_f16` is finite, so `-∞ < lo` fires and returns `Finite(MIN)` correctly via the `else` branch's `v.ceil() as i8`, which Rust's saturating cast resolves to `i8::MIN`. This is correct but the design deviation note in the plan (§Design-deviations item #2) documents the `-∞` path as routing through `v < lo`, yet the actual code path for wide signed targets falls to the `else` branch — the doc traces the wrong arm. No incorrect output, but the inconsistency creates a maintenance hazard: a future contributor who reads the doc and adds an explicit `-∞ < lo` guard for a new target could introduce a double-classification bug.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3331180700 -->
+<!-- glab-discussion: 7fff59adf8ad1918526fd8884fb07e1b7504175c -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/float.rs:835` (2026-05-09 21:16 UTC) [open]
+
+**[follow-up]** `RoundDownFromI128` is declared `pub` (not `pub(crate)`) and is re-exported as `connections::float::RoundDownFromI128`. The doc comment says "not part of the crate's stable API surface" and warns downstream crates not to implement it, yet `pub` makes it visible and implementable. The `#[doc(hidden)]` attribute suppresses it from rendered docs but does not restrict access — any downstream crate can `impl RoundDownFromI128 for MyFloat` and silently break the L-Galois guarantee the macros depend on. Change to `pub(crate)` unless the `feature = "macros"` expansion path genuinely requires it to resolve in downstream crates (if it does, document that constraint explicitly and seal the trait with a private supertrait).
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3331180734 -->
+<!-- glab-discussion: 9e229093bdb004c629ccf4fbc08e6f9ff0c6b1ad -->
+### project_81286209_bot_3d7a4a6d9e8f25beaa65342a8ea26b43 on `src/float/f032.rs:139` (2026-05-09 21:16 UTC) [open]
+
+**[follow-up]** The spot test `neg_inf_saturates_via_low_branch` asserts `F032U008.ceil(Extend(f32::NEG_INFINITY)) == Extended::Finite(0)`. The comment explains this fires via the `v < lo` branch where `lo = u8::MIN as f32 = 0.0`, so `-∞ < 0.0` is true and the result is `Finite(u8::MIN) = Finite(0)`. This is correct. However, the test name and comment say "via `v < lo` branch" while the `__float_ext_int_ceil_body!` macro actually only checks `v < lo` after the `v > hi` check — the comment in the review doc's Design-deviations §2 then re-describes this path differently for f16 sources. The comment should either be accurate for all sources or scoped to f32, to avoid the same doc-path confusion flagged in the plan's review section.
+
+---
+_Posted by `claude-review` CI — advisory, not merge-blocking._
+
+<!-- glab-id: 3331212963 -->
+<!-- glab-discussion: 60abf08c160d2f7dda0cf11abc8df066e23926b6 -->
+#### ↳ cmk (2026-05-09 21:31 UTC) [open]
+
+Fixed in 5ec75ee — added an inline comment in `__float_ext_int_ceil_body!` enumerating both arms (finite-`lo` for f32/f64 and `i8`/`u8` f16 targets; saturated-`lo` for f16 `i16+`/`u16+` targets) and updated the plan's §Design-deviations #2 to match. The inline comment explicitly warns against introducing a redundant `v == NEG_INFINITY` short-circuit.
+
+<!-- glab-id: 3331213131 -->
+<!-- glab-discussion: 7fff59adf8ad1918526fd8884fb07e1b7504175c -->
+#### ↳ cmk (2026-05-09 21:31 UTC) [open]
+
+Sealed in 5ec75ee via a private `Sealed` supertrait in `mod private`. Outer `pub` + `#[doc(hidden)]` is preserved so the macro expansion path `$crate::float::RoundDownFromI128` still resolves in downstream crates under `feature = "macros"`, but downstream `impl` blocks now fail to compile because `private::Sealed` is unreachable from outside the crate.
+
+<!-- glab-id: 3331213329 -->
+<!-- glab-discussion: 9e229093bdb004c629ccf4fbc08e6f9ff0c6b1ad -->
+#### ↳ cmk (2026-05-09 21:31 UTC) [open]
+
+The f032 test comment is correct in context — `lo = u8::MIN as f32 = 0.0_f32` is finite, so `v < lo` does fire for f32 source. The cross-source confusion was in the plan's §Design-deviations #2; that prose is fixed in 5ec75ee, and `__float_ext_int_ceil_body!` now carries an inline comment enumerating both routing arms (finite-`lo` and saturated-`lo`). No change to the test comment itself.
