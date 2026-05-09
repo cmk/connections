@@ -6,7 +6,7 @@
 
 #[allow(unused_imports)]
 use connections::conn::{ConnL, ConnR};
-use connections::fixed::u8::*;
+use connections::fixed::u008::*;
 use proptest::prelude::*;
 
 // Left-Galois single-sided battery: `galois_upper`, monotonicity,

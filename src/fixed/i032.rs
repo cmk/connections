@@ -1,7 +1,7 @@
 //! Binary fixed-point ladder over `fixed::FixedI32<Frac>`.
 //!
 //! Frac level set: `{U0, U4, U8, U16, U24, U32}` → 15 ordered pairs
-//! `(Fine, Coarse)` with `Fine > Coarse`. See [`super::i16`] for the
+//! `(Fine, Coarse)` with `Fine > Coarse`. See [`super::i016`] for the
 //! design (this module mirrors it with `i32` inner / `i64` widening).
 
 use super::{LE, ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
@@ -32,7 +32,7 @@ uint_int_sat!(
     ///
     /// ```rust
     /// use connections::conn::ConnR;
-    /// use connections::fixed::i32::U032I032;
+    /// use connections::fixed::i032::U032I032;
     ///
     /// // Mid-range u32 PIDs that fit in i32 pass through.
     /// assert_eq!(U032I032.floor(1_u32),               1_i32);
@@ -110,13 +110,13 @@ crate::iso! {
 
 // ── §4 Q-format ladder over `FixedI32<Frac>` ────────────────────────
 
-/// `I<frac> = FixedI32<U<frac>>` — i32-backed binary fixed-point.
-pub type I0 = FixedI32<U0>;
-pub type I4 = FixedI32<U4>;
-pub type I8 = FixedI32<U8>;
-pub type I16 = FixedI32<U16>;
-pub type I24 = FixedI32<U24>;
-pub type I32 = FixedI32<U32>;
+/// `I### = FixedI32<U<frac>>` — i32-backed binary fixed-point.
+pub type I000 = FixedI32<U0>;
+pub type I004 = FixedI32<U4>;
+pub type I008 = FixedI32<U8>;
+pub type I016 = FixedI32<U16>;
+pub type I024 = FixedI32<U24>;
+pub type I032 = FixedI32<U32>;
 
 macro_rules! fix_fix_i32 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {

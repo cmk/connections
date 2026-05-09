@@ -1,7 +1,7 @@
 //! Binary fixed-point ladder over `fixed::FixedU8<Frac>`.
 //!
 //! Frac level set: `{F0, F1, F2, F3, F4, F6, F7, F8}` → 28 ordered pairs
-//! `(Fine, Coarse)` with `Fine > Coarse`. Mirrors [`super::i8`] with two
+//! `(Fine, Coarse)` with `Fine > Coarse`. Mirrors [`super::i008`] with two
 //! adaptations:
 //!
 //! - The backing type is `FixedU8<Frac>` (u8) instead of `FixedI8<Frac>`
@@ -81,7 +81,7 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::conn::{ConnL, ConnR};
-    /// use connections::fixed::u8::U008BE01;
+    /// use connections::fixed::u008::U008BE01;
     ///
     /// assert_eq!(U008BE01.ceil(0x42_u8), [0x42]);
     /// assert_eq!(U008BE01.upper([0x42]), 0x42_u8);
@@ -120,7 +120,7 @@ crate::conn_l! {
     ///
     /// ```rust
     /// use connections::conn::ConnL;
-    /// use connections::fixed::u8::BOOLBE01;
+    /// use connections::fixed::u008::BOOLBE01;
     ///
     /// assert_eq!(BOOLBE01.ceil(false), [0]);
     /// assert_eq!(BOOLBE01.ceil(true),  [1]);
@@ -196,16 +196,16 @@ crate::conn_l! {
 
 // ── §4 Q-format ladder over `FixedU8<Frac>` ─────────────────────────
 
-/// `U<frac> = FixedU8<U<frac>>` — u8-backed binary fixed-point with
+/// `U### = FixedU8<U<frac>>` — u8-backed binary fixed-point with
 /// `<frac>` fractional bits.
-pub type U0 = FixedU8<F0>;
-pub type U1 = FixedU8<F1>;
-pub type U2 = FixedU8<F2>;
-pub type U3 = FixedU8<F3>;
-pub type U4 = FixedU8<F4>;
-pub type U6 = FixedU8<F6>;
-pub type U7 = FixedU8<F7>;
-pub type U8 = FixedU8<F8>;
+pub type U000 = FixedU8<F0>;
+pub type U001 = FixedU8<F1>;
+pub type U002 = FixedU8<F2>;
+pub type U003 = FixedU8<F3>;
+pub type U004 = FixedU8<F4>;
+pub type U006 = FixedU8<F6>;
+pub type U007 = FixedU8<F7>;
+pub type U008 = FixedU8<F8>;
 
 macro_rules! fix_fix_u8 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {

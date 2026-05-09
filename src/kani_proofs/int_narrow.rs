@@ -71,27 +71,27 @@ macro_rules! prove_int_narrow {
 }
 
 // ── i8 destinations ─────────────────────────────────────────────────
-use crate::fixed::i8 as fi8;
+use crate::fixed::i008 as fi008;
 
-prove_int_narrow!(i016i008, fi8::I016I008, i16, i8);
-prove_int_narrow!(i032i008, fi8::I032I008, i32, i8);
-prove_int_narrow!(i064i008, fi8::I064I008, i64, i8);
-prove_int_narrow!(i128i008, fi8::I128I008, i128, i8);
+prove_int_narrow!(i016i008, fi008::I016I008, i16, i8);
+prove_int_narrow!(i032i008, fi008::I032I008, i32, i8);
+prove_int_narrow!(i064i008, fi008::I064I008, i64, i8);
+prove_int_narrow!(i128i008, fi008::I128I008, i128, i8);
 
 // ── i16 destinations ────────────────────────────────────────────────
-use crate::fixed::i16 as fi16;
+use crate::fixed::i016 as fi016;
 
-prove_int_narrow!(i032i016, fi16::I032I016, i32, i16);
-prove_int_narrow!(i064i016, fi16::I064I016, i64, i16);
-prove_int_narrow!(i128i016, fi16::I128I016, i128, i16);
+prove_int_narrow!(i032i016, fi016::I032I016, i32, i16);
+prove_int_narrow!(i064i016, fi016::I064I016, i64, i16);
+prove_int_narrow!(i128i016, fi016::I128I016, i128, i16);
 
 // ── i32 destinations ────────────────────────────────────────────────
-use crate::fixed::i32 as fi32;
+use crate::fixed::i032 as fi032;
 
-prove_int_narrow!(i064i032, fi32::I064I032, i64, i32);
-prove_int_narrow!(i128i032, fi32::I128I032, i128, i32);
+prove_int_narrow!(i064i032, fi032::I064I032, i64, i32);
+prove_int_narrow!(i128i032, fi032::I128I032, i128, i32);
 
 // ── i64 destination ────────────────────────────────────────────────
-use crate::fixed::i64 as fi64;
+use crate::fixed::i064 as fi064;
 
-prove_int_narrow!(i128i064, fi64::I128I064, i128, i64);
+prove_int_narrow!(i128i064, fi064::I128I064, i128, i64);

@@ -61,27 +61,27 @@ macro_rules! prove_iso {
 }
 
 // ── Signed isos ─────────────────────────────────────────────────────
-use crate::fixed::i8 as fi8;
-use crate::fixed::i16 as fi16;
-use crate::fixed::i32 as fi32;
-use crate::fixed::i64 as fi64;
+use crate::fixed::i008 as fi008;
+use crate::fixed::i016 as fi016;
+use crate::fixed::i032 as fi032;
+use crate::fixed::i064 as fi064;
 use crate::fixed::i128 as fi128;
 
-prove_iso!(q000i008, fi8::Q000I008, FixedI8<U0>, i8);
-prove_iso!(q000i016, fi16::Q000I016, FixedI16<U0>, i16);
-prove_iso!(q000i032, fi32::Q000I032, FixedI32<U0>, i32);
-prove_iso!(q000i064, fi64::Q000I064, FixedI64<U0>, i64);
+prove_iso!(q000i008, fi008::Q000I008, FixedI8<U0>, i8);
+prove_iso!(q000i016, fi016::Q000I016, FixedI16<U0>, i16);
+prove_iso!(q000i032, fi032::Q000I032, FixedI32<U0>, i32);
+prove_iso!(q000i064, fi064::Q000I064, FixedI64<U0>, i64);
 prove_iso!(q000i128, fi128::Q000I128, FixedI128<U0>, i128);
 
 // ── Unsigned isos ───────────────────────────────────────────────────
-use crate::fixed::u8 as fu8;
-use crate::fixed::u16 as fu16;
-use crate::fixed::u32 as fu32;
-use crate::fixed::u64 as fu64;
+use crate::fixed::u008 as fu008;
+use crate::fixed::u016 as fu016;
+use crate::fixed::u032 as fu032;
+use crate::fixed::u064 as fu064;
 use crate::fixed::u128 as fu128;
 
-prove_iso!(q000u008, fu8::Q000U008, FixedU8<U0>, u8);
-prove_iso!(q000u016, fu16::Q000U016, FixedU16<U0>, u16);
-prove_iso!(q000u032, fu32::Q000U032, FixedU32<U0>, u32);
-prove_iso!(q000u064, fu64::Q000U064, FixedU64<U0>, u64);
+prove_iso!(q000u008, fu008::Q000U008, FixedU8<U0>, u8);
+prove_iso!(q000u016, fu016::Q000U016, FixedU16<U0>, u16);
+prove_iso!(q000u032, fu032::Q000U032, FixedU32<U0>, u32);
+prove_iso!(q000u064, fu064::Q000U064, FixedU64<U0>, u64);
 prove_iso!(q000u128, fu128::Q000U128, FixedU128<U0>, u128);

@@ -4,7 +4,7 @@
 #[allow(unused_imports)]
 use connections::conn::{ConnL, ConnR};
 use connections::extended::Extended;
-use connections::fixed::i64::*;
+use connections::fixed::i064::*;
 use proptest::prelude::*;
 
 macro_rules! arb_ext {

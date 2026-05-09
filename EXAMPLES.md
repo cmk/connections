@@ -156,7 +156,7 @@ nearest in-range source value or out to a synthetic infinity):
 
 ```rust
 use connections::conn::ConnL;
-use connections::fixed::i16::U008I016;
+use connections::fixed::i016::U008I016;
 use connections::extended::Extended;
 
 // Finite passes through.
@@ -189,7 +189,7 @@ instead, preserving the R-Galois `inner ⊣ floor` law:
 
 ```rust
 use connections::conn::ConnR;
-use connections::fixed::i32::U032I032;
+use connections::fixed::i032::U032I032;
 
 // Mid-range u32 PIDs that fit in i32 pass through.
 assert_eq!(U032I032.floor(1_u32),               1_i32);
@@ -212,7 +212,7 @@ assert_eq!(U032I032.lower(i32::MAX), i32::MAX as u32);
 
 ```rust
 use connections::conn::{ConnL, ConnR};
-use connections::fixed::i16::U008I016;
+use connections::fixed::i016::U008I016;
 use connections::extended::Extended;
 
 // The blanket `impl ConnL for Conn<A, B, L>` means `marker.ceil(x)`

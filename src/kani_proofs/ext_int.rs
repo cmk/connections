@@ -69,25 +69,25 @@ macro_rules! prove_ext_int {
 }
 
 // ── i16 destinations ────────────────────────────────────────────────
-use crate::fixed::i16 as fi16;
-prove_ext_int!(i008i016, fi16::I008I016, i8, i16);
-prove_ext_int!(u008i016, fi16::U008I016, u8, i16);
+use crate::fixed::i016 as fi016;
+prove_ext_int!(i008i016, fi016::I008I016, i8, i16);
+prove_ext_int!(u008i016, fi016::U008I016, u8, i16);
 
 // ── i32 destinations ────────────────────────────────────────────────
-use crate::fixed::i32 as fi32;
-prove_ext_int!(i008i032, fi32::I008I032, i8, i32);
-prove_ext_int!(i016i032, fi32::I016I032, i16, i32);
-prove_ext_int!(u008i032, fi32::U008I032, u8, i32);
-prove_ext_int!(u016i032, fi32::U016I032, u16, i32);
+use crate::fixed::i032 as fi032;
+prove_ext_int!(i008i032, fi032::I008I032, i8, i32);
+prove_ext_int!(i016i032, fi032::I016I032, i16, i32);
+prove_ext_int!(u008i032, fi032::U008I032, u8, i32);
+prove_ext_int!(u016i032, fi032::U016I032, u16, i32);
 
 // ── i64 destinations ────────────────────────────────────────────────
-use crate::fixed::i64 as fi64;
-prove_ext_int!(i008i064, fi64::I008I064, i8, i64);
-prove_ext_int!(i016i064, fi64::I016I064, i16, i64);
-prove_ext_int!(i032i064, fi64::I032I064, i32, i64);
-prove_ext_int!(u008i064, fi64::U008I064, u8, i64);
-prove_ext_int!(u016i064, fi64::U016I064, u16, i64);
-prove_ext_int!(u032i064, fi64::U032I064, u32, i64);
+use crate::fixed::i064 as fi064;
+prove_ext_int!(i008i064, fi064::I008I064, i8, i64);
+prove_ext_int!(i016i064, fi064::I016I064, i16, i64);
+prove_ext_int!(i032i064, fi064::I032I064, i32, i64);
+prove_ext_int!(u008i064, fi064::U008I064, u8, i64);
+prove_ext_int!(u016i064, fi064::U016I064, u16, i64);
+prove_ext_int!(u032i064, fi064::U032I064, u32, i64);
 
 // ── i128 destinations ───────────────────────────────────────────────
 use crate::fixed::i128 as fi128;

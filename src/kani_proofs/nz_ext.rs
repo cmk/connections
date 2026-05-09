@@ -128,27 +128,27 @@ macro_rules! prove_nz_unsigned {
 }
 
 // ── Signed: full triples ────────────────────────────────────────────
-use crate::fixed::i8 as fi8;
-use crate::fixed::i16 as fi16;
-use crate::fixed::i32 as fi32;
-use crate::fixed::i64 as fi64;
+use crate::fixed::i008 as fi008;
+use crate::fixed::i016 as fi016;
+use crate::fixed::i032 as fi032;
+use crate::fixed::i064 as fi064;
 use crate::fixed::i128 as fi128;
 
-prove_nz_signed!(i008n008, fi8::I008N008, i8, NonZeroI8);
-prove_nz_signed!(i016n016, fi16::I016N016, i16, NonZeroI16);
-prove_nz_signed!(i032n032, fi32::I032N032, i32, NonZeroI32);
-prove_nz_signed!(i064n064, fi64::I064N064, i64, NonZeroI64);
+prove_nz_signed!(i008n008, fi008::I008N008, i8, NonZeroI8);
+prove_nz_signed!(i016n016, fi016::I016N016, i16, NonZeroI16);
+prove_nz_signed!(i032n032, fi032::I032N032, i32, NonZeroI32);
+prove_nz_signed!(i064n064, fi064::I064N064, i64, NonZeroI64);
 prove_nz_signed!(i128n128, fi128::I128N128, i128, NonZeroI128);
 
 // ── Unsigned: L-Galois only ─────────────────────────────────────────
-use crate::fixed::u8 as fu8;
-use crate::fixed::u16 as fu16;
-use crate::fixed::u32 as fu32;
-use crate::fixed::u64 as fu64;
+use crate::fixed::u008 as fu008;
+use crate::fixed::u016 as fu016;
+use crate::fixed::u032 as fu032;
+use crate::fixed::u064 as fu064;
 use crate::fixed::u128 as fu128;
 
-prove_nz_unsigned!(u008n008, fu8::U008N008, u8, NonZeroU8);
-prove_nz_unsigned!(u016n016, fu16::U016N016, u16, NonZeroU16);
-prove_nz_unsigned!(u032n032, fu32::U032N032, u32, NonZeroU32);
-prove_nz_unsigned!(u064n064, fu64::U064N064, u64, NonZeroU64);
+prove_nz_unsigned!(u008n008, fu008::U008N008, u8, NonZeroU8);
+prove_nz_unsigned!(u016n016, fu016::U016N016, u16, NonZeroU16);
+prove_nz_unsigned!(u032n032, fu032::U032N032, u32, NonZeroU32);
+prove_nz_unsigned!(u064n064, fu064::U064N064, u64, NonZeroU64);
 prove_nz_unsigned!(u128n128, fu128::U128N128, u128, NonZeroU128);

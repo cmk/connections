@@ -80,191 +80,191 @@ macro_rules! prove_fix_fix {
 }
 
 // ── i8-backed (full ladder, 21 Conns × 5 props = 105 proofs) ────────
-use crate::fixed::i8 as fi8;
+use crate::fixed::i008 as fi008;
 
-prove_fix_fix!(i8_q001q000, fi8::Q001Q000, FixedI8<U1>, FixedI8<U0>, i8);
-prove_fix_fix!(i8_q002q000, fi8::Q002Q000, FixedI8<U2>, FixedI8<U0>, i8);
-prove_fix_fix!(i8_q003q000, fi8::Q003Q000, FixedI8<U3>, FixedI8<U0>, i8);
-prove_fix_fix!(i8_q004q000, fi8::Q004Q000, FixedI8<U4>, FixedI8<U0>, i8);
-prove_fix_fix!(i8_q006q000, fi8::Q006Q000, FixedI8<U6>, FixedI8<U0>, i8);
-prove_fix_fix!(i8_q008q000, fi8::Q008Q000, FixedI8<U8>, FixedI8<U0>, i8);
-prove_fix_fix!(i8_q002q001, fi8::Q002Q001, FixedI8<U2>, FixedI8<U1>, i8);
-prove_fix_fix!(i8_q003q001, fi8::Q003Q001, FixedI8<U3>, FixedI8<U1>, i8);
-prove_fix_fix!(i8_q004q001, fi8::Q004Q001, FixedI8<U4>, FixedI8<U1>, i8);
-prove_fix_fix!(i8_q006q001, fi8::Q006Q001, FixedI8<U6>, FixedI8<U1>, i8);
-prove_fix_fix!(i8_q008q001, fi8::Q008Q001, FixedI8<U8>, FixedI8<U1>, i8);
-prove_fix_fix!(i8_q003q002, fi8::Q003Q002, FixedI8<U3>, FixedI8<U2>, i8);
-prove_fix_fix!(i8_q004q002, fi8::Q004Q002, FixedI8<U4>, FixedI8<U2>, i8);
-prove_fix_fix!(i8_q006q002, fi8::Q006Q002, FixedI8<U6>, FixedI8<U2>, i8);
-prove_fix_fix!(i8_q008q002, fi8::Q008Q002, FixedI8<U8>, FixedI8<U2>, i8);
-prove_fix_fix!(i8_q004q003, fi8::Q004Q003, FixedI8<U4>, FixedI8<U3>, i8);
-prove_fix_fix!(i8_q006q003, fi8::Q006Q003, FixedI8<U6>, FixedI8<U3>, i8);
-prove_fix_fix!(i8_q008q003, fi8::Q008Q003, FixedI8<U8>, FixedI8<U3>, i8);
-prove_fix_fix!(i8_q006q004, fi8::Q006Q004, FixedI8<U6>, FixedI8<U4>, i8);
-prove_fix_fix!(i8_q008q004, fi8::Q008Q004, FixedI8<U8>, FixedI8<U4>, i8);
-prove_fix_fix!(i8_q008q006, fi8::Q008Q006, FixedI8<U8>, FixedI8<U6>, i8);
+prove_fix_fix!(i8_q001q000, fi008::Q001Q000, FixedI8<U1>, FixedI8<U0>, i8);
+prove_fix_fix!(i8_q002q000, fi008::Q002Q000, FixedI8<U2>, FixedI8<U0>, i8);
+prove_fix_fix!(i8_q003q000, fi008::Q003Q000, FixedI8<U3>, FixedI8<U0>, i8);
+prove_fix_fix!(i8_q004q000, fi008::Q004Q000, FixedI8<U4>, FixedI8<U0>, i8);
+prove_fix_fix!(i8_q006q000, fi008::Q006Q000, FixedI8<U6>, FixedI8<U0>, i8);
+prove_fix_fix!(i8_q008q000, fi008::Q008Q000, FixedI8<U8>, FixedI8<U0>, i8);
+prove_fix_fix!(i8_q002q001, fi008::Q002Q001, FixedI8<U2>, FixedI8<U1>, i8);
+prove_fix_fix!(i8_q003q001, fi008::Q003Q001, FixedI8<U3>, FixedI8<U1>, i8);
+prove_fix_fix!(i8_q004q001, fi008::Q004Q001, FixedI8<U4>, FixedI8<U1>, i8);
+prove_fix_fix!(i8_q006q001, fi008::Q006Q001, FixedI8<U6>, FixedI8<U1>, i8);
+prove_fix_fix!(i8_q008q001, fi008::Q008Q001, FixedI8<U8>, FixedI8<U1>, i8);
+prove_fix_fix!(i8_q003q002, fi008::Q003Q002, FixedI8<U3>, FixedI8<U2>, i8);
+prove_fix_fix!(i8_q004q002, fi008::Q004Q002, FixedI8<U4>, FixedI8<U2>, i8);
+prove_fix_fix!(i8_q006q002, fi008::Q006Q002, FixedI8<U6>, FixedI8<U2>, i8);
+prove_fix_fix!(i8_q008q002, fi008::Q008Q002, FixedI8<U8>, FixedI8<U2>, i8);
+prove_fix_fix!(i8_q004q003, fi008::Q004Q003, FixedI8<U4>, FixedI8<U3>, i8);
+prove_fix_fix!(i8_q006q003, fi008::Q006Q003, FixedI8<U6>, FixedI8<U3>, i8);
+prove_fix_fix!(i8_q008q003, fi008::Q008Q003, FixedI8<U8>, FixedI8<U3>, i8);
+prove_fix_fix!(i8_q006q004, fi008::Q006Q004, FixedI8<U6>, FixedI8<U4>, i8);
+prove_fix_fix!(i8_q008q004, fi008::Q008Q004, FixedI8<U8>, FixedI8<U4>, i8);
+prove_fix_fix!(i8_q008q006, fi008::Q008Q006, FixedI8<U8>, FixedI8<U6>, i8);
 
 // ── i16-backed (full ladder) ────────────────────────────────────────
-use crate::fixed::i16 as fi16;
+use crate::fixed::i016 as fi016;
 
 prove_fix_fix!(
     i16_q002q000,
-    fi16::Q002Q000,
+    fi016::Q002Q000,
     FixedI16<U2>,
     FixedI16<U0>,
     i16
 );
 prove_fix_fix!(
     i16_q004q000,
-    fi16::Q004Q000,
+    fi016::Q004Q000,
     FixedI16<U4>,
     FixedI16<U0>,
     i16
 );
 prove_fix_fix!(
     i16_q008q000,
-    fi16::Q008Q000,
+    fi016::Q008Q000,
     FixedI16<U8>,
     FixedI16<U0>,
     i16
 );
 prove_fix_fix!(
     i16_q012q000,
-    fi16::Q012Q000,
+    fi016::Q012Q000,
     FixedI16<U12>,
     FixedI16<U0>,
     i16
 );
 prove_fix_fix!(
     i16_q016q000,
-    fi16::Q016Q000,
+    fi016::Q016Q000,
     FixedI16<U16>,
     FixedI16<U0>,
     i16
 );
 prove_fix_fix!(
     i16_q004q002,
-    fi16::Q004Q002,
+    fi016::Q004Q002,
     FixedI16<U4>,
     FixedI16<U2>,
     i16
 );
 prove_fix_fix!(
     i16_q008q002,
-    fi16::Q008Q002,
+    fi016::Q008Q002,
     FixedI16<U8>,
     FixedI16<U2>,
     i16
 );
 prove_fix_fix!(
     i16_q012q002,
-    fi16::Q012Q002,
+    fi016::Q012Q002,
     FixedI16<U12>,
     FixedI16<U2>,
     i16
 );
 prove_fix_fix!(
     i16_q016q002,
-    fi16::Q016Q002,
+    fi016::Q016Q002,
     FixedI16<U16>,
     FixedI16<U2>,
     i16
 );
 prove_fix_fix!(
     i16_q008q004,
-    fi16::Q008Q004,
+    fi016::Q008Q004,
     FixedI16<U8>,
     FixedI16<U4>,
     i16
 );
 prove_fix_fix!(
     i16_q012q004,
-    fi16::Q012Q004,
+    fi016::Q012Q004,
     FixedI16<U12>,
     FixedI16<U4>,
     i16
 );
 prove_fix_fix!(
     i16_q016q004,
-    fi16::Q016Q004,
+    fi016::Q016Q004,
     FixedI16<U16>,
     FixedI16<U4>,
     i16
 );
 prove_fix_fix!(
     i16_q012q008,
-    fi16::Q012Q008,
+    fi016::Q012Q008,
     FixedI16<U12>,
     FixedI16<U8>,
     i16
 );
 prove_fix_fix!(
     i16_q016q008,
-    fi16::Q016Q008,
+    fi016::Q016Q008,
     FixedI16<U16>,
     FixedI16<U8>,
     i16
 );
 prove_fix_fix!(
     i16_q016q012,
-    fi16::Q016Q012,
+    fi016::Q016Q012,
     FixedI16<U16>,
     FixedI16<U12>,
     i16
 );
 
 // ── i32-backed (boundary pairs only — see header) ───────────────────
-use crate::fixed::i32 as fi32;
+use crate::fixed::i032 as fi032;
 
 prove_fix_fix!(
     i32_q032q000,
-    fi32::Q032Q000,
+    fi032::Q032Q000,
     FixedI32<U32>,
     FixedI32<U0>,
     i32
 );
 prove_fix_fix!(
     i32_q032q016,
-    fi32::Q032Q016,
+    fi032::Q032Q016,
     FixedI32<U32>,
     FixedI32<U16>,
     i32
 );
 prove_fix_fix!(
     i32_q032q024,
-    fi32::Q032Q024,
+    fi032::Q032Q024,
     FixedI32<U32>,
     FixedI32<U24>,
     i32
 );
 prove_fix_fix!(
     i32_q016q000,
-    fi32::Q016Q000,
+    fi032::Q016Q000,
     FixedI32<U16>,
     FixedI32<U0>,
     i32
 );
 
 // ── i64-backed (boundary pairs only) ────────────────────────────────
-use crate::fixed::i64 as fi64;
+use crate::fixed::i064 as fi064;
 
 prove_fix_fix!(
     i64_q064q000,
-    fi64::Q064Q000,
+    fi064::Q064Q000,
     FixedI64<U64>,
     FixedI64<U0>,
     i64
 );
 prove_fix_fix!(
     i64_q064q032,
-    fi64::Q064Q032,
+    fi064::Q064Q032,
     FixedI64<U64>,
     FixedI64<U32>,
     i64
 );
 prove_fix_fix!(
     i64_q064q048,
-    fi64::Q064Q048,
+    fi064::Q064Q048,
     FixedI64<U64>,
     FixedI64<U48>,
     i64

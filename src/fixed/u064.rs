@@ -1,7 +1,7 @@
 //! Binary fixed-point ladder over `fixed::FixedU64<Frac>`.
 //!
 //! Frac level set: `{F0, F8, F16, F32, F48, F63, F64}` → 21 ordered
-//! pairs. Mirrors [`super::i64`] with `FixedU64` backing and adds
+//! pairs. Mirrors [`super::i064`] with `FixedU64` backing and adds
 //! `F63` (Q1.63), the canonical 64-bit normalised-amplitude format.
 
 use super::{LE, int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
@@ -82,14 +82,14 @@ crate::iso! {
 
 // ── §4 Q-format ladder over `FixedU64<Frac>` ────────────────────────
 
-/// `U<frac> = FixedU64<U<frac>>` — u64-backed binary fixed-point.
-pub type U0 = FixedU64<F0>;
-pub type U8 = FixedU64<F8>;
-pub type U16 = FixedU64<F16>;
-pub type U32 = FixedU64<F32>;
-pub type U48 = FixedU64<F48>;
-pub type U63 = FixedU64<F63>;
-pub type U64 = FixedU64<F64>;
+/// `U### = FixedU64<U<frac>>` — u64-backed binary fixed-point.
+pub type U000 = FixedU64<F0>;
+pub type U008 = FixedU64<F8>;
+pub type U016 = FixedU64<F16>;
+pub type U032 = FixedU64<F32>;
+pub type U048 = FixedU64<F48>;
+pub type U063 = FixedU64<F63>;
+pub type U064 = FixedU64<F64>;
 
 macro_rules! fix_fix_u64 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {

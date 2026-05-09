@@ -74,7 +74,7 @@
 //! use connections::compose_k;
 //! use connections::conn::{Conn, ConnL, ConnR, L};
 //! use connections::extended::Extended;
-//! use connections::fixed::i16::Q000I016;
+//! use connections::fixed::i016::Q000I016;
 //! use connections::{compose_l, lift_k};
 //! use fixed::FixedI16;
 //! use fixed::types::extra::U0;
@@ -344,7 +344,7 @@ macro_rules! lift_r {
 /// ```rust
 /// use connections::conn::{ConnL, ConnR};
 /// use connections::extended::Extended;
-/// use connections::fixed::i16::Q000I016;
+/// use connections::fixed::i016::Q000I016;
 /// use connections::lift_k;
 /// use fixed::FixedI16;
 /// use fixed::types::extra::U0;
@@ -528,7 +528,7 @@ mod tests {
 // 1. Spot-check that synthetic-arm equality holds by construction.
 // 2. Drive lifted `Conn::identity::<i64>` through the `l_only` battery —
 //    the simplest non-trivial L-only fixture, exercises arms-and-Finite.
-// 3. Drive lifted `Q000I016` (an iso ConnK from `fixed::i16`) through
+// 3. Drive lifted `Q000I016` (an iso ConnK from `fixed::i016`) through
 //    the `full` battery — exercises both ConnL and ConnR sides plus
 //    `floor_le_ceil`, the full triple-marker law set.
 // 4. Smoke-test that a `lift_l!` value composes into a `compose_l!`
@@ -540,7 +540,7 @@ mod tests {
 mod lift_tests {
     use super::*;
     use crate::conn::{Conn, ConnL as _, ConnR as _, L, R};
-    use crate::fixed::i16::Q000I016;
+    use crate::fixed::i016::Q000I016;
     use ::fixed::FixedI16;
     use ::fixed::types::extra::U0;
     use proptest::prelude::*;

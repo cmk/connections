@@ -56,7 +56,7 @@
 //! | `NANO` | `i128` total nanoseconds (vs `time/`'s i64 — hifitime is wider) |
 //! | `SECS` | `i64` whole seconds                                        |
 //! | `U008` | `u8` rung                                                  |
-//! | `N008` | `NonZeroU8` rung (canonical `N***` form per [`crate::fixed::i8::I008N008`]) |
+//! | `N008` | `NonZeroU8` rung (canonical `N***` form per [`crate::fixed::i008::I008N008`]) |
 //! | `F064` | [`F064`](crate::float::F064)                               |
 //! | `F032` | [`F032`](crate::float::F032)                               |
 //!

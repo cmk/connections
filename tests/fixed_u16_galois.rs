@@ -1,11 +1,11 @@
-//! Galois-law proptest battery for `conn::fixed::u16`.
+//! Galois-law proptest battery for `conn::fixed::u016`.
 //!
 //! See `tests/conn_fixed_u08_galois.rs` for the rationale: this is
 //! an integration test rather than a `#[cfg(test)] mod` inside
-//! `src/conn/fixed/u16.rs` to keep the lib-test rustc invocation
+//! `src/conn/fixed/u016.rs` to keep the lib-test rustc invocation
 //! under CI's container memory budget.
 
-use connections::fixed::u16::*;
+use connections::fixed::u016::*;
 use fixed::FixedU16;
 use fixed::types::extra::{U0, U2, U4, U8, U12, U14, U15, U16};
 use proptest::prelude::*;

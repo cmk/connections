@@ -100,13 +100,13 @@ crate::iso! {
 
 // ── §4 Q-format ladder over `FixedI16<Frac>` ────────────────────────
 
-/// `I<frac> = FixedI16<U<frac>>` — i16-backed binary fixed-point.
-pub type I0 = FixedI16<U0>;
-pub type I2 = FixedI16<U2>;
-pub type I4 = FixedI16<U4>;
-pub type I8 = FixedI16<U8>;
-pub type I12 = FixedI16<U12>;
-pub type I16 = FixedI16<U16>;
+/// `I### = FixedI16<U<frac>>` — i16-backed binary fixed-point.
+pub type I000 = FixedI16<U0>;
+pub type I002 = FixedI16<U2>;
+pub type I004 = FixedI16<U4>;
+pub type I008 = FixedI16<U8>;
+pub type I012 = FixedI16<U12>;
+pub type I016 = FixedI16<U16>;
 
 macro_rules! fix_fix_i16 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {

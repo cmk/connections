@@ -35,7 +35,7 @@
 //! → u8` target code (`A123` shape, `U` = unsigned int + 8-bit
 //! width). `N008` is the matching canonical form for the
 //! `NonZeroU8` target (`A123` shape, `N` = `NonZero<*>` + 8-bit
-//! width), parallel to [`crate::fixed::i8::I008N008`].
+//! width), parallel to [`crate::fixed::i008::I008N008`].
 
 use crate::extended::Extended;
 use core::num::NonZeroU8;

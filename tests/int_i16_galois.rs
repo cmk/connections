@@ -8,7 +8,7 @@
 #[allow(unused_imports)]
 use connections::conn::{ConnL, ConnR};
 use connections::extended::Extended;
-use connections::fixed::i16::*;
+use connections::fixed::i016::*;
 use proptest::prelude::*;
 
 // Strategies for `Extended<T>` — bias toward boundary values.

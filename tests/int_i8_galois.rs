@@ -7,7 +7,7 @@
 
 #[allow(unused_imports)]
 use connections::conn::{ConnL, ConnR};
-use connections::fixed::i8::*;
+use connections::fixed::i008::*;
 use proptest::prelude::*;
 
 // `galois_lower` intentionally omitted; see

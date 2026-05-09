@@ -5,8 +5,8 @@
 //! - `TIMENANO` (`conn_l!`) — `Extended<Time> → i64` nanoseconds since midnight.
 //! - `TIMESECS` (`conn_l!`) — `Extended<Time> → i64` whole seconds.
 //! - `TDURSECS` (`conn_k!`) — `Duration → Extended<i64>` whole seconds (full triple).
-//! - `SDURU064` (`conn_l!`) — `StdDuration → u64` whole seconds (saturating ceil).
-//! - `SDURU128` (`conn_l!`) — `StdDuration → u128` total nanoseconds.
+//! - `SDURU064` (`conn_k!`) — `Extended<StdDuration> → Extended<u64>` (full triple).
+//! - `SDURU128` (`conn_l!`) — `Extended<StdDuration> → Extended<u128>` total nanoseconds.
 //!
 //! Out of scope (calendar / leap-second internals): `DATEJDAY`,
 //! `PDTMDATE`, `ODTMNANO`, `ODTMSECS`. See plan §Tier 2.
@@ -70,6 +70,15 @@ fn arb_std_duration() -> StdDuration {
     StdDuration::new(secs, subsec)
 }
 
+fn arb_ext_std_duration() -> Extended<StdDuration> {
+    let tag: u8 = kani::any();
+    match tag % 3 {
+        0 => Extended::NegInf,
+        1 => Extended::Finite(arb_std_duration()),
+        _ => Extended::PosInf,
+    }
+}
+
 fn arb_i64() -> i64 {
     kani::any()
 }
@@ -84,12 +93,24 @@ fn arb_ext_i64() -> Extended<i64> {
     }
 }
 
-fn arb_u64() -> u64 {
-    kani::any()
+fn arb_ext_u64() -> Extended<u64> {
+    let tag: u8 = kani::any();
+    let v: u64 = kani::any();
+    match tag % 3 {
+        0 => Extended::NegInf,
+        1 => Extended::Finite(v),
+        _ => Extended::PosInf,
+    }
 }
 
-fn arb_u128() -> u128 {
-    kani::any()
+fn arb_ext_u128() -> Extended<u128> {
+    let tag: u8 = kani::any();
+    let v: u128 = kani::any();
+    match tag % 3 {
+        0 => Extended::NegInf,
+        1 => Extended::Finite(v),
+        _ => Extended::PosInf,
+    }
 }
 
 // ── L-only battery ──────────────────────────────────────────────────
@@ -213,7 +234,7 @@ macro_rules! prove_lr {
 prove_l!(timenano, TIMENANO, arb_ext_time, arb_i64);
 prove_l!(timesecs, TIMESECS, arb_ext_time, arb_i64);
 
-// ── TDURSECS — full triple (`conn_k!`) ─────────────────────────────
+// ── TDURSECS / SDURU064 — full triples (`conn_k!`) ─────────────────
 
 prove_lr!(
     tdursecs,
@@ -223,7 +244,14 @@ prove_lr!(
     arb_ext_i64
 );
 
-// ── SDURU064 / SDURU128 — `conn_l!` ────────────────────────────────
+prove_lr!(
+    sduru064,
+    SDURU064.conn_l(),
+    SDURU064.conn_r(),
+    arb_ext_std_duration,
+    arb_ext_u64
+);
 
-prove_l!(sduru064, SDURU064, arb_std_duration, arb_u64);
-prove_l!(sduru128, SDURU128, arb_std_duration, arb_u128);
+// ── SDURU128 — `conn_l!` ───────────────────────────────────────────
+
+prove_l!(sduru128, SDURU128, arb_ext_std_duration, arb_ext_u128);

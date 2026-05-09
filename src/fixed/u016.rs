@@ -1,7 +1,7 @@
 //! Binary fixed-point ladder over `fixed::FixedU16<Frac>`.
 //!
 //! Frac level set: `{F0, F2, F4, F8, F12, F14, F15, F16}` → 28 ordered
-//! pairs `(Fine, Coarse)` with `Fine > Coarse`. Mirrors [`super::i16`]
+//! pairs `(Fine, Coarse)` with `Fine > Coarse`. Mirrors [`super::i016`]
 //! with `FixedU16` backing instead of `FixedI16`, and adds two
 //! unsigned-natural Q-formats:
 //!
@@ -99,15 +99,15 @@ crate::iso! {
 
 // ── §4 Q-format ladder over `FixedU16<Frac>` ────────────────────────
 
-/// `U<frac> = FixedU16<U<frac>>` — u16-backed binary fixed-point.
-pub type U0 = FixedU16<F0>;
-pub type U2 = FixedU16<F2>;
-pub type U4 = FixedU16<F4>;
-pub type U8 = FixedU16<F8>;
-pub type U12 = FixedU16<F12>;
-pub type U14 = FixedU16<F14>;
-pub type U15 = FixedU16<F15>;
-pub type U16 = FixedU16<F16>;
+/// `U### = FixedU16<U<frac>>` — u16-backed binary fixed-point.
+pub type U000 = FixedU16<F0>;
+pub type U002 = FixedU16<F2>;
+pub type U004 = FixedU16<F4>;
+pub type U008 = FixedU16<F8>;
+pub type U012 = FixedU16<F12>;
+pub type U014 = FixedU16<F14>;
+pub type U015 = FixedU16<F15>;
+pub type U016 = FixedU16<F16>;
 
 macro_rules! fix_fix_u16 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {

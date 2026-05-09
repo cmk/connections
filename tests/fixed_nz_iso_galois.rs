@@ -2,7 +2,7 @@
 //! `U###N###`) and cross-crate iso (`Q000I###`, `Q000U###`) Conn
 //! families across all per-host-type widths except i8/u8 (whose
 //! representative spot+proptest coverage lives inline in
-//! `src/fixed/i8.rs` and `src/fixed/u8.rs`).
+//! `src/fixed/i008.rs` and `src/fixed/u008.rs`).
 //!
 //! The macros `nz_int_ext!` / `nz_uint_ext!` and the `Conn::new_iso`
 //! based iso constructor produce structurally identical bodies at
@@ -56,9 +56,9 @@ macro_rules! signed_nz_props {
     };
 }
 
-signed_nz_props!(i016n016, fixed::i16::I016N016, i16, NonZeroI16);
-signed_nz_props!(i032n032, fixed::i32::I032N032, i32, NonZeroI32);
-signed_nz_props!(i064n064, fixed::i64::I064N064, i64, NonZeroI64);
+signed_nz_props!(i016n016, fixed::i016::I016N016, i16, NonZeroI16);
+signed_nz_props!(i032n032, fixed::i032::I032N032, i32, NonZeroI32);
+signed_nz_props!(i064n064, fixed::i064::I064N064, i64, NonZeroI64);
 signed_nz_props!(i128n128, fixed::i128::I128N128, i128, NonZeroI128);
 
 // ── Unsigned NonZero: only galois_l holds. galois_r fails at the
@@ -87,9 +87,9 @@ macro_rules! unsigned_nz_props {
     };
 }
 
-unsigned_nz_props!(u016n016, fixed::u16::U016N016, u16, NonZeroU16);
-unsigned_nz_props!(u032n032, fixed::u32::U032N032, u32, NonZeroU32);
-unsigned_nz_props!(u064n064, fixed::u64::U064N064, u64, NonZeroU64);
+unsigned_nz_props!(u016n016, fixed::u016::U016N016, u16, NonZeroU16);
+unsigned_nz_props!(u032n032, fixed::u032::U032N032, u32, NonZeroU32);
+unsigned_nz_props!(u064n064, fixed::u064::U064N064, u64, NonZeroU64);
 unsigned_nz_props!(u128n128, fixed::u128::U128N128, u128, NonZeroU128);
 
 // ── Cross-crate iso: both Galois laws hold (degenerate iso). ────
@@ -121,11 +121,11 @@ macro_rules! iso_props {
     };
 }
 
-iso_props!(q000i016, fixed::i16::Q000I016, i16, FixedI16);
-iso_props!(q000i032, fixed::i32::Q000I032, i32, FixedI32);
-iso_props!(q000i064, fixed::i64::Q000I064, i64, FixedI64);
+iso_props!(q000i016, fixed::i016::Q000I016, i16, FixedI16);
+iso_props!(q000i032, fixed::i032::Q000I032, i32, FixedI32);
+iso_props!(q000i064, fixed::i064::Q000I064, i64, FixedI64);
 iso_props!(q000i128, fixed::i128::Q000I128, i128, FixedI128);
-iso_props!(q000u016, fixed::u16::Q000U016, u16, FixedU16);
-iso_props!(q000u032, fixed::u32::Q000U032, u32, FixedU32);
-iso_props!(q000u064, fixed::u64::Q000U064, u64, FixedU64);
+iso_props!(q000u016, fixed::u016::Q000U016, u16, FixedU16);
+iso_props!(q000u032, fixed::u032::Q000U032, u32, FixedU32);
+iso_props!(q000u064, fixed::u064::Q000U064, u64, FixedU64);
 iso_props!(q000u128, fixed::u128::Q000U128, u128, FixedU128);

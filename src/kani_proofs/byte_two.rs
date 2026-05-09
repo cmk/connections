@@ -1,14 +1,14 @@
-//! Kani harnesses for `fixed::u32` / `fixed::i32` — 4-byte sortable byte-encoding isos.
+//! Kani harnesses for [`crate::byte::two`] — 2-byte sortable byte-encoding isos.
 //!
-//! `U032BE04`, `I032BE04`. (`F032BE04` deferred — see `src/fixed.rs`.)
-//! T0 (full domain). The `order_preserving` predicate uses two
-//! symbolic inputs — 64 symbolic bits — comparable to the `F064F032`
-//! walk-step proofs in `float_walk.rs`.
+//! `U016OBYT`, `I016OBYT`. (`F016OBYT` deferred — see `src/byte.rs`.)
+//!
+//! T0 (full domain). Symbolic input is at most 32 bits (a u16 + a
+//! [u8; 2]); CBMC handles this within seconds.
 
 use crate::conn::{ConnL, ConnR};
 use crate::prop::conn as conn_laws;
 
-macro_rules! prove_iso_be {
+macro_rules! prove_iso_obyt {
     ($mod_name:ident, $CONN:path, $T:ty) => {
         mod $mod_name {
             use super::*;
@@ -16,14 +16,14 @@ macro_rules! prove_iso_be {
             #[kani::proof]
             fn galois_l() {
                 let a: $T = kani::any();
-                let b: [u8; 4] = kani::any();
+                let b: [u8; 2] = kani::any();
                 assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
             }
 
             #[kani::proof]
             fn galois_r() {
                 let a: $T = kani::any();
-                let b: [u8; 4] = kani::any();
+                let b: [u8; 2] = kani::any();
                 assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
             }
 
@@ -35,7 +35,7 @@ macro_rules! prove_iso_be {
 
             #[kani::proof]
             fn roundtrip_ceil() {
-                let b: [u8; 4] = kani::any();
+                let b: [u8; 2] = kani::any();
                 assert!(conn_laws::roundtrip_ceil(&$CONN.conn_l(), b));
             }
 
@@ -57,7 +57,5 @@ macro_rules! prove_iso_be {
     };
 }
 
-prove_iso_be!(u032_be, crate::fixed::u32::U032BE04, u32);
-prove_iso_be!(i032_be, crate::fixed::i32::I032BE04, i32);
-
-// `F032BE04` deferred — see `src/fixed.rs` for the NaN/PartialOrd rationale.
+prove_iso_obyt!(u016_obyt, crate::byte::U016OBYT, u16);
+prove_iso_obyt!(i016_obyt, crate::byte::I016OBYT, i16);

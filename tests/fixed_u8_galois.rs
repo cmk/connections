@@ -1,4 +1,4 @@
-//! Galois-law proptest battery for `conn::fixed::u8`.
+//! Galois-law proptest battery for `conn::fixed::u008`.
 //!
 //! Hosted as an integration test (separate crate) so the main lib
 //! test binary doesn't carry all 252 generated test functions for
@@ -9,9 +9,9 @@
 //! within budget.
 //!
 //! Spot tests stay collocated with the source in
-//! `src/conn/fixed/u8.rs` — they're cheap to compile.
+//! `src/conn/fixed/u008.rs` — they're cheap to compile.
 
-use connections::fixed::u8::*;
+use connections::fixed::u008::*;
 use fixed::FixedU8;
 use fixed::types::extra::{U0, U1, U2, U3, U4, U6, U7, U8};
 use proptest::prelude::*;

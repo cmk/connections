@@ -1,7 +1,7 @@
 //! Binary fixed-point ladder over `fixed::FixedI8<Frac>`.
 //!
 //! Frac level set: `{U0, U1, U2, U3, U4, U6, U8}` → 21 ordered pairs
-//! `(Fine, Coarse)` with `Fine > Coarse`. See [`super::i16`] for the
+//! `(Fine, Coarse)` with `Fine > Coarse`. See [`super::i016`] for the
 //! design (this module mirrors it with `i8` inner / `i16` widening).
 //! Same totality + Galois-axiom guarantees; same saturation plateau,
 //! and the same boundary fixups in `ceil` / `floor`.
@@ -13,7 +13,7 @@
 //!
 //! ```rust
 //! use connections::conn::ConnL;  // brings .ceil/.upper in via default methods
-//! use connections::fixed::i8::Q004Q000;
+//! use connections::fixed::i008::Q004Q000;
 //! use fixed::FixedI8;
 //! use fixed::types::extra::{U0, U4};
 //!
@@ -98,7 +98,7 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::conn::{ConnL, ConnR};
-    /// use connections::fixed::i8::I008BE01;
+    /// use connections::fixed::i008::I008BE01;
     ///
     /// assert_eq!(I008BE01.ceil(i8::MIN), [0x00]);
     /// assert_eq!(I008BE01.ceil(0_i8),    [0x80]);
@@ -130,15 +130,15 @@ crate::iso! {
 
 // ── §4 Q-format ladder over `FixedI8<Frac>` ─────────────────────────
 
-/// `I<frac> = FixedI8<U<frac>>` — i8-backed binary fixed-point with
+/// `I### = FixedI8<U<frac>>` — i8-backed binary fixed-point with
 /// `<frac>` fractional bits.
-pub type I0 = FixedI8<U0>;
-pub type I1 = FixedI8<U1>;
-pub type I2 = FixedI8<U2>;
-pub type I3 = FixedI8<U3>;
-pub type I4 = FixedI8<U4>;
-pub type I6 = FixedI8<U6>;
-pub type I8 = FixedI8<U8>;
+pub type I000 = FixedI8<U0>;
+pub type I001 = FixedI8<U1>;
+pub type I002 = FixedI8<U2>;
+pub type I003 = FixedI8<U3>;
+pub type I004 = FixedI8<U4>;
+pub type I006 = FixedI8<U6>;
+pub type I008 = FixedI8<U8>;
 
 macro_rules! fix_fix_i8 {
     ($const_name:ident, $FineFrac:ty, $CoarseFrac:ty) => {

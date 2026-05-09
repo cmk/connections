@@ -28,28 +28,28 @@
 //! For binary fixed-point, every Conn whose endpoints are Q-format
 //! wrappers from the [`fixed`] crate uses the **`Q`** prefix on those
 //! sides. Sign and host bit-width are implicit from the module path
-//! (`fixed::i8` → signed 8-bit, `fixed::u8` → unsigned 8-bit, etc.);
+//! (`fixed::i008` → signed 8-bit, `fixed::u008` → unsigned 8-bit, etc.);
 //! the 3-digit field is the frac level. Backing width therefore lives
-//! in the module path: `fixed::i8::Q008Q004` is the i8-backed 8-frac
-//! → 4-frac Conn, while `fixed::i64::Q008Q004` is the i64-backed
+//! in the module path: `fixed::i008::Q008Q004` is the i8-backed 8-frac
+//! → 4-frac Conn, while `fixed::i064::Q008Q004` is the i64-backed
 //! analogue. Both share the constant name `Q008Q004`; resolution is
 //! by qualified import:
 //!
 //! ```ignore
-//! use connections::fixed::i8 as fi8;
-//! use connections::fixed::i64 as fi64;
-//! let _ = fi8::Q008Q000;     // i8-backed  Q0.8 → Q8.0
-//! let _ = fi64::Q008Q000;    // i64-backed Q56.8 → Q64.0
+//! use connections::fixed::i008 as fi008;
+//! use connections::fixed::i064 as fi064;
+//! let _ = fi008::Q008Q000;     // i8-backed  Q0.8 → Q8.0
+//! let _ = fi064::Q008Q000;    // i64-backed Q56.8 → Q64.0
 //! ```
 //!
 //! [`fixed`]: https://docs.rs/fixed
 //!
 //! Std-int-conn families live alongside the Q-format ladder under
-//! `fixed::{i8,…,u128}` — one submodule per destination primitive,
+//! `fixed::{i008,…,u128}` — one submodule per destination primitive,
 //! named after the **right side** of the cast. So `I008I016` (signed
-//! widening `Extended<i8> → i16`) lives in `fixed::i16`; `I016I008`
-//! (signed narrowing `i16 → i8`) lives in `fixed::i8`; `U008I008`
-//! (cross-sign non-widening `u8 → i8`) also lives in `fixed::i8`.
+//! widening `Extended<i8> → i16`) lives in `fixed::i016`; `I016I008`
+//! (signed narrowing `i16 → i8`) lives in `fixed::i008`; `U008I008`
+//! (cross-sign non-widening `u8 → i8`) also lives in `fixed::i008`.
 //! The signed-widening (`I###I###`) and unsigned-into-signed-widening
 //! (`U###I###`) families wrap the source in
 //! [`Extended`](extended::Extended) and ship as adjoint-triple markers
@@ -66,22 +66,22 @@
 //! - [`float::f32::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
 //! - `float::f16::F064F016` — `F064 → F016` (direct f64 → IEEE binary16, `f16` feature).
 //! - `float::f16::F032F016` — `F032 → F016` (f32 → IEEE binary16, `f16` feature).
-//! - [`fixed::u16::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
-//! - [`fixed::i16::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
-//! - [`fixed::i16::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
-//! - [`fixed::i8::I016I008`] — `i16 → i8` signed-narrowing saturating cast.
-//! - [`fixed::u8::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
-//! - [`fixed::i8::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
-//! - [`fixed::u8::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
-//! - [`fixed::u8::Q008Q007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
+//! - [`fixed::u016::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
+//! - [`fixed::i016::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
+//! - [`fixed::i016::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
+//! - [`fixed::i008::I016I008`] — `i16 → i8` signed-narrowing saturating cast.
+//! - [`fixed::u008::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
+//! - [`fixed::i008::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
+//! - [`fixed::u008::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
+//! - [`fixed::u008::Q008Q007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
 //!   the 7-bit MIDI velocity format).
-//! - [`fixed::u16::Q016Q015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
+//! - [`fixed::u016::Q016Q015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
 //!   canonical signed-PCM-equivalent unsigned audio amplitude).
-//! - [`fixed::u32::Q032Q031`] — `FixedU32<U32> → FixedU32<U31>` (Q0.32 ↔ Q1.31,
+//! - [`fixed::u032::Q032Q031`] — `FixedU32<U32> → FixedU32<U31>` (Q0.32 ↔ Q1.31,
 //!   the canonical 32-bit normalised-amplitude format).
-//! - [`fixed::i8::I008N008`] — `i8 → NonZeroI8` (asymmetric adjoint
+//! - [`fixed::i008::I008N008`] — `i8 → NonZeroI8` (asymmetric adjoint
 //!   at zero: `floor(0) = -1`, `ceil(0) = +1`).
-//! - [`fixed::i8::Q000I008`] — `FixedI8<U0> ↔ i8` cross-crate iso
+//! - [`fixed::i008::Q000I008`] — `FixedI8<U0> ↔ i8` cross-crate iso
 //!   (Q8.0 lossless bridge to the std primitive).
 //!
 //! `F128` is blocked on `f128` stabilisation in stable Rust.
@@ -185,6 +185,8 @@
 #![forbid(unsafe_code)]
 
 pub mod addr;
+#[cfg(feature = "byte")]
+pub mod byte;
 pub mod char;
 pub mod conn;
 pub mod extended;

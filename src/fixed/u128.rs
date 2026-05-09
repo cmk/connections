@@ -10,7 +10,7 @@
 //! detect the `SHIFT == 128` degenerate case (`Q128Q000`, where
 //! `RATIO = 2^128` doesn't fit in `u128` at all).
 
-use super::{LE, int_uint, nz_uint_ext, uint_uint};
+use super::{int_uint, nz_uint_ext, uint_uint};
 use ::fixed::FixedU128;
 use ::fixed::types::extra::{
     U0 as F0, U16 as F16, U32 as F32, U64 as F64, U96 as F96, U127 as F127, U128 as F128, Unsigned,
@@ -50,48 +50,14 @@ crate::iso! {
     }
 }
 
-// ── Sortable big-endian byte encodings ─────────────────────
-
-const fn u128_to_be16(x: u128) -> [u8; 16] {
-    x.to_be_bytes()
-}
-const fn be16_to_u128(b: [u8; 16]) -> u128 {
-    u128::from_be_bytes(b)
-}
-
-crate::iso! {
-    /// `u128 ↔ [u8; 16]` — big-endian iso. Byte-lex order matches u128 order.
-    pub U128BE16 : u128 => [u8; 16] {
-        forward: u128_to_be16,
-        back:    be16_to_u128,
-    }
-}
-
-// ── Sortable little-endian byte encodings ──────────────────
-
-const fn u128_to_le16(x: u128) -> LE<16> {
-    LE(x.to_le_bytes())
-}
-const fn le16_to_u128(b: LE<16>) -> u128 {
-    u128::from_le_bytes(b.0)
-}
-
-crate::iso! {
-    /// `u128 ↔ LE<16>` — little-endian iso with numeric-sort ordering.
-    pub U128LE16 : u128 => LE<16> {
-        forward: u128_to_le16,
-        back:    le16_to_u128,
-    }
-}
-
 // ── §4 Q-format ladder over `FixedU128<Frac>` ───────────────────────
 
-/// `U<frac> = FixedU128<U<frac>>` — u128-backed binary fixed-point.
-pub type U0 = FixedU128<F0>;
-pub type U16 = FixedU128<F16>;
-pub type U32 = FixedU128<F32>;
-pub type U64 = FixedU128<F64>;
-pub type U96 = FixedU128<F96>;
+/// `U### = FixedU128<U<frac>>` — u128-backed binary fixed-point.
+pub type U000 = FixedU128<F0>;
+pub type U016 = FixedU128<F16>;
+pub type U032 = FixedU128<F32>;
+pub type U064 = FixedU128<F64>;
+pub type U096 = FixedU128<F96>;
 pub type U127 = FixedU128<F127>;
 pub type U128 = FixedU128<F128>;
 
@@ -193,8 +159,6 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use crate::conn::{ConnL, ConnR};
-    use crate::prop::conn as conn_laws;
-    use proptest::prelude::*;
 
     // ── §1 std-int spot checks (merged from former int/u128.rs) ────
 
@@ -290,73 +254,6 @@ mod tests {
             Q128Q127.ceil(fmax),
             FixedU128::<F127>::from_bits(1_u128 << 127),
         );
-    }
-
-    // ── BE byte-encoding tests ─────────────────────────────
-
-    fn arb_byte16() -> impl Strategy<Value = [u8; 16]> {
-        prop_oneof![Just([0; 16]), Just([0xFF; 16]), any::<[u8; 16]>()]
-    }
-
-    fn arb_lebyte16() -> impl Strategy<Value = LE<16>> {
-        arb_byte16().prop_map(LE)
-    }
-
-    proptest! {
-        #[test]
-        fn u128_be_iso_roundtrip_l(a in prop_oneof![Just(0u128), Just(u128::MAX), any::<u128>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&U128BE16.conn_l(), a));
-        }
-        #[test]
-        fn u128_be_roundtrip_ceil(b in arb_byte16()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&U128BE16.conn_l(), b));
-        }
-        #[test]
-        fn u128_be_galois_l(a in any::<u128>(), b in arb_byte16()) {
-            prop_assert!(conn_laws::galois_l(&U128BE16.conn_l(), a, b));
-        }
-        #[test]
-        fn u128_be_galois_r(a in any::<u128>(), b in arb_byte16()) {
-            prop_assert!(conn_laws::galois_r(&U128BE16.conn_r(), a, b));
-        }
-        #[test]
-        fn u128_be_floor_le_ceil(a in any::<u128>()) {
-            prop_assert!(conn_laws::floor_le_ceil(&U128BE16, a));
-        }
-        #[test]
-        fn u128_be_order_preserving(a in any::<u128>(), b in any::<u128>()) {
-            prop_assert_eq!(a.cmp(&b), U128BE16.ceil(a).cmp(&U128BE16.ceil(b)));
-        }
-
-        #[test]
-        fn u128_le_iso_roundtrip_l(a in prop_oneof![Just(0u128), Just(u128::MAX), any::<u128>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&U128LE16.conn_l(), a));
-        }
-
-        #[test]
-        fn u128_le_roundtrip_ceil(b in arb_lebyte16()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&U128LE16.conn_l(), b));
-        }
-
-        #[test]
-        fn u128_le_galois_l(a in any::<u128>(), b in arb_lebyte16()) {
-            prop_assert!(conn_laws::galois_l(&U128LE16.conn_l(), a, b));
-        }
-
-        #[test]
-        fn u128_le_galois_r(a in any::<u128>(), b in arb_lebyte16()) {
-            prop_assert!(conn_laws::galois_r(&U128LE16.conn_r(), a, b));
-        }
-
-        #[test]
-        fn u128_le_floor_le_ceil(a in any::<u128>()) {
-            prop_assert!(conn_laws::floor_le_ceil(&U128LE16, a));
-        }
-
-        #[test]
-        fn u128_le_order_preserving(a in any::<u128>(), b in any::<u128>()) {
-            prop_assert_eq!(a.cmp(&b), U128LE16.ceil(a).cmp(&U128LE16.ceil(b)));
-        }
     }
 
     // The Galois proptest battery (189 generated tests across 21

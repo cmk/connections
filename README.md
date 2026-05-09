@@ -25,7 +25,7 @@ this doc explains how those names get earned.
 
 ```rust
 use connections::conn::{ConnL, ConnR};
-use connections::fixed::i16::Q000I016;
+use connections::fixed::i016::Q000I016;
 use fixed::types::extra::U0;
 use fixed::FixedI16;
 
@@ -372,18 +372,14 @@ call into calendar / leap-second tables — `TIMENANO`, `TIMESECS`,
 `ETAINANO`, and the `ETAIHDUR` iso — pick up the standard
 Galois-law battery.
 
-Plan 47 adds SMT proofs for the sortable-byte-encoding family
-now hosted in `fixed::{u8,i8,u16,i16,u32,i32}` proof modules.
-1- and 2-byte hosts (`fixed::u8::U008BE01`, `fixed::i8::I008BE01`,
-`fixed::u16::U016BE02`, `fixed::i16::I016BE02`, plus the one-sided
-`fixed::u8::BOOLBE01`, and their `*LE*` mirrors over `fixed::LE<N>`)
-are proven exhaustively; 4-byte hosts
-(`fixed::u32::{U032BE04,U032LE04}`, `fixed::i32::{I032BE04,I032LE04}`)
-verify under full 32-bit symbolic input. The 8- and 16-byte hosts (`fixed::u64::U064BE08`,
-`fixed::i64::I064BE08`, `fixed::u128::U128BE16`, `fixed::i128::I128BE16`)
-are proptest-only —
-128/256-bit two-input symex stalls CBMC. **Float BE Conns
-(`F016BE02`, `F032BE04`, `F064BE08`) are deferred** — the byte
+Plan 47 (`byte` cargo feature) adds **38 SMT proofs** for the new
+sortable-byte-encoding family in `src/kani_proofs/byte_{one,two,four}.rs`.
+1- and 2-byte hosts (`U008OBYT`, `I008OBYT`, `U016OBYT`, `I016OBYT`,
+plus the one-sided `BOOLOBYT`) are proven exhaustively; 4-byte hosts
+(`U032OBYT`, `I032OBYT`) verify under full 32-bit symbolic input. The
+8- and 16-byte hosts (`U064OBYT`, `U128OBYT`, …) are proptest-only —
+128/256-bit two-input symex stalls CBMC. **Float OBYT Conns
+(`F016OBYT`, `F032OBYT`, `F064OBYT`) are deferred** — the byte
 encoding preserves IEEE 754 totalOrder, but the host endpoint's
 `PartialOrd` returns `None` for NaN comparisons, which would force
 the emitted `iso!` to claim a Galois law it does not satisfy at
@@ -438,19 +434,19 @@ implement `ConnK`.
 | Family | Module |
 |--------|--------|
 | IEEE-754 types | `float` | 
-| Q-format binary fixed-point (`Q###Q###`, i8/u8 … i128/u128 backing) | `fixed::{i8,…,i128, u8,…,u128}` |
-| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `fixed::{i8,…,i128, u8,…,u128}` (alongside the Q-format ladder for the same destination) |
-| `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `fixed::{i8,…,i128, u8,…,u128}` |
-| Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) | `fixed::{i8,…,i128, u8,…,u128}` |
+| Q-format binary fixed-point (`Q###Q###`, i8/u8 … i128/u128 backing) | `fixed::{i008,…,i128, u008,…,u128}` |
+| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `fixed::{i008,…,i128, u008,…,u128}` (alongside the Q-format ladder for the same destination) |
+| `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `fixed::{i008,…,i128, u008,…,u128}` |
+| Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) | `fixed::{i008,…,i128, u008,…,u128}` |
 | Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` cargo feature |
 | `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
 | `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
-| Sortable byte encodings (`fixed::{u8,i8,u16,i16,u32,i32,u64,i64,u128,i128}::*BE*` and `*LE*`) — BE uses `[u8; N]`; LE uses `fixed::LE<N>` for numeric-sort ordering; float byte Conns deferred (NaN/PartialOrd) | always on |
+| Sortable byte encodings (`U008OBYT`, `I008OBYT`, `BOOLOBYT`, `U016OBYT`, `I016OBYT`, `U032OBYT`, `I032OBYT`, `U064OBYT`, `I064OBYT`, `U128OBYT`, `I128OBYT`) — `byte` cargo feature; float OBYT Conns deferred (NaN/PartialOrd) | `byte` |
 
 Constant-name prefixes are letter-disambiguated: `Q` for Q-format
 wrappers (sign and host bit-width come from the module path), `I`/`U`
 for std primitives (digits = bit-width), `N` for `NonZero<*>`, `F` for
 IEEE floats. Cross-module name collisions are allowed and resolved by
-qualified import (e.g. `fixed::i8::Q008Q000` and
-`fixed::i64::Q008Q000` co-exist).
+qualified import (e.g. `fixed::i008::Q008Q000` and
+`fixed::i064::Q008Q000` co-exist).
