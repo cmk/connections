@@ -1,4 +1,4 @@
-# review-00084 — Replace 1-ns walk with chunk-bottom solver
+# review-00086 — Replace 1-ns walk with chunk-bottom solver
 
 ## Summary
 
@@ -155,13 +155,13 @@ No P1 escalation warranted.
 
 **Follow-up (future work):**
 
-3. **`doc/reviews/review-00084.md` Conn count:** Summary says "17
+3. **`doc/reviews/review-00086.md` Conn count:** Summary says "17
    affected Conn consts" but the actual count is 15 (2 TDUR + 2 SDUR
    + 2 HDUR + 9 Epoch). Minor doc error; fix before the MR
    description goes live.
 
 4. **`doc/plans/plan-2026-05-08-05.md` naming errors:** Dependency
-   graph T8 references `review-00080.md` (should be `review-00084.md`).
+   graph T8 references `review-00080.md` (should be `review-00086.md`).
    Scope table lists `F064EUTC` (no such const) where the actual
    constant is `F064EUNX`. Neither affects the code; correct for
    future reference.
@@ -185,7 +185,7 @@ No P1 escalation warranted.
 
 ### P1.A — Trait-claim audit
 
-No new `pub const` of `Conn<_, _>`, no new `iso!` / `conn_l!` / `conn_r!` / `compose!` / `triple!` macro invocations, no new trait `impl` bodies appear in the round-2 diff. The round-2 changes are purely additive: new test code (`src/float.rs`, `src/hifi/epoch.rs`) and doc updates (`review-00084.md`, plan corrections). The underlying `conn_l!` declarations and their `ceil` implementations are unchanged from round 1.
+No new `pub const` of `Conn<_, _>`, no new `iso!` / `conn_l!` / `conn_r!` / `compose!` / `triple!` macro invocations, no new trait `impl` bodies appear in the round-2 diff. The round-2 changes are purely additive: new test code (`src/float.rs`, `src/hifi/epoch.rs`) and doc updates (`review-00086.md`, plan corrections). The underlying `conn_l!` declarations and their `ceil` implementations are unchanged from round 1.
 
 **No new trait-claim items to audit. Round-1 conclusion stands: no mismatch.**
 
@@ -226,9 +226,9 @@ No weakened predicates, relaxation suffixes, or excluded-domain notes appear in 
 
 **Verification table — `solve_step_bound`:** `solve_step_bound_tests` in `src/float.rs` covers unit-test form (`step_bound_at_zero`, `step_bound_at_max_magnitude`) and proptest form (`solve_to_ceil_step_bound_holds`). ✓
 
-**Follow-up #3 (Conn count):** `review-00084.md` Summary already reads "15 affected Conn consts" — correct. ✓
+**Follow-up #3 (Conn count):** `review-00086.md` Summary already reads "15 affected Conn consts" — correct. ✓
 
-**Follow-up #4 (plan typos):** The `089395a` commit subject says "Conn count + plan typos". The plan doc changes are part of that commit and the round-2 diff shows the updated review-00084.md with the corrected count. Assumed correct. ✓
+**Follow-up #4 (plan typos):** The `089395a` commit subject says "Conn count + plan typos". The plan doc changes are part of that commit and the round-2 diff shows the updated review-00086.md with the corrected count. Assumed correct. ✓
 
 **Follow-up #5 (SOLVE_STEP_BOUND consolidation):** `SOLVE_STEP_BOUND = 44` is now in `src/kani_proofs.rs` and imported via `use super::SOLVE_STEP_BOUND` in both `time_walk.rs` and `hifi_walk.rs`. Done ahead of the "third file" threshold. ✓
 
