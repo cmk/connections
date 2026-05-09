@@ -650,7 +650,7 @@ fn f064sdur_ceil(x: F064) -> StdDuration {
         return StdDuration::ZERO;
     }
     let max_secs = StdDuration::MAX.as_secs_f64();
-    if v > max_secs {
+    if v >= max_secs {
         return StdDuration::MAX;
     }
     let est = StdDuration::from_secs_f64(v);
@@ -729,7 +729,7 @@ fn f032sdur_ceil(x: F032) -> StdDuration {
         return StdDuration::ZERO;
     }
     let max_secs = StdDuration::MAX.as_secs_f32();
-    if v > max_secs {
+    if v >= max_secs {
         return StdDuration::MAX;
     }
     let est = StdDuration::from_secs_f32(v);
@@ -1181,6 +1181,14 @@ mod sdur_tests {
     }
 
     #[test]
+    fn f64_sdur_max_float_sentinel_is_total() {
+        let sentinel = ExtendedFloat::Extend(StdDuration::MAX.as_secs_f64());
+
+        assert_eq!(F064SDUR.ceil(sentinel), StdDuration::MAX);
+        assert!(conn_laws::kernel_l(&F064SDUR, StdDuration::MAX));
+    }
+
+    #[test]
     fn f32_sdur_zero() {
         let zero = ExtendedFloat::Extend(0.0_f32);
         assert_eq!(F032SDUR.ceil(zero), StdDuration::ZERO);
@@ -1210,6 +1218,14 @@ mod sdur_tests {
     #[test]
     fn f32_sdur_synthetic_top() {
         assert_eq!(F032SDUR.upper(StdDuration::MAX), ExtendedFloat::Top);
+    }
+
+    #[test]
+    fn f32_sdur_max_float_sentinel_is_total() {
+        let sentinel = ExtendedFloat::Extend(StdDuration::MAX.as_secs_f32());
+
+        assert_eq!(F032SDUR.ceil(sentinel), StdDuration::MAX);
+        assert!(conn_laws::kernel_l(&F032SDUR, StdDuration::MAX));
     }
 
     // ── F064SDUR / F032SDUR L-side battery (ConnL, hand-rolled) ──
