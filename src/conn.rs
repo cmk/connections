@@ -987,8 +987,12 @@ macro_rules! compose {
 /// ```
 #[macro_export]
 macro_rules! compose_k {
-    ($name:ident : $A:ty => $B:ty => $C:ty = $t1:path, $t2:path $(,)?) => {
-        pub struct $name;
+    (
+        $(#[$meta:meta])*
+        $vis:vis $name:ident : $A:ty => $B:ty => $C:ty = $t1:path, $t2:path $(,)?
+    ) => {
+        $(#[$meta])*
+        $vis struct $name;
         impl $crate::conn::ConnL<$A, $C> for $name {
             #[inline]
             fn conn_l(&self) -> $crate::conn::Conn<$A, $C, $crate::conn::L> {

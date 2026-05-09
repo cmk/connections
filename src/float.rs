@@ -715,6 +715,168 @@ pub(crate) fn widen_f32_f64(x: f32) -> f64 {
     x as f64
 }
 
+// ── 64-bit ULP machinery ───────────────────────────────────────────
+
+/// Word64 (IEEE bit pattern) → sign-magnitude Int64. Mirrors
+/// [`signed32`].
+fn signed64(x: u64) -> i64 {
+    if x < 0x8000000000000000 {
+        x as i64
+    } else {
+        (u64::MAX - (x - 0x8000000000000000)) as i64
+    }
+}
+
+/// Sign-magnitude Int64 → Word64 (IEEE bit pattern). Mirrors
+/// [`unsigned32`].
+fn unsigned64(x: i64) -> u64 {
+    if x >= 0 {
+        x as u64
+    } else {
+        0x8000000000000000u64.wrapping_add(u64::MAX - (x as u64))
+    }
+}
+
+/// Clamp between the int representations of -∞ and +∞ for `f64`.
+fn clamp64(x: i64) -> i64 {
+    // f64::INFINITY.to_bits()  = 0x7FF0000000000000 → signed64 = 9218868437227405312
+    // f64::NEG_INFINITY        = 0xFFF0000000000000 → signed64 = -9218868437227405313
+    x.clamp(-9218868437227405313, 9218868437227405312)
+}
+
+fn float_to_int64(x: f64) -> i64 {
+    signed64(x.to_bits())
+}
+
+fn int64_to_float(i: i64) -> f64 {
+    f64::from_bits(unsigned64(i))
+}
+
+/// Shift an `f64` by `n` ULPs (units of least precision) in the
+/// sign-magnitude total order. NaN maps to ±∞ on non-zero shifts; ±∞
+/// are clamped.
+pub(crate) fn shift64(n: i64, x: f64) -> f64 {
+    if x.is_nan() {
+        return match n.signum() {
+            -1 => f64::NEG_INFINITY,
+            1 => f64::INFINITY,
+            _ => f64::NAN,
+        };
+    }
+    let i = float_to_int64(x);
+    int64_to_float(clamp64(i.saturating_add(n)))
+}
+
+// ── Int → Float round-toward-negative-infinity ────────────────────
+//
+// Used by `float_ext_int_l!` (and the planned `float_fixed_l!`) so
+// the `inner` direction is order-correct: `inner(b)` returns the
+// largest float ≤ b. Rust's stock `b as f32` / `b as f64` casts use
+// round-to-nearest-even, which can over-round and break the
+// L-Galois `ceil(inner(b)) ≤ b` (kernel) law at integer values
+// not exactly representable in the float.
+
+/// `i128 → f32` with round-toward-negative-infinity.
+///
+/// All integer types up to `i128` are accepted via `i as i128`
+/// up-cast; this single helper covers `i32`, `u32`, `i64`, `u64`,
+/// and the planned Q-format `bits` types.
+pub(crate) fn round_down_to_f32(b: i128) -> f32 {
+    let approx = b as f32;
+    if approx.is_nan() {
+        return approx;
+    }
+    if approx == f32::INFINITY {
+        // Positive overflow: largest finite f32 below `b`.
+        return f32::MAX;
+    }
+    if approx == f32::NEG_INFINITY {
+        // Negative overflow: -∞ is already the round-down direction
+        // (every finite f32 is greater than `b`).
+        return f32::NEG_INFINITY;
+    }
+    // Finite, integer-valued: `approx as i128` is exact.
+    if (approx as i128) > b {
+        shift32(-1, approx)
+    } else {
+        approx
+    }
+}
+
+/// `i128 → f64` with round-toward-negative-infinity.
+pub(crate) fn round_down_to_f64(b: i128) -> f64 {
+    let approx = b as f64;
+    if approx.is_nan() {
+        return approx;
+    }
+    if approx == f64::INFINITY {
+        return f64::MAX;
+    }
+    if approx == f64::NEG_INFINITY {
+        return f64::NEG_INFINITY;
+    }
+    if (approx as i128) > b {
+        shift64(-1, approx)
+    } else {
+        approx
+    }
+}
+
+/// Type-class shim: pick the right `round_down_to_*` per float type
+/// from inside the `float_ext_int_l!` / `float_fixed_l!` macros.
+///
+/// Implemented for `f32`, `f64`, and (under `f16` feature) `f16`.
+pub trait RoundDownFromI128: Sized {
+    /// Cast `b: i128` to this float type, rounding toward `-∞`.
+    fn from_i128_rd(b: i128) -> Self;
+}
+
+impl RoundDownFromI128 for f32 {
+    #[inline]
+    fn from_i128_rd(b: i128) -> Self {
+        round_down_to_f32(b)
+    }
+}
+
+impl RoundDownFromI128 for f64 {
+    #[inline]
+    fn from_i128_rd(b: i128) -> Self {
+        round_down_to_f64(b)
+    }
+}
+
+#[cfg(feature = "f16")]
+impl RoundDownFromI128 for f16 {
+    #[inline]
+    fn from_i128_rd(b: i128) -> Self {
+        round_down_to_f16(b)
+    }
+}
+
+/// `i128 → f16` with round-toward-negative-infinity. Gated on the
+/// `f16` cargo feature.
+#[cfg(feature = "f16")]
+pub(crate) fn round_down_to_f16(b: i128) -> f16 {
+    // f16's finite range is ±65504; any `b` outside that saturates
+    // to ±∞ on the cast.
+    let approx: f16 = b as f16;
+    if approx.is_nan() {
+        return approx;
+    }
+    if approx == f16::INFINITY {
+        return f16::MAX;
+    }
+    if approx == f16::NEG_INFINITY {
+        return f16::NEG_INFINITY;
+    }
+    // `approx as i128`: f16 finite values fit in i128 exactly.
+    if (approx as i128) > b {
+        crate::float::f016::shift16_f16(-1, approx)
+    } else {
+        approx
+    }
+}
+
 /// Generate the four ULP-walk helpers (`ascend_to_ceil`,
 /// `descend_to_ceil`, `ascend_to_floor`, `descend_to_floor`) for one
 /// `Src → Dst` precision-narrowing Conn, packaged in a private
@@ -931,6 +1093,201 @@ macro_rules! def_walk_helpers {
 }
 
 pub(crate) use def_walk_helpers;
+
+// ── Float → Extended<intN> macros ────────────────────────────────────
+//
+// `float_ext_int!` emits a full Galois adjoint triple
+// (`ConnL` + `ConnR` impls via `conn_k!`) for the cases where the
+// target integer fits losslessly in the source float's mantissa.
+// `float_ext_int_l!` emits a left-only `Conn` for the cases where it
+// doesn't (target precision exceeds source mantissa, so `floor` and
+// `ceil` would alias on the same `int` value at large magnitudes,
+// violating `order_reflecting`).
+//
+// Saturation policy (mirrors Haskell `fxxext` in
+// `connections-haskell/src/Data/Connection/Float.hs:393-405`):
+//
+// - `ExtendedFloat::Bot`            → `Extended::NegInf`  (pass-through)
+// - `ExtendedFloat::Top`            → `Extended::PosInf`  (pass-through)
+// - `Extend(v)` with `v.is_nan()`   → `PosInf` on `ceil`, `NegInf` on `floor`
+// - `Extend(NEG_INFINITY)`          → `NegInf`
+// - `Extend(INFINITY)`              → `PosInf`
+// - `Extend(v)` with `v >  hi`      → `PosInf` (ceil) /  `Finite(<int>::MAX)` (floor)
+// - `Extend(v)` with `v <  lo`      → `Finite(<int>::MIN)` (ceil) / `NegInf` (floor)
+// - `Extend(v)` with `lo ≤ v ≤ hi`  → `Finite(v.ceil() as int)` / `Finite(v.floor() as int)`
+//
+// `inner` always materialises a finite float for `Finite(i)` and
+// emits ±INFINITY for `NegInf` / `PosInf` (matching Haskell's
+// `extended (-1/0) (1/0) fromIntegral` at Float.hs:398).
+//
+// The `floor ≤ ceil` invariant holds in every branch by construction.
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __float_ext_int_ceil_body {
+    ($float:ty, $int:ty, $v:ident) => {{
+        // NaN: incomparable with every finite Extend(_), and with Bot;
+        // ≤ Top in the N5 order. So ceil(Extend(NaN)) = PosInf (the
+        // smallest b such that upper(b) ≥ Extend(NaN)).
+        if $v.is_nan() {
+            $crate::extended::Extended::PosInf
+        } else if $v == <$float>::INFINITY {
+            // Explicit +∞ → PosInf so f16 sources (where
+            // `<$int>::MAX as f16` saturates to +∞ for any target
+            // wider than `u8`/`i8`) classify +∞ correctly: the
+            // unified `v > hi` branch can't distinguish +∞ from
+            // saturated `hi`.
+            $crate::extended::Extended::PosInf
+        } else {
+            let lo = <$int>::MIN as $float;
+            let hi = <$int>::MAX as $float;
+            if $v > hi {
+                $crate::extended::Extended::PosInf
+            } else if $v < lo {
+                $crate::extended::Extended::Finite(<$int>::MIN)
+            } else {
+                $crate::extended::Extended::Finite($v.ceil() as $int)
+            }
+        }
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __float_ext_int_floor_body {
+    ($float:ty, $int:ty, $v:ident) => {{
+        if $v.is_nan() {
+            $crate::extended::Extended::NegInf
+        } else {
+            let lo = <$int>::MIN as $float;
+            let hi = <$int>::MAX as $float;
+            if $v > hi {
+                $crate::extended::Extended::Finite(<$int>::MAX)
+            } else if $v < lo {
+                $crate::extended::Extended::NegInf
+            } else {
+                $crate::extended::Extended::Finite($v.floor() as $int)
+            }
+        }
+    }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __float_ext_int_inner_body {
+    ($float:ty, $int:ty, $b:ident) => {
+        // Map `Extended` sentinels to the matching `ExtendedFloat`
+        // sentinels (not `Extend(±INFINITY)`): the N5 ordering puts
+        // `Top > Extend(+∞)` and `Bot < Extend(-∞)`, so emitting the
+        // float-side `±INFINITY` here would break the Galois law at
+        // the `(Top, PosInf)` and `(Bot, NegInf)` boundaries.
+        //
+        // The `Finite` arm uses round-toward-negative-infinity for
+        // the int → float cast. For full-triple Conns (target fits
+        // in source mantissa) the cast is exact and round-down is
+        // a no-op; for L-only Conns it preserves
+        // `ceil(inner(b)) ≤ b` (the L-Galois kernel law), which a
+        // round-to-nearest cast can break when an `int` value
+        // round-trips up rather than down through the float.
+        match $b {
+            $crate::extended::Extended::NegInf => $crate::float::ExtendedFloat::Bot,
+            $crate::extended::Extended::PosInf => $crate::float::ExtendedFloat::Top,
+            $crate::extended::Extended::Finite(i) => $crate::float::ExtendedFloat::Extend(
+                <$float as $crate::float::RoundDownFromI128>::from_i128_rd(i as i128),
+            ),
+        }
+    };
+}
+
+/// Emit a full adjoint-triple Conn `Conn<ExtendedFloat<$float>,
+/// Extended<$int>>` (impls `ConnL` + `ConnR`) via
+/// [`conn_k!`](crate::conn_k).
+///
+/// Use when `<$int>::BITS ≤ <$float>::MANTISSA_DIGITS + 1` so that
+/// every `int` value embeds losslessly into the float — only then is
+/// `inner` order-reflecting and a true triple exists.
+#[cfg_attr(feature = "macros", macro_export)]
+macro_rules! float_ext_int {
+    ($(#[$meta:meta])* $vis:vis $name:ident, $float:ty, $int:ty) => {
+        $crate::conn_k! {
+            $(#[$meta])*
+            $vis $name : $crate::float::ExtendedFloat<$float> => $crate::extended::Extended<$int> {
+                ceil:  {
+                    fn ceil(x: $crate::float::ExtendedFloat<$float>)
+                        -> $crate::extended::Extended<$int>
+                    {
+                        match x {
+                            $crate::float::ExtendedFloat::Bot => $crate::extended::Extended::NegInf,
+                            $crate::float::ExtendedFloat::Top => $crate::extended::Extended::PosInf,
+                            $crate::float::ExtendedFloat::Extend(v) =>
+                                $crate::__float_ext_int_ceil_body!($float, $int, v),
+                        }
+                    }
+                    ceil
+                },
+                inner: {
+                    fn inner(b: $crate::extended::Extended<$int>)
+                        -> $crate::float::ExtendedFloat<$float>
+                    {
+                        $crate::__float_ext_int_inner_body!($float, $int, b)
+                    }
+                    inner
+                },
+                floor: {
+                    fn floor(x: $crate::float::ExtendedFloat<$float>)
+                        -> $crate::extended::Extended<$int>
+                    {
+                        match x {
+                            $crate::float::ExtendedFloat::Bot => $crate::extended::Extended::NegInf,
+                            $crate::float::ExtendedFloat::Top => $crate::extended::Extended::PosInf,
+                            $crate::float::ExtendedFloat::Extend(v) =>
+                                $crate::__float_ext_int_floor_body!($float, $int, v),
+                        }
+                    }
+                    floor
+                },
+            }
+        }
+    };
+}
+
+/// Emit an L-only Conn `Conn<ExtendedFloat<$float>, Extended<$int>, L>`.
+///
+/// Use when `<$int>::BITS > <$float>::MANTISSA_DIGITS + 1` so that
+/// `inner: Extended<int> → ExtendedFloat<float>` aliases distinct
+/// `int` values onto the same float at large magnitudes — the L-Galois
+/// adjunction `ceil ⊣ inner` still holds, but `order_reflecting` and
+/// hence `floor_le_ceil` (as a triple) do not.
+#[cfg_attr(feature = "macros", macro_export)]
+macro_rules! float_ext_int_l {
+    ($(#[$meta:meta])* $vis:vis $name:ident, $float:ty, $int:ty) => {
+        $(#[$meta])*
+        $vis const $name: $crate::conn::Conn<
+            $crate::float::ExtendedFloat<$float>,
+            $crate::extended::Extended<$int>,
+        > = {
+            fn ceil(x: $crate::float::ExtendedFloat<$float>)
+                -> $crate::extended::Extended<$int>
+            {
+                match x {
+                    $crate::float::ExtendedFloat::Bot => $crate::extended::Extended::NegInf,
+                    $crate::float::ExtendedFloat::Top => $crate::extended::Extended::PosInf,
+                    $crate::float::ExtendedFloat::Extend(v) =>
+                        $crate::__float_ext_int_ceil_body!($float, $int, v),
+                }
+            }
+            fn inner(b: $crate::extended::Extended<$int>)
+                -> $crate::float::ExtendedFloat<$float>
+            {
+                $crate::__float_ext_int_inner_body!($float, $int, b)
+            }
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
+    };
+}
+
+pub(crate) use float_ext_int;
+pub(crate) use float_ext_int_l;
 
 #[cfg(test)]
 mod tests {
