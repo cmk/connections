@@ -74,19 +74,50 @@ fn duration_to_f32(d: Duration) -> f32 {
     d.as_seconds_f32()
 }
 
+/// Total nanoseconds as i128 — `Duration` is already exact in this
+/// representation so the round-trip with `tdur_from_ns` is loss-free
+/// inside `[Duration::MIN, Duration::MAX]`.
+#[inline]
+fn tdur_to_ns(d: Duration) -> i128 {
+    d.whole_nanoseconds()
+}
+
+/// Saturating reconstruction of a `Duration` from total nanoseconds;
+/// clamps at `Duration::{MIN,MAX}` outside its representable range.
+#[inline]
+fn tdur_from_ns(n: i128) -> Duration {
+    let max_ns = Duration::MAX.whole_nanoseconds();
+    let min_ns = Duration::MIN.whole_nanoseconds();
+    if n >= max_ns {
+        Duration::MAX
+    } else if n <= min_ns {
+        Duration::MIN
+    } else {
+        // Truncated i128 division rounds toward zero, so the sign
+        // matches between secs and subsec_nanoseconds.
+        let secs = (n / 1_000_000_000) as i64;
+        let subsec = (n % 1_000_000_000) as i32;
+        Duration::new(secs, subsec)
+    }
+}
+
 def_walk_helpers!(
     f64_tdur_walks,
     f64,
     Duration,
     shift_duration,
-    duration_to_f64
+    duration_to_f64,
+    tdur_to_ns,
+    tdur_from_ns
 );
 def_walk_helpers!(
     f32_tdur_walks,
     f32,
     Duration,
     shift_duration,
-    duration_to_f32
+    duration_to_f32,
+    tdur_to_ns,
+    tdur_from_ns
 );
 
 fn tdursecs_ceil(d: Duration) -> Extended<i64> {
@@ -331,12 +362,7 @@ fn f064tdur_ceil(x: F064) -> Extended<Duration> {
         return Extended::Finite(Duration::MIN);
     }
     let est = Duration::saturating_seconds_f64(v);
-    let est_widen = est.as_seconds_f64();
-    let (z, _) = if est_widen >= v {
-        f64_tdur_walks::descend_to_ceil(est, v)
-    } else {
-        f64_tdur_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_tdur_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -419,12 +445,7 @@ fn f032tdur_ceil(x: F032) -> Extended<Duration> {
         return Extended::Finite(Duration::MIN);
     }
     let est = Duration::saturating_seconds_f32(v);
-    let est_widen = est.as_seconds_f32();
-    let (z, _) = if est_widen >= v {
-        f32_tdur_walks::descend_to_ceil(est, v)
-    } else {
-        f32_tdur_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f32_tdur_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -497,19 +518,47 @@ fn std_duration_to_f32(d: StdDuration) -> f32 {
     d.as_secs_f32()
 }
 
+/// Total nanoseconds as i128. `StdDuration` is unsigned, so the value
+/// is always ≥ 0; the i128 envelope (≈ 1.7 × 10³⁸) easily covers
+/// `StdDuration::MAX.as_nanos()` ≈ 1.84 × 10²⁸.
+#[inline]
+fn sdur_to_ns(d: StdDuration) -> i128 {
+    d.as_nanos() as i128
+}
+
+/// Saturating reconstruction; clamps below zero to `ZERO` and above
+/// `StdDuration::MAX.as_nanos()` to `MAX`.
+#[inline]
+fn sdur_from_ns(n: i128) -> StdDuration {
+    if n <= 0 {
+        return StdDuration::ZERO;
+    }
+    let n_u = n as u128;
+    if n_u >= StdDuration::MAX.as_nanos() {
+        return StdDuration::MAX;
+    }
+    let secs = (n_u / 1_000_000_000) as u64;
+    let subsec = (n_u % 1_000_000_000) as u32;
+    StdDuration::new(secs, subsec)
+}
+
 def_walk_helpers!(
     f64_sdur_walks,
     f64,
     StdDuration,
     shift_std_duration,
-    std_duration_to_f64
+    std_duration_to_f64,
+    sdur_to_ns,
+    sdur_from_ns
 );
 def_walk_helpers!(
     f32_sdur_walks,
     f32,
     StdDuration,
     shift_std_duration,
-    std_duration_to_f32
+    std_duration_to_f32,
+    sdur_to_ns,
+    sdur_from_ns
 );
 
 fn sduru064_ceil(d: Extended<StdDuration>) -> Extended<u64> {
@@ -689,12 +738,7 @@ fn f064sdur_ceil(x: F064) -> Extended<StdDuration> {
         };
     }
     let est = StdDuration::from_secs_f64(v);
-    let est_widen = est.as_secs_f64();
-    let (z, _) = if est_widen >= v {
-        f64_sdur_walks::descend_to_ceil(est, v)
-    } else {
-        f64_sdur_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_sdur_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -762,12 +806,7 @@ fn f032sdur_ceil(x: F032) -> Extended<StdDuration> {
         };
     }
     let est = StdDuration::from_secs_f32(v);
-    let est_widen = est.as_secs_f32();
-    let (z, _) = if est_widen >= v {
-        f32_sdur_walks::descend_to_ceil(est, v)
-    } else {
-        f32_sdur_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f32_sdur_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -807,36 +846,25 @@ crate::conn_l! {
     }
 }
 
-// ── Proof-only walk-step probes ─────────────────────────────────────
+// ── Proof-only solver-step probes ───────────────────────────────────
 //
-// Mirror the production `f???{tdur,sdur}_ceil` walk-entry but return
-// `(z, steps)` from each walk helper instead of dropping `_steps`.
+// Mirror production's `f???{tdur,sdur}_ceil` solver entry but return
+// `(z, steps)` from `solve_to_ceil` instead of dropping `_steps`.
 // Used by the Kani harnesses in `crate::kani_proofs::time_walk` to
-// prove the iteration bound is ≤ 2 over the full non-fast-path
-// finite domain. The shims deliberately omit the production
-// fast-path checks (NaN / out-of-range / ±∞ / `<= min_secs`); the
-// harness applies the matching `kani::assume`s.
+// bound the binary-search iteration count. The shims deliberately
+// omit the production fast-path checks (NaN / out-of-range / ±∞ /
+// `<= min_secs`); the harness applies the matching `kani::assume`s.
 
 #[cfg(kani)]
 pub(crate) fn f64_tdur_ceil_walk_steps_for_proof(v: f64) -> (Duration, u32) {
     let est = Duration::saturating_seconds_f64(v);
-    let est_widen = est.as_seconds_f64();
-    if est_widen >= v {
-        f64_tdur_walks::descend_to_ceil(est, v)
-    } else {
-        f64_tdur_walks::ascend_to_ceil(est, v)
-    }
+    f64_tdur_walks::solve_to_ceil(est, v)
 }
 
 #[cfg(kani)]
 pub(crate) fn f32_tdur_ceil_walk_steps_for_proof(v: f32) -> (Duration, u32) {
     let est = Duration::saturating_seconds_f32(v);
-    let est_widen = est.as_seconds_f32();
-    if est_widen >= v {
-        f32_tdur_walks::descend_to_ceil(est, v)
-    } else {
-        f32_tdur_walks::ascend_to_ceil(est, v)
-    }
+    f32_tdur_walks::solve_to_ceil(est, v)
 }
 
 #[cfg(kani)]
@@ -849,12 +877,7 @@ pub(crate) fn f64_sdur_ceil_walk_steps_for_proof(v: f64) -> (StdDuration, u32) {
         return (StdDuration::ZERO, 0);
     }
     let est = StdDuration::from_secs_f64(v);
-    let est_widen = est.as_secs_f64();
-    if est_widen >= v {
-        f64_sdur_walks::descend_to_ceil(est, v)
-    } else {
-        f64_sdur_walks::ascend_to_ceil(est, v)
-    }
+    f64_sdur_walks::solve_to_ceil(est, v)
 }
 
 #[cfg(kani)]
@@ -863,12 +886,7 @@ pub(crate) fn f32_sdur_ceil_walk_steps_for_proof(v: f32) -> (StdDuration, u32) {
         return (StdDuration::ZERO, 0);
     }
     let est = StdDuration::from_secs_f32(v);
-    let est_widen = est.as_secs_f32();
-    if est_widen >= v {
-        f32_sdur_walks::descend_to_ceil(est, v)
-    } else {
-        f32_sdur_walks::ascend_to_ceil(est, v)
-    }
+    f32_sdur_walks::solve_to_ceil(est, v)
 }
 
 #[cfg(test)]
@@ -1042,6 +1060,69 @@ mod float_tdur_tests {
         #[test]
         fn f032tdur_idempotent(a in extended_float_f32()) {
             prop_assert!(float_tdur_conn_laws::idempotent_l(&F032TDUR, a));
+        }
+    }
+
+    // ── solve_to_ceil termination + walk-equivalence ─────────────
+    //
+    // The walk used to take ~10¹² ns-steps at extremes; solve_to_ceil
+    // is structurally bounded to ⌈log₂(2 × 2⁴²)⌉ = 43 iterations.
+    // These tests exercise both the bound (interior of the MAX rim,
+    // where the walk would hang) and equivalence to the legacy walk
+    // on the safe range (|v| ≤ 1e6, where the walk converges in ≤ 2
+    // steps and the solver agrees on the answer).
+
+    #[test]
+    fn f64_tdur_solve_terminates_at_max_rim() {
+        // v == Duration::MAX.as_seconds_f64(): the rim fast-path
+        // (`if v > max_secs`) is `>`, not `>=`, so this exact value
+        // falls through to the solver. Pre-solver this walked
+        // ~10¹² ns of plateau; solver finishes in ≤ 44 iterations.
+        let max_secs = Duration::MAX.as_seconds_f64();
+        let _ = F064TDUR.ceil(ExtendedFloat::Extend(max_secs));
+    }
+
+    #[test]
+    fn f32_tdur_solve_terminates_at_max_rim() {
+        let max_secs = Duration::MAX.as_seconds_f32();
+        let _ = F032TDUR.ceil(ExtendedFloat::Extend(max_secs));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(256))]
+
+        // For inputs in the safe range, solve_to_ceil should agree
+        // with the legacy walk dispatch — both compute the smallest
+        // Duration `z` whose `as_seconds_f64() >= v`.
+        #[test]
+        fn f64_tdur_solve_matches_walk_in_safe_range(v in -1.0e6_f64..1.0e6_f64) {
+            let est = Duration::saturating_seconds_f64(v);
+            let est_widen = est.as_seconds_f64();
+            let (walk_z, _) = if est_widen >= v {
+                f64_tdur_walks::descend_to_ceil(est, v)
+            } else {
+                f64_tdur_walks::ascend_to_ceil(est, v)
+            };
+            let (solve_z, steps) = f64_tdur_walks::solve_to_ceil(est, v);
+            prop_assert_eq!(solve_z, walk_z);
+            prop_assert!(steps <= 44, "solve_to_ceil took {steps} steps");
+        }
+
+        // f32 plateau widens to ~120 ns by 1 s magnitude and ~10⁵ ns
+        // by 10³ s; tightening to |v| ≤ 1 keeps the legacy walk's
+        // cross-check fast (≤ ~120 walk steps per case).
+        #[test]
+        fn f32_tdur_solve_matches_walk_in_safe_range(v in -1.0_f32..1.0_f32) {
+            let est = Duration::saturating_seconds_f32(v);
+            let est_widen = est.as_seconds_f32();
+            let (walk_z, _) = if est_widen >= v {
+                f32_tdur_walks::descend_to_ceil(est, v)
+            } else {
+                f32_tdur_walks::ascend_to_ceil(est, v)
+            };
+            let (solve_z, steps) = f32_tdur_walks::solve_to_ceil(est, v);
+            prop_assert_eq!(solve_z, walk_z);
+            prop_assert!(steps <= 44, "solve_to_ceil took {steps} steps");
         }
     }
 }
@@ -1406,5 +1487,56 @@ mod sdur_tests {
                 panic!("expected Finite ceil at v={v}");
             }
         }
+
+        #[test]
+        fn f64_sdur_solve_matches_walk_in_safe_range(v in 1.0e-3_f64..1.0e6_f64) {
+            let est = StdDuration::from_secs_f64(v);
+            let est_widen = est.as_secs_f64();
+            let (walk_z, _) = if est_widen >= v {
+                f64_sdur_walks::descend_to_ceil(est, v)
+            } else {
+                f64_sdur_walks::ascend_to_ceil(est, v)
+            };
+            let (solve_z, steps) = f64_sdur_walks::solve_to_ceil(est, v);
+            prop_assert_eq!(solve_z, walk_z);
+            prop_assert!(steps <= 44, "solve_to_ceil took {steps} steps");
+        }
+
+        // f32 walk slows past ~1 s magnitude — see TDUR comment.
+        #[test]
+        fn f32_sdur_solve_matches_walk_in_safe_range(v in 1.0e-3_f32..1.0_f32) {
+            let est = StdDuration::from_secs_f32(v);
+            let est_widen = est.as_secs_f32();
+            let (walk_z, _) = if est_widen >= v {
+                f32_sdur_walks::descend_to_ceil(est, v)
+            } else {
+                f32_sdur_walks::ascend_to_ceil(est, v)
+            };
+            let (solve_z, steps) = f32_sdur_walks::solve_to_ceil(est, v);
+            prop_assert_eq!(solve_z, walk_z);
+            prop_assert!(steps <= 44, "solve_to_ceil took {steps} steps");
+        }
+    }
+
+    // ── solve_to_ceil termination at walk-pathological magnitudes ─
+    //
+    // At `|v| ≥ 1e10` seconds the f64 plateau is wider than 2³⁰ ns,
+    // so the legacy walk would take ≳10⁹ iterations. The solver
+    // terminates in ≤ 44. `from_secs_f{64,32}` is well-defined here
+    // (the StdDuration::MAX rim itself is unsafe — stdlib's
+    // `from_secs_f64` panics on overflow — so the solver's behavior
+    // at the absolute saturation rim is gated by the upstream
+    // fast-path, not exercised here).
+
+    #[test]
+    fn f64_sdur_solve_terminates_walk_pathological_magnitude() {
+        let _ = F064SDUR.ceil(ExtendedFloat::Extend(1.0e10_f64));
+    }
+
+    #[test]
+    fn f32_sdur_solve_terminates_walk_pathological_magnitude() {
+        // f32 ULP at 1e6 s is ~1e-1 s ≈ 10⁸ ns — already well into the
+        // walk-pathological band.
+        let _ = F032SDUR.ceil(ExtendedFloat::Extend(1.0e6_f32));
     }
 }

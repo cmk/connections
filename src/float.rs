@@ -718,14 +718,16 @@ pub(crate) fn widen_f32_f64(x: f32) -> f64 {
 /// Generate the four ULP-walk helpers (`ascend_to_ceil`,
 /// `descend_to_ceil`, `ascend_to_floor`, `descend_to_floor`) for one
 /// `Src → Dst` precision-narrowing Conn, packaged in a private
-/// submodule named `$mod_name`.
+/// submodule named `$mod_name`. The 6-arg variant additionally emits
+/// `solve_to_ceil` for instantiations whose `$dst` has 1 ns
+/// resolution (durations / epochs); see below.
 ///
 /// Each helper returns `(Dst, u32)` — the corrected target value and
 /// the number of ULP-shift iterations consumed. Production callers
 /// throw the count away (`let (z, _) = …`); the `ulp_steps_bounded`
 /// proptest reads it to assert the loop converges in ≤ 2 iterations.
 ///
-/// Parameters:
+/// Parameters (4-arg form, float-narrowing):
 /// - `$mod_name` — the private submodule wrapping this Conn's
 ///   helpers, e.g. `f064_f016_walks`.
 /// - `$src` — the wider float type (`f32`, `f64`).
@@ -737,16 +739,43 @@ pub(crate) fn widen_f32_f64(x: f32) -> f64 {
 ///   a free fn wrapper around `as` casts (since `as` casts can't be
 ///   passed as fn pointers).
 ///
+/// 6-arg form (duration / epoch destinations) adds:
+/// - `$to_ns: fn($dst) -> i128` — extract the `$dst` value's
+///   nanosecond-integer encoding.
+/// - `$from_ns: fn(i128) -> $dst` — saturating reconstruction from
+///   nanoseconds; clamps at `$dst`'s representable range.
+///
+/// In the 6-arg form, `solve_to_ceil` replaces the (unbounded at
+/// extreme magnitudes) `ascend_to_ceil` / `descend_to_ceil` pair with
+/// a binary-search cut-finder in `i128`-ns space — `O(log
+/// plateau_width)` ≈ 43 iterations vs. up to ~2 × 10¹² for the walk.
+/// The walk helpers are still emitted (used by Kani harnesses and as
+/// a cross-check in proptests), but production code calls only
+/// `solve_to_ceil`.
+///
 /// The generated module's helpers are `pub(super)` — visible to the
 /// owning Conn's `ceil`/`floor` functions and to `#[cfg(test)]` code
 /// in the same parent file, but not exposed beyond.
 macro_rules! def_walk_helpers {
     ($mod_name:ident, $src:ty, $dst:ty, $shift:path, $widen:path) => {
+        $crate::float::def_walk_helpers!(
+            @inner $mod_name, $src, $dst, $shift, $widen,
+        );
+    };
+    ($mod_name:ident, $src:ty, $dst:ty, $shift:path, $widen:path, $to_ns:path, $from_ns:path) => {
+        $crate::float::def_walk_helpers!(
+            @inner $mod_name, $src, $dst, $shift, $widen,
+            @solve $to_ns, $from_ns
+        );
+    };
+    (@inner $mod_name:ident, $src:ty, $dst:ty, $shift:path, $widen:path,
+        $(@solve $to_ns:path, $from_ns:path)?) => {
         mod $mod_name {
             #[allow(unused_imports)]
             use super::*;
 
             /// Walk up (toward +∞) until `widen(z) >= x`, returning `(z, steps)`.
+            #[allow(dead_code)]
             pub(super) fn ascend_to_ceil(start: $dst, x: $src) -> ($dst, u32) {
                 let mut z = start;
                 let mut steps = 0;
@@ -764,6 +793,7 @@ macro_rules! def_walk_helpers {
             }
 
             /// Walk down (toward -∞) while `widen(z) >= x` still holds.
+            #[allow(dead_code)]
             pub(super) fn descend_to_ceil(start: $dst, x: $src) -> ($dst, u32) {
                 let mut z = start;
                 let mut steps = 0;
@@ -825,6 +855,36 @@ macro_rules! def_walk_helpers {
                     }
                 }
             }
+
+            $(
+                /// Solve directly for the smallest `z` such that
+                /// `widen(z) >= x`, by binary search in `i128`-ns
+                /// space.
+                ///
+                /// Replaces `descend_to_ceil` / `ascend_to_ceil` for
+                /// `$dst` types with 1 ns resolution. The plateau
+                /// search bracket of `±2⁴²` ns covers the worst f64
+                /// plateau (`f64::MAX`'s ULP ≈ 2⁴¹ ns) with one bit
+                /// of headroom; bound is ⌈log₂(2 × 2⁴²)⌉ = 43
+                /// iterations.
+                #[allow(dead_code)]
+                pub(super) fn solve_to_ceil(start: $dst, x: $src) -> ($dst, u32) {
+                    let n_start: i128 = $to_ns(start);
+                    let mut lo: i128 = n_start.saturating_sub(1i128 << 42);
+                    let mut hi: i128 = n_start.saturating_add(1i128 << 42);
+                    let mut steps: u32 = 0;
+                    while lo < hi {
+                        let mid = lo + (hi - lo) / 2;
+                        if $widen($from_ns(mid)) >= x {
+                            hi = mid;
+                        } else {
+                            lo = mid + 1;
+                        }
+                        steps += 1;
+                    }
+                    ($from_ns(lo), steps)
+                }
+            )?
         }
     };
 }

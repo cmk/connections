@@ -288,8 +288,44 @@ fn hd_to_f32(d: HD) -> f32 {
     d.to_seconds() as f32
 }
 
-def_walk_helpers!(f64_hdur_walks, f64, HD, shift_hd, hd_to_f64);
-def_walk_helpers!(f32_hdur_walks, f32, HD, shift_hd, hd_to_f32);
+/// Total nanoseconds as i128 — `HD` natively exposes this.
+#[inline]
+pub(crate) fn hd_to_ns(d: HD) -> i128 {
+    d.total_nanoseconds()
+}
+
+/// Saturating reconstruction; clamps at `HD::{MIN,MAX}`.
+#[inline]
+pub(crate) fn hd_from_ns(n: i128) -> HD {
+    let max_ns = hd_max_nanos();
+    let min_ns = hd_min_nanos();
+    if n >= max_ns {
+        HD::MAX
+    } else if n <= min_ns {
+        HD::MIN
+    } else {
+        HD::from_total_nanoseconds(n)
+    }
+}
+
+def_walk_helpers!(
+    f64_hdur_walks,
+    f64,
+    HD,
+    shift_hd,
+    hd_to_f64,
+    hd_to_ns,
+    hd_from_ns
+);
+def_walk_helpers!(
+    f32_hdur_walks,
+    f32,
+    HD,
+    shift_hd,
+    hd_to_f32,
+    hd_to_ns,
+    hd_from_ns
+);
 
 fn f064hdur_ceil(x: F064) -> Extended<HD> {
     let v = match x {
@@ -327,12 +363,7 @@ fn f064hdur_ceil(x: F064) -> Extended<HD> {
         return Extended::Finite(HD::MIN);
     }
     let est = HD::from_seconds(v);
-    let est_widen = est.to_seconds();
-    let (z, _) = if est_widen >= v {
-        f64_hdur_walks::descend_to_ceil(est, v)
-    } else {
-        f64_hdur_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_hdur_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -416,12 +447,7 @@ fn f032hdur_ceil(x: F032) -> Extended<HD> {
         return Extended::Finite(HD::MIN);
     }
     let est = HD::from_seconds(v as f64);
-    let est_widen = est.to_seconds() as f32;
-    let (z, _) = if est_widen >= v {
-        f32_hdur_walks::descend_to_ceil(est, v)
-    } else {
-        f32_hdur_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f32_hdur_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -467,35 +493,25 @@ crate::conn_l! {
     }
 }
 
-// ── Proof-only walk-step probes ─────────────────────────────────────
+// ── Proof-only solver-step probes ───────────────────────────────────
 //
-// Mirror the production `f???hdur_ceil` walk-entry but return
-// `(z, steps)` from each walk helper instead of dropping `_steps`.
-// Used by `crate::kani_proofs::hifi_walk` to prove the iteration
-// bound is ≤ 2 over the non-fast-path finite domain. Fast-paths
-// (NaN, out-of-range, ±∞, `<= min_secs`) are deliberately omitted;
-// the harness applies matching `kani::assume`s.
+// Mirror production's `f???hdur_ceil` solver entry but return
+// `(z, steps)` from `solve_to_ceil` instead of dropping `_steps`.
+// Used by `crate::kani_proofs::hifi_walk` to bound the binary-search
+// iteration count. Fast-paths (NaN, out-of-range, ±∞, `<= min_secs`)
+// are deliberately omitted; the harness applies matching
+// `kani::assume`s.
 
 #[cfg(kani)]
 pub(crate) fn f64_hdur_ceil_walk_steps_for_proof(v: f64) -> (HD, u32) {
     let est = HD::from_seconds(v);
-    let est_widen = est.to_seconds();
-    if est_widen >= v {
-        f64_hdur_walks::descend_to_ceil(est, v)
-    } else {
-        f64_hdur_walks::ascend_to_ceil(est, v)
-    }
+    f64_hdur_walks::solve_to_ceil(est, v)
 }
 
 #[cfg(kani)]
 pub(crate) fn f32_hdur_ceil_walk_steps_for_proof(v: f32) -> (HD, u32) {
     let est = HD::from_seconds(v as f64);
-    let est_widen = est.to_seconds() as f32;
-    if est_widen >= v {
-        f32_hdur_walks::descend_to_ceil(est, v)
-    } else {
-        f32_hdur_walks::ascend_to_ceil(est, v)
-    }
+    f32_hdur_walks::solve_to_ceil(est, v)
 }
 
 #[cfg(test)]
@@ -868,5 +884,36 @@ mod tests {
         fn f032hdur_idempotent(a in extended_float_f32()) {
             prop_assert!(conn_laws::idempotent_l(&F032HDUR, a));
         }
+
+        #[test]
+        fn f64_hdur_solve_matches_walk_in_safe_range(v in -1.0e6_f64..1.0e6_f64) {
+            let est = HD::from_seconds(v);
+            let est_widen = est.to_seconds();
+            let (walk_z, _) = if est_widen >= v {
+                f64_hdur_walks::descend_to_ceil(est, v)
+            } else {
+                f64_hdur_walks::ascend_to_ceil(est, v)
+            };
+            let (solve_z, steps) = f64_hdur_walks::solve_to_ceil(est, v);
+            prop_assert_eq!(solve_z, walk_z);
+            prop_assert!(steps <= 44, "solve_to_ceil took {steps} steps");
+        }
+    }
+
+    // ── solve_to_ceil termination at MAX magnitude ──────────────
+
+    #[test]
+    fn f064_hdur_solve_terminates_at_max_rim() {
+        // Mid-magnitude (1e13 s, well past 2⁵³ ns ≈ 104 days where the
+        // f64 plateau widens). Pre-solver this would walk ~10⁶ ns.
+        let v = ExtendedFloat::Extend(1.0e13_f64);
+        let _ = F064HDUR.ceil(v);
+    }
+
+    #[test]
+    fn f064_hdur_solve_terminates_at_unsigned_min_rim() {
+        // Just past the negative rim (still inside hd_min_secs).
+        let min_secs = hd_min_secs() as f64;
+        let _ = F064HDUR.ceil(ExtendedFloat::Extend(min_secs * 0.9_f64));
     }
 }

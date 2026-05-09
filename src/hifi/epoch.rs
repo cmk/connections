@@ -255,12 +255,31 @@ fn epoch_to_tai_f64(e: Epoch) -> f64 {
     e.to_tai_seconds()
 }
 
+/// Total TAI-frame nanoseconds as i128 — `Epoch` is internally a TAI
+/// `Duration`, so this is exact. Same value used as the
+/// `solve_to_ceil` search axis across **every** scale; the scale
+/// only changes the widening step (`to_*_seconds`), not the
+/// underlying ns identity.
+#[inline]
+fn epoch_to_ns(e: Epoch) -> i128 {
+    e.to_tai_duration().total_nanoseconds()
+}
+
+/// Saturating reconstruction; clamps at the underlying `HD::{MIN,MAX}`
+/// representable as TAI-anchored Epochs.
+#[inline]
+fn epoch_from_ns(n: i128) -> Epoch {
+    Epoch::from_tai_duration(crate::hifi::duration::hd_from_ns(n))
+}
+
 def_walk_helpers!(
     f64_etai_walks,
     f64,
     Epoch,
     shift_epoch_tai,
-    epoch_to_tai_f64
+    epoch_to_tai_f64,
+    epoch_to_ns,
+    epoch_from_ns
 );
 
 fn f064etai_ceil(x: F064) -> Extended<Epoch> {
@@ -295,12 +314,7 @@ fn f064etai_ceil(x: F064) -> Extended<Epoch> {
         return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
     }
     let est = Epoch::from_tai_seconds(v);
-    let est_widen = est.to_tai_seconds();
-    let (z, _) = if est_widen >= v {
-        f64_etai_walks::descend_to_ceil(est, v)
-    } else {
-        f64_etai_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_etai_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -359,12 +373,7 @@ crate::conn_l! {
 #[cfg(kani)]
 pub(crate) fn f64_etai_ceil_walk_steps_for_proof(v: f64) -> (Epoch, u32) {
     let est = Epoch::from_tai_seconds(v);
-    let est_widen = est.to_tai_seconds();
-    if est_widen >= v {
-        f64_etai_walks::descend_to_ceil(est, v)
-    } else {
-        f64_etai_walks::ascend_to_ceil(est, v)
-    }
+    f64_etai_walks::solve_to_ceil(est, v)
 }
 
 // ── EUTCHDUR ─────────────────────────────────────────────────────
@@ -532,7 +541,9 @@ def_walk_helpers!(
     f64,
     Epoch,
     shift_epoch_tai,
-    epoch_to_unix_f64
+    epoch_to_unix_f64,
+    epoch_to_ns,
+    epoch_from_ns
 );
 
 fn f064eunx_ceil(x: F064) -> Extended<Epoch> {
@@ -565,12 +576,7 @@ fn f064eunx_ceil(x: F064) -> Extended<Epoch> {
         return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
     }
     let est = Epoch::from_unix_seconds(v);
-    let est_widen = est.to_unix_seconds();
-    let (z, _) = if est_widen >= v {
-        f64_eutc_walks::descend_to_ceil(est, v)
-    } else {
-        f64_eutc_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_eutc_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -843,7 +849,9 @@ def_walk_helpers!(
     f64,
     Epoch,
     shift_epoch_tai,
-    epoch_to_gpst_f64
+    epoch_to_gpst_f64,
+    epoch_to_ns,
+    epoch_from_ns
 );
 
 fn f064egps_ceil(x: F064) -> Extended<Epoch> {
@@ -874,12 +882,7 @@ fn f064egps_ceil(x: F064) -> Extended<Epoch> {
         return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
     }
     let est = Epoch::from_gpst_seconds(v);
-    let est_widen = est.to_gpst_seconds();
-    let (z, _) = if est_widen >= v {
-        f64_egps_walks::descend_to_ceil(est, v)
-    } else {
-        f64_egps_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_egps_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -1027,7 +1030,9 @@ def_walk_helpers!(
     f64,
     Epoch,
     shift_epoch_tai,
-    epoch_to_qzsst_f64
+    epoch_to_qzsst_f64,
+    epoch_to_ns,
+    epoch_from_ns
 );
 
 fn f064eqzs_ceil(x: F064) -> Extended<Epoch> {
@@ -1054,12 +1059,7 @@ fn f064eqzs_ceil(x: F064) -> Extended<Epoch> {
         return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
     }
     let est = Epoch::from_qzsst_seconds(v);
-    let est_widen = est.to_qzsst_seconds();
-    let (z, _) = if est_widen >= v {
-        f64_eqzs_walks::descend_to_ceil(est, v)
-    } else {
-        f64_eqzs_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_eqzs_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -1177,7 +1177,9 @@ def_walk_helpers!(
     f64,
     Epoch,
     shift_epoch_tai,
-    epoch_to_gst_f64
+    epoch_to_gst_f64,
+    epoch_to_ns,
+    epoch_from_ns
 );
 
 fn f064egst_ceil(x: F064) -> Extended<Epoch> {
@@ -1204,12 +1206,7 @@ fn f064egst_ceil(x: F064) -> Extended<Epoch> {
         return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
     }
     let est = Epoch::from_gst_seconds(v);
-    let est_widen = est.to_gst_seconds();
-    let (z, _) = if est_widen >= v {
-        f64_egst_walks::descend_to_ceil(est, v)
-    } else {
-        f64_egst_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_egst_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -1347,7 +1344,9 @@ def_walk_helpers!(
     f64,
     Epoch,
     shift_epoch_tai,
-    epoch_to_bdt_f64
+    epoch_to_bdt_f64,
+    epoch_to_ns,
+    epoch_from_ns
 );
 
 fn f064ebdt_ceil(x: F064) -> Extended<Epoch> {
@@ -1374,12 +1373,7 @@ fn f064ebdt_ceil(x: F064) -> Extended<Epoch> {
         return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
     }
     let est = Epoch::from_bdt_seconds(v);
-    let est_widen = epoch_to_bdt_f64(est);
-    let (z, _) = if est_widen >= v {
-        f64_ebdt_walks::descend_to_ceil(est, v)
-    } else {
-        f64_ebdt_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_ebdt_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -1519,7 +1513,15 @@ fn epoch_to_tt_f64(e: Epoch) -> f64 {
     e.to_tt_seconds()
 }
 
-def_walk_helpers!(f64_etdt_walks, f64, Epoch, shift_epoch_tai, epoch_to_tt_f64);
+def_walk_helpers!(
+    f64_etdt_walks,
+    f64,
+    Epoch,
+    shift_epoch_tai,
+    epoch_to_tt_f64,
+    epoch_to_ns,
+    epoch_from_ns
+);
 
 fn f064etdt_ceil(x: F064) -> Extended<Epoch> {
     let v = match x {
@@ -1545,12 +1547,7 @@ fn f064etdt_ceil(x: F064) -> Extended<Epoch> {
         return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
     }
     let est = Epoch::from_tt_seconds(v);
-    let est_widen = est.to_tt_seconds();
-    let (z, _) = if est_widen >= v {
-        f64_etdt_walks::descend_to_ceil(est, v)
-    } else {
-        f64_etdt_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_etdt_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -1599,16 +1596,11 @@ crate::conn_l! {
     }
 }
 
-// Proof-only walk-step probe — see `crate::kani_proofs::hifi_walk`.
+// Proof-only solver-step probe — see `crate::kani_proofs::hifi_walk`.
 #[cfg(kani)]
 pub(crate) fn f64_etdt_ceil_walk_steps_for_proof(v: f64) -> (Epoch, u32) {
     let est = Epoch::from_tt_seconds(v);
-    let est_widen = est.to_tt_seconds();
-    if est_widen >= v {
-        f64_etdt_walks::descend_to_ceil(est, v)
-    } else {
-        f64_etdt_walks::ascend_to_ceil(est, v)
-    }
+    f64_etdt_walks::solve_to_ceil(est, v)
 }
 
 // ── §4.2 ET (NAIF SPICE Ephemeris Time) ──────────────────────────
@@ -1618,7 +1610,15 @@ fn epoch_to_et_f64(e: Epoch) -> f64 {
     e.to_et_seconds()
 }
 
-def_walk_helpers!(f64_etde_walks, f64, Epoch, shift_epoch_tai, epoch_to_et_f64);
+def_walk_helpers!(
+    f64_etde_walks,
+    f64,
+    Epoch,
+    shift_epoch_tai,
+    epoch_to_et_f64,
+    epoch_to_ns,
+    epoch_from_ns
+);
 
 fn f064etde_ceil(x: F064) -> Extended<Epoch> {
     let v = match x {
@@ -1644,12 +1644,7 @@ fn f064etde_ceil(x: F064) -> Extended<Epoch> {
         return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
     }
     let est = Epoch::from_et_seconds(v);
-    let est_widen = est.to_et_seconds();
-    let (z, _) = if est_widen >= v {
-        f64_etde_walks::descend_to_ceil(est, v)
-    } else {
-        f64_etde_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_etde_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
@@ -1711,7 +1706,9 @@ def_walk_helpers!(
     f64,
     Epoch,
     shift_epoch_tai,
-    epoch_to_tdb_f64
+    epoch_to_tdb_f64,
+    epoch_to_ns,
+    epoch_from_ns
 );
 
 fn f064etdb_ceil(x: F064) -> Extended<Epoch> {
@@ -1738,12 +1735,7 @@ fn f064etdb_ceil(x: F064) -> Extended<Epoch> {
         return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
     }
     let est = Epoch::from_tdb_seconds(v);
-    let est_widen = est.to_tdb_seconds();
-    let (z, _) = if est_widen >= v {
-        f64_etdb_walks::descend_to_ceil(est, v)
-    } else {
-        f64_etdb_walks::ascend_to_ceil(est, v)
-    };
+    let (z, _) = f64_etdb_walks::solve_to_ceil(est, v);
     Extended::Finite(z)
 }
 
