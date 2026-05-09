@@ -81,50 +81,40 @@ macro_rules! fix_fix_i64 {
             stringify!($CoarseFrac),
             ">` frac-level convert (i64-backed)."
         )]
-        pub struct $const_name;
-
-        impl $const_name {
+        pub const $const_name: $crate::conn::Conn<FixedI64<$FineFrac>, FixedI64<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
             // i128 covers SHIFT ∈ [1, 64]: 1 << 64 = 2^64 fits, and
             // i64::MAX × 2^64 ≈ 2^127 < i128::MAX.
-            const RATIO: i128 = 1_i128 << Self::SHIFT;
+            const RATIO: i128 = 1_i128 << SHIFT;
             const FINE_MIN: i64 = i64::MIN;
             const FINE_MAX: i64 = i64::MAX;
 
-            const fn _ceil(x: FixedI64<$FineFrac>) -> FixedI64<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MIN {
+            fn ceil(x: FixedI64<$FineFrac>) -> FixedI64<$CoarseFrac> {
+                if x.to_bits() == FINE_MIN {
                     return FixedI64::<$CoarseFrac>::from_bits(i64::MIN);
                 }
                 let bits = x.to_bits() as i128;
-                let q = bits.div_euclid(Self::RATIO);
-                let r = bits.rem_euclid(Self::RATIO);
+                let q = bits.div_euclid(RATIO);
+                let r = bits.rem_euclid(RATIO);
                 let res = if r != 0 { q + 1 } else { q };
                 FixedI64::from_bits(res as i64)
             }
 
-            const fn _inner(x: FixedI64<$CoarseFrac>) -> FixedI64<$FineFrac> {
-                let res = (x.to_bits() as i128) * Self::RATIO;
-                let saturated = if res > Self::FINE_MAX as i128 {
-                    Self::FINE_MAX
-                } else if res < Self::FINE_MIN as i128 {
-                    Self::FINE_MIN
+            fn inner(x: FixedI64<$CoarseFrac>) -> FixedI64<$FineFrac> {
+                let res = (x.to_bits() as i128) * RATIO;
+                let saturated = if res > FINE_MAX as i128 {
+                    FINE_MAX
+                } else if res < FINE_MIN as i128 {
+                    FINE_MIN
                 } else {
                     res as i64
                 };
                 FixedI64::from_bits(saturated)
             }
-        }
 
-        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ConnL<FixedI64<$FineFrac>, FixedI64<$CoarseFrac>> for $const_name {
-            #[inline]
-            fn conn_l(
-                &self,
-            ) -> $crate::conn::Conn<FixedI64<$FineFrac>, FixedI64<$CoarseFrac>, $crate::conn::L>
-            {
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
-            }
-        }
+            // (Plan 32) ConnL only — `_inner` non-injective at saturation.
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
     };
 }
 

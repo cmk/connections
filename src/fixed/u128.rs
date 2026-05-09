@@ -88,25 +88,23 @@ macro_rules! fix_fix_u128 {
             stringify!($CoarseFrac),
             ">` frac-level convert (u128-backed)."
         )]
-        pub struct $const_name;
-
-        impl $const_name {
+        pub const $const_name: $crate::conn::Conn<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
-            // For SHIFT < 128, Self::RATIO = 2^SHIFT fits in u128. For
+            // For SHIFT < 128, RATIO = 2^SHIFT fits in u128. For
             // SHIFT == 128 the shift is degenerate — `1_u128.checked_shl(128)`
             // returns None, and we route through the `None` arms below
             // for the Q128Q000 endpoint.
-            const RATIO: Option<u128> = 1_u128.checked_shl(Self::SHIFT);
+            const RATIO: Option<u128> = 1_u128.checked_shl(SHIFT);
             const FINE_MAX: u128 = u128::MAX;
 
-            const fn _ceil(x: FixedU128<$FineFrac>) -> FixedU128<$CoarseFrac> {
+            fn ceil(x: FixedU128<$FineFrac>) -> FixedU128<$CoarseFrac> {
                 let bits = x.to_bits();
-                match Self::RATIO {
+                match RATIO {
                     Some(r) => {
                         let q = bits / r;
                         // `q + 1` cannot overflow u128: `r ≥ 2` (the
                         // `Some` arm requires SHIFT ∈ [1, 127], so
-                        // Self::RATIO ∈ [2, 2^127]), and `bits ≤ u128::MAX`,
+                        // RATIO ∈ [2, 2^127]), and `bits ≤ u128::MAX`,
                         // so `q ≤ ⌊u128::MAX / 2⌋ = 2^127 − 1`. Hence
                         // `q + 1 ≤ 2^127 < u128::MAX`.
                         let res = if bits % r != 0 { q + 1 } else { q };
@@ -125,32 +123,24 @@ macro_rules! fix_fix_u128 {
                 }
             }
 
-            const fn _inner(x: FixedU128<$CoarseFrac>) -> FixedU128<$FineFrac> {
+            fn inner(x: FixedU128<$CoarseFrac>) -> FixedU128<$FineFrac> {
                 let bits = x.to_bits();
-                let saturated = match Self::RATIO {
+                let saturated = match RATIO {
                     Some(r) => match bits.checked_mul(r) {
                         Some(v) => v,
-                        None => Self::FINE_MAX,
+                        None => FINE_MAX,
                     },
                     None => {
                         // SHIFT == 128: bits × 2^128 only fits when bits = 0.
-                        if bits == 0 { 0 } else { Self::FINE_MAX }
+                        if bits == 0 { 0 } else { FINE_MAX }
                     }
                 };
                 FixedU128::from_bits(saturated)
             }
-        }
 
-        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ConnL<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>> for $const_name {
-            #[inline]
-            fn conn_l(
-                &self,
-            ) -> $crate::conn::Conn<FixedU128<$FineFrac>, FixedU128<$CoarseFrac>, $crate::conn::L>
-            {
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
-            }
-        }
+            // (Plan 32) ConnL only — `_inner` non-injective at saturation.
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
     };
 }
 

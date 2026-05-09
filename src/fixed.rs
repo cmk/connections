@@ -57,7 +57,7 @@
 //! |---|---|---|---|
 //! | `uint_uint!`        | U→U widening    | left  | `new_l` |
 //! | `int_uint!`         | I→U widening    | left  | `new_l` |
-//! | `ext_int!`          | I→I, U→I widening (Extended source) | full triple | `new` |
+//! | `ext_int!`          | I→I, U→I widening (Extended source) | left  | `new_l` |
 //! | `int_int_narrow!`   | I→I narrowing   | left  | `new_l` |
 //! | `uint_uint_narrow!` | U→U narrowing   | left  | `new_l` |
 //! | `int_uint_narrow!`  | I→U narrowing   | left  | `new_l` |
@@ -178,37 +178,28 @@ macro_rules! ext_int {
             stringify!($B),
             "` left-Galois widening."
         )]
-        pub struct $NAME;
-
-        impl $NAME {
+        pub const $NAME: $crate::conn::Conn<$crate::extended::Extended<$A>, $B> = {
             const BELOW: $B = (<$A>::MIN as $B) - 1;
             const ABOVE: $B = (<$A>::MAX as $B) + 1;
-            const fn _ceil(x: $crate::extended::Extended<$A>) -> $B {
+            fn ceil(x: $crate::extended::Extended<$A>) -> $B {
                 match x {
                     $crate::extended::Extended::NegInf => <$B>::MIN,
                     $crate::extended::Extended::Finite(a) => a as $B,
-                    $crate::extended::Extended::PosInf => Self::ABOVE,
+                    $crate::extended::Extended::PosInf => ABOVE,
                 }
             }
-            const fn _inner(x: $B) -> $crate::extended::Extended<$A> {
-                if x <= Self::BELOW {
+            fn inner(x: $B) -> $crate::extended::Extended<$A> {
+                if x <= BELOW {
                     $crate::extended::Extended::NegInf
-                } else if x >= Self::ABOVE {
+                } else if x >= ABOVE {
                     $crate::extended::Extended::PosInf
                 } else {
                     $crate::extended::Extended::Finite(x as $A)
                 }
             }
-        }
 
-        impl $crate::conn::ConnL<$crate::extended::Extended<$A>, $B> for $NAME {
-            #[inline]
-            fn conn_l(
-                &self,
-            ) -> $crate::conn::Conn<$crate::extended::Extended<$A>, $B, $crate::conn::L> {
-                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner)
-            }
-        }
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
     };
 }
 pub(crate) use ext_int;
@@ -427,27 +418,20 @@ macro_rules! nz_uint_ext {
             stringify!($NZ),
             "` (unsigned; 0 saturates to NonZero(1); single-sided left-Galois)."
         )]
-        pub struct $NAME;
-
-        impl $NAME {
-            const fn _ceil(v: $A) -> $NZ {
+        pub const $NAME: $crate::conn::Conn<$A, $NZ> = {
+            fn ceil(v: $A) -> $NZ {
                 let r: $A = if v == 0 { 1 } else { v };
                 match <$NZ>::new(r) {
                     Some(nz) => nz,
                     None => panic!("nz_uint_ext::ceil produced zero"),
                 }
             }
-            const fn _inner(nz: $NZ) -> $A {
+            fn inner(nz: $NZ) -> $A {
                 nz.get()
             }
-        }
 
-        impl $crate::conn::ConnL<$A, $NZ> for $NAME {
-            #[inline]
-            fn conn_l(&self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::L> {
-                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner)
-            }
-        }
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
     };
 }
 pub(crate) use nz_uint_ext;

@@ -158,46 +158,37 @@ macro_rules! fix_fix_u8 {
             stringify!($CoarseFrac),
             ">` frac-level convert (u8-backed)."
         )]
-        pub struct $const_name;
-
-        impl $const_name {
+        pub const $const_name: $crate::conn::Conn<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
             // u16 covers SHIFT ∈ [1, 8]: 1 << 8 = 256 fits, and
             // u8::MAX × 256 = 65 280 < u16::MAX = 65 535.
-            const RATIO: u16 = 1_u16 << Self::SHIFT;
+            const RATIO: u16 = 1_u16 << SHIFT;
             const FINE_MAX: u8 = u8::MAX;
 
-            const fn _ceil(x: FixedU8<$FineFrac>) -> FixedU8<$CoarseFrac> {
+            fn ceil(x: FixedU8<$FineFrac>) -> FixedU8<$CoarseFrac> {
                 let bits = x.to_bits() as u16;
-                let q = bits / Self::RATIO;
-                let r = bits % Self::RATIO;
-                // `res ≤ ⌈bits / Self::RATIO⌉ ≤ ⌈u8::MAX / 2⌉ = 128` since
-                // Self::RATIO ≥ 2 (Fine has more frac bits than Coarse, so
+                let q = bits / RATIO;
+                let r = bits % RATIO;
+                // `res ≤ ⌈bits / RATIO⌉ ≤ ⌈u8::MAX / 2⌉ = 128` since
+                // RATIO ≥ 2 (Fine has more frac bits than Coarse, so
                 // SHIFT ≥ 1). The `as u8` cast is therefore lossless.
                 let res = if r != 0 { q + 1 } else { q };
                 FixedU8::from_bits(res as u8)
             }
 
-            const fn _inner(x: FixedU8<$CoarseFrac>) -> FixedU8<$FineFrac> {
-                let res = (x.to_bits() as u16) * Self::RATIO;
-                let saturated = if res > Self::FINE_MAX as u16 {
-                    Self::FINE_MAX
+            fn inner(x: FixedU8<$CoarseFrac>) -> FixedU8<$FineFrac> {
+                let res = (x.to_bits() as u16) * RATIO;
+                let saturated = if res > FINE_MAX as u16 {
+                    FINE_MAX
                 } else {
                     res as u8
                 };
                 FixedU8::from_bits(saturated)
             }
-        }
 
-        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ConnL<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>> for $const_name {
-            #[inline]
-            fn conn_l(
-                &self,
-            ) -> $crate::conn::Conn<FixedU8<$FineFrac>, FixedU8<$CoarseFrac>, $crate::conn::L> {
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
-            }
-        }
+            // (Plan 32) ConnL only — `_inner` non-injective at saturation.
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
     };
 }
 

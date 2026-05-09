@@ -133,53 +133,44 @@ macro_rules! fix_fix_i8 {
             stringify!($CoarseFrac),
             ">` frac-level convert (i8-backed)."
         )]
-        pub struct $const_name;
-
-        impl $const_name {
+        pub const $const_name: $crate::conn::Conn<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
-            const RATIO: i16 = 1_i16 << Self::SHIFT;
+            const RATIO: i16 = 1_i16 << SHIFT;
             const FINE_MIN: i8 = i8::MIN;
             const FINE_MAX: i8 = i8::MAX;
 
-            const fn _ceil(x: FixedI8<$FineFrac>) -> FixedI8<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MIN {
+            fn ceil(x: FixedI8<$FineFrac>) -> FixedI8<$CoarseFrac> {
+                if x.to_bits() == FINE_MIN {
                     return FixedI8::<$CoarseFrac>::from_bits(i8::MIN);
                 }
                 let bits = x.to_bits() as i16;
-                let q = bits.div_euclid(Self::RATIO);
-                let r = bits.rem_euclid(Self::RATIO);
+                let q = bits.div_euclid(RATIO);
+                let r = bits.rem_euclid(RATIO);
                 let res = if r != 0 { q + 1 } else { q };
                 FixedI8::<$CoarseFrac>::from_bits(res as i8)
             }
 
-            const fn _inner(x: FixedI8<$CoarseFrac>) -> FixedI8<$FineFrac> {
-                let res = (x.to_bits() as i16) * Self::RATIO;
-                let saturated = if res > Self::FINE_MAX as i16 {
-                    Self::FINE_MAX
-                } else if res < Self::FINE_MIN as i16 {
-                    Self::FINE_MIN
+            fn inner(x: FixedI8<$CoarseFrac>) -> FixedI8<$FineFrac> {
+                let res = (x.to_bits() as i16) * RATIO;
+                let saturated = if res > FINE_MAX as i16 {
+                    FINE_MAX
+                } else if res < FINE_MIN as i16 {
+                    FINE_MIN
                 } else {
                     res as i8
                 };
                 FixedI8::<$FineFrac>::from_bits(saturated)
             }
-        }
 
-        // (Plan 32) ConnL only: `_inner` saturates the Coarse plateau
-        // onto FINE_MAX/MIN — non-injective, so no true triple
-        // exists. The L-Galois adjunction `ceil ⊣ inner` holds; the
-        // R-side `inner ⊣ floor` would require an `_inner` that's
-        // simultaneously order-reflecting, which can't be satisfied
-        // when the Coarse range exceeds Fine range. Shipped as
-        // ConnL accordingly.
-        impl $crate::conn::ConnL<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>> for $const_name {
-            #[inline]
-            fn conn_l(
-                &self,
-            ) -> $crate::conn::Conn<FixedI8<$FineFrac>, FixedI8<$CoarseFrac>, $crate::conn::L> {
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
-            }
-        }
+            // (Plan 32) ConnL only: `_inner` saturates the Coarse plateau
+            // onto FINE_MAX/MIN — non-injective, so no true triple
+            // exists. The L-Galois adjunction `ceil ⊣ inner` holds; the
+            // R-side `inner ⊣ floor` would require an `_inner` that's
+            // simultaneously order-reflecting, which can't be satisfied
+            // when the Coarse range exceeds Fine range. Shipped as
+            // ConnL accordingly.
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
     };
 }
 

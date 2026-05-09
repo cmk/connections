@@ -114,25 +114,23 @@ macro_rules! fix_fix_i128 {
             stringify!($CoarseFrac),
             ">` frac-level convert (i128-backed)."
         )]
-        pub struct $const_name;
-
-        impl $const_name {
+        pub const $const_name: $crate::conn::Conn<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
-            // For SHIFT < 128, Self::RATIO = 2^SHIFT fits in i128 as a positive
+            // For SHIFT < 128, RATIO = 2^SHIFT fits in i128 as a positive
             // value (max 2^126; one below i128::MAX = 2^127 − 1). For
             // SHIFT == 128 the shift is degenerate — `1_i128.checked_shl(128)`
             // returns None, and we route through the `None` arms below
             // for the Q128Q000 endpoint.
-            const RATIO: Option<i128> = 1_i128.checked_shl(Self::SHIFT);
+            const RATIO: Option<i128> = 1_i128.checked_shl(SHIFT);
             const FINE_MIN: i128 = i128::MIN;
             const FINE_MAX: i128 = i128::MAX;
 
-            const fn _ceil(x: FixedI128<$FineFrac>) -> FixedI128<$CoarseFrac> {
-                if x.to_bits() == Self::FINE_MIN {
+            fn ceil(x: FixedI128<$FineFrac>) -> FixedI128<$CoarseFrac> {
+                if x.to_bits() == FINE_MIN {
                     return FixedI128::<$CoarseFrac>::from_bits(i128::MIN);
                 }
                 let bits = x.to_bits();
-                match Self::RATIO {
+                match RATIO {
                     Some(r) => {
                         let q = bits.div_euclid(r);
                         let res = if bits.rem_euclid(r) != 0 { q + 1 } else { q };
@@ -141,7 +139,7 @@ macro_rules! fix_fix_i128 {
                     None => {
                         // SHIFT == 128 (Q128Q000). For any bits ∈ i128,
                         // |bits| < 2^127, so |bits / 2^128| < 0.5.
-                        // ceil: bits > 0 → 1; bits ≤ 0 → 0 (Self::FINE_MIN
+                        // ceil: bits > 0 → 1; bits ≤ 0 → 0 (FINE_MIN
                         // is already short-circuited above).
                         if bits > 0 {
                             FixedI128::from_bits(1)
@@ -152,16 +150,16 @@ macro_rules! fix_fix_i128 {
                 }
             }
 
-            const fn _inner(x: FixedI128<$CoarseFrac>) -> FixedI128<$FineFrac> {
+            fn inner(x: FixedI128<$CoarseFrac>) -> FixedI128<$FineFrac> {
                 let bits = x.to_bits();
-                let saturated = match Self::RATIO {
+                let saturated = match RATIO {
                     Some(r) => match bits.checked_mul(r) {
                         Some(v) => v,
                         None => {
                             if bits > 0 {
-                                Self::FINE_MAX
+                                FINE_MAX
                             } else {
-                                Self::FINE_MIN
+                                FINE_MIN
                             }
                         }
                     },
@@ -170,26 +168,18 @@ macro_rules! fix_fix_i128 {
                         if bits == 0 {
                             0
                         } else if bits > 0 {
-                            Self::FINE_MAX
+                            FINE_MAX
                         } else {
-                            Self::FINE_MIN
+                            FINE_MIN
                         }
                     }
                 };
                 FixedI128::from_bits(saturated)
             }
-        }
 
-        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ConnL<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>> for $const_name {
-            #[inline]
-            fn conn_l(
-                &self,
-            ) -> $crate::conn::Conn<FixedI128<$FineFrac>, FixedI128<$CoarseFrac>, $crate::conn::L>
-            {
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
-            }
-        }
+            // (Plan 32) ConnL only — `_inner` non-injective at saturation.
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
     };
 }
 

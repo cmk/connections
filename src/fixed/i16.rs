@@ -101,55 +101,45 @@ macro_rules! fix_fix_i16 {
             stringify!($CoarseFrac),
             ">` frac-level convert (i16-backed)."
         )]
-        pub struct $const_name;
-
-        impl $const_name {
+        pub const $const_name: $crate::conn::Conn<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
             // i32 covers SHIFT ∈ [1, 16]: 1 << 16 = 65 536 fits, and
             // i16::MAX × (1 << 16) = 2 147 418 112 < i32::MAX, so the
             // multiplication in `inner` cannot overflow i32 before the
             // saturating clamp.
-            const RATIO: i32 = 1_i32 << Self::SHIFT;
+            const RATIO: i32 = 1_i32 << SHIFT;
             const FINE_MIN: i16 = i16::MIN;
             const FINE_MAX: i16 = i16::MAX;
 
-            const fn _ceil(x: FixedI16<$FineFrac>) -> FixedI16<$CoarseFrac> {
-                // Boundary fixup: every Coarse value c ≤ -i16::MAX/Self::RATIO
+            fn ceil(x: FixedI16<$FineFrac>) -> FixedI16<$CoarseFrac> {
+                // Boundary fixup: every Coarse value c ≤ -i16::MAX/RATIO
                 // − 1 saturates inner to Fine::MIN. The Galois law
                 // requires ceil(Fine::MIN) = Coarse::MIN.
-                if x.to_bits() == Self::FINE_MIN {
+                if x.to_bits() == FINE_MIN {
                     return FixedI16::<$CoarseFrac>::from_bits(i16::MIN);
                 }
                 let bits = x.to_bits() as i32;
-                let q = bits.div_euclid(Self::RATIO);
-                let r = bits.rem_euclid(Self::RATIO);
+                let q = bits.div_euclid(RATIO);
+                let r = bits.rem_euclid(RATIO);
                 let res = if r != 0 { q + 1 } else { q };
                 FixedI16::from_bits(res as i16)
             }
 
-            const fn _inner(x: FixedI16<$CoarseFrac>) -> FixedI16<$FineFrac> {
-                let res = (x.to_bits() as i32) * Self::RATIO;
-                let saturated = if res > Self::FINE_MAX as i32 {
-                    Self::FINE_MAX
-                } else if res < Self::FINE_MIN as i32 {
-                    Self::FINE_MIN
+            fn inner(x: FixedI16<$CoarseFrac>) -> FixedI16<$FineFrac> {
+                let res = (x.to_bits() as i32) * RATIO;
+                let saturated = if res > FINE_MAX as i32 {
+                    FINE_MAX
+                } else if res < FINE_MIN as i32 {
+                    FINE_MIN
                 } else {
                     res as i16
                 };
                 FixedI16::from_bits(saturated)
             }
-        }
 
-        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ConnL<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>> for $const_name {
-            #[inline]
-            fn conn_l(
-                &self,
-            ) -> $crate::conn::Conn<FixedI16<$FineFrac>, FixedI16<$CoarseFrac>, $crate::conn::L>
-            {
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
-            }
-        }
+            // (Plan 32) ConnL only — `_inner` non-injective at saturation.
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
     };
 }
 

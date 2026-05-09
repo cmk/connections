@@ -84,46 +84,36 @@ macro_rules! fix_fix_u64 {
             stringify!($CoarseFrac),
             ">` frac-level convert (u64-backed)."
         )]
-        pub struct $const_name;
-
-        impl $const_name {
+        pub const $const_name: $crate::conn::Conn<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>> = {
             const SHIFT: u32 = <$FineFrac as Unsigned>::U32 - <$CoarseFrac as Unsigned>::U32;
             // u128 covers SHIFT ∈ [1, 64]: 1 << 64 fits, and
             // u64::MAX × (1 << 64) ≈ 2^128 − 2^64 < u128::MAX.
-            const RATIO: u128 = 1_u128 << Self::SHIFT;
+            const RATIO: u128 = 1_u128 << SHIFT;
             const FINE_MAX: u64 = u64::MAX;
 
-            const fn _ceil(x: FixedU64<$FineFrac>) -> FixedU64<$CoarseFrac> {
+            fn ceil(x: FixedU64<$FineFrac>) -> FixedU64<$CoarseFrac> {
                 let bits = x.to_bits() as u128;
-                let q = bits / Self::RATIO;
-                let r = bits % Self::RATIO;
-                // `res ≤ ⌈u64::MAX / 2⌉ = 2^63` since Self::RATIO ≥ 2;
+                let q = bits / RATIO;
+                let r = bits % RATIO;
+                // `res ≤ ⌈u64::MAX / 2⌉ = 2^63` since RATIO ≥ 2;
                 // the `as u64` cast is lossless.
                 let res = if r != 0 { q + 1 } else { q };
                 FixedU64::from_bits(res as u64)
             }
 
-            const fn _inner(x: FixedU64<$CoarseFrac>) -> FixedU64<$FineFrac> {
-                let res = (x.to_bits() as u128) * Self::RATIO;
-                let saturated = if res > Self::FINE_MAX as u128 {
-                    Self::FINE_MAX
+            fn inner(x: FixedU64<$CoarseFrac>) -> FixedU64<$FineFrac> {
+                let res = (x.to_bits() as u128) * RATIO;
+                let saturated = if res > FINE_MAX as u128 {
+                    FINE_MAX
                 } else {
                     res as u64
                 };
                 FixedU64::from_bits(saturated)
             }
-        }
 
-        // (Plan 32) ConnL only — `_inner` non-injective at saturation.
-        impl $crate::conn::ConnL<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>> for $const_name {
-            #[inline]
-            fn conn_l(
-                &self,
-            ) -> $crate::conn::Conn<FixedU64<$FineFrac>, FixedU64<$CoarseFrac>, $crate::conn::L>
-            {
-                $crate::conn::Conn::new_l($const_name::_ceil, $const_name::_inner)
-            }
-        }
+            // (Plan 32) ConnL only — `_inner` non-injective at saturation.
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
     };
 }
 
