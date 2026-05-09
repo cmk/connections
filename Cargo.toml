@@ -49,6 +49,10 @@ proptest = { version = "1", optional = true }
 [dev-dependencies]
 proptest = "1"
 trybuild = "1"
+# Used by `tests/no_ext_ext_conn.rs` to drive the guardrail script in
+# a throwaway git repo. Already pulled in transitively by proptest;
+# declaring it explicitly so tests can `use tempfile::tempdir;`.
+tempfile = "3"
 
 [features]
 # Expose `connections::prop::arb` (proptest strategies) to

@@ -121,8 +121,8 @@
 //! ```
 //!
 //! And the unsigned counterpoint via [`SDURU064`] (ConnL — `ceil`
-//! only; the SDUR family bare-types both sides per the Plan 2026-05-08
-//! antipattern strip):
+//! only; the SDUR family bare-types both sides, with synthetic-top
+//! promotion in `inner` preserving Galois L):
 //!
 //! ```rust
 //! use connections::conn::ConnL;
