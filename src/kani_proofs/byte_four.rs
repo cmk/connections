@@ -1,6 +1,6 @@
 //! Kani harnesses for [`crate::byte::four`] — 4-byte sortable byte-encoding isos.
 //!
-//! `U032OBYT`, `I032OBYT`. (`F032OBYT` deferred — see `src/byte.rs`.)
+//! `U032BE04`, `I032BE04`. (`F032BE04` deferred — see `src/byte.rs`.)
 //! T0 (full domain). The `order_preserving` predicate uses two
 //! symbolic inputs — 64 symbolic bits — comparable to the `F064F032`
 //! walk-step proofs in `float_walk.rs`.
@@ -8,7 +8,7 @@
 use crate::conn::{ConnL, ConnR};
 use crate::prop::conn as conn_laws;
 
-macro_rules! prove_iso_obyt {
+macro_rules! prove_iso_be {
     ($mod_name:ident, $CONN:path, $T:ty) => {
         mod $mod_name {
             use super::*;
@@ -57,7 +57,7 @@ macro_rules! prove_iso_obyt {
     };
 }
 
-prove_iso_obyt!(u032_obyt, crate::byte::U032OBYT, u32);
-prove_iso_obyt!(i032_obyt, crate::byte::I032OBYT, i32);
+prove_iso_be!(u032_be, crate::byte::U032BE04, u32);
+prove_iso_be!(i032_be, crate::byte::I032BE04, i32);
 
-// `F032OBYT` deferred — see `src/byte.rs` for the NaN/PartialOrd rationale.
+// `F032BE04` deferred — see `src/byte.rs` for the NaN/PartialOrd rationale.

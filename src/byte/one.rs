@@ -2,11 +2,11 @@
 
 // ── u8 ──────────────────────────────────────────────────────────────
 
-const fn u8_to_obyt(x: u8) -> [u8; 1] {
+const fn u8_to_be(x: u8) -> [u8; 1] {
     [x]
 }
 
-const fn obyt_to_u8(b: [u8; 1]) -> u8 {
+const fn be_to_u8(b: [u8; 1]) -> u8 {
     b[0]
 }
 
@@ -20,14 +20,14 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::conn::{ConnL, ConnR};
-    /// use connections::byte::U008OBYT;
+    /// use connections::byte::U008BE01;
     ///
-    /// assert_eq!(U008OBYT.ceil(0x42_u8), [0x42]);
-    /// assert_eq!(U008OBYT.upper([0x42]), 0x42_u8);
+    /// assert_eq!(U008BE01.ceil(0x42_u8), [0x42]);
+    /// assert_eq!(U008BE01.upper([0x42]), 0x42_u8);
     /// ```
-    pub U008OBYT : u8 => [u8; 1] {
-        forward: u8_to_obyt,
-        back:    obyt_to_u8,
+    pub U008BE01 : u8 => [u8; 1] {
+        forward: u8_to_be,
+        back:    be_to_u8,
     }
 }
 
@@ -35,11 +35,11 @@ crate::iso! {
 
 /// Sortable bit-projection: flip the sign bit so `i8::MIN → [0]`,
 /// `0 → [0x80]`, `i8::MAX → [0xFF]`.
-const fn i8_to_obyt(x: i8) -> [u8; 1] {
+const fn i8_to_be(x: i8) -> [u8; 1] {
     [(x as u8) ^ 0x80]
 }
 
-const fn obyt_to_i8(b: [u8; 1]) -> i8 {
+const fn be_to_i8(b: [u8; 1]) -> i8 {
     (b[0] ^ 0x80) as i8
 }
 
@@ -54,32 +54,32 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::conn::{ConnL, ConnR};
-    /// use connections::byte::I008OBYT;
+    /// use connections::byte::I008BE01;
     ///
-    /// assert_eq!(I008OBYT.ceil(i8::MIN), [0x00]);
-    /// assert_eq!(I008OBYT.ceil(0_i8),    [0x80]);
-    /// assert_eq!(I008OBYT.ceil(i8::MAX), [0xFF]);
-    /// assert_eq!(I008OBYT.upper([0x00]), i8::MIN);
+    /// assert_eq!(I008BE01.ceil(i8::MIN), [0x00]);
+    /// assert_eq!(I008BE01.ceil(0_i8),    [0x80]);
+    /// assert_eq!(I008BE01.ceil(i8::MAX), [0xFF]);
+    /// assert_eq!(I008BE01.upper([0x00]), i8::MIN);
     /// ```
-    pub I008OBYT : i8 => [u8; 1] {
-        forward: i8_to_obyt,
-        back:    obyt_to_i8,
+    pub I008BE01 : i8 => [u8; 1] {
+        forward: i8_to_be,
+        back:    be_to_i8,
     }
 }
 
 // ── bool ────────────────────────────────────────────────────────────
 
-const fn bool_to_obyt(x: bool) -> [u8; 1] {
+const fn bool_to_be(x: bool) -> [u8; 1] {
     [x as u8]
 }
 
 /// Lossy back: any non-zero byte is `true`, only `[0]` is `false`.
-/// This makes `BOOLOBYT` a one-sided `conn_l!` (not an iso) — the
+/// This makes `BOOLBE01` a one-sided `conn_l!` (not an iso) — the
 /// `roundtrip_ceil` law fails for bytes `0x02..=0xFF` (they all
 /// collapse to `true → [1]`). Galois L still holds: `ceil(true) = [1]`
 /// and `inner` returns `true` exactly for `b ≥ [1]`, so the threshold
 /// `b ≥ ceil(a)` matches `inner(b) ≥ a` for both `a` values.
-const fn obyt_to_bool(b: [u8; 1]) -> bool {
+const fn be_to_bool(b: [u8; 1]) -> bool {
     b[0] != 0
 }
 
@@ -97,18 +97,18 @@ crate::conn_l! {
     ///
     /// ```rust
     /// use connections::conn::ConnL;
-    /// use connections::byte::BOOLOBYT;
+    /// use connections::byte::BOOLBE01;
     ///
-    /// assert_eq!(BOOLOBYT.ceil(false), [0]);
-    /// assert_eq!(BOOLOBYT.ceil(true),  [1]);
-    /// assert_eq!(BOOLOBYT.upper([0]),   false);
-    /// assert_eq!(BOOLOBYT.upper([1]),   true);
+    /// assert_eq!(BOOLBE01.ceil(false), [0]);
+    /// assert_eq!(BOOLBE01.ceil(true),  [1]);
+    /// assert_eq!(BOOLBE01.upper([0]),   false);
+    /// assert_eq!(BOOLBE01.upper([1]),   true);
     /// // Non-canonical encodings collapse to true:
-    /// assert_eq!(BOOLOBYT.upper([0xFF]), true);
+    /// assert_eq!(BOOLBE01.upper([0xFF]), true);
     /// ```
-    pub BOOLOBYT : bool => [u8; 1] {
-        ceil:  bool_to_obyt,
-        inner: obyt_to_bool,
+    pub BOOLBE01 : bool => [u8; 1] {
+        ceil:  bool_to_be,
+        inner: be_to_bool,
     }
 }
 
@@ -141,35 +141,35 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u008_obyt_iso_roundtrip_l(a in arb_u8()) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&U008OBYT.conn_l(), a));
+        fn u008_be_iso_roundtrip_l(a in arb_u8()) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&U008BE01.conn_l(), a));
         }
 
         #[test]
-        fn u008_obyt_roundtrip_ceil(b in arb_byte1()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&U008OBYT.conn_l(), b));
+        fn u008_be_roundtrip_ceil(b in arb_byte1()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&U008BE01.conn_l(), b));
         }
 
         #[test]
-        fn u008_obyt_galois_l(a in arb_u8(), b in arb_byte1()) {
-            prop_assert!(conn_laws::galois_l(&U008OBYT.conn_l(), a, b));
+        fn u008_be_galois_l(a in arb_u8(), b in arb_byte1()) {
+            prop_assert!(conn_laws::galois_l(&U008BE01.conn_l(), a, b));
         }
 
         #[test]
-        fn u008_obyt_galois_r(a in arb_u8(), b in arb_byte1()) {
-            prop_assert!(conn_laws::galois_r(&U008OBYT.conn_r(), a, b));
+        fn u008_be_galois_r(a in arb_u8(), b in arb_byte1()) {
+            prop_assert!(conn_laws::galois_r(&U008BE01.conn_r(), a, b));
         }
 
         #[test]
-        fn u008_obyt_floor_le_ceil(a in arb_u8()) {
-            prop_assert!(conn_laws::floor_le_ceil(&U008OBYT, a));
+        fn u008_be_floor_le_ceil(a in arb_u8()) {
+            prop_assert!(conn_laws::floor_le_ceil(&U008BE01, a));
         }
 
         #[test]
-        fn u008_obyt_order_preserving(a in arb_u8(), b in arb_u8()) {
+        fn u008_be_order_preserving(a in arb_u8(), b in arb_u8()) {
             // Total bijection that preserves order: ceil monotone iff host order matches byte-lex.
             let ord = a.cmp(&b);
-            let bord = U008OBYT.ceil(a).cmp(&U008OBYT.ceil(b));
+            let bord = U008BE01.ceil(a).cmp(&U008BE01.ceil(b));
             prop_assert_eq!(ord, bord);
         }
     }
@@ -178,34 +178,34 @@ mod tests {
 
     proptest! {
         #[test]
-        fn i008_obyt_iso_roundtrip_l(a in arb_i8()) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I008OBYT.conn_l(), a));
+        fn i008_be_iso_roundtrip_l(a in arb_i8()) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&I008BE01.conn_l(), a));
         }
 
         #[test]
-        fn i008_obyt_roundtrip_ceil(b in arb_byte1()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I008OBYT.conn_l(), b));
+        fn i008_be_roundtrip_ceil(b in arb_byte1()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&I008BE01.conn_l(), b));
         }
 
         #[test]
-        fn i008_obyt_galois_l(a in arb_i8(), b in arb_byte1()) {
-            prop_assert!(conn_laws::galois_l(&I008OBYT.conn_l(), a, b));
+        fn i008_be_galois_l(a in arb_i8(), b in arb_byte1()) {
+            prop_assert!(conn_laws::galois_l(&I008BE01.conn_l(), a, b));
         }
 
         #[test]
-        fn i008_obyt_galois_r(a in arb_i8(), b in arb_byte1()) {
-            prop_assert!(conn_laws::galois_r(&I008OBYT.conn_r(), a, b));
+        fn i008_be_galois_r(a in arb_i8(), b in arb_byte1()) {
+            prop_assert!(conn_laws::galois_r(&I008BE01.conn_r(), a, b));
         }
 
         #[test]
-        fn i008_obyt_floor_le_ceil(a in arb_i8()) {
-            prop_assert!(conn_laws::floor_le_ceil(&I008OBYT, a));
+        fn i008_be_floor_le_ceil(a in arb_i8()) {
+            prop_assert!(conn_laws::floor_le_ceil(&I008BE01, a));
         }
 
         #[test]
-        fn i008_obyt_order_preserving(a in arb_i8(), b in arb_i8()) {
+        fn i008_be_order_preserving(a in arb_i8(), b in arb_i8()) {
             let ord = a.cmp(&b);
-            let bord = I008OBYT.ceil(a).cmp(&I008OBYT.ceil(b));
+            let bord = I008BE01.ceil(a).cmp(&I008BE01.ceil(b));
             prop_assert_eq!(ord, bord);
         }
     }
@@ -213,28 +213,28 @@ mod tests {
     // ---- bool ---------------------------------------------------------------
 
     proptest! {
-        // BOOLOBYT is one-sided conn_l, so iso_roundtrip_l (b → ceil ∘ inner) does NOT
+        // BOOLBE01 is one-sided conn_l, so iso_roundtrip_l (b → ceil ∘ inner) does NOT
         // hold and is not asserted. Galois L is the only adjoint law.
 
         #[test]
-        fn bool_obyt_galois_l(a: bool, b in arb_byte1()) {
-            prop_assert!(conn_laws::galois_l(&BOOLOBYT, a, b));
+        fn bool_be_galois_l(a: bool, b in arb_byte1()) {
+            prop_assert!(conn_laws::galois_l(&BOOLBE01, a, b));
         }
 
         #[test]
-        fn bool_obyt_host_roundtrip_l(a: bool) {
+        fn bool_be_host_roundtrip_l(a: bool) {
             // Host-side round-trip only: `inner ∘ ceil = id`. Byte-side
             // (`ceil ∘ inner = id`) is intentionally absent — see the doc
-            // comment on `obyt_to_bool`. The `iso_roundtrip_l` predicate is
+            // comment on `be_to_bool`. The `iso_roundtrip_l` predicate is
             // misnamed for one-sided Conns; it asserts only the host-side
             // identity, which holds here.
-            prop_assert!(conn_laws::iso_roundtrip_l(&BOOLOBYT, a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&BOOLBE01, a));
         }
 
         #[test]
-        fn bool_obyt_order_preserving(a: bool, b: bool) {
+        fn bool_be_order_preserving(a: bool, b: bool) {
             let ord = a.cmp(&b);
-            let bord = BOOLOBYT.ceil(a).cmp(&BOOLOBYT.ceil(b));
+            let bord = BOOLBE01.ceil(a).cmp(&BOOLBE01.ceil(b));
             prop_assert_eq!(ord, bord);
         }
     }

@@ -1,6 +1,6 @@
 //! Kani harnesses for [`crate::byte::two`] — 2-byte sortable byte-encoding isos.
 //!
-//! `U016OBYT`, `I016OBYT`. (`F016OBYT` deferred — see `src/byte.rs`.)
+//! `U016BE02`, `I016BE02`. (`F016BE02` deferred — see `src/byte.rs`.)
 //!
 //! T0 (full domain). Symbolic input is at most 32 bits (a u16 + a
 //! [u8; 2]); CBMC handles this within seconds.
@@ -8,7 +8,7 @@
 use crate::conn::{ConnL, ConnR};
 use crate::prop::conn as conn_laws;
 
-macro_rules! prove_iso_obyt {
+macro_rules! prove_iso_be {
     ($mod_name:ident, $CONN:path, $T:ty) => {
         mod $mod_name {
             use super::*;
@@ -57,5 +57,5 @@ macro_rules! prove_iso_obyt {
     };
 }
 
-prove_iso_obyt!(u016_obyt, crate::byte::U016OBYT, u16);
-prove_iso_obyt!(i016_obyt, crate::byte::I016OBYT, i16);
+prove_iso_be!(u016_be, crate::byte::U016BE02, u16);
+prove_iso_be!(i016_be, crate::byte::I016BE02, i16);

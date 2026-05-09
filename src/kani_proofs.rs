@@ -44,9 +44,9 @@
 //! | [`time_pure`]          | TIMENANO / TIMESECS / TDURSECS / SDURU064 / SDURU128 (Plan 43) |
 //! | [`hifi_walk`]          | float→hifi-Duration / TAI-Epoch walk-step ≤ 2 (Plan 43) |
 //! | [`hifi_pure`]          | HDURNANO / HDURSECS / ETAINANO / ETAIHDUR (Plan 43)   |
-//! | [`byte_one`]           | U008OBYT / I008OBYT / BOOLOBYT (Plan 47, `byte` feature) |
-//! | [`byte_two`]           | U016OBYT / I016OBYT (Plan 47, `byte` feature) |
-//! | [`byte_four`]          | U032OBYT / I032OBYT (Plan 47, `byte` feature) |
+//! | [`byte_one`]           | U008BE01 / I008BE01 / BOOLBE01 (Plan 47, `byte` feature) |
+//! | [`byte_two`]           | U016BE02 / I016BE02 (Plan 47, `byte` feature) |
+//! | [`byte_four`]          | U032BE04 / I032BE04 (Plan 47, `byte` feature) |
 //! | [`hifi_calendar`]      | MONTU008 / MONTN008 / WKDYU008 (Plan 46)              |
 //!
 //! [Kani]: https://model-checking.github.io/kani/

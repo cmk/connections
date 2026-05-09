@@ -1,7 +1,7 @@
 //! Kani harnesses for [`crate::byte::one`] — 1-byte sortable byte-encoding isos.
 //!
-//! Two `prove_iso!` invocations (`U008OBYT`, `I008OBYT`) plus
-//! `prove_conn_l_with_order!` for `BOOLOBYT` (one-sided). Each
+//! Two `prove_iso!` invocations (`U008BE01`, `I008BE01`) plus
+//! `prove_conn_l_with_order!` for `BOOLBE01` (one-sided). Each
 //! macro emits the standard ConnL battery + the new
 //! `order_preserving` predicate (host order vs byte-lex order).
 //!
@@ -11,7 +11,7 @@
 use crate::conn::{ConnL, ConnR};
 use crate::prop::conn as conn_laws;
 
-macro_rules! prove_iso_obyt {
+macro_rules! prove_iso_be {
     ($mod_name:ident, $CONN:path, $T:ty) => {
         mod $mod_name {
             use super::*;
@@ -60,12 +60,12 @@ macro_rules! prove_iso_obyt {
     };
 }
 
-prove_iso_obyt!(u008_obyt, crate::byte::U008OBYT, u8);
-prove_iso_obyt!(i008_obyt, crate::byte::I008OBYT, i8);
+prove_iso_be!(u008_be, crate::byte::U008BE01, u8);
+prove_iso_be!(i008_be, crate::byte::I008BE01, i8);
 
-// ── BOOLOBYT — one-sided conn_l, no roundtrip_ceil (lossy back) ─────
+// ── BOOLBE01 — one-sided conn_l, no roundtrip_ceil (lossy back) ─────
 
-mod bool_obyt {
+mod bool_be {
     use super::*;
 
     // Symbolic bool routed through a fully-symbolic byte so the
@@ -75,7 +75,7 @@ mod bool_obyt {
         n != 0
     }
 
-    // Note: `galois_l` for `BOOLOBYT` is intentionally NOT verified by Kani.
+    // Note: `galois_l` for `BOOLBE01` is intentionally NOT verified by Kani.
     // Under Kani 0.67 the `(c.ceil(a) <= b) == (a <= c.upper(b))` predicate
     // — comparing a `[u8; 1]` array against a `bool` PartialOrd — produces a
     // spurious counterexample at every concrete-playback example tried
@@ -88,9 +88,9 @@ mod bool_obyt {
     #[kani::proof]
     fn host_roundtrip_l() {
         // Host-side only: `inner ∘ ceil = id` (false → [0] → false; true → [1] → true).
-        // Byte-side (`ceil ∘ inner = id`) doesn't hold for `BOOLOBYT` and isn't asserted.
+        // Byte-side (`ceil ∘ inner = id`) doesn't hold for `BOOLBE01` and isn't asserted.
         let a = any_bool();
-        assert!(conn_laws::iso_roundtrip_l(&crate::byte::BOOLOBYT, a));
+        assert!(conn_laws::iso_roundtrip_l(&crate::byte::BOOLBE01, a));
     }
 
     #[kani::proof]
@@ -98,9 +98,9 @@ mod bool_obyt {
         let a = any_bool();
         let b = any_bool();
         let host_ord = a.cmp(&b);
-        let byte_ord = crate::byte::BOOLOBYT
+        let byte_ord = crate::byte::BOOLBE01
             .ceil(a)
-            .cmp(&crate::byte::BOOLOBYT.ceil(b));
+            .cmp(&crate::byte::BOOLBE01.ceil(b));
         assert!(host_ord == byte_ord);
     }
 }

@@ -2,11 +2,11 @@
 
 // ── u16 ─────────────────────────────────────────────────────────────
 
-const fn u16_to_obyt(x: u16) -> [u8; 2] {
+const fn u16_to_be(x: u16) -> [u8; 2] {
     x.to_be_bytes()
 }
 
-const fn obyt_to_u16(b: [u8; 2]) -> u16 {
+const fn be_to_u16(b: [u8; 2]) -> u16 {
     u16::from_be_bytes(b)
 }
 
@@ -17,24 +17,24 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::conn::{ConnL, ConnR};
-    /// use connections::byte::U016OBYT;
+    /// use connections::byte::U016BE02;
     ///
-    /// assert_eq!(U016OBYT.ceil(0xBEEF_u16), [0xBE, 0xEF]);
-    /// assert_eq!(U016OBYT.upper([0xBE, 0xEF]), 0xBEEF_u16);
+    /// assert_eq!(U016BE02.ceil(0xBEEF_u16), [0xBE, 0xEF]);
+    /// assert_eq!(U016BE02.upper([0xBE, 0xEF]), 0xBEEF_u16);
     /// ```
-    pub U016OBYT : u16 => [u8; 2] {
-        forward: u16_to_obyt,
-        back:    obyt_to_u16,
+    pub U016BE02 : u16 => [u8; 2] {
+        forward: u16_to_be,
+        back:    be_to_u16,
     }
 }
 
 // ── i16 ─────────────────────────────────────────────────────────────
 
-const fn i16_to_obyt(x: i16) -> [u8; 2] {
+const fn i16_to_be(x: i16) -> [u8; 2] {
     ((x as u16) ^ 0x8000).to_be_bytes()
 }
 
-const fn obyt_to_i16(b: [u8; 2]) -> i16 {
+const fn be_to_i16(b: [u8; 2]) -> i16 {
     (u16::from_be_bytes(b) ^ 0x8000) as i16
 }
 
@@ -48,19 +48,19 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::conn::{ConnL, ConnR};
-    /// use connections::byte::I016OBYT;
+    /// use connections::byte::I016BE02;
     ///
-    /// assert_eq!(I016OBYT.ceil(i16::MIN), [0x00, 0x00]);
-    /// assert_eq!(I016OBYT.ceil(0_i16),    [0x80, 0x00]);
-    /// assert_eq!(I016OBYT.ceil(i16::MAX), [0xFF, 0xFF]);
+    /// assert_eq!(I016BE02.ceil(i16::MIN), [0x00, 0x00]);
+    /// assert_eq!(I016BE02.ceil(0_i16),    [0x80, 0x00]);
+    /// assert_eq!(I016BE02.ceil(i16::MAX), [0xFF, 0xFF]);
     /// ```
-    pub I016OBYT : i16 => [u8; 2] {
-        forward: i16_to_obyt,
-        back:    obyt_to_i16,
+    pub I016BE02 : i16 => [u8; 2] {
+        forward: i16_to_be,
+        back:    be_to_i16,
     }
 }
 
-// `F016OBYT` deferred — see `src/byte.rs` for the NaN/PartialOrd rationale.
+// `F016BE02` deferred — see `src/byte.rs` for the NaN/PartialOrd rationale.
 
 // ── tests ───────────────────────────────────────────────────────────
 
@@ -88,63 +88,63 @@ mod tests {
 
     proptest! {
         #[test]
-        fn u016_obyt_iso_roundtrip_l(a in arb_u16()) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&U016OBYT.conn_l(), a));
+        fn u016_be_iso_roundtrip_l(a in arb_u16()) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&U016BE02.conn_l(), a));
         }
 
         #[test]
-        fn u016_obyt_roundtrip_ceil(b in arb_byte2()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&U016OBYT.conn_l(), b));
+        fn u016_be_roundtrip_ceil(b in arb_byte2()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&U016BE02.conn_l(), b));
         }
 
         #[test]
-        fn u016_obyt_galois_l(a in arb_u16(), b in arb_byte2()) {
-            prop_assert!(conn_laws::galois_l(&U016OBYT.conn_l(), a, b));
+        fn u016_be_galois_l(a in arb_u16(), b in arb_byte2()) {
+            prop_assert!(conn_laws::galois_l(&U016BE02.conn_l(), a, b));
         }
 
         #[test]
-        fn u016_obyt_galois_r(a in arb_u16(), b in arb_byte2()) {
-            prop_assert!(conn_laws::galois_r(&U016OBYT.conn_r(), a, b));
+        fn u016_be_galois_r(a in arb_u16(), b in arb_byte2()) {
+            prop_assert!(conn_laws::galois_r(&U016BE02.conn_r(), a, b));
         }
 
         #[test]
-        fn u016_obyt_floor_le_ceil(a in arb_u16()) {
-            prop_assert!(conn_laws::floor_le_ceil(&U016OBYT, a));
+        fn u016_be_floor_le_ceil(a in arb_u16()) {
+            prop_assert!(conn_laws::floor_le_ceil(&U016BE02, a));
         }
 
         #[test]
-        fn u016_obyt_order_preserving(a in arb_u16(), b in arb_u16()) {
-            prop_assert_eq!(a.cmp(&b), U016OBYT.ceil(a).cmp(&U016OBYT.ceil(b)));
+        fn u016_be_order_preserving(a in arb_u16(), b in arb_u16()) {
+            prop_assert_eq!(a.cmp(&b), U016BE02.ceil(a).cmp(&U016BE02.ceil(b)));
         }
 
         #[test]
-        fn i016_obyt_iso_roundtrip_l(a in arb_i16()) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I016OBYT.conn_l(), a));
+        fn i016_be_iso_roundtrip_l(a in arb_i16()) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&I016BE02.conn_l(), a));
         }
 
         #[test]
-        fn i016_obyt_roundtrip_ceil(b in arb_byte2()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I016OBYT.conn_l(), b));
+        fn i016_be_roundtrip_ceil(b in arb_byte2()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&I016BE02.conn_l(), b));
         }
 
         #[test]
-        fn i016_obyt_galois_l(a in arb_i16(), b in arb_byte2()) {
-            prop_assert!(conn_laws::galois_l(&I016OBYT.conn_l(), a, b));
+        fn i016_be_galois_l(a in arb_i16(), b in arb_byte2()) {
+            prop_assert!(conn_laws::galois_l(&I016BE02.conn_l(), a, b));
         }
 
         #[test]
-        fn i016_obyt_galois_r(a in arb_i16(), b in arb_byte2()) {
-            prop_assert!(conn_laws::galois_r(&I016OBYT.conn_r(), a, b));
+        fn i016_be_galois_r(a in arb_i16(), b in arb_byte2()) {
+            prop_assert!(conn_laws::galois_r(&I016BE02.conn_r(), a, b));
         }
 
         #[test]
-        fn i016_obyt_floor_le_ceil(a in arb_i16()) {
-            prop_assert!(conn_laws::floor_le_ceil(&I016OBYT, a));
+        fn i016_be_floor_le_ceil(a in arb_i16()) {
+            prop_assert!(conn_laws::floor_le_ceil(&I016BE02, a));
         }
 
         #[test]
-        fn i016_obyt_order_preserving(a in arb_i16(), b in arb_i16()) {
-            prop_assert_eq!(a.cmp(&b), I016OBYT.ceil(a).cmp(&I016OBYT.ceil(b)));
+        fn i016_be_order_preserving(a in arb_i16(), b in arb_i16()) {
+            prop_assert_eq!(a.cmp(&b), I016BE02.ceil(a).cmp(&I016BE02.ceil(b)));
         }
     }
 }

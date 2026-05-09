@@ -40,8 +40,9 @@
 //!
 //! # Naming
 //!
-//! Right-side type code is `OBYT` (4L+0D ABCD shape — "Ordered
-//! BYTes"). Left-side is the standard host code (`U008`, `I032`,
+//! Right-side type code is `BE{NN}`: big-endian byte arrays, with `NN`
+//! recording the byte width (`BE01`, `BE02`, `BE04`, `BE08`, `BE16`).
+//! Left-side is the standard host code (`U008`, `I032`,
 //! `F064`, `BOOL`, …). 8 chars total per the §Conn-name format
 //! convention in `CLAUDE.md`.
 
@@ -51,13 +52,13 @@ pub mod one;
 pub mod sixteen;
 pub mod two;
 
-pub use eight::{I064OBYT, U064OBYT};
-pub use four::{I032OBYT, U032OBYT};
-pub use one::{BOOLOBYT, I008OBYT, U008OBYT};
-pub use sixteen::{I128OBYT, U128OBYT};
-pub use two::{I016OBYT, U016OBYT};
+pub use eight::{I064BE08, U064BE08};
+pub use four::{I032BE04, U032BE04};
+pub use one::{BOOLBE01, I008BE01, U008BE01};
+pub use sixteen::{I128BE16, U128BE16};
+pub use two::{I016BE02, U016BE02};
 
-// Float OBYT Conns (`F016OBYT`, `F032OBYT`, `F064OBYT`) are deferred from
+// Float BE Conns (`F016BE02`, `F032BE04`, `F064BE08`) are deferred from
 // this sprint — see `doc/plans/plan-2026-05-07-03.md` §Review for the
 // design rationale. The byte encoding (totalOrder pre-encoding + BE
 // bytes) preserves IEEE 754 totalOrder, but the host endpoint's
