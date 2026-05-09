@@ -822,10 +822,23 @@ pub(crate) fn round_down_to_f64(b: i128) -> f64 {
     }
 }
 
-/// Type-class shim: pick the right `round_down_to_*` per float type
-/// from inside the `float_ext_int_l!` / `float_fixed_l!` macros.
+/// **Internal dispatch shim** for the `float_ext_int_l!` /
+/// `float_fixed_l!` macros — picks the right `round_down_to_*` per
+/// source float type. Hidden from the rendered docs and **not part
+/// of the crate's stable API surface**: this trait is `pub` only
+/// because the macros it backs are `#[macro_export]`ed under
+/// `feature = "macros"`, and the macro expansion path
+/// `$crate::float::RoundDownFromI128` must resolve in the
+/// downstream crate.
 ///
-/// Implemented for `f32`, `f64`, and (under `f16` feature) `f16`.
+/// The crate ships impls for `f32`, `f64`, and (under `f16` feature)
+/// `f16` — the only IEEE binary float types `connections` supports.
+/// Downstream crates should not implement this trait for custom
+/// float types: the macros assume the round-down semantics
+/// described in [`round_down_to_f32`] / [`round_down_to_f64`] /
+/// [`round_down_to_f16`], and any other impl would silently change
+/// the L-Galois law guarantee.
+#[doc(hidden)]
 pub trait RoundDownFromI128: Sized {
     /// Cast `b: i128` to this float type, rounding toward `-∞`.
     fn from_i128_rd(b: i128) -> Self;
@@ -1392,6 +1405,26 @@ mod tests {
     fn shift32_inf_clamped() {
         assert_eq!(shift32(1, f32::INFINITY), f32::INFINITY);
         assert_eq!(shift32(-1, f32::NEG_INFINITY), f32::NEG_INFINITY);
+    }
+
+    #[test]
+    fn shift64_from_zero() {
+        let z = shift64(1, 0.0);
+        assert!(z > 0.0);
+        assert_eq!(z, f64::from_bits(1));
+    }
+
+    #[test]
+    fn shift64_nan_to_inf() {
+        assert_eq!(shift64(1, f64::NAN), f64::INFINITY);
+        assert_eq!(shift64(-1, f64::NAN), f64::NEG_INFINITY);
+        assert!(shift64(0, f64::NAN).is_nan());
+    }
+
+    #[test]
+    fn shift64_inf_clamped() {
+        assert_eq!(shift64(1, f64::INFINITY), f64::INFINITY);
+        assert_eq!(shift64(-1, f64::NEG_INFINITY), f64::NEG_INFINITY);
     }
 
     // ── ExtendedFloat tests ────────────────────────────────────────
