@@ -38,10 +38,21 @@ stateDiagram-v2
 - `fix_unpushed` is the load-bearing state. `/reply-reviews` refuses
   to run outside it, so the reply mirror never ends up stranded in the
   working tree.
+- `main_clean` is the shared coordination state. Do not perform task
+  edits in the primary checkout; create or switch to a task worktree
+  before changing files so other agents can continue to rely on the
+  root checkout.
 - The `glab_review → items_pulled → fix_unpushed → replies_amended → glab_review`
   cycle runs once per review round. Pushing before the amend breaks
   the cycle — it forces either a wasted `doc:` commit (extra CI
   round-trip) or a disallowed force-push.
+- Reply posting is part of the same state transition, not a side
+  channel. The corrected transition is: post replies through
+  `scripts/reply_review.py`, mirror with `scripts/pull_reviews.py`,
+  verify the mirrored Markdown is uncorrupted, amend it into the
+  unpushed fix commit, then push once. The failure mode this prevents
+  is shell-quoted Markdown or raw `glab` calls corrupting a reply while
+  leaving no verified mirror in `doc/reviews`.
 - `local_reviewed → impl_green` is the must-fix loop-back. The fix
   commits stay on the same branch; re-append any new Deferred/Review
   notes, then `/sprint-review` re-runs against the new tip.

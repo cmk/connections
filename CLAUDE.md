@@ -11,15 +11,24 @@ a hierarchy of lattice structures built on top. Port of the Haskell
 At the start of each conversation, ask the user:
 "Are any other Claude instances working in this repo right now?"
 
-If yes (or if the user says "work in a worktree"), create a git worktree
-before making any changes:
+Before making any file edits, run `git worktree list` and
+`git branch --show-current`. If the current directory is the primary
+checkout shown by `git worktree list`, treat it as shared
+coordination space and create a task worktree before editing, even if
+the primary checkout is currently on a feature branch. The primary
+checkout should stay clean on `main` for humans and other agents.
+
+If another Claude instance is working in the repo, if the user says
+"work in a worktree", or if you are in the primary checkout, create a
+git worktree before making any changes:
 
 ```zsh
 git worktree add ../project-<task> -b <branch>
 ```
 
-Never run two Claude instances in the same worktree — cargo target-dir
-locks and fd contention will break one or both sessions.
+Never run two Claude instances in the same worktree, and never use the
+primary checkout for task edits. Cargo target-dir locks, fd contention,
+and uncommitted shared-root changes will break one or more sessions.
 
 ## Architecture
 
@@ -293,7 +302,10 @@ round-trip (`/pull-reviews` → fix → `/reply-reviews` → push).
     posts replies, mirrors them back into the review doc, and amends
     the mirror into the fix commit. Push once — code + replies + audit
     trail in one trip. For unattended polling, `/watch-mr <N>` (with
-    or without `/loop`) automates this per round.
+    or without `/loop`) automates this per round. MR review comments
+    must flow through `/pull-reviews` and `/reply-reviews`; raw
+    `glab mr note`, `glab api`, or inline shell-quoted Markdown is
+    fallback-only and must be justified in the review-round notes.
 11. Rebase onto main: `git rebase main` then fast-forward main.
 12. Clean up: `git worktree remove ../project-<sprint>`.
 13. If any property tests were `#[ignore]`d during implementation,
@@ -384,7 +396,10 @@ explicitly authorizes it.
   doc. Idempotent via `<!-- glab-id: -->` markers.
 - **`/reply-reviews <N>`** — post replies, mirror back, amend into the
   round's unpushed fix commit. Refuses to run if the fix commit is
-  already pushed.
+  already pushed. Use the repo script path for replies; pass Markdown,
+  backticks, multiline text, and code references via stdin or
+  `--body-file`, then rerun `/pull-reviews` and verify the mirrored
+  body before amending.
 - **`/watch-mr <N>`** — one polling tick: triage new items, auto-fix
   the trivially-clear ones, run `/reply-reviews`, stop before push.
   Designed for `/loop /watch-mr <N>` dynamic backoff.

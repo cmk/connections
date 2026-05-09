@@ -14,16 +14,67 @@ Requires: `glab` CLI authenticated for the current project.
 Usage:
     scripts/reply_review.py <MR> <IN_REPLY_TO_ID> <BODY>
     scripts/reply_review.py <MR> <IN_REPLY_TO_ID> -    # read body from stdin
+    scripts/reply_review.py <MR> <IN_REPLY_TO_ID> --body-file reply.md
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 import subprocess
 import sys
 
 from _glab import resolve_mr
+
+SHELL_RISK_CHARS = frozenset("`$\\\n\r")
+
+
+def has_shell_risk_chars(value: str) -> bool:
+    """Return whether an inline body is risky to pass through a shell."""
+    return any(ch in value for ch in SHELL_RISK_CHARS)
+
+
+def read_body(args: argparse.Namespace) -> str:
+    """Read and validate the reply body from stdin, a file, or argv."""
+    if args.body_file is not None:
+        if args.body is not None:
+            print(
+                "error: pass either BODY/- or --body-file, not both",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+        try:
+            body = Path(args.body_file).read_text(encoding="utf-8")
+        except OSError as exc:
+            print(f"error: cannot read body file: {exc}", file=sys.stderr)
+            raise SystemExit(1) from exc
+    elif args.body == "-":
+        body = sys.stdin.read()
+    elif args.body is not None:
+        body = args.body
+        if has_shell_risk_chars(body) and not args.allow_inline_body:
+            print(
+                "error: inline BODY contains Markdown/shell-sensitive "
+                "characters; pass '-' for stdin or --body-file PATH "
+                "instead, or use --allow-inline-body if you intentionally "
+                "handled quoting",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+    else:
+        print(
+            "error: missing reply body; pass BODY, '-' for stdin, or "
+            "--body-file PATH",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+
+    body = body.strip()
+    if not body:
+        print("error: empty body", file=sys.stderr)
+        raise SystemExit(1)
+    return body
 
 
 def find_discussion_for_note(project_id: str, mr: int, note_id: int) -> str:
@@ -88,16 +139,29 @@ def main() -> int:
     )
     ap.add_argument(
         "body",
+        nargs="?",
         help="Reply body (markdown). Pass '-' to read from stdin.",
+    )
+    ap.add_argument(
+        "--body-file",
+        metavar="PATH",
+        help="Read reply body from a UTF-8 Markdown file.",
+    )
+    ap.add_argument(
+        "--allow-inline-body",
+        action="store_true",
+        help=(
+            "Allow inline BODY even if it contains shell-sensitive "
+            "Markdown characters. Prefer '-' or --body-file instead."
+        ),
     )
     ap.add_argument("--repo", default=None, help="group/project (default: auto)")
     args = ap.parse_args()
 
-    body = sys.stdin.read() if args.body == "-" else args.body
-    body = body.strip()
-    if not body:
-        print("error: empty body", file=sys.stderr)
-        return 1
+    try:
+        body = read_body(args)
+    except SystemExit as exc:
+        return int(exc.code or 0)
 
     project_id = resolve_mr(args.mr, args.repo)
     discussion_id = find_discussion_for_note(project_id, args.mr, args.in_reply_to_id)

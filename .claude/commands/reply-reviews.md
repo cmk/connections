@@ -11,10 +11,11 @@ update into the round's **unpushed** fix commit. Stops before `git push`
 — the user runs that explicitly as the last step, so one push delivers
 code + replies + review doc.
 
-This ordering — fix → reply → mirror → amend → push — is deliberate.
-Pushing before the mirror strands the reply-mirror in the working tree
-and forces either a wasted `doc:` commit (extra CI round-trip) or a
-force-push that this workflow is designed to avoid.
+This ordering — fix locally → pull latest comments → compose replies
+→ post through the script → mirror → verify → amend → push — is
+deliberate. Pushing before the mirror strands the reply-mirror in the
+working tree and forces either a wasted `doc:` commit (extra CI
+round-trip) or a force-push that this workflow is designed to avoid.
 
 Target MR: `$ARGUMENTS`
 
@@ -130,16 +131,14 @@ Rules:
 
 ## Step 4: Post the replies
 
-For each composed reply:
+For each composed reply, use the `glab-id` from the thread starter's
+`<!-- glab-id: NNNNN -->` marker in the review file as
+`<in_reply_to_id>`. The script resolves that note's parent discussion
+and posts a new note into it.
 
-```
-scripts/reply_review.py <MR> <in_reply_to_id> "<body>"
-```
-
-`<in_reply_to_id>` is the `glab-id` from the thread starter's
-`<!-- glab-id: NNNNN -->` marker in the review file. The script
-resolves that note's parent discussion and posts a new note into it.
-Pass `-` as the body to read from stdin for long or multi-line replies:
+For any Markdown-sensitive body — backticks, `$`, backslashes, code
+references, multiple lines, or anything whose exact punctuation
+matters — pass the body through stdin or `--body-file`:
 
 ```
 scripts/reply_review.py 5 30985 - <<'EOF'
@@ -147,7 +146,19 @@ Fixed — ...
 EOF
 ```
 
-## Step 5: Mirror the replies back into the review doc
+```
+scripts/reply_review.py 5 30985 --body-file reply.md
+```
+
+Raw `glab mr note`, `glab api`, or shell-quoted Markdown is
+fallback-only. If you bypass `scripts/reply_review.py`, write down why
+the script could not handle the case before posting.
+
+Inline body arguments are only for short plain-text replies with no
+Markdown/shell-sensitive characters; the script refuses risky inline
+bodies unless `--allow-inline-body` is passed.
+
+## Step 5: Mirror and verify the replies
 
 ```
 scripts/pull_reviews.py <N>
@@ -155,6 +166,10 @@ scripts/pull_reviews.py <N>
 
 The script appends the replies you just posted (plus anything else new)
 to `review-NNNNN.md` via set-membership de-dup — safe to re-run.
+After it finishes, read the appended reply text in
+`doc/reviews/review-NNNNN.md` and confirm GitLab stored the body
+uncorrupted before amending. Check especially backticks, code
+references, `$`, and line breaks.
 
 ## Step 6: Fold the doc update into the round's fix commit
 
@@ -179,6 +194,21 @@ Print a one-paragraph summary:
   <branch>` if this is the first push for the branch)
 
 Do **not** push. The user runs the push explicitly as the last step.
+
+## Checklist
+
+Run every review round in this order:
+
+1. Fix all selected findings and create the local-only fix commit.
+2. Run `scripts/pull_reviews.py <N>` and read any newly pulled comments.
+3. Compose one reply per still-unreplied thread.
+4. Post through `scripts/reply_review.py`, using `-` or `--body-file`
+   for Markdown, backticks, multiline text, or code references.
+5. Run `scripts/pull_reviews.py <N>` again.
+6. Verify the mirrored reply bodies are uncorrupted in
+   `doc/reviews/review-NNNNN.md`.
+7. Amend the review-doc mirror into the unpushed fix commit.
+8. Stop before push and hand off `git push` to the user.
 
 ---
 
