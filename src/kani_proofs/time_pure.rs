@@ -5,7 +5,7 @@
 //! - `TIMENANO` (`conn_l!`) — `Extended<Time> → i64` nanoseconds since midnight.
 //! - `TIMESECS` (`conn_l!`) — `Extended<Time> → i64` whole seconds.
 //! - `TDURSECS` (`conn_k!`) — `Duration → Extended<i64>` whole seconds (full triple).
-//! - `SDURU064` (`conn_k!`) — `Extended<StdDuration> → Extended<u64>` (full triple).
+//! - `SDURU064` (`conn_l!`) — `Extended<StdDuration> → Extended<u64>` whole seconds.
 //! - `SDURU128` (`conn_l!`) — `Extended<StdDuration> → Extended<u128>` total nanoseconds.
 //!
 //! Out of scope (calendar / leap-second internals): `DATEJDAY`,
@@ -234,7 +234,7 @@ macro_rules! prove_lr {
 prove_l!(timenano, TIMENANO, arb_ext_time, arb_i64);
 prove_l!(timesecs, TIMESECS, arb_ext_time, arb_i64);
 
-// ── TDURSECS / SDURU064 — full triples (`conn_k!`) ─────────────────
+// ── TDURSECS — full triple (`conn_k!`) ──────────────────────────────
 
 prove_lr!(
     tdursecs,
@@ -244,14 +244,7 @@ prove_lr!(
     arb_ext_i64
 );
 
-prove_lr!(
-    sduru064,
-    SDURU064.conn_l(),
-    SDURU064.conn_r(),
-    arb_ext_std_duration,
-    arb_ext_u64
-);
+// ── SDURU064 / SDURU128 — `conn_l!` ────────────────────────────────
 
-// ── SDURU128 — `conn_l!` ───────────────────────────────────────────
-
+prove_l!(sduru064, SDURU064, arb_ext_std_duration, arb_ext_u64);
 prove_l!(sduru128, SDURU128, arb_ext_std_duration, arb_ext_u128);

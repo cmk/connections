@@ -539,17 +539,9 @@ fn sduru064_inner(b: Extended<u64>) -> Extended<StdDuration> {
     }
 }
 
-fn sduru064_floor(d: Extended<StdDuration>) -> Extended<u64> {
-    match d {
-        Extended::NegInf => Extended::NegInf,
-        Extended::PosInf => Extended::PosInf,
-        Extended::Finite(d) => Extended::Finite(d.as_secs()),
-    }
-}
-
-crate::conn_k! {
+crate::conn_l! {
     /// `Extended<StdDuration> → Extended<u64>` — unsigned time span ↔
-    /// whole seconds.
+    /// whole seconds (left-Galois).
     ///
     /// Rung saturation arms (`Extended::PosInf`) catch the
     /// `StdDuration::MAX` overflow where `as_secs() == u64::MAX` and a
@@ -560,31 +552,27 @@ crate::conn_k! {
     /// = Finite(0)` arm.
     ///
     /// On Finite source values:
-    /// - `floor(Finite(d)) = Finite(d.as_secs())`. No overflow possible
-    ///   since `as_secs()` returns `u64`.
     /// - `ceil(Finite(d)) = Finite(d.as_secs() + (subsec > 0 ? 1 : 0))`,
     ///   saturating to `PosInf` when `as_secs() == u64::MAX && subsec > 0`.
     /// - `inner(Finite(s)) = Finite(StdDuration::from_secs(s))`.
     ///
     /// Synthetic-arm round-trips: `inner(NegInf) = NegInf`,
     /// `inner(PosInf) = PosInf`; `ceil(NegInf) = NegInf`, `ceil(PosInf) =
-    /// PosInf` (and likewise `floor`).
+    /// PosInf`.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ConnL, ConnR};
+    /// use connections::conn::ConnL;
     /// use connections::time::SDURU064;
     /// use connections::extended::Extended;
     /// use std::time::Duration as StdDuration;
     ///
     /// let half = StdDuration::from_secs(5) + StdDuration::from_nanos(1);
     /// assert_eq!(SDURU064.ceil(Extended::Finite(half)),  Extended::Finite(6));
-    /// assert_eq!(SDURU064.floor(Extended::Finite(half)), Extended::Finite(5));
     ///
     /// // Sub-second part at MAX overflows u64::MAX seconds → PosInf.
     /// assert_eq!(SDURU064.ceil(Extended::Finite(StdDuration::MAX)), Extended::PosInf);
-    /// assert_eq!(SDURU064.floor(Extended::Finite(StdDuration::MAX)), Extended::Finite(u64::MAX));
     ///
     /// assert_eq!(SDURU064.upper(Extended::Finite(42)),
     ///            Extended::Finite(StdDuration::from_secs(42)));
@@ -593,7 +581,6 @@ crate::conn_k! {
     pub SDURU064 : Extended<StdDuration> => Extended<u64> {
         ceil:  sduru064_ceil,
         inner: sduru064_inner,
-        floor: sduru064_floor,
     }
 }
 
@@ -888,7 +875,7 @@ pub(crate) fn f32_sdur_ceil_walk_steps_for_proof(v: f32) -> (StdDuration, u32) {
 mod float_tdur_tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ConnL, ConnR};
+    use crate::conn::ConnL;
     use crate::prop::arb::{
         arb_extended_duration_bounded_f32, arb_extended_duration_bounded_f64, extended_float_f32,
         extended_float_f64,
@@ -1065,7 +1052,7 @@ mod float_tdur_tests {
 mod sdur_tests {
     use super::*;
     #[allow(unused_imports)]
-    use crate::conn::{ConnL, ConnR};
+    use crate::conn::ConnL;
     use crate::prop::arb::{
         arb_extended_std_duration, arb_extended_std_duration_bounded_f32,
         arb_extended_std_duration_bounded_f64, arb_extended_u64, arb_extended_u128,
@@ -1080,7 +1067,6 @@ mod sdur_tests {
     fn sduru064_zero() {
         let z = Extended::Finite(StdDuration::ZERO);
         assert_eq!(SDURU064.ceil(z), Extended::Finite(0_u64));
-        assert_eq!(SDURU064.floor(z), Extended::Finite(0_u64));
         assert_eq!(SDURU064.upper(Extended::Finite(0_u64)), z);
     }
 
@@ -1088,22 +1074,18 @@ mod sdur_tests {
     fn sduru064_positive_subsec_rounds_up() {
         let d = Extended::Finite(StdDuration::from_secs(5) + StdDuration::from_nanos(1));
         assert_eq!(SDURU064.ceil(d), Extended::Finite(6_u64));
-        assert_eq!(SDURU064.floor(d), Extended::Finite(5_u64));
     }
 
     #[test]
     fn sduru064_max_overflows_ceil() {
         let m = Extended::Finite(StdDuration::MAX);
         assert_eq!(SDURU064.ceil(m), Extended::PosInf);
-        assert_eq!(SDURU064.floor(m), Extended::Finite(u64::MAX));
     }
 
     #[test]
     fn sduru064_synthetic_arms() {
         assert_eq!(SDURU064.ceil(Extended::NegInf), Extended::NegInf);
         assert_eq!(SDURU064.ceil(Extended::PosInf), Extended::PosInf);
-        assert_eq!(SDURU064.floor(Extended::NegInf), Extended::NegInf);
-        assert_eq!(SDURU064.floor(Extended::PosInf), Extended::PosInf);
         assert_eq!(SDURU064.upper(Extended::NegInf), Extended::NegInf);
         assert_eq!(SDURU064.upper(Extended::PosInf), Extended::PosInf);
     }
@@ -1173,6 +1155,7 @@ mod sdur_tests {
         conn: SDURU064,
         fine:   arb_extended_std_duration(),
         coarse: arb_extended_u64(),
+        subset: l_only,
     }
 
     // SDURU128 is now ConnL — exercise L-side laws over the FULL

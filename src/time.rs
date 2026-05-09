@@ -78,7 +78,7 @@
 //! | [`TDURSECS`] | `Conn<Duration, Extended<i64>>` | signed whole seconds; rung extended for `±i64::MAX ± 1` overflow. |
 //! | [`F064TDUR`] | `Conn<F064, Extended<Duration>>` | f64 seconds ↔ Duration; saturating ceil/floor walk on the 1ns Duration rung. |
 //! | [`F032TDUR`] | `Conn<F032, Extended<Duration>>` | f32 seconds ↔ Duration; same walk shape with f32 precision. |
-//! | [`SDURU064`] | `Conn<Extended<StdDuration>, Extended<u64>>` | unsigned whole seconds; rung PosInf at `MAX` overflow, both sides wrapped to keep `ceil(Finite(ZERO)) = Finite(0)`. |
+//! | [`SDURU064`] | `Conn<Extended<StdDuration>, Extended<u64>>` | unsigned whole seconds, left-Galois; rung PosInf at `MAX` overflow, both sides wrapped to keep `ceil(Finite(ZERO)) = Finite(0)`. |
 //! | [`SDURU128`] | `Conn<Extended<StdDuration>, Extended<u128>>` | unsigned exact nanoseconds; bijection on the representable Finite range, `inner` saturates above `MAX.as_nanos()`. |
 //! | [`F064SDUR`] | `Conn<F064, Extended<StdDuration>>` | f64 seconds ↔ StdDuration; negative inputs project ceil → `Finite(ZERO)`, floor → `NegInf`. |
 //! | [`F032SDUR`] | `Conn<F032, Extended<StdDuration>>` | f32 seconds ↔ StdDuration; same walk shape with f32 precision. |
@@ -123,14 +123,13 @@
 //! And the unsigned counterpoint via [`SDURU064`]:
 //!
 //! ```rust
-//! use connections::conn::{ConnL, ConnR};
+//! use connections::conn::ConnL;
 //! use connections::time::SDURU064;
 //! use connections::extended::Extended;
 //! use std::time::Duration as StdDuration;
 //!
 //! let dur = StdDuration::from_secs(5) + StdDuration::from_nanos(1);
 //! assert_eq!(SDURU064.ceil(Extended::Finite(dur)),  Extended::Finite(6));
-//! assert_eq!(SDURU064.floor(Extended::Finite(dur)), Extended::Finite(5));
 //! ```
 
 pub mod clock;
