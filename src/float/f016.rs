@@ -11,7 +11,7 @@
 //! nightly-only primitive (`#![feature(f16)]`, tracking issue
 //! #116909).
 
-use super::{ExtendedFloat, def_walk_helpers, impl_float_ext};
+use super::{ExtendedFloat, def_walk_helpers, float_ext_int, float_ext_int_l, impl_float_ext};
 
 impl_float_ext!(f16);
 
@@ -150,6 +150,45 @@ pub(crate) fn floor_f64_f16(x: f64) -> f16 {
     };
     z
 }
+
+// ── §2: f16 → Extended<intN> narrowing ───────────────────────────────
+//
+// f16 mantissa is 11 bits (10 explicit + 1 implicit). Only the
+// 8-bit targets fit losslessly; everything wider is L-only.
+
+float_ext_int!  (
+    /// `ExtendedFloat<f16> ↔ Extended<u8>` — full Galois triple.
+    pub F016U008, f16, u8
+);
+float_ext_int_l!(
+    /// `ExtendedFloat<f16> → Extended<u16>` — L-only (`u16::MAX = 65535`
+    /// is outside f16's exact integer grid; `f16::MAX = 65504`).
+    pub F016U016, f16, u16
+);
+float_ext_int_l!(
+    /// `ExtendedFloat<f16> → Extended<u32>` — L-only.
+    pub F016U032, f16, u32
+);
+float_ext_int_l!(
+    /// `ExtendedFloat<f16> → Extended<u64>` — L-only.
+    pub F016U064, f16, u64
+);
+float_ext_int!  (
+    /// `ExtendedFloat<f16> ↔ Extended<i8>` — full Galois triple.
+    pub F016I008, f16, i8
+);
+float_ext_int_l!(
+    /// `ExtendedFloat<f16> → Extended<i16>` — L-only.
+    pub F016I016, f16, i16
+);
+float_ext_int_l!(
+    /// `ExtendedFloat<f16> → Extended<i32>` — L-only.
+    pub F016I032, f16, i32
+);
+float_ext_int_l!(
+    /// `ExtendedFloat<f16> → Extended<i64>` — L-only.
+    pub F016I064, f16, i64
+);
 
 #[cfg(test)]
 mod tests {
@@ -548,5 +587,91 @@ mod tests {
             };
             prop_assert!(steps <= 2, "f64_f16_walks::ascend/descend_to_floor took {steps} steps on x={x}");
         }
+    }
+
+    // ── §2: f16 → Extended<intN> spot checks + law batteries ───────
+
+    use crate::extended::Extended;
+    use crate::prop::arb::{
+        arb_extended_i8, arb_extended_i16, arb_extended_i32, arb_extended_i64, arb_extended_u8,
+        arb_extended_u16, arb_extended_u32, arb_extended_u64,
+    };
+
+    #[test]
+    fn f016u008_exact() {
+        assert_eq!(
+            F016U008.ceil(ExtendedFloat::Extend(42.0_f16)),
+            Extended::Finite(42_u8),
+        );
+    }
+
+    #[test]
+    fn f016u016_max_finite_f16_in_range() {
+        // f16::MAX = 65504. Within u16 range (max 65535).
+        assert_eq!(
+            F016U016.ceil(ExtendedFloat::Extend(f16::MAX)),
+            Extended::Finite(65504_u16),
+        );
+    }
+
+    #[test]
+    fn f016i008_saturate() {
+        let huge = ExtendedFloat::Extend(1000.0_f16);
+        assert_eq!(F016I008.ceil(huge), Extended::PosInf);
+    }
+
+    crate::law_battery! {
+        mod laws_u008,
+        conn: F016U008,
+        fine:   ef16(),
+        coarse: arb_extended_u8(),
+    }
+    crate::law_battery! {
+        mod laws_u016,
+        conn: F016U016,
+        fine:   ef16(),
+        coarse: arb_extended_u16(),
+        subset: l_only,
+    }
+    crate::law_battery! {
+        mod laws_u032,
+        conn: F016U032,
+        fine:   ef16(),
+        coarse: arb_extended_u32(),
+        subset: l_only,
+    }
+    crate::law_battery! {
+        mod laws_u064,
+        conn: F016U064,
+        fine:   ef16(),
+        coarse: arb_extended_u64(),
+        subset: l_only,
+    }
+    crate::law_battery! {
+        mod laws_i008,
+        conn: F016I008,
+        fine:   ef16(),
+        coarse: arb_extended_i8(),
+    }
+    crate::law_battery! {
+        mod laws_i016,
+        conn: F016I016,
+        fine:   ef16(),
+        coarse: arb_extended_i16(),
+        subset: l_only,
+    }
+    crate::law_battery! {
+        mod laws_i032,
+        conn: F016I032,
+        fine:   ef16(),
+        coarse: arb_extended_i32(),
+        subset: l_only,
+    }
+    crate::law_battery! {
+        mod laws_i064,
+        conn: F016I064,
+        fine:   ef16(),
+        coarse: arb_extended_i64(),
+        subset: l_only,
     }
 }

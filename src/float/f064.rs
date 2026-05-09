@@ -1,12 +1,24 @@
 //! Conns sourced from [`F064`] (`ExtendedFloat<f64>`).
 //!
-//! Houses [`F064F032`] (`ExtendedFloat<f64> -> ExtendedFloat<f32>`) and,
-//! with the `f16` cargo feature, `F064F016` (`ExtendedFloat<f64> ->
-//! ExtendedFloat<f16>`).
+//! Houses:
+//!
+//! - [`F064F032`] (`ExtendedFloat<f64> → ExtendedFloat<f32>`) and,
+//!   with the `f16` cargo feature, `F064F016`.
+//! - `F064U032` / `F064I032` — full Galois triples for targets that
+//!   fit in the f64 mantissa.
+//! - `F064U064` / `F064I064` — L-only Conns where target precision
+//!   exceeds the f64 mantissa.
+//! - `F064U008` / `F064U016` / `F064I008` / `F064I016` — composed
+//!   triples derived from `F032<X> ∘ F064F032` (the small-target
+//!   subset where narrowing through f32 is exact).
 
 #[cfg(feature = "f16")]
 use super::f016::{F016, ceil_f64_f16, floor_f64_f16};
-use super::{ExtendedFloat, F032, F064, def_walk_helpers, shift32, widen_f32_f64};
+use super::f032::{F032I008, F032I016, F032U008, F032U016};
+use super::{
+    ExtendedFloat, F032, F064, def_walk_helpers, float_ext_int, float_ext_int_l, shift32,
+    widen_f32_f64,
+};
 #[cfg(test)]
 #[allow(unused_imports)]
 use crate::conn::Conn;
@@ -213,6 +225,58 @@ pub(crate) fn floor_walk_steps_for_proof(x: f64) -> (f32, u32) {
     }
 }
 
+// ── §2: Float → Extended<intN> narrowing ─────────────────────────────
+//
+// Direct: targets where precision exceeds the f32 mantissa
+// (i32/u32/i64/u64). f64 mantissa is 53 bits, so i32/u32 ship as
+// full triples and i64/u64 as L-only.
+//
+// Composed: targets ≤ 16 bits (i8/u8/i16/u16) compose
+// `F064F032` ∘ `F032<X>` losslessly, since narrowing through f32 first
+// is exact for these targets.
+
+float_ext_int!  (
+    /// `ExtendedFloat<f64> ↔ Extended<u32>` — full Galois triple
+    /// (`u32::MAX` fits in the f64 mantissa).
+    pub F064U032, f64, u32
+);
+float_ext_int_l!(
+    /// `ExtendedFloat<f64> → Extended<u64>` — L-only (`u64::MAX`
+    /// exceeds the f64 mantissa).
+    pub F064U064, f64, u64
+);
+float_ext_int!  (
+    /// `ExtendedFloat<f64> ↔ Extended<i32>` — full Galois triple.
+    pub F064I032, f64, i32
+);
+float_ext_int_l!(
+    /// `ExtendedFloat<f64> → Extended<i64>` — L-only.
+    pub F064I064, f64, i64
+);
+
+crate::compose_k!(
+    /// `ExtendedFloat<f64> → Extended<u8>` — composed triple via
+    /// `F064F032` ∘ `F032U008`. Narrowing through f32 is exact for
+    /// any `u8` value, so the composition has the same Galois shape
+    /// as the direct primary.
+    pub F064U008 : F064 => F032 => crate::extended::Extended<u8> = F064F032, F032U008
+);
+crate::compose_k!(
+    /// `ExtendedFloat<f64> → Extended<u16>` — composed triple via
+    /// `F064F032` ∘ `F032U016`.
+    pub F064U016 : F064 => F032 => crate::extended::Extended<u16> = F064F032, F032U016
+);
+crate::compose_k!(
+    /// `ExtendedFloat<f64> → Extended<i8>` — composed triple via
+    /// `F064F032` ∘ `F032I008`.
+    pub F064I008 : F064 => F032 => crate::extended::Extended<i8> = F064F032, F032I008
+);
+crate::compose_k!(
+    /// `ExtendedFloat<f64> → Extended<i16>` — composed triple via
+    /// `F064F032` ∘ `F032I016`.
+    pub F064I016 : F064 => F032 => crate::extended::Extended<i16> = F064F032, F032I016
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -357,5 +421,99 @@ mod tests {
         // different concept — and there is no clean i64 mapping for
         // `ExtendedFloat<f32>` (Bot / Top would have to alias to
         // sentinel ints, which isn't a meaningful "rung distance").
+    }
+
+    // ── §2: Float → Extended<intN> spot checks + law batteries ─────
+
+    use crate::extended::Extended;
+    use crate::prop::arb::{
+        arb_extended_i8, arb_extended_i16, arb_extended_i32, arb_extended_i64, arb_extended_u8,
+        arb_extended_u16, arb_extended_u32, arb_extended_u64, extended_float_f64,
+    };
+
+    #[test]
+    fn f064i032_exact_int() {
+        // i32 fits in f64 mantissa, so the cast round-trips exactly.
+        assert_eq!(
+            F064I032.ceil(ExtendedFloat::Extend(2.5_f64)),
+            Extended::Finite(3_i32),
+        );
+        assert_eq!(
+            F064I032.floor(ExtendedFloat::Extend(2.5_f64)),
+            Extended::Finite(2_i32),
+        );
+    }
+
+    #[test]
+    fn f064u064_saturate_high() {
+        let huge = ExtendedFloat::Extend(1.0e30_f64);
+        assert_eq!(F064U064.ceil(huge), Extended::PosInf);
+    }
+
+    #[test]
+    fn f064i064_saturate_low() {
+        let huge_neg = ExtendedFloat::Extend(-1.0e30_f64);
+        assert_eq!(F064I064.ceil(huge_neg), Extended::Finite(i64::MIN));
+    }
+
+    #[test]
+    fn f064u008_composed_matches_direct_path() {
+        // `F064U008 = F064F032 ∘ F032U008` should agree with
+        // narrowing `f64 -> f32` then casting `f32 -> u8`.
+        let v = ExtendedFloat::Extend(42.7_f64);
+        // ceil chain: F064F032.ceil → F032U008.ceil = Finite(43).
+        assert_eq!(F064U008.ceil(v), Extended::Finite(43));
+        assert_eq!(F064U008.floor(v), Extended::Finite(42));
+    }
+
+    crate::law_battery! {
+        mod laws_u032,
+        conn: F064U032,
+        fine:   extended_float_f64(),
+        coarse: arb_extended_u32(),
+    }
+    crate::law_battery! {
+        mod laws_u064,
+        conn: F064U064,
+        fine:   extended_float_f64(),
+        coarse: arb_extended_u64(),
+        subset: l_only,
+    }
+    crate::law_battery! {
+        mod laws_i032,
+        conn: F064I032,
+        fine:   extended_float_f64(),
+        coarse: arb_extended_i32(),
+    }
+    crate::law_battery! {
+        mod laws_i064,
+        conn: F064I064,
+        fine:   extended_float_f64(),
+        coarse: arb_extended_i64(),
+        subset: l_only,
+    }
+    crate::law_battery! {
+        mod laws_u008_composed,
+        conn: F064U008,
+        fine:   extended_float_f64(),
+        coarse: arb_extended_u8(),
+    }
+    crate::law_battery! {
+        mod laws_u016_composed,
+        conn: F064U016,
+        fine:   extended_float_f64(),
+        coarse: arb_extended_u16(),
+    }
+    crate::law_battery! {
+        mod laws_i008_composed,
+        conn: F064I008,
+        fine:   extended_float_f64(),
+        coarse: arb_extended_i8(),
+    }
+    crate::law_battery! {
+        mod laws_i016_composed,
+        conn: F064I016,
+        fine:   extended_float_f64(),
+        coarse: arb_extended_i16(),
     }
 }
