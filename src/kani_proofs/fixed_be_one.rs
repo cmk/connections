@@ -1,14 +1,9 @@
-//! Kani harnesses for [`crate::byte::two`] — 2-byte sortable byte-encoding isos.
-//!
-//! `U016OBYT`, `I016OBYT`. (`F016OBYT` deferred — see `src/byte.rs`.)
-//!
-//! T0 (full domain). Symbolic input is at most 32 bits (a u16 + a
-//! [u8; 2]); CBMC handles this within seconds.
+//! Kani harnesses for 1-byte sortable big-endian byte encodings.
 
 use crate::conn::{ConnL, ConnR};
 use crate::prop::conn as conn_laws;
 
-macro_rules! prove_iso_obyt {
+macro_rules! prove_iso_be {
     ($mod_name:ident, $CONN:path, $T:ty) => {
         mod $mod_name {
             use super::*;
@@ -16,14 +11,14 @@ macro_rules! prove_iso_obyt {
             #[kani::proof]
             fn galois_l() {
                 let a: $T = kani::any();
-                let b: [u8; 2] = kani::any();
+                let b: [u8; 1] = kani::any();
                 assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
             }
 
             #[kani::proof]
             fn galois_r() {
                 let a: $T = kani::any();
-                let b: [u8; 2] = kani::any();
+                let b: [u8; 1] = kani::any();
                 assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
             }
 
@@ -35,7 +30,7 @@ macro_rules! prove_iso_obyt {
 
             #[kani::proof]
             fn roundtrip_ceil() {
-                let b: [u8; 2] = kani::any();
+                let b: [u8; 1] = kani::any();
                 assert!(conn_laws::roundtrip_ceil(&$CONN.conn_l(), b));
             }
 
@@ -49,13 +44,38 @@ macro_rules! prove_iso_obyt {
             fn order_preserving() {
                 let a: $T = kani::any();
                 let b: $T = kani::any();
-                let host_ord = a.cmp(&b);
-                let byte_ord = $CONN.ceil(a).cmp(&$CONN.ceil(b));
-                assert!(host_ord == byte_ord);
+                assert!(a.cmp(&b) == $CONN.ceil(a).cmp(&$CONN.ceil(b)));
             }
         }
     };
 }
 
-prove_iso_obyt!(u016_obyt, crate::byte::U016OBYT, u16);
-prove_iso_obyt!(i016_obyt, crate::byte::I016OBYT, i16);
+prove_iso_be!(u008_be, crate::fixed::u008::U008BE01, u8);
+prove_iso_be!(i008_be, crate::fixed::i008::I008BE01, i8);
+
+mod bool_be {
+    use super::*;
+
+    fn any_bool() -> bool {
+        let n: u8 = kani::any();
+        n != 0
+    }
+
+    #[kani::proof]
+    fn host_roundtrip_l() {
+        let a = any_bool();
+        assert!(conn_laws::iso_roundtrip_l(&crate::fixed::u008::BOOLBE01, a));
+    }
+
+    #[kani::proof]
+    fn order_preserving() {
+        let a = any_bool();
+        let b = any_bool();
+        assert!(
+            a.cmp(&b)
+                == crate::fixed::u008::BOOLBE01
+                    .ceil(a)
+                    .cmp(&crate::fixed::u008::BOOLBE01.ceil(b))
+        );
+    }
+}

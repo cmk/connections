@@ -372,20 +372,18 @@ call into calendar / leap-second tables — `TIMENANO`, `TIMESECS`,
 `ETAINANO`, and the `ETAIHDUR` iso — pick up the standard
 Galois-law battery.
 
-Plan 47 (`byte` cargo feature) adds **38 SMT proofs** for the new
-sortable-byte-encoding family in `src/kani_proofs/byte_{one,two,four}.rs`.
-1- and 2-byte hosts (`U008OBYT`, `I008OBYT`, `U016OBYT`, `I016OBYT`,
-plus the one-sided `BOOLOBYT`) are proven exhaustively; 4-byte hosts
-(`U032OBYT`, `I032OBYT`) verify under full 32-bit symbolic input. The
-8- and 16-byte hosts (`U064OBYT`, `U128OBYT`, …) are proptest-only —
-128/256-bit two-input symex stalls CBMC. **Float OBYT Conns
-(`F016OBYT`, `F032OBYT`, `F064OBYT`) are deferred** — the byte
-encoding preserves IEEE 754 totalOrder, but the host endpoint's
-`PartialOrd` returns `None` for NaN comparisons, which would force
-the emitted `iso!` to claim a Galois law it does not satisfy at
-NaN-decoding byte arrays. A follow-up will pick a NaN-handling
-strategy (totalOrder newtype, type-level NonNan constraint, or
-ExtendedFloat with custom ordering).
+Plan 47's sortable byte encodings now live in the fixed-width modules
+instead of a separate `byte` feature. Big-endian 1-, 2-, and 4-byte
+hosts (`fixed::u008::U008BE01`, `fixed::i008::I008BE01`,
+`fixed::u016::U016BE02`, `fixed::i016::I016BE02`,
+`fixed::u032::U032BE04`, `fixed::i032::I032BE04`, plus the one-sided
+`fixed::u008::BOOLBE01`) are proven exhaustively under
+`src/kani_proofs/fixed_be_{one,two,four}.rs`; matching little-endian
+`LE<N>` encodings are proven in `fixed_le_{one,two,four}.rs`. The 8-
+and 16-byte hosts are proptest-only because 128/256-bit two-input
+symex stalls CBMC. Float byte encodings remain deferred: IEEE 754
+totalOrder-preserving byte encodings do not line up with the host
+endpoint's NaN-sensitive `PartialOrd`.
 
 Still out of scope: address Conns, full Galois laws on float Conns
 over the unrestricted IEEE bit space (intractable for CBMC's FP
@@ -442,7 +440,7 @@ implement `ConnK`.
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` cargo feature |
 | `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
 | `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
-| Sortable byte encodings (`U008OBYT`, `I008OBYT`, `BOOLOBYT`, `U016OBYT`, `I016OBYT`, `U032OBYT`, `I032OBYT`, `U064OBYT`, `I064OBYT`, `U128OBYT`, `I128OBYT`) — `byte` cargo feature; float OBYT Conns deferred (NaN/PartialOrd) | `byte` |
+| Sortable byte encodings (`U008BE01`, `U008LE01`, `I008BE01`, `I008LE01`, `BOOLBE01`, `BOOLLE01`, through `U128BE16`, `U128LE16`, `I128BE16`, `I128LE16`) | `fixed::{i008,…,i128, u008,…,u128}` |
 
 Constant-name prefixes are letter-disambiguated: `Q` for Q-format
 wrappers (sign and host bit-width come from the module path), `I`/`U`

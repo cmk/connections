@@ -1,14 +1,9 @@
-//! Kani harnesses for [`crate::byte::four`] — 4-byte sortable byte-encoding isos.
-//!
-//! `U032OBYT`, `I032OBYT`. (`F032OBYT` deferred — see `src/byte.rs`.)
-//! T0 (full domain). The `order_preserving` predicate uses two
-//! symbolic inputs — 64 symbolic bits — comparable to the `F064F032`
-//! walk-step proofs in `float_walk.rs`.
+//! Kani harnesses for 2-byte sortable big-endian byte encodings.
 
 use crate::conn::{ConnL, ConnR};
 use crate::prop::conn as conn_laws;
 
-macro_rules! prove_iso_obyt {
+macro_rules! prove_iso_be {
     ($mod_name:ident, $CONN:path, $T:ty) => {
         mod $mod_name {
             use super::*;
@@ -16,14 +11,14 @@ macro_rules! prove_iso_obyt {
             #[kani::proof]
             fn galois_l() {
                 let a: $T = kani::any();
-                let b: [u8; 4] = kani::any();
+                let b: [u8; 2] = kani::any();
                 assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
             }
 
             #[kani::proof]
             fn galois_r() {
                 let a: $T = kani::any();
-                let b: [u8; 4] = kani::any();
+                let b: [u8; 2] = kani::any();
                 assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
             }
 
@@ -35,7 +30,7 @@ macro_rules! prove_iso_obyt {
 
             #[kani::proof]
             fn roundtrip_ceil() {
-                let b: [u8; 4] = kani::any();
+                let b: [u8; 2] = kani::any();
                 assert!(conn_laws::roundtrip_ceil(&$CONN.conn_l(), b));
             }
 
@@ -49,15 +44,11 @@ macro_rules! prove_iso_obyt {
             fn order_preserving() {
                 let a: $T = kani::any();
                 let b: $T = kani::any();
-                let host_ord = a.cmp(&b);
-                let byte_ord = $CONN.ceil(a).cmp(&$CONN.ceil(b));
-                assert!(host_ord == byte_ord);
+                assert!(a.cmp(&b) == $CONN.ceil(a).cmp(&$CONN.ceil(b)));
             }
         }
     };
 }
 
-prove_iso_obyt!(u032_obyt, crate::byte::U032OBYT, u32);
-prove_iso_obyt!(i032_obyt, crate::byte::I032OBYT, i32);
-
-// `F032OBYT` deferred — see `src/byte.rs` for the NaN/PartialOrd rationale.
+prove_iso_be!(u016_be, crate::fixed::u016::U016BE02, u16);
+prove_iso_be!(i016_be, crate::fixed::i016::I016BE02, i16);

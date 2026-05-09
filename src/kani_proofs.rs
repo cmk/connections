@@ -44,9 +44,9 @@
 //! | [`time_pure`]          | TIMENANO / TIMESECS / TDURSECS / SDURU064 / SDURU128 (Plan 43) |
 //! | [`hifi_walk`]          | float→hifi-Duration / TAI-Epoch walk-step ≤ 1 + solver-step ≤ 52 |
 //! | [`hifi_pure`]          | HDURNANO / HDURSECS / ETAINANO / ETAIHDUR (Plan 43)   |
-//! | [`byte_one`]           | U008OBYT / I008OBYT / BOOLOBYT (Plan 47, `byte` feature) |
-//! | [`byte_two`]           | U016OBYT / I016OBYT (Plan 47, `byte` feature) |
-//! | [`byte_four`]          | U032OBYT / I032OBYT (Plan 47, `byte` feature) |
+//! | [`fixed_be_one`]       | fixed::u008::U008BE01 / fixed::i008::I008BE01 / fixed::u008::BOOLBE01 |
+//! | [`fixed_be_two`]       | fixed::u016::U016BE02 / fixed::i016::I016BE02 |
+//! | [`fixed_be_four`]      | fixed::u032::U032BE04 / fixed::i032::I032BE04 |
 //! | [`fixed_le_one`]       | fixed::u008::U008LE01 / fixed::i008::I008LE01 / fixed::u008::BOOLLE01 |
 //! | [`fixed_le_two`]       | fixed::u016::U016LE02 / fixed::i016::I016LE02 |
 //! | [`fixed_le_four`]      | fixed::u032::U032LE04 / fixed::i032::I032LE04 |
@@ -66,15 +66,12 @@
 /// the `solve_to_ceil` doc comment in `crate::float::def_walk_helpers!`.
 pub(crate) const SOLVE_STEP_BOUND: u32 = 52;
 
-#[cfg(feature = "byte")]
-mod byte_four;
-#[cfg(feature = "byte")]
-mod byte_one;
-#[cfg(feature = "byte")]
-mod byte_two;
 mod ext_int;
 mod fix_fix_signed;
 mod fix_fix_unsigned;
+mod fixed_be_four;
+mod fixed_be_one;
+mod fixed_be_two;
 mod fixed_le_four;
 mod fixed_le_one;
 mod fixed_le_two;

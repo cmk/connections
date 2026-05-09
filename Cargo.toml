@@ -89,15 +89,6 @@ hifi = ["dep:hifitime"]
 # `pub(crate)`); just lifts visibility. See `src/macros.rs`.
 macros = []
 
-# Sortable byte-encoding Conns under `connections::byte::*`: each
-# numeric primitive isomorphic to a fixed-width `[u8; N]` whose
-# lexicographic order matches the host's numeric order (totalOrder
-# for floats, sign-flipped two's-complement for signed ints, plain
-# big-endian for unsigned ints). Useful for serialization layers
-# that key into byte-ordered stores (RocksDB, FoundationDB, etc.).
-# No new dependencies — implementation only touches std.
-byte = []
-
 # docs.rs builds on stable rustc by default. We can't use
 # `all-features = true` because the `f16` feature activates
 # `#![cfg_attr(feature = "f16", feature(f16))]` — a nightly-only
@@ -109,7 +100,7 @@ byte = []
 # `#[cfg_attr(docsrs, doc(cfg(feature = "testing")))]` mirrors that
 # surface the gating in the rendered docs.
 [package.metadata.docs.rs]
-features = ["byte", "testing", "macros", "time"]
+features = ["testing", "macros", "time"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 # Declare `cfg(kani)` so `cargo build` / `cargo test` don't warn about
