@@ -12,18 +12,17 @@
 //! ## Submodules
 //!
 //! - [`mod@i008`] / [`mod@i016`] / [`mod@i032`] / [`mod@i064`] / [`mod@i128`] —
-//!   Conns landing on signed `iN` and `FixedI<N><Frac>`. Per the
-//!   right-side-wins module rule, each per-primitive submodule hosts
-//!   the Conn consts where that primitive type (or its Q-format
-//!   wrapper) wins as the destination.
+//!   signed-source std-int Conns plus signed `FixedI<N><Frac>` and
+//!   `NonZeroI<N>` host surfaces.
 //! - [`mod@u008`] / [`mod@u016`] / [`mod@u032`] / [`mod@u064`] / [`mod@u128`] —
-//!   same shape over unsigned `uN` and `FixedU<N><Frac>`.
+//!   unsigned-source std-int Conns plus unsigned `FixedU<N><Frac>` and
+//!   `NonZeroU<N>` host surfaces.
 //!
 //! ## Example
 //!
 //! ```rust
 //! use connections::conn::ConnR;
-//! use connections::fixed::i032::U032I032;
+//! use connections::fixed::u032::U032I032;
 //!
 //! // u32 PID into i32 — saturates instead of wrapping for large values.
 //! assert_eq!(U032I032.floor(1_u32), 1_i32);

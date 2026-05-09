@@ -4,54 +4,30 @@
 //! `(Fine, Coarse)` with `Fine > Coarse`. See [`super::i016`] for the
 //! design (this module mirrors it with `i32` inner / `i64` widening).
 
-use super::{LE, ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
+#[allow(unused_imports)]
+use super::{LE, ext_int, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext};
+#[cfg(test)]
+#[allow(unused_imports)]
+use crate::fixed::{
+    i008::I008I032, i016::I016I032, i064::I064I032, i128::I128I032, u008::U008I032, u016::U016I032,
+    u032::U032I032, u064::U064I032, u128::U128I032,
+};
 use ::fixed::FixedI32;
 use ::fixed::types::extra::{U0, U4, U8, U16, U24, U32, Unsigned};
 use core::num::NonZeroI32;
 
-// ── §1 std-int Conns landing on `i32` ───────────────────────────────
+// - std-int Conns sourced from `i32` -------------------------------
 
-ext_int!(I008I032, i8, i32);
-ext_int!(I016I032, i16, i32);
-ext_int!(U008I032, u8, i32);
-ext_int!(U016I032, u16, i32);
+int_int_narrow!(I032I008, i32, i8);
+int_int_narrow!(I032I016, i32, i16);
+ext_int!(I032I064, i32, i64);
+ext_int!(I032I128, i32, i128);
 
-int_int_narrow!(I064I032, i64, i32);
-int_int_narrow!(I128I032, i128, i32);
-
-uint_int_sat!(
-    ///
-    /// # Example: `u32` PID → `i32` (libc `pid_t`)
-    ///
-    /// `std::process::id()` returns a `u32`, but `libc::pid_t = i32`.
-    /// A naïve `pid_u32 as i32` cast wraps for any `u32 > i32::MAX` —
-    /// silently turning a sentinel value into a negative PID.
-    /// [`U032I032.floor`](crate::conn::Conn::floor) saturates to
-    /// `i32::MAX` instead, preserving the R-Galois `inner ⊣ floor`
-    /// law:
-    ///
-    /// ```rust
-    /// use connections::conn::ConnR;
-    /// use connections::fixed::i032::U032I032;
-    ///
-    /// // Mid-range u32 PIDs that fit in i32 pass through.
-    /// assert_eq!(U032I032.floor(1_u32),               1_i32);
-    /// assert_eq!(U032I032.floor(i32::MAX as u32),     i32::MAX);
-    ///
-    /// // Anything above i32::MAX saturates — never wraps to negative.
-    /// assert_eq!(U032I032.floor((i32::MAX as u32) + 1), i32::MAX);
-    /// assert_eq!(U032I032.floor(u32::MAX),              i32::MAX);
-    ///
-    /// // Round-trip: i32 → u32 saturates negatives to 0 (the largest
-    /// // u32 satisfying inner(b) ≤ a for any a < 0).
-    /// assert_eq!(U032I032.lower(-1),       0_u32);
-    /// assert_eq!(U032I032.lower(0),        0_u32);
-    /// assert_eq!(U032I032.lower(i32::MAX), i32::MAX as u32);
-    /// ```
-    U032I032, u32, i32
-);
-uint_int_sat!(U064I032, u64, i32);
-uint_int_sat!(U128I032, u128, i32);
+int_uint_narrow!(I032U008, i32, u8);
+int_uint_narrow!(I032U016, i32, u16);
+int_uint!(I032U032, i32, u32);
+int_uint!(I032U064, i32, u64);
+int_uint!(I032U128, i32, u128);
 
 // ── §2 i32 ↔ NonZeroI32 ──────────────────────────────────
 

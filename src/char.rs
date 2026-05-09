@@ -5,10 +5,10 @@
 //! `[0, 0xD7FF] ∪ [0xE000, 0x10FFFF]`. The surrogate gap and the
 //! `> 0x10FFFF` overflow are handled by the left adjoint.
 //!
-//! Per CLAUDE.md § Conn placement, char wins the same-tier tie over
-//! `u32` (right wins → coarser side → 21-bit char), so this is the
-//! natural module for u32↔char. To compose into `u8 → char` from
-//! downstream code, chain `compose_l!(U008U032.conn_l(), U032CHAR.conn_l())`.
+//! Per CLAUDE.md § Conn placement, semantic specificity wins before
+//! source-side placement: `char` is more domain-loaded than bare `u32`,
+//! so this is the natural module for u32↔char. To compose into `u8 → char`
+//! from downstream code, chain `compose_l!(U008U032.conn_l(), U032CHAR.conn_l())`.
 
 use crate::extended::Extended;
 

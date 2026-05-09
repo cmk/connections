@@ -3,7 +3,10 @@
 
 #[allow(unused_imports)]
 use connections::conn::{ConnL, ConnR};
-use connections::fixed::u016::*;
+#[allow(unused_imports)]
+use connections::fixed::{
+    i008::*, i016::*, i032::*, i064::*, i128::*, u008::*, u016::*, u032::*, u064::*, u128::*,
+};
 use proptest::prelude::*;
 
 // Tests `galois_upper` only; `galois_lower` is intentionally

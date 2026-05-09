@@ -4,26 +4,32 @@
 //! pairs. Mirrors [`super::i032`] with `FixedU32` backing and adds
 //! `F31` (Q1.31), the canonical 32-bit normalised-amplitude format.
 
-use super::{LE, int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
+#[allow(unused_imports)]
+use super::{LE, ext_int, nz_uint_ext, uint_int_sat, uint_uint, uint_uint_narrow};
+#[cfg(test)]
+#[allow(unused_imports)]
+use crate::fixed::{
+    i008::I008U032, i016::I016U032, i032::I032U032, i064::I064U032, i128::I128U032, u008::U008U032,
+    u016::U016U032, u064::U064U032, u128::U128U032,
+};
 use ::fixed::FixedU32;
 use ::fixed::types::extra::{
     U0 as F0, U4 as F4, U8 as F8, U16 as F16, U24 as F24, U31 as F31, U32 as F32, Unsigned,
 };
 use core::num::NonZeroU32;
 
-// ── §1 std-int Conns landing on `u32` ───────────────────────────────
+// - std-int Conns sourced from `u32` -------------------------------
 
-uint_uint!(U008U032, u8, u32);
-uint_uint!(U016U032, u16, u32);
-int_uint!(I008U032, i8, u32);
-int_uint!(I016U032, i16, u32);
-int_uint!(I032U032, i32, u32);
+ext_int!(U032I064, u32, i64);
+ext_int!(U032I128, u32, i128);
+uint_int_sat!(U032I008, u32, i8);
+uint_int_sat!(U032I016, u32, i16);
+uint_int_sat!(U032I032, u32, i32);
 
-uint_uint_narrow!(U064U032, u64, u32);
-uint_uint_narrow!(U128U032, u128, u32);
-
-int_uint_narrow!(I064U032, i64, u32);
-int_uint_narrow!(I128U032, i128, u32);
+uint_uint_narrow!(U032U008, u32, u8);
+uint_uint_narrow!(U032U016, u32, u16);
+uint_uint!(U032U064, u32, u64);
+uint_uint!(U032U128, u32, u128);
 
 // ── §2 u32 ↔ NonZeroU32 ──────────────────────────────────
 

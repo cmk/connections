@@ -4,26 +4,32 @@
 //! pairs. Mirrors [`super::i064`] with `FixedU64` backing and adds
 //! `F63` (Q1.63), the canonical 64-bit normalised-amplitude format.
 
-use super::{LE, int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
+#[allow(unused_imports)]
+use super::{LE, ext_int, nz_uint_ext, uint_int_sat, uint_uint, uint_uint_narrow};
+#[cfg(test)]
+#[allow(unused_imports)]
+use crate::fixed::{
+    i008::I008U064, i016::I016U064, i032::I032U064, i064::I064U064, i128::I128U064, u008::U008U064,
+    u016::U016U064, u032::U032U064, u128::U128U064,
+};
 use ::fixed::FixedU64;
 use ::fixed::types::extra::{
     U0 as F0, U8 as F8, U16 as F16, U32 as F32, U48 as F48, U63 as F63, U64 as F64, Unsigned,
 };
 use core::num::NonZeroU64;
 
-// ── §1 std-int Conns landing on `u64` ───────────────────────────────
+// - std-int Conns sourced from `u64` -------------------------------
 
-uint_uint!(U008U064, u8, u64);
-uint_uint!(U016U064, u16, u64);
-uint_uint!(U032U064, u32, u64);
-int_uint!(I008U064, i8, u64);
-int_uint!(I016U064, i16, u64);
-int_uint!(I032U064, i32, u64);
-int_uint!(I064U064, i64, u64);
+ext_int!(U064I128, u64, i128);
+uint_int_sat!(U064I008, u64, i8);
+uint_int_sat!(U064I016, u64, i16);
+uint_int_sat!(U064I032, u64, i32);
+uint_int_sat!(U064I064, u64, i64);
 
-uint_uint_narrow!(U128U064, u128, u64);
-
-int_uint_narrow!(I128U064, i128, u64);
+uint_uint_narrow!(U064U008, u64, u8);
+uint_uint_narrow!(U064U016, u64, u16);
+uint_uint_narrow!(U064U032, u64, u32);
+uint_uint!(U064U128, u64, u128);
 
 // ── §2 u64 ↔ NonZeroU64 ──────────────────────────────────
 

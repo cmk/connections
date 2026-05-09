@@ -4,21 +4,20 @@
 //!
 //! ## Constants
 //!
-//! Per-destination-tier Conns live in submodules (right-hand side
-//! wins under the placement rule when both endpoints sit at the same
-//! specificity tier):
+//! Peer float Conns live with their source side after semantic
+//! specificity is considered:
 //!
 //! | Const          | Conn                                  | Module       |
 //! |----------------|---------------------------------------|--------------|
-//! | `F064F032`     | `Conn<F064, F032>` (lossy narrowing)  | [`mod@f32`]  |
-//! | `F064F016`     | `Conn<F064, F016>` (`f16` feature)    | `f16`        |
-//! | `F032F016`     | `Conn<F032, F016>` (`f16` feature)    | `f16`        |
+//! | `F064F032`     | `Conn<F064, F032>` (lossy narrowing)  | [`mod@f064`] |
+//! | `F064F016`     | `Conn<F064, F016>` (`f16` feature)    | `f064`       |
+//! | `F032F016`     | `Conn<F032, F016>` (`f16` feature)    | `f032`       |
 //!
 //! ## Example
 //!
 //! ```rust
 //! use connections::conn::{ConnL, ConnR};  // brings .ceil/.floor in via default methods
-//! use connections::float::f32::F064F032;
+//! use connections::float::f064::F064F032;
 //! use connections::float::F064;
 //!
 //! // f64 → f32 narrowing rounds in two directions.
@@ -47,8 +46,9 @@
 //! `PartialOrd` on the wrapped `T`.
 
 #[cfg(feature = "f16")]
-pub mod f16;
-pub mod f32;
+pub mod f016;
+pub mod f032;
+pub mod f064;
 
 use std::ops::{
     Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign,
@@ -1472,7 +1472,6 @@ mod tests {
 // test plugs the gap for `cargo test` without those features).
 #[cfg(test)]
 mod solve_step_bound_tests {
-    use super::def_walk_helpers;
     use proptest::prelude::*;
 
     #[inline]
@@ -1504,7 +1503,7 @@ mod solve_step_bound_tests {
         }
     }
 
-    def_walk_helpers!(
+    crate::float::def_walk_helpers!(
         toy_ns_walks,
         f64,
         i64,

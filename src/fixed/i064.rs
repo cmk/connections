@@ -4,24 +4,30 @@
 //! `(Fine, Coarse)` with `Fine > Coarse`. See [`super::i016`] for the
 //! design (this module mirrors it with `i64` inner / `i128` widening).
 
-use super::{LE, ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
+#[allow(unused_imports)]
+use super::{LE, ext_int, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext};
+#[cfg(test)]
+#[allow(unused_imports)]
+use crate::fixed::{
+    i008::I008I064, i016::I016I064, i032::I032I064, i128::I128I064, u008::U008I064, u016::U016I064,
+    u032::U032I064, u064::U064I064, u128::U128I064,
+};
 use ::fixed::FixedI64;
 use ::fixed::types::extra::{U0, U8, U16, U32, U48, U64, Unsigned};
 use core::num::NonZeroI64;
 
-// ── §1 std-int Conns landing on `i64` ───────────────────────────────
+// - std-int Conns sourced from `i64` -------------------------------
 
-ext_int!(I008I064, i8, i64);
-ext_int!(I016I064, i16, i64);
-ext_int!(I032I064, i32, i64);
-ext_int!(U008I064, u8, i64);
-ext_int!(U016I064, u16, i64);
-ext_int!(U032I064, u32, i64);
+int_int_narrow!(I064I008, i64, i8);
+int_int_narrow!(I064I016, i64, i16);
+int_int_narrow!(I064I032, i64, i32);
+ext_int!(I064I128, i64, i128);
 
-int_int_narrow!(I128I064, i128, i64);
-
-uint_int_sat!(U064I064, u64, i64);
-uint_int_sat!(U128I064, u128, i64);
+int_uint_narrow!(I064U008, i64, u8);
+int_uint_narrow!(I064U016, i64, u16);
+int_uint_narrow!(I064U032, i64, u32);
+int_uint!(I064U064, i64, u64);
+int_uint!(I064U128, i64, u128);
 
 // ── §2 i64 ↔ NonZeroI64 ──────────────────────────────────
 

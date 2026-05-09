@@ -4,11 +4,11 @@
 //!
 //! Every harness restricts inputs to **finite, non-NaN** values, since
 //! NaN handling is a separate question (handled by the `*_nan` unit
-//! tests in `src/float/f32.rs`).
+//! tests in `src/float/f064.rs`).
 
 use crate::conn::{ConnL, ConnR};
 use crate::float::ExtendedFloat;
-use crate::float::f32::F064F032;
+use crate::float::f064::F064F032;
 use crate::prop::conn as conn_laws;
 
 // Helper — symbolic finite-non-NaN ExtendedFloat<f64>.

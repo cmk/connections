@@ -1,10 +1,7 @@
-//! Conns landing on `i128` and `FixedI128<Frac>`. Per the right-side-wins
-//! module rule, this file hosts every Conn whose destination is `i128`
-//! (signed widening from narrower primitives, U→I non-widening from
-//! `u128`) or a `FixedI128<U_M>` Q-format wrapper (intra-fixed
-//! Fine→Coarse).
+//! Conns sourced from `i128` plus the `FixedI128<Frac>` and
+//! `NonZeroI128` host surfaces.
 //!
-//! ## §1 std-int Conns landing on `i128`
+//! ## §1 std-int Conns sourced from `i128`
 //!
 //! Signed and unsigned widenings (`I??I128`, `U??I128`) and the
 //! same-width unsigned-to-signed clip (`U128I128`) — see [`super`]
@@ -39,22 +36,30 @@
 //! encoding (`Some(x*y) iff fits, else None`). Galois laws hold by the
 //! same construction as the smaller modules.
 
-use super::{LE, ext_int, nz_int_ext, uint_int_sat};
+#[allow(unused_imports)]
+use super::{LE, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext};
+#[cfg(test)]
+#[allow(unused_imports)]
+use crate::fixed::{
+    i008::I008I128, i016::I016I128, i032::I032I128, i064::I064I128, u008::U008I128, u016::U016I128,
+    u032::U032I128, u064::U064I128, u128::U128I128,
+};
 use ::fixed::FixedI128;
 use ::fixed::types::extra::{U0, U16, U32, U64, U96, U128, Unsigned};
 use core::num::NonZeroI128;
 
-// ── §1 std-int Conns landing on `i128` ─────────────────────────────
+// - std-int Conns sourced from `i128` ------------------------------
 
-ext_int!(I008I128, i8, i128);
-ext_int!(I016I128, i16, i128);
-ext_int!(I032I128, i32, i128);
-ext_int!(I064I128, i64, i128);
-ext_int!(U008I128, u8, i128);
-ext_int!(U016I128, u16, i128);
-ext_int!(U032I128, u32, i128);
-ext_int!(U064I128, u64, i128);
-uint_int_sat!(U128I128, u128, i128);
+int_int_narrow!(I128I008, i128, i8);
+int_int_narrow!(I128I016, i128, i16);
+int_int_narrow!(I128I032, i128, i32);
+int_int_narrow!(I128I064, i128, i64);
+
+int_uint_narrow!(I128U008, i128, u8);
+int_uint_narrow!(I128U016, i128, u16);
+int_uint_narrow!(I128U032, i128, u32);
+int_uint_narrow!(I128U064, i128, u64);
+int_uint!(I128U128, i128, u128);
 
 // ── §2 i128 ↔ NonZeroI128 ────────────────────────────────
 

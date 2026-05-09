@@ -24,24 +24,30 @@
 //! (`ceil(Fine::MIN) = Coarse::MIN`) needed for galois_l at the
 //! lower extreme.
 
-use super::{LE, ext_int, int_int_narrow, nz_int_ext, uint_int_sat};
+#[allow(unused_imports)]
+use super::{LE, ext_int, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext};
+#[cfg(test)]
+#[allow(unused_imports)]
+use crate::fixed::{
+    i008::I008I016, i032::I032I016, i064::I064I016, i128::I128I016, u008::U008I016, u016::U016I016,
+    u032::U032I016, u064::U064I016, u128::U128I016,
+};
 use ::fixed::FixedI16;
 use ::fixed::types::extra::{U0, U2, U4, U8, U12, U16, Unsigned};
 use core::num::NonZeroI16;
 
-// ── §1 std-int Conns landing on `i16` ───────────────────────────────
+// - std-int Conns sourced from `i16` -------------------------------
 
-ext_int!(I008I016, i8, i16);
-ext_int!(U008I016, u8, i16);
+int_int_narrow!(I016I008, i16, i8);
+ext_int!(I016I032, i16, i32);
+ext_int!(I016I064, i16, i64);
+ext_int!(I016I128, i16, i128);
 
-int_int_narrow!(I032I016, i32, i16);
-int_int_narrow!(I064I016, i64, i16);
-int_int_narrow!(I128I016, i128, i16);
-
-uint_int_sat!(U016I016, u16, i16);
-uint_int_sat!(U032I016, u32, i16);
-uint_int_sat!(U064I016, u64, i16);
-uint_int_sat!(U128I016, u128, i16);
+int_uint_narrow!(I016U008, i16, u8);
+int_uint!(I016U016, i16, u16);
+int_uint!(I016U032, i16, u32);
+int_uint!(I016U064, i16, u64);
+int_uint!(I016U128, i16, u128);
 
 // ── §2 i16 ↔ NonZeroI16 ──────────────────────────────────
 

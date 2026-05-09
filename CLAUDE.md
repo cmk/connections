@@ -147,9 +147,9 @@ Per-domain Conn families:
 
 | Submodule | Host crates                                | Files (one per host type)                                  |
 |-----------|--------------------------------------------|------------------------------------------------------------|
-| `fixed`   | `fixed`, `std` (i8…u128), `core::num` (NonZero) | `i8.rs`–`i128.rs`, `u8.rs`–`u128.rs` (per-destination type) |
+| `fixed`   | `fixed`, `std` (i8…u128), `core::num` (NonZero) | `i008.rs`–`i128.rs`, `u008.rs`–`u128.rs` (std-int source, Q-format/NonZero host) |
 | `time`    | `time`, `std::time`                        | `clock.rs`, `date.rs`, `datetime.rs`, `duration.rs`, `offset.rs` |
-| `float`   | (this crate)                               | `ExtendedFloat<T>` + IEEE narrowing Conns; submodules `f32.rs` (target `F032`) and `f16.rs` (target `F016`, gated on `f16` cargo feature → nightly required) |
+| `float`   | (this crate)                               | `ExtendedFloat<T>` + IEEE narrowing Conns; submodules `f064.rs`, `f032.rs`, and `f016.rs` (`f016` gated on `f16` cargo feature -> nightly required) |
 | `addr`    | `std::net`                                 | `ip.rs`, `socket.rs` |
 | `char`    | `core` (primitive)                         | `char.rs` (`U032CHAR` codepoint projection)                |
 | `conn`    | (this crate)                               | The `Conn<A, B, K>` type, the `compose!` / `triple!` / `iso!` macros, free fns operating on a `Conn` (`round`, `truncate`, `interval`, `midpoint`, `median`, lifters), and `Conn::new_l` / `new_r` constructors |
@@ -185,11 +185,9 @@ crate. The rule of thumb: this crate ships the algebra plus
 per-host-crate cast families; downstream crates ship the named
 constants for their own domain ladders.
 
-**Filenames follow the host type name verbatim** — `i8.rs`,
-`u128.rs`, `f64.rs`, `f16.rs`, `date.rs`, `duration.rs`. The 8-char
-zero-padded form (`Q008Q004`, `I064I128`) is reserved for Conn const
-**identifiers** (per §Conn-name format) and is **never** used as a
-module path.
+Numeric filenames use side-code spelling in lowercase — `i008.rs`,
+`u128.rs`, `f064.rs`, `f032.rs`, `f016.rs`. Semantic modules keep
+domain names such as `date.rs` and `duration.rs`.
 
 #### Conn placement: which module hosts each `pub const`?
 
@@ -203,11 +201,9 @@ following precedence in order:
        > generic numeric wrappers (Extended<T>, ExtendedFloat<T>, FD<N>)
        > std primitives (i8, …, i128, u8, …, u128, f16, f32, f64).
    When ambiguous, the more-semantically-loaded type wins.
-2. **Same-tier tie-breaker: right-side wins over left-side.** If
-   both endpoints sit at the same specificity tier, the Conn lives
-   in the module of the **right-hand-side** type — which is the
-   coarser / smaller-resolution side per the §Conn-name format
-   rule.
+2. **Same-tier tie-breaker: left/source side wins.** If both endpoints
+   sit at the same specificity tier, the Conn lives in the module of
+   the source type named by the const prefix.
 
 **(1) subsumes "external-crate type beats `std`":** std primitives
 are at the bottom of the specificity order, so any Conn touching a
@@ -218,13 +214,13 @@ Worked examples:
 
 | Conn          | Sides                              | Rule                          | Module                          |
 |---------------|------------------------------------|-------------------------------|---------------------------------|
-| `F064F032`    | `f64` / `f32`                      | tie → right wins              | `float::f32`                    |
-| `F064F016`    | `f64` / `f16`                      | tie → right wins              | `float::f16` (`f16` feature)    |
-| `F032F016`    | `f32` / `f16`                      | tie → right wins              | `float::f16` (`f16` feature)    |
-| `I008I016`    | `Extended<i8>` / `i16`             | tie → right wins              | `fixed::i16`                    |
-| `U008I016`    | `Extended<u8>` / `i16`             | tie → right wins              | `fixed::i16`                    |
-| `I008U016`    | `i8` / `u16`                       | tie → right wins              | `fixed::u16`                    |
-| `Q008Q004`    | `FixedI8<U8>` / `FixedI8<U4>`      | tie → right wins              | `fixed::i8`                     |
+| `F064F032`    | `f64` / `f32`                      | tie -> source wins            | `float::f064`                   |
+| `F064F016`    | `f64` / `f16`                      | tie -> source wins            | `float::f064` (`f16` feature)   |
+| `F032F016`    | `f32` / `f16`                      | tie -> source wins            | `float::f032` (`f16` feature)   |
+| `I008I016`    | `Extended<i8>` / `i16`             | tie -> source wins            | `fixed::i008`                   |
+| `U008I016`    | `Extended<u8>` / `i16`             | tie -> source wins            | `fixed::u008`                   |
+| `I008U016`    | `i8` / `u16`                       | tie -> source wins            | `fixed::i008`                   |
+| `Q008Q004`    | `FixedI8<U8>` / `FixedI8<U4>`      | host Q-format file wins       | `fixed::i008`                   |
 | `Q000I008`    | `FixedI8<U0>` / `i8`               | (1) FixedI8 more specific     | `fixed::i8`                     |
 | `I008N008`    | `i8` / `NonZeroI8`                 | (1) NonZero more specific     | `fixed::i8`                     |
 | `DATEJDAY`    | `Extended<Date>` / `i32`           | (1) `Date` more specific      | `time::date`                    |

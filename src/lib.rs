@@ -10,7 +10,7 @@
 //!
 //! | code     | type                         | meaning              |
 //! |----------|------------------------------|----------------------|
-//! | `F016`   | `float::f16::F016` (gated)   | IEEE binary16        |
+//! | `F016`   | `float::f016::F016` (gated)   | IEEE binary16        |
 //! | `F032`   | [`F032`](float::F032)        | IEEE binary32        |
 //! | `F064`   | [`F064`](float::F064)        | IEEE binary64        |
 //! | `F128`   | (deferred — `f128` unstable) | IEEE binary128       |
@@ -45,11 +45,11 @@
 //! [`fixed`]: https://docs.rs/fixed
 //!
 //! Std-int-conn families live alongside the Q-format ladder under
-//! `fixed::{i008,…,u128}` — one submodule per destination primitive,
-//! named after the **right side** of the cast. So `I008I016` (signed
-//! widening `Extended<i8> → i16`) lives in `fixed::i016`; `I016I008`
-//! (signed narrowing `i16 → i8`) lives in `fixed::i008`; `U008I008`
-//! (cross-sign non-widening `u8 → i8`) also lives in `fixed::i008`.
+//! `fixed::{i008,…,u128}`. Peer numeric Conns are source-oriented:
+//! `I008I016` (signed widening `Extended<i8> → i16`) lives in
+//! `fixed::i008`; `I016I008` (signed narrowing `i16 → i8`) lives in
+//! `fixed::i016`; `U008I008` (cross-sign non-widening `u8 → i8`) lives
+//! in `fixed::u008`.
 //! The signed-widening (`I###I###`) and unsigned-into-signed-widening
 //! (`U###I###`) families wrap the source in
 //! [`Extended`](extended::Extended) and ship as adjoint-triple markers
@@ -63,16 +63,16 @@
 //!
 //! Examples:
 //!
-//! - [`float::f32::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
-//! - `float::f16::F064F016` — `F064 → F016` (direct f64 → IEEE binary16, `f16` feature).
-//! - `float::f16::F032F016` — `F032 → F016` (f32 → IEEE binary16, `f16` feature).
-//! - [`fixed::u016::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
-//! - [`fixed::i016::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
-//! - [`fixed::i016::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
-//! - [`fixed::i008::I016I008`] — `i16 → i8` signed-narrowing saturating cast.
-//! - [`fixed::u008::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
-//! - [`fixed::i008::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
-//! - [`fixed::u008::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
+//! - [`float::f064::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
+//! - `float::f064::F064F016` — `F064 → F016` (direct f64 → IEEE binary16, `f16` feature).
+//! - `float::f032::F032F016` — `F032 → F016` (f32 → IEEE binary16, `f16` feature).
+//! - [`fixed::u008::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
+//! - [`fixed::i008::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
+//! - [`fixed::u008::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
+//! - [`fixed::i016::I016I008`] — `i16 → i8` signed-narrowing saturating cast.
+//! - [`fixed::u064::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
+//! - [`fixed::u008::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
+//! - [`fixed::i016::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
 //! - [`fixed::u008::Q008Q007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
 //!   the 7-bit MIDI velocity format).
 //! - [`fixed::u016::Q016Q015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
@@ -99,7 +99,7 @@
 //! ```rust
 //! use connections::conn::ConnL;
 //! use connections::float::ExtendedFloat::Extend;
-//! use connections::float::f32::F064F032;
+//! use connections::float::f064::F064F032;
 //!
 //! let pi64 = Extend(std::f64::consts::PI);
 //! // f32's nearest representation of π widened losslessly to f64.

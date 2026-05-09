@@ -1,10 +1,11 @@
-//! Conns whose target is [`F032`] (`ExtendedFloat<f32>`).
+//! Conns sourced from [`F064`] (`ExtendedFloat<f64>`).
 //!
-//! Houses [`F064F032`] (`ExtendedFloat<f64> → ExtendedFloat<f32>`).
-//!
-//! Per the placement rule (CLAUDE.md § Conn placement: same-tier tie
-//! → right wins), `F064F032` lives here rather than under `f64`.
+//! Houses [`F064F032`] (`ExtendedFloat<f64> -> ExtendedFloat<f32>`) and,
+//! with the `f16` cargo feature, `F064F016` (`ExtendedFloat<f64> ->
+//! ExtendedFloat<f16>`).
 
+#[cfg(feature = "f16")]
+use super::f016::{F016, ceil_f64_f16, floor_f64_f16};
 use super::{ExtendedFloat, F032, F064, def_walk_helpers, shift32, widen_f32_f64};
 #[cfg(test)]
 #[allow(unused_imports)]
@@ -17,6 +18,54 @@ fn f064f032_ceil(x: F064) -> F032 {
         ExtendedFloat::Bot => ExtendedFloat::Bot,
         ExtendedFloat::Top => ExtendedFloat::Top,
         ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f64_f32(v)),
+    }
+}
+
+#[cfg(feature = "f16")]
+fn f064f016_ceil(x: F064) -> F016 {
+    match x {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f64_f16(v)),
+    }
+}
+
+#[cfg(feature = "f16")]
+fn f064f016_inner(y: F016) -> F064 {
+    match y {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f64),
+    }
+}
+
+#[cfg(feature = "f16")]
+fn f064f016_floor(x: F064) -> F016 {
+    match x {
+        ExtendedFloat::Bot => ExtendedFloat::Bot,
+        ExtendedFloat::Top => ExtendedFloat::Top,
+        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f64_f16(v)),
+    }
+}
+
+#[cfg(feature = "f16")]
+crate::conn_k! {
+    /// Connection between [`super::F064`] and [`super::f016::F016`] under
+    /// the N5 lattice — direct `f64 <-> f16` narrowing.
+    ///
+    /// ```
+    /// # #![feature(f16)]
+    /// use connections::float::f064::F064F016;
+    /// use connections::float::ExtendedFloat::Extend;
+    ///
+    /// let pi = Extend(std::f64::consts::PI);
+    /// let pi_up = F064F016.ceil(pi);
+    /// assert!(F064F016.upper(pi_up) >= pi);
+    /// ```
+    pub F064F016 : F064 => F016 {
+        ceil:  f064f016_ceil,
+        inner: f064f016_inner,
+        floor: f064f016_floor,
     }
 }
 fn f064f032_inner(y: F032) -> F064 {
@@ -51,7 +100,7 @@ crate::conn_k! {
     ///
     /// ```rust
     /// use connections::conn::{ConnL, ConnR};
-    /// use connections::float::f32::F064F032;
+    /// use connections::float::f064::F064F032;
     /// use connections::float::ExtendedFloat;
     ///
     /// // π is not exactly representable in either f32 or f64.

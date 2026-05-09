@@ -453,7 +453,7 @@ where
 // inside a fresh `mod $mod_name` block. Subsumes the per-host-type
 // `props_for_pair!` macros that lived in `src/fixed/i*.rs` and the
 // hand-rolled blocks in `time/duration.rs`, `addr/ip.rs`, `char.rs`,
-// `float/f32.rs`, etc. (Plan 31 T2.)
+// `float/f064.rs`, etc. (Plan 31 T2.)
 
 /// Generate a property-test battery for an adjoint connection.
 ///

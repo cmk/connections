@@ -16,30 +16,32 @@
 //! `F7` (= Q1.7) is the canonical 7-bit MIDI velocity / 7-bit DSP
 //! amplitude format, included alongside the mirror-of-signed levels.
 
-use super::{LE, int_uint, int_uint_narrow, nz_uint_ext, uint_uint_narrow};
+#[allow(unused_imports)]
+use super::{LE, ext_int, nz_uint_ext, uint_int_sat, uint_uint};
+#[cfg(test)]
+#[allow(unused_imports)]
+use crate::fixed::{
+    i008::I008U008, i016::I016U008, i032::I032U008, i064::I064U008, i128::I128U008, u016::U016U008,
+    u032::U032U008, u064::U064U008, u128::U128U008,
+};
 use ::fixed::FixedU8;
 use ::fixed::types::extra::{
     U0 as F0, U1 as F1, U2 as F2, U3 as F3, U4 as F4, U6 as F6, U7 as F7, U8 as F8, Unsigned,
 };
 use core::num::NonZeroU8;
 
-// ── §1 std-int Conns landing on `u8` ────────────────────────────────
-//
-// `u8` is the narrowest unsigned primitive — nothing widens *into* it.
-// Same-width cross-sign clip (`I008U008`), U→U narrowing
-// (`uint_uint_narrow!`), and I→U narrowing (`int_uint_narrow!`).
+// - std-int Conns sourced from `u8` --------------------------------
 
-int_uint!(I008U008, i8, u8);
+ext_int!(U008I016, u8, i16);
+ext_int!(U008I032, u8, i32);
+ext_int!(U008I064, u8, i64);
+ext_int!(U008I128, u8, i128);
+uint_int_sat!(U008I008, u8, i8);
 
-uint_uint_narrow!(U016U008, u16, u8);
-uint_uint_narrow!(U032U008, u32, u8);
-uint_uint_narrow!(U064U008, u64, u8);
-uint_uint_narrow!(U128U008, u128, u8);
-
-int_uint_narrow!(I016U008, i16, u8);
-int_uint_narrow!(I032U008, i32, u8);
-int_uint_narrow!(I064U008, i64, u8);
-int_uint_narrow!(I128U008, i128, u8);
+uint_uint!(U008U016, u8, u16);
+uint_uint!(U008U032, u8, u32);
+uint_uint!(U008U064, u8, u64);
+uint_uint!(U008U128, u8, u128);
 
 // ── §2 u8 ↔ NonZeroU8 ────────────────────────────────────
 

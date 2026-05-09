@@ -34,9 +34,9 @@ cumulative in-development state.
   invocations to their hand-rolled batteries (these float Conns
   carry custom proptest config and don't go through `law_battery!`).
 - Symmetric `f032_floor_nan` / `f064_floor_nan` spot tests in
-  `src/float/f16.rs` (companions to existing `*_ceil_nan`).
+  `src/float/f016.rs` (companions to existing `*_ceil_nan`).
 - Definition-site `# Examples` doctest for `F064F032` in
-  `src/float/f32.rs` (mirrors the existing `F032F016` / `F064F016`
+  `src/float/f064.rs` (mirrors the existing `F032F016` / `F064F016`
   doctests).
 - `sovxsov6_idempotent_r` proptest in `src/addr/socket.rs`
   (companion to `sovxsov4_idempotent`).
@@ -111,13 +111,10 @@ cumulative in-development state.
 - **Folded `connections::int::*` into `connections::fixed::*`.** Every
   std-int Conn (`I064I128`, `U008I016`, `U128I008`, etc.) is
   structurally a Q*N*.0 fixed-point conversion, so it now lives
-  alongside the Q-format ladder for the same destination primitive.
+  alongside the Q-format ladder for the source side primitive.
   Std-int constant names (e.g. `I064I128`, `U008I016`) are unchanged;
   only the module path moves (`int::i64::I064I128` →
-  `fixed::i64::I064I128`). `src/int/` files remain as thin
-  re-export shims pointing at `crate::fixed::*` until the references
-  in tests/doctests are rewritten in T9 and the tree is removed in
-  T10.
+  `fixed::i064::I064I128`).
 - **Renamed every intra-`fixed` Conn prefix from `I`/`U` to `Q`.**
   After the merge, the prefix letter alone disambiguates: `Q` =
   Q-format wrapper from the [`fixed`] crate, `I` = signed std
@@ -207,14 +204,14 @@ hierarchy of lattice-based numerical conversions on top.
 
 #### Conn families
 
-- **`conn::fixed::{i8,i16,i32,i64,i128}` and `{u8,u16,u32,u64,u128}`**
+- **`conn::fixed::{i008,i016,i032,i064,i128}` and `{u008,u016,u032,u064,u128}`**
   — `fixed`-crate-backed binary Q-format ladders. `i128` uses
   `checked_mul`+saturate.
-- **`conn::std::{i8,i16,i32,i64,i128,u8,u16,u32,u64,u128}`** —
-  std-int widening + narrowing + cross-sign Conns. Each per-type
-  submodule hosts the Conns whose destination is that primitive.
-- **`conn::float::f64`** — `F064F032`, `F064F016`, `F064B016`.
-- **`conn::float::f32`** — `F032F016`, `F032B016`. (IEEE binary16
+- **`conn::fixed::{i008,…,u128}` std-int surface** — widening,
+  narrowing, and cross-sign Conns. Peer numeric Conns live with the
+  source side named by the const prefix.
+- **`conn::float::f064`** — `F064F032`, `F064F016`.
+- **`conn::float::f032`** — `F032F016`. (IEEE binary16
   and Google bfloat16 via the [`half`](https://docs.rs/half) crate.)
 - **`conn::time`** — time-crate types: `DATEJDAY`, `TIMENANO`,
   `TIMESECS`, `TDURSECS`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`.

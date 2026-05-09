@@ -10,24 +10,32 @@
 //! detect the `SHIFT == 128` degenerate case (`Q128Q000`, where
 //! `RATIO = 2^128` doesn't fit in `u128` at all).
 
-use super::{LE, int_uint, nz_uint_ext, uint_uint};
+#[allow(unused_imports)]
+use super::{LE, nz_uint_ext, uint_int_sat, uint_uint_narrow};
+#[cfg(test)]
+#[allow(unused_imports)]
+use crate::fixed::{
+    i008::I008U128, i016::I016U128, i032::I032U128, i064::I064U128, i128::I128U128, u008::U008U128,
+    u016::U016U128, u032::U032U128, u064::U064U128,
+};
 use ::fixed::FixedU128;
 use ::fixed::types::extra::{
     U0 as F0, U16 as F16, U32 as F32, U64 as F64, U96 as F96, U127 as F127, U128 as F128, Unsigned,
 };
 use core::num::NonZeroU128;
 
-// ── §1 std-int Conns landing on `u128` ──────────────────────────────
+// - std-int Conns sourced from `u128` ------------------------------
 
-uint_uint!(U008U128, u8, u128);
-uint_uint!(U016U128, u16, u128);
-uint_uint!(U032U128, u32, u128);
-uint_uint!(U064U128, u64, u128);
-int_uint!(I008U128, i8, u128);
-int_uint!(I016U128, i16, u128);
-int_uint!(I032U128, i32, u128);
-int_uint!(I064U128, i64, u128);
-int_uint!(I128U128, i128, u128);
+uint_int_sat!(U128I008, u128, i8);
+uint_int_sat!(U128I016, u128, i16);
+uint_int_sat!(U128I032, u128, i32);
+uint_int_sat!(U128I064, u128, i64);
+uint_int_sat!(U128I128, u128, i128);
+
+uint_uint_narrow!(U128U008, u128, u8);
+uint_uint_narrow!(U128U016, u128, u16);
+uint_uint_narrow!(U128U032, u128, u32);
+uint_uint_narrow!(U128U064, u128, u64);
 
 // ── §2 u128 ↔ NonZeroU128 ────────────────────────────────
 

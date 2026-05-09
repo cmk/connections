@@ -33,27 +33,30 @@
 //! Coarse plateau onto Fine::MAX/MIN, so it isn't order-reflecting and
 //! no true adjoint triple exists. See Plan 32 / `doc/design.md`.
 
-use super::{LE, int_int_narrow, nz_int_ext, uint_int_sat};
+#[allow(unused_imports)]
+use super::{LE, ext_int, int_uint, nz_int_ext};
+#[cfg(test)]
+#[allow(unused_imports)]
+use crate::fixed::{
+    i016::I016I008, i032::I032I008, i064::I064I008, i128::I128I008, u008::U008I008, u016::U016I008,
+    u032::U032I008, u064::U064I008, u128::U128I008,
+};
 use ::fixed::FixedI8;
 use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U8, Unsigned};
 use core::num::NonZeroI8;
 
-// ── §1 std-int Conns landing on `i8` ───────────────────────────────
-//
-// `i8` is the narrowest signed primitive — nothing widens *into* it.
-// Just I→I narrowing (`int_int_narrow!`) and U→I non-widening
-// (`uint_int_sat!`, right-Galois).
+// - std-int Conns sourced from `i8` --------------------------------
 
-int_int_narrow!(I016I008, i16, i8);
-int_int_narrow!(I032I008, i32, i8);
-int_int_narrow!(I064I008, i64, i8);
-int_int_narrow!(I128I008, i128, i8);
+ext_int!(I008I016, i8, i16);
+ext_int!(I008I032, i8, i32);
+ext_int!(I008I064, i8, i64);
+ext_int!(I008I128, i8, i128);
 
-uint_int_sat!(U008I008, u8, i8);
-uint_int_sat!(U016I008, u16, i8);
-uint_int_sat!(U032I008, u32, i8);
-uint_int_sat!(U064I008, u64, i8);
-uint_int_sat!(U128I008, u128, i8);
+int_uint!(I008U008, i8, u8);
+int_uint!(I008U016, i8, u16);
+int_uint!(I008U032, i8, u32);
+int_uint!(I008U064, i8, u64);
+int_uint!(I008U128, i8, u128);
 
 // ── §2 i8 ↔ NonZeroI8 ────────────────────────────────────
 

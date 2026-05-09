@@ -1,5 +1,5 @@
 //! **Headline result:** the `f64 → f32` ULP-walk in
-//! [`crate::float::f32`] terminates in **≤ 2 iterations** for every
+//! [`crate::float::f064`] terminates in **≤ 2 iterations** for every
 //! finite, non-NaN `f64` input.
 //!
 //! `ceil_f64_f32` / `floor_f64_f32` start with `est = x as f32` (RNE)
@@ -27,7 +27,7 @@
 //! Each tier appears as its own `#[kani::proof]` so they can be run
 //! independently from the command line.
 
-use crate::float::f32::{ceil_walk_steps_for_proof, floor_walk_steps_for_proof};
+use crate::float::f064::{ceil_walk_steps_for_proof, floor_walk_steps_for_proof};
 
 // ── T0 — full finite, non-NaN domain ────────────────────────────────
 

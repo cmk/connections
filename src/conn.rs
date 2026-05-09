@@ -151,7 +151,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// ```rust
     /// use connections::conn::ConnL;
     /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::float::f32::F064F032;
+    /// use connections::float::f064::F064F032;
     ///
     /// let pi64 = Extend(std::f64::consts::PI);
     /// let pi32 = Extend(std::f32::consts::PI as f64);
@@ -177,7 +177,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// ```rust
     /// use connections::conn::ConnL;
     /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::float::f32::F064F032;
+    /// use connections::float::f064::F064F032;
     ///
     /// let pi64 = Extend(std::f64::consts::PI);
     /// // f32's nearest representation of π widened losslessly to f64.
@@ -227,7 +227,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// ```rust
     /// use connections::conn::ConnL;
     /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::float::f32::F064F032;
+    /// use connections::float::f064::F064F032;
     ///
     /// // ceil1 / floor1 / truncate1 share this closure shape: `2π − x`
     /// // in f64-precision lands strictly between two f32 grid points.
@@ -329,7 +329,7 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     /// ```rust
     /// use connections::conn::ConnR;
     /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::float::f32::F064F032;
+    /// use connections::float::f064::F064F032;
     ///
     /// // Same shared probe as ceil1 / truncate1: `2π − x` in f64
     /// // lands strictly between two f32 grid points. floor1
@@ -379,7 +379,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// ```rust
     /// use connections::conn::ConnL;
     /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::float::f32::F064F032;
+    /// use connections::float::f064::F064F032;
     ///
     /// let l = F064F032.conn_l();
     /// let pi64 = Extend(std::f64::consts::PI);
@@ -415,7 +415,7 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     /// ```rust
     /// use connections::conn::ConnR;
     /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::float::f32::F064F032;
+    /// use connections::float::f064::F064F032;
     ///
     /// let r = F064F032.conn_r();
     /// let pi64 = Extend(std::f64::consts::PI);
@@ -570,7 +570,7 @@ impl<T, A: Copy, B: Copy> ConnK<A, B> for T where T: ConnL<A, B> + ConnR<A, B> {
 /// use connections::Interval;
 /// use connections::conn::interval;
 /// use connections::float::ExtendedFloat::Extend;
-/// use connections::float::f32::F064F032;
+/// use connections::float::f064::F064F032;
 ///
 /// // True π_f64 is bracketed by two adjacent f64 grid values that
 /// // share an f32 cell; the bracket contains pi64.
@@ -616,7 +616,7 @@ where
 /// ```rust
 /// use connections::conn::truncate;
 /// use connections::float::ExtendedFloat::Extend;
-/// use connections::float::f32::F064F032;
+/// use connections::float::f064::F064F032;
 ///
 /// // π > 0 → truncate-toward-zero takes the f32 floor; one f32 ULP
 /// // below std::f32::consts::PI.
@@ -654,7 +654,7 @@ where
 /// ```rust
 /// use connections::conn::truncate1;
 /// use connections::float::ExtendedFloat::Extend;
-/// use connections::float::f32::F064F032;
+/// use connections::float::f064::F064F032;
 ///
 /// // truncate1 / floor1 / ceil1 share this closure shape: `2π − x`
 /// // in f64-precision lands strictly between the f32 floor of π
@@ -685,7 +685,7 @@ where
 /// ```rust
 /// use connections::conn::truncate2;
 /// use connections::float::ExtendedFloat::Extend;
-/// use connections::float::f32::F064F032;
+/// use connections::float::f064::F064F032;
 ///
 /// // 2 · std::f32::consts::PI in f64 space, narrowed back to f32.
 /// // 2π32 > 0, so truncate-toward-zero takes the f32 floor.
@@ -716,7 +716,7 @@ where
 /// ```rust
 /// use connections::conn::{round, ConnL};
 /// use connections::float::ExtendedFloat::Extend;
-/// use connections::float::f32::F064F032;
+/// use connections::float::f064::F064F032;
 ///
 /// let pi64 = Extend(std::f64::consts::PI);
 /// let pi32 = Extend(std::f32::consts::PI as f64);
@@ -758,7 +758,7 @@ where
 /// ```rust
 /// use connections::conn::round1;
 /// use connections::float::ExtendedFloat::Extend;
-/// use connections::float::f32::F064F032;
+/// use connections::float::f064::F064F032;
 ///
 /// // One Newton step on sin's zero near π. std::f32::consts::PI is
 /// // ~8.7e-8 above true π; a Newton step `x − tan(x)` in
@@ -790,7 +790,7 @@ where
 /// ```rust
 /// use connections::conn::round2;
 /// use connections::float::ExtendedFloat::Extend;
-/// use connections::float::f32::F064F032;
+/// use connections::float::f064::F064F032;
 ///
 /// // Catastrophic cancellation example: `(x + y) − x` should be y, but
 /// // at the largest odd-integer f32 (2^24 - 1) the sum already rounds

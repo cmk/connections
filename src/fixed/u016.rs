@@ -20,7 +20,14 @@
 //! the saturation plateau must return `Coarse::MAX` to keep the
 //! lower adjoint lawful.
 
-use super::{LE, int_uint, int_uint_narrow, nz_uint_ext, uint_uint, uint_uint_narrow};
+#[allow(unused_imports)]
+use super::{LE, ext_int, nz_uint_ext, uint_int_sat, uint_uint, uint_uint_narrow};
+#[cfg(test)]
+#[allow(unused_imports)]
+use crate::fixed::{
+    i008::I008U016, i016::I016U016, i032::I032U016, i064::I064U016, i128::I128U016, u008::U008U016,
+    u032::U032U016, u064::U064U016, u128::U128U016,
+};
 use ::fixed::FixedU16;
 use ::fixed::types::extra::{
     U0 as F0, U2 as F2, U4 as F4, U8 as F8, U12 as F12, U14 as F14, U15 as F15, U16 as F16,
@@ -28,19 +35,18 @@ use ::fixed::types::extra::{
 };
 use core::num::NonZeroU16;
 
-// ── §1 std-int Conns landing on `u16` ───────────────────────────────
+// - std-int Conns sourced from `u16` -------------------------------
 
-uint_uint!(U008U016, u8, u16);
-int_uint!(I008U016, i8, u16);
-int_uint!(I016U016, i16, u16);
+ext_int!(U016I032, u16, i32);
+ext_int!(U016I064, u16, i64);
+ext_int!(U016I128, u16, i128);
+uint_int_sat!(U016I008, u16, i8);
+uint_int_sat!(U016I016, u16, i16);
 
-uint_uint_narrow!(U032U016, u32, u16);
-uint_uint_narrow!(U064U016, u64, u16);
-uint_uint_narrow!(U128U016, u128, u16);
-
-int_uint_narrow!(I032U016, i32, u16);
-int_uint_narrow!(I064U016, i64, u16);
-int_uint_narrow!(I128U016, i128, u16);
+uint_uint_narrow!(U016U008, u16, u8);
+uint_uint!(U016U032, u16, u32);
+uint_uint!(U016U064, u16, u64);
+uint_uint!(U016U128, u16, u128);
 
 // ── §2 u16 ↔ NonZeroU16 ──────────────────────────────────
 

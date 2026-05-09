@@ -341,7 +341,7 @@ crate at proof time.
 
 The headline result is on the float side, where the IEEE bit space is
 too large for full-Galois proofs to be tractable: the f64 → f32
-ULP-walk in `src/float/f32.rs` (`ceil_f64_f32` / `floor_f64_f32`) is
+ULP-walk in `src/float/f064.rs` (`ceil_f64_f32` / `floor_f64_f32`) is
 proven to converge in **≤ 2 iterations for every finite non-NaN
 f64**, not just the proptest sample. Three tiered harnesses
 (`float_walk::t0_*` for the full domain, `t1_*` for `|x| ≤ 1e6`,
@@ -433,7 +433,7 @@ implement `ConnK`.
 |--------|--------|
 | IEEE-754 types | `float` | 
 | Q-format binary fixed-point (`Q###Q###`, i8/u8 … i128/u128 backing) | `fixed::{i008,…,i128, u008,…,u128}` |
-| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `fixed::{i008,…,i128, u008,…,u128}` (alongside the Q-format ladder for the same destination) |
+| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `fixed::{i008,…,i128, u008,…,u128}` (alongside the Q-format ladder for the source side) |
 | `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `fixed::{i008,…,i128, u008,…,u128}` |
 | Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) | `fixed::{i008,…,i128, u008,…,u128}` |
 | Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
