@@ -86,21 +86,20 @@ mod uint_uint_smoke {
 
 // `ext_int!` — full triple with `Extended` source.
 mod ext_int_smoke {
-    use connections::conn::ConnL;
     use connections::extended::Extended;
 
-    connections::ext_int!(SmokeExt08, i8, i16);
+    connections::ext_int!(SMOKE_EXT08, i8, i16);
 
     #[test]
     fn ext_finite() {
-        assert_eq!(SmokeExt08.ceil(Extended::Finite(1_i8)), 1_i16);
+        assert_eq!(SMOKE_EXT08.ceil(Extended::Finite(1_i8)), 1_i16);
     }
 
     #[test]
     fn ext_synthetic() {
         // `inner` saturates outside [BELOW, ABOVE] to NegInf/PosInf.
-        assert_eq!(SmokeExt08.upper(i16::MIN), Extended::NegInf);
-        assert_eq!(SmokeExt08.upper(i16::MAX), Extended::PosInf);
+        assert_eq!(SMOKE_EXT08.upper(i16::MIN), Extended::NegInf);
+        assert_eq!(SMOKE_EXT08.upper(i16::MAX), Extended::PosInf);
     }
 }
 
@@ -132,18 +131,18 @@ mod nz_smoke {
     use core::num::{NonZeroI8, NonZeroU8};
 
     connections::nz_int_ext!(SmokeNzI8, i8, NonZeroI8);
-    connections::nz_uint_ext!(SmokeNzU8, u8, NonZeroU8);
+    connections::nz_uint_ext!(SMOKE_NZ_U8, u8, NonZeroU8);
 
     #[test]
     fn nz_int_at_zero() {
         // floor and ceil split zero between -1 and +1.
-        assert_eq!(SmokeNzI8::R.floor(0_i8), NonZeroI8::new(-1).unwrap());
+        assert_eq!(SmokeNzI8.floor(0_i8), NonZeroI8::new(-1).unwrap());
         assert_eq!(SmokeNzI8.ceil(0_i8), NonZeroI8::new(1).unwrap());
     }
 
     #[test]
     fn nz_uint_at_zero() {
         // Unsigned: 0 collapses to NonZero(1) via ceil.
-        assert_eq!(SmokeNzU8.ceil(0_u8), NonZeroU8::new(1).unwrap());
+        assert_eq!(SMOKE_NZ_U8.ceil(0_u8), NonZeroU8::new(1).unwrap());
     }
 }

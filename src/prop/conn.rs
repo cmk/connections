@@ -1,11 +1,11 @@
 //! Galois-connection law predicates, kind-bound and ConnK-bound.
 //!
 //! Each predicate takes either `&Conn<A, B, L>` (L-laws),
-//! `&Conn<A, B, R>` (R-laws), or `&T: ConnK<A, B>` (laws spanning
+//! `&Conn<A, B, R>` (R-laws), or `&T: ConnL<A=A,B=B> + ConnR<A=A,B=B>` (laws spanning
 //! both views). Inputs are passed by value (Conn is `Copy`).
 //! Returns `bool`.
 
-use crate::conn::{Conn, ConnK, ConnL, ConnR, L, R};
+use crate::conn::{Conn, ConnL, ConnR, L, R};
 
 // (back-compat re-exports removed under the prefix-strip rename —
 // `floor_le_ceil`, `ulp_bound`, `idempotent` are the canonical names.)
@@ -245,7 +245,7 @@ pub fn filter_r_via_lower<A: Copy + PartialOrd, B: Copy + PartialOrd>(
 /// boundary violations with twice the proptest surface area.
 pub fn floor_le_ceil<T, A: Copy, B: Copy + PartialOrd>(t: &T, a: A) -> bool
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
 {
     t.conn_r().floor(a) <= t.conn_l().ceil(a)
 }
@@ -269,7 +269,7 @@ where
 /// arbitrary.
 pub fn order_reflecting<T, A, B>(t: &T, b1: B, b2: B) -> bool
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd,
     B: Copy + PartialOrd,
 {
@@ -283,7 +283,7 @@ where
 /// rung-extractor.
 pub fn ulp_bound<T, A, B, F>(t: &T, a: A, rung: F) -> bool
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy,
     B: Copy,
     F: Fn(B) -> i64,
@@ -305,7 +305,7 @@ where
 /// body — a bug there would now be caught here directly.
 pub fn bracket_contains_x<T, A, B>(t: &T, x: A) -> bool
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd,
     B: Copy,
 {
@@ -320,7 +320,7 @@ where
 /// bracket.
 pub fn bracket_endpoints_self_bracket<T, A, B>(t: &T, x: A) -> bool
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd,
     B: Copy,
 {
@@ -337,7 +337,7 @@ where
 /// `floor(lo) == floor(x) && ceil(hi) == ceil(x)`.
 pub fn bracket_endpoints_share_b_cell<T, A, B>(t: &T, x: A) -> bool
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd,
     B: Copy + Eq,
 {
@@ -352,7 +352,7 @@ where
 /// `round(t, x)` is always one of `t.conn_l().ceil(x)` / `t.conn_r().floor(x)`.
 pub fn round_picks_endpoint<T, A, B>(t: &T, x: A) -> bool
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + core::ops::Sub<Output = A> + From<u8>,
     B: Copy + Eq,
 {
@@ -363,7 +363,7 @@ where
 /// `truncate(t, x)` is always one of `t.conn_l().ceil(x)` / `t.conn_r().floor(x)`.
 pub fn truncate_picks_endpoint<T, A, B>(t: &T, x: A) -> bool
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy + Eq,
 {
@@ -374,7 +374,7 @@ where
 /// Toward-zero contract: `x ≥ 0 ⟹ truncate = floor`, otherwise `= ceil`.
 pub fn truncate_toward_zero<T, A, B>(t: &T, x: A) -> bool
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy + Eq,
 {
@@ -390,7 +390,7 @@ where
 /// `round1(t, id, x) == x` for an identity triple.
 pub fn round1_id_unit<T, A, B>(t: &T, x: B) -> bool
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + core::ops::Sub<Output = A> + From<u8>,
     B: Copy + Eq,
 {
@@ -400,7 +400,7 @@ where
 /// `truncate1(t, id, x) == x` for an identity triple.
 pub fn truncate1_id_unit<T, A, B>(t: &T, x: B) -> bool
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy + Eq,
 {
@@ -412,7 +412,7 @@ where
 /// Median axiom 1 (idempotence): `median(t, x, x, y) == x`.
 pub fn median_idempotent<T, A>(t: &T, x: A, y: A) -> bool
 where
-    T: ConnK<(A, A), A>,
+    T: ConnL<A = (A, A), B = A> + ConnR<A = (A, A), B = A>,
     A: Copy + Eq,
 {
     crate::conn::median(t, x, x, y) == x
@@ -421,7 +421,7 @@ where
 /// Median axiom 2 (rotation).
 pub fn median_rotate<T, A>(t: &T, x: A, y: A, z: A) -> bool
 where
-    T: ConnK<(A, A), A>,
+    T: ConnL<A = (A, A), B = A> + ConnR<A = (A, A), B = A>,
     A: Copy + Eq,
 {
     crate::conn::median(t, x, y, z) == crate::conn::median(t, z, x, y)
@@ -430,7 +430,7 @@ where
 /// Median axiom 3 (last-two swap).
 pub fn median_swap_yz<T, A>(t: &T, x: A, y: A, z: A) -> bool
 where
-    T: ConnK<(A, A), A>,
+    T: ConnL<A = (A, A), B = A> + ConnR<A = (A, A), B = A>,
     A: Copy + Eq,
 {
     crate::conn::median(t, x, y, z) == crate::conn::median(t, x, z, y)
@@ -439,7 +439,7 @@ where
 /// Median axiom 4 (associativity).
 pub fn median_associative<T, A>(t: &T, w: A, x: A, y: A, z: A) -> bool
 where
-    T: ConnK<(A, A), A>,
+    T: ConnL<A = (A, A), B = A> + ConnR<A = (A, A), B = A>,
     A: Copy + Eq,
 {
     let lhs = crate::conn::median(t, crate::conn::median(t, x, w, y), w, z);

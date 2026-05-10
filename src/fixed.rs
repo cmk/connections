@@ -446,13 +446,17 @@ macro_rules! nz_int_ext {
             }
         }
 
-        impl $crate::conn::ConnL<$A, $NZ> for $NAME {
+        impl $crate::conn::ConnL for $NAME {
+            type A = $A;
+            type B = $NZ;
             #[inline]
             fn conn_l(&self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::L> {
                 $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner)
             }
         }
-        impl $crate::conn::ConnR<$A, $NZ> for $NAME {
+        impl $crate::conn::ConnR for $NAME {
+            type A = $A;
+            type B = $NZ;
             #[inline]
             fn conn_r(&self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::R> {
                 $crate::conn::Conn::new_r($NAME::_inner, $NAME::_floor)

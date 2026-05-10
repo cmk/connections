@@ -93,12 +93,16 @@
 //! // In real code the second leg would be another lift_k! / iso! /
 //! // conn_k! marker covering the bridged segment.
 //! pub struct EXTQ_IDENTITY;
-//! impl ConnL<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>> for EXTQ_IDENTITY {
+//! impl ConnL for EXTQ_IDENTITY {
+//!     type A = Extended<FixedI16<U0>>;
+//!     type B = Extended<FixedI16<U0>>;
 //!     fn conn_l(&self) -> Conn<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>, L> {
 //!         Conn::identity()
 //!     }
 //! }
-//! impl ConnR<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>> for EXTQ_IDENTITY {
+//! impl ConnR for EXTQ_IDENTITY {
+//!     type A = Extended<FixedI16<U0>>;
+//!     type B = Extended<FixedI16<U0>>;
 //!     fn conn_r(&self) -> Conn<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>, connections::conn::R> {
 //!         Conn::<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>, L>::identity().swap_l()
 //!     }
@@ -335,7 +339,7 @@ macro_rules! lift_r {
 /// [`ConnR`](crate::conn::ConnR) on
 /// `Extended<A>` ↔ `Extended<B>`.
 ///
-/// `$parent` must impl `ConnK<A, B>` (i.e. be either a triple marker
+/// `$parent` must impl `ConnK` (i.e. be either a triple marker
 /// or both `ConnL` and `ConnR` over the same `(A, B)`); the parent's
 /// laws carry to the emitted marker by construction.
 ///
@@ -366,9 +370,9 @@ macro_rules! lift_r {
 macro_rules! lift_k {
     ($name:ident : $A:ty => $B:ty = $parent:path $(,)?) => {
         pub struct $name;
-        impl $crate::conn::ConnL<$crate::extended::Extended<$A>, $crate::extended::Extended<$B>>
-            for $name
-        {
+        impl $crate::conn::ConnL for $name {
+            type A = $crate::extended::Extended<$A>;
+            type B = $crate::extended::Extended<$B>;
             #[inline]
             fn conn_l(
                 &self,
@@ -380,9 +384,9 @@ macro_rules! lift_k {
                 $crate::lift_l!($parent)
             }
         }
-        impl $crate::conn::ConnR<$crate::extended::Extended<$A>, $crate::extended::Extended<$B>>
-            for $name
-        {
+        impl $crate::conn::ConnR for $name {
+            type A = $crate::extended::Extended<$A>;
+            type B = $crate::extended::Extended<$B>;
             #[inline]
             fn conn_r(
                 &self,

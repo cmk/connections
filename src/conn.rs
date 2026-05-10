@@ -54,7 +54,7 @@
 //! The trait names match the value-type spellings on purpose: the
 //! blanket impl `impl ConnL for Conn<A, B, L>` makes every L-side
 //! value satisfy [`ConnL`], same on the R side. So a generic bound
-//! `T: ConnL<A, B>` accepts both triple markers and raw `Conn<A,B,L>`
+//! `T: ConnL<A = A, B = B>` accepts both triple markers and raw `Conn<A,B,L>`
 //! values uniformly. The value type is spelled `Conn<A, B>` in
 //! L-default position and `Conn<A, B, R>` on the R side.
 //!
@@ -466,7 +466,7 @@ impl<X> Conn<X, X, L> {
 ///    an R-view, gaining `.ceil()` / `.upper()` directly.
 /// 2. **The value type itself** — a blanket impl on `Conn<A, B, L>`
 ///    (see below) means every L-Conn value is also a `ConnL`, so
-///    generic bounds `T: ConnL<A, B>` accept both shapes uniformly.
+///    generic bounds `T: ConnL<A = A, B = B>` accept both shapes uniformly.
 ///
 /// `conn_l(&self) -> Conn<A, B, L>` is the projection. Default
 /// methods dispatch through it: `ceil` is the lower adjoint
@@ -477,20 +477,25 @@ impl<X> Conn<X, X, L> {
 /// slots in trait impls cannot read instance state. For zero-sized
 /// triple markers, the impl body inlines to two fn-pointer
 /// constants, the same machine code a const slot would have produced.
-pub trait ConnL<A: Copy, B: Copy> {
-    /// The L-Galois projection: an `L`-kinded [`Conn<A, B>`].
-    fn conn_l(&self) -> Conn<A, B, L>;
+pub trait ConnL {
+    /// The connection's source type.
+    type A: Copy;
+    /// The connection's target type.
+    type B: Copy;
+
+    /// The L-Galois projection: an `L`-kinded [`Conn<Self::A, Self::B>`].
+    fn conn_l(&self) -> Conn<Self::A, Self::B, L>;
 
     /// Apply the lower adjoint (round-up): `a ↦ f(a)`.
     #[inline]
     #[must_use]
-    fn ceil(&self, a: A) -> B {
+    fn ceil(&self, a: Self::A) -> Self::B {
         self.conn_l().ceil(a)
     }
     /// Apply the upper adjoint (embedding): `b ↦ g(b)`.
     #[inline]
     #[must_use]
-    fn upper(&self, b: B) -> A {
+    fn upper(&self, b: Self::B) -> Self::A {
         self.conn_l().upper(b)
     }
 }
@@ -501,33 +506,42 @@ pub trait ConnL<A: Copy, B: Copy> {
 /// `conn_r(&self) -> Conn<A, B, R>` is the projection. Default
 /// methods dispatch through it: `floor` is the upper adjoint
 /// (rounds down), `lower` is the lower adjoint (the embedding).
-pub trait ConnR<A: Copy, B: Copy> {
-    /// The R-Galois projection: an `R`-kinded [`Conn<A, B, R>`].
-    fn conn_r(&self) -> Conn<A, B, R>;
+pub trait ConnR {
+    /// The connection's source type.
+    type A: Copy;
+    /// The connection's target type.
+    type B: Copy;
+
+    /// The R-Galois projection: an `R`-kinded [`Conn<Self::A, Self::B, R>`].
+    fn conn_r(&self) -> Conn<Self::A, Self::B, R>;
 
     /// Apply the upper adjoint (round-down): `a ↦ f(a)`.
     #[inline]
     #[must_use]
-    fn floor(&self, a: A) -> B {
+    fn floor(&self, a: Self::A) -> Self::B {
         self.conn_r().floor(a)
     }
     /// Apply the lower adjoint (embedding): `b ↦ g(b)`.
     #[inline]
     #[must_use]
-    fn lower(&self, b: B) -> A {
+    fn lower(&self, b: Self::B) -> Self::A {
         self.conn_r().lower(b)
     }
 }
 
 // ── Blanket impls: every Conn value satisfies its kind's trait ────────
 
-impl<A: Copy, B: Copy> ConnL<A, B> for Conn<A, B, L> {
+impl<A: Copy, B: Copy> ConnL for Conn<A, B, L> {
+    type A = A;
+    type B = B;
     #[inline]
     fn conn_l(&self) -> Conn<A, B, L> {
         *self
     }
 }
-impl<A: Copy, B: Copy> ConnR<A, B> for Conn<A, B, R> {
+impl<A: Copy, B: Copy> ConnR for Conn<A, B, R> {
+    type A = A;
+    type B = B;
     #[inline]
     fn conn_r(&self) -> Conn<A, B, R> {
         *self
@@ -540,8 +554,16 @@ impl<A: Copy, B: Copy> ConnR<A, B> for Conn<A, B, R> {
 /// `ConnK` automatically via the blanket below; one-sided values
 /// (`Conn<A, B, L>` and `Conn<A, B, R>`) do **not** — which is
 /// correct, since a one-sided Conn isn't a triple.
-pub trait ConnK<A: Copy, B: Copy>: ConnL<A, B> + ConnR<A, B> {}
-impl<T, A: Copy, B: Copy> ConnK<A, B> for T where T: ConnL<A, B> + ConnR<A, B> {}
+///
+/// The cross-trait equality `ConnR<A = <Self as ConnL>::A,
+/// B = <Self as ConnL>::B>` is what makes the `(A, B)` pair *the
+/// same* on both sides — without it, a `T: ConnL + ConnR` could
+/// pair an `L`-side over `(i32, i64)` with an `R`-side over
+/// `(i32, u32)` and still satisfy `ConnL + ConnR` separately. The
+/// equality bound forbids that and is the type-level statement of
+/// the functional dependency `T → (A, B)`.
+pub trait ConnK: ConnL + ConnR<A = <Self as ConnL>::A, B = <Self as ConnL>::B> {}
+impl<T> ConnK for T where T: ConnL + ConnR<A = <T as ConnL>::A, B = <T as ConnL>::B> {}
 
 // ── Two-sided helpers (bound on ConnK) ────────────────────────────────
 
@@ -589,7 +611,7 @@ impl<T, A: Copy, B: Copy> ConnK<A, B> for T where T: ConnL<A, B> + ConnR<A, B> {
 #[must_use]
 pub fn interval<T, A, B>(t: &T, x: A) -> Interval<A>
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd,
     B: Copy,
 {
@@ -627,7 +649,7 @@ where
 #[must_use]
 pub fn truncate<T, A, B>(t: &T, x: A) -> B
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy,
 {
@@ -669,7 +691,7 @@ where
 #[must_use]
 pub fn truncate1<T, A, B, H>(t: &T, h: H, x: B) -> B
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy,
     H: FnOnce(A) -> A,
@@ -699,7 +721,7 @@ where
 #[must_use]
 pub fn truncate2<T, A, B, H>(t: &T, h: H, x: B, y: B) -> B
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy,
     H: FnOnce(A, A) -> A,
@@ -732,7 +754,7 @@ where
 #[must_use]
 pub fn round<T, A, B>(t: &T, x: A) -> B
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
     B: Copy,
 {
@@ -774,7 +796,7 @@ where
 #[must_use]
 pub fn round1<T, A, B, H>(t: &T, h: H, x: B) -> B
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
     B: Copy,
     H: FnOnce(A) -> A,
@@ -808,7 +830,7 @@ where
 #[must_use]
 pub fn round2<T, A, B, H>(t: &T, h: H, x: B, y: B) -> B
 where
-    T: ConnK<A, B>,
+    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
     B: Copy,
     H: FnOnce(A, A) -> A,
@@ -900,7 +922,7 @@ where
 #[must_use]
 pub fn median<T, A>(t: &T, x: A, y: A, z: A) -> A
 where
-    T: ConnK<(A, A), A>,
+    T: ConnL<A = (A, A), B = A> + ConnR<A = (A, A), B = A>,
     A: Copy,
 {
     let join = |p: A, q: A| t.conn_l().ceil((p, q));
@@ -993,21 +1015,25 @@ macro_rules! compose_k {
     ) => {
         $(#[$meta])*
         $vis struct $name;
-        impl $crate::conn::ConnL<$A, $C> for $name {
+        impl $crate::conn::ConnL for $name {
+            type A = $A;
+            type B = $C;
             #[inline]
             fn conn_l(&self) -> $crate::conn::Conn<$A, $C, $crate::conn::L> {
                 $crate::compose_l!(
-                    <$t1 as $crate::conn::ConnL<$A, $B>>::conn_l(&$t1),
-                    <$t2 as $crate::conn::ConnL<$B, $C>>::conn_l(&$t2),
+                    <$t1 as $crate::conn::ConnL>::conn_l(&$t1),
+                    <$t2 as $crate::conn::ConnL>::conn_l(&$t2),
                 )
             }
         }
-        impl $crate::conn::ConnR<$A, $C> for $name {
+        impl $crate::conn::ConnR for $name {
+            type A = $A;
+            type B = $C;
             #[inline]
             fn conn_r(&self) -> $crate::conn::Conn<$A, $C, $crate::conn::R> {
                 $crate::compose_r!(
-                    <$t1 as $crate::conn::ConnR<$A, $B>>::conn_r(&$t1),
-                    <$t2 as $crate::conn::ConnR<$B, $C>>::conn_r(&$t2),
+                    <$t1 as $crate::conn::ConnR>::conn_r(&$t1),
+                    <$t2 as $crate::conn::ConnR>::conn_r(&$t2),
                 )
             }
         }
@@ -1038,13 +1064,17 @@ macro_rules! conn_k {
     ) => {
         $(#[$meta])*
         $vis struct $name;
-        impl $crate::conn::ConnL<$A, $B> for $name {
+        impl $crate::conn::ConnL for $name {
+            type A = $A;
+            type B = $B;
             #[inline]
             fn conn_l(&self) -> $crate::conn::Conn<$A, $B, $crate::conn::L> {
                 $crate::conn::Conn::new_l($ceil, $inner)
             }
         }
-        impl $crate::conn::ConnR<$A, $B> for $name {
+        impl $crate::conn::ConnR for $name {
+            type A = $A;
+            type B = $B;
             #[inline]
             fn conn_r(&self) -> $crate::conn::Conn<$A, $B, $crate::conn::R> {
                 $crate::conn::Conn::new_r($inner, $floor)
@@ -1371,10 +1401,10 @@ mod tests {
     fn conn_value_impls_trait() {
         // The blanket impls let a raw `Conn<_,_,L>` value flow through
         // a `T: ConnL<_,_>` bound. Same on the R side.
-        fn use_as_conn_l<T: ConnL<i64, i32>>(t: &T, a: i64) -> i32 {
+        fn use_as_conn_l<T: ConnL<A = i64, B = i32>>(t: &T, a: i64) -> i32 {
             t.ceil(a)
         }
-        fn use_as_conn_r<T: ConnR<i64, i32>>(t: &T, a: i64) -> i32 {
+        fn use_as_conn_r<T: ConnR<A = i64, B = i32>>(t: &T, a: i64) -> i32 {
             t.floor(a)
         }
         assert_eq!(use_as_conn_l(&CONNLI64I32, 42_i64), 42_i32);

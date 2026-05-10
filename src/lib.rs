@@ -211,7 +211,7 @@ pub use interval::Interval;
 // Note on glob-imports: `round` / `truncate` are bare function names
 // at the crate root. If you `use connections::*` alongside another
 // crate's glob (e.g. `use num_traits::*`), the names may collide.
-// Resolution is by argument type — these take `&T: ConnK<A, B>` as
+// Resolution is by argument type — these take `&T: ConnL<A = A, B = B> + ConnR<A = A, B = B>` as
 // their first argument, so a wrong `round` will produce a type error
 // rather than silent misbehavior — but prefer named imports
 // (`use connections::{round, truncate};`) over globs to make the

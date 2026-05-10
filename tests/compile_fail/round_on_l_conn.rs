@@ -1,6 +1,6 @@
 //! Calling `round(...)` on a one-sided L-Conn should fail to
-//! type-check: `round` takes `&T: ConnK<A, B>` (= `ConnL + ConnR`),
-//! and a bare `Conn<_, _, L>` is not a `ConnK`.
+//! type-check: `round` takes `&T: ConnL + ConnR` over the same
+//! `(A, B)`, and a bare `Conn<_, _, L>` is not a `ConnR`.
 
 use connections::conn::Conn;
 use connections::round;
