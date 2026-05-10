@@ -26,6 +26,7 @@ macro_rules! props_for_float_q {
                 8 => any::<u8>()
                     .prop_map(|b| Extended::Finite(FixedU8::<$Frac>::from_bits(b))),
             ],
+            cases: 1024,
         }
     };
 }

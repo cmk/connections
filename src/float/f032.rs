@@ -290,6 +290,39 @@ mod tests {
         assert_eq!(F032U008.upper(Extended::PosInf), ExtendedFloat::Top);
     }
 
+    // ── Boundary-saturation regression tests ──────────────────────
+    //
+    // Mirrors `src/float/f064.rs` for f32 source. The plateau hits
+    // even sooner here: any L-only host with bits > 24 is affected,
+    // which includes `i32`/`u32`/`i64`/`u64` (i128/u128 not in
+    // Phase 1). At `v == <int>::MAX as f32`, the saturating cast
+    // would silently pin to `Finite(MAX)` without the
+    // boundary-saturation check, breaking L-Galois.
+
+    #[test]
+    fn f032u032_at_plateau_to_posinf() {
+        let plateau = ExtendedFloat::Extend(2.0_f32.powi(32));
+        assert_eq!(F032U032.ceil(plateau), Extended::PosInf);
+    }
+
+    #[test]
+    fn f032i032_at_plateau_to_posinf() {
+        let plateau = ExtendedFloat::Extend(2.0_f32.powi(31));
+        assert_eq!(F032I032.ceil(plateau), Extended::PosInf);
+    }
+
+    #[test]
+    fn f032u064_at_plateau_to_posinf() {
+        let plateau = ExtendedFloat::Extend(2.0_f32.powi(64));
+        assert_eq!(F032U064.ceil(plateau), Extended::PosInf);
+    }
+
+    #[test]
+    fn f032i064_at_plateau_to_posinf() {
+        let plateau = ExtendedFloat::Extend(2.0_f32.powi(63));
+        assert_eq!(F032I064.ceil(plateau), Extended::PosInf);
+    }
+
     // ── Property tests via `law_battery!` ───────────────────────────
 
     crate::law_battery! {
@@ -297,12 +330,14 @@ mod tests {
         conn: F032U008,
         fine:   extended_float_f32(),
         coarse: arb_extended_u8(),
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_u016,
         conn: F032U016,
         fine:   extended_float_f32(),
         coarse: arb_extended_u16(),
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_u032,
@@ -310,6 +345,7 @@ mod tests {
         fine:   extended_float_f32(),
         coarse: arb_extended_u32(),
         subset: l_only,
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_u064,
@@ -317,18 +353,21 @@ mod tests {
         fine:   extended_float_f32(),
         coarse: arb_extended_u64(),
         subset: l_only,
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_i008,
         conn: F032I008,
         fine:   extended_float_f32(),
         coarse: arb_extended_i8(),
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_i016,
         conn: F032I016,
         fine:   extended_float_f32(),
         coarse: arb_extended_i16(),
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_i032,
@@ -336,6 +375,7 @@ mod tests {
         fine:   extended_float_f32(),
         coarse: arb_extended_i32(),
         subset: l_only,
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_i064,
@@ -343,5 +383,6 @@ mod tests {
         fine:   extended_float_f32(),
         coarse: arb_extended_i64(),
         subset: l_only,
+        cases: 1024,
     }
 }

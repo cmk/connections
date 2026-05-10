@@ -25,6 +25,7 @@ macro_rules! props_for_float_q {
                 8 => any::<i16>()
                     .prop_map(|b| Extended::Finite(FixedI16::<$Frac>::from_bits(b))),
             ],
+            cases: 1024,
         }
     };
 }

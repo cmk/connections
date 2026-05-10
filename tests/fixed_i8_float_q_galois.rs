@@ -34,6 +34,7 @@ macro_rules! props_for_float_q {
                 8 => any::<i8>()
                     .prop_map(|b| Extended::Finite(FixedI8::<$Frac>::from_bits(b))),
             ],
+            cases: 1024,
         }
     };
 }

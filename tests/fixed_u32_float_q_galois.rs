@@ -26,6 +26,7 @@ macro_rules! props_for_float_q_l {
                     .prop_map(|b| Extended::Finite(FixedU32::<$Frac>::from_bits(b))),
             ],
             subset: l_only,
+            cases: 1024,
         }
     };
 }
@@ -43,6 +44,7 @@ macro_rules! props_for_float_q_k {
                 8 => any::<u32>()
                     .prop_map(|b| Extended::Finite(FixedU32::<$Frac>::from_bits(b))),
             ],
+            cases: 1024,
         }
     };
 }

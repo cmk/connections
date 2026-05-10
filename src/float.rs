@@ -1463,7 +1463,29 @@ macro_rules! __float_ext_int_ceil_body {
             } else if $v < lo {
                 $crate::extended::Extended::Finite(<$int>::MIN)
             } else {
-                $crate::extended::Extended::Finite($v.ceil() as $int)
+                let scaled_ceil_float: $float = $v.ceil();
+                let bits: $int = scaled_ceil_float as $int;
+                // Boundary-saturation overflow detection: when
+                // `<$int>::MAX` rounds up in the source float (host
+                // bits > source mantissa bits), the strict
+                // `$v > hi` guard above misses the case where
+                // `$v == hi` while `real_v > real_max`. The
+                // saturating cast pinned `bits` to `MAX`; verify via
+                // the round-down image of `MAX` whether the cast
+                // actually overflowed. For hosts where `MAX` is
+                // f64-exact (host bits ≤ 32, where 32-bit ints fit
+                // in f64's 53-bit mantissa), `to_f64_rd(MAX) ==
+                // hi as f64` and this check is a no-op; for wider
+                // hosts (i64/u64/i128/u128) it's a live guard.
+                // Mirrors `__float_fix_ceil_body!` in `src/fixed.rs`.
+                if bits == <$int>::MAX
+                    && <$int as $crate::float::BitsToF64Rd>::to_f64_rd(<$int>::MAX)
+                        < scaled_ceil_float as f64
+                {
+                    $crate::extended::Extended::PosInf
+                } else {
+                    $crate::extended::Extended::Finite(bits)
+                }
             }
         }
     }};

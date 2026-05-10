@@ -456,6 +456,46 @@ mod tests {
         assert_eq!(F064I064.ceil(huge_neg), Extended::Finite(i64::MIN));
     }
 
+    // ── Boundary-saturation regression tests ──────────────────────
+    //
+    // For L-only Conns where `<int>::MAX as f64` rounds up (host
+    // bits > 53), the f64 image of `MAX` is the smallest f64 grid
+    // step *above* `MAX`. Without the boundary-saturation check in
+    // `__float_ext_int_ceil_body!`, the strict `v > hi` guard misses
+    // `v == hi`, and the saturating cast pins to `Finite(MAX)` for
+    // an out-of-range input. Galois fails because
+    // `inner(Finite(MAX))` rounds *down* below the f64 image.
+    //
+    // These tests pin the post-fix behavior: the f64 image of MAX
+    // (and `next_up`) must classify as `PosInf`, not `Finite(MAX)`.
+
+    #[test]
+    fn f064u064_at_plateau_to_posinf() {
+        // `2^64 = u64::MAX as f64` is already past the legal MAX
+        // (u64::MAX = 2^64 - 1). The boundary-saturation check
+        // detects the cast overflow and returns `PosInf`.
+        let plateau = ExtendedFloat::Extend(2.0_f64.powi(64));
+        assert_eq!(F064U064.ceil(plateau), Extended::PosInf);
+    }
+
+    #[test]
+    fn f064i064_at_plateau_to_posinf() {
+        let plateau = ExtendedFloat::Extend(2.0_f64.powi(63));
+        assert_eq!(F064I064.ceil(plateau), Extended::PosInf);
+    }
+
+    #[test]
+    fn f064u064_just_past_plateau_to_posinf() {
+        let v = f64::from_bits(2.0_f64.powi(64).to_bits() + 1);
+        assert_eq!(F064U064.ceil(ExtendedFloat::Extend(v)), Extended::PosInf,);
+    }
+
+    #[test]
+    fn f064i064_just_past_plateau_to_posinf() {
+        let v = f64::from_bits(2.0_f64.powi(63).to_bits() + 1);
+        assert_eq!(F064I064.ceil(ExtendedFloat::Extend(v)), Extended::PosInf,);
+    }
+
     #[test]
     fn f064u008_composed_matches_direct_path() {
         // `F064U008 = F064F032 ∘ F032U008` should agree with
@@ -471,6 +511,7 @@ mod tests {
         conn: F064U032,
         fine:   extended_float_f64(),
         coarse: arb_extended_u32(),
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_u064,
@@ -478,12 +519,14 @@ mod tests {
         fine:   extended_float_f64(),
         coarse: arb_extended_u64(),
         subset: l_only,
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_i032,
         conn: F064I032,
         fine:   extended_float_f64(),
         coarse: arb_extended_i32(),
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_i064,
@@ -491,29 +534,34 @@ mod tests {
         fine:   extended_float_f64(),
         coarse: arb_extended_i64(),
         subset: l_only,
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_u008_composed,
         conn: F064U008,
         fine:   extended_float_f64(),
         coarse: arb_extended_u8(),
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_u016_composed,
         conn: F064U016,
         fine:   extended_float_f64(),
         coarse: arb_extended_u16(),
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_i008_composed,
         conn: F064I008,
         fine:   extended_float_f64(),
         coarse: arb_extended_i8(),
+        cases: 1024,
     }
     crate::law_battery! {
         mod laws_i016_composed,
         conn: F064I016,
         fine:   extended_float_f64(),
         coarse: arb_extended_i16(),
+        cases: 1024,
     }
 }

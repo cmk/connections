@@ -107,13 +107,13 @@ pub fn arb_f32() -> impl Strategy<Value = f32> {
 /// a finite range rather than `any::<f64>()`, which prevents the
 /// mantissa-bit shrink pathology on saturation failures.
 ///
-/// 1:2 uniform-to-boundary weighting ensures Galois-bug-prone extrema
-/// are sampled at >5% each. The boundary slot includes `EPSILON` and
-/// the smallest positive subnormal alongside the standard
-/// saturation/sign/NaN values. Precision-boundary integers (`2^53 ±
-/// 1`) are intentionally omitted: they lie at \|v\| ≈ 9e15, far
-/// outside the bound, and would re-introduce the very wide-plateau
-/// walk this strategy exists to prevent.
+/// 1:2 uniform-to-boundary weighting. The boundary slot includes
+/// `EPSILON`, the smallest positive subnormal, and the saturation
+/// plateaus (`2^63`, `2^64`, `2^127`, `2^128`) where
+/// `<int>::MAX as f64` rounds up for host bits > 53. Each plateau
+/// value is paired with its `next_up` so the law battery samples
+/// both the legal MAX-cast input and the just-past-MAX overflow
+/// case that boundary-saturation detection has to catch.
 pub fn arb_f64_bounded() -> impl Strategy<Value = f64> {
     prop_oneof![
         1 => -1.0e9_f64..1.0e9_f64,
@@ -128,6 +128,22 @@ pub fn arb_f64_bounded() -> impl Strategy<Value = f64> {
             Just(f64::MIN),
             Just(f64::EPSILON),
             Just(f64::from_bits(1)),
+            // Saturation plateaus: `<int>::MAX as f64` for the L-only
+            // Float→intN / Float→Q hosts (i64/u64/i128/u128). The
+            // plateau value itself is the legal f64 image of MAX;
+            // `next_up` is the smallest f64 strictly above it, where
+            // the saturating cast must overflow to `PosInf` instead
+            // of pinning to `Finite(MAX)`.
+            Just(2.0_f64.powi(63)),
+            Just(-2.0_f64.powi(63)),
+            Just(f64::from_bits(2.0_f64.powi(63).to_bits() + 1)),
+            Just(2.0_f64.powi(64)),
+            Just(f64::from_bits(2.0_f64.powi(64).to_bits() + 1)),
+            Just(2.0_f64.powi(127)),
+            Just(-2.0_f64.powi(127)),
+            Just(f64::from_bits(2.0_f64.powi(127).to_bits() + 1)),
+            Just(2.0_f64.powi(128)),
+            Just(f64::from_bits(2.0_f64.powi(128).to_bits() + 1)),
         ],
     ]
 }
@@ -214,6 +230,23 @@ pub fn arb_f32_bounded() -> impl Strategy<Value = f32> {
             Just(f32::MIN),
             Just(f32::EPSILON),
             Just(f32::from_bits(1)),
+            // Saturation plateaus: `<int>::MAX as f32` for hosts
+            // with bits > 24 (i32/u32/i64/u64/i128). 2^128 itself is
+            // f32::INFINITY (already covered above). 2^127 fits.
+            // `next_up` lands just past each plateau where the
+            // saturating cast must overflow to `PosInf`.
+            Just(2.0_f32.powi(31)),
+            Just(-2.0_f32.powi(31)),
+            Just(f32::from_bits(2.0_f32.powi(31).to_bits() + 1)),
+            Just(2.0_f32.powi(32)),
+            Just(f32::from_bits(2.0_f32.powi(32).to_bits() + 1)),
+            Just(2.0_f32.powi(63)),
+            Just(f32::from_bits(2.0_f32.powi(63).to_bits() + 1)),
+            Just(2.0_f32.powi(64)),
+            Just(f32::from_bits(2.0_f32.powi(64).to_bits() + 1)),
+            Just(2.0_f32.powi(127)),
+            Just(-2.0_f32.powi(127)),
+            Just(f32::from_bits(2.0_f32.powi(127).to_bits() + 1)),
         ],
     ]
 }

@@ -599,10 +599,12 @@ macro_rules! __float_fix_ceil_body {
                 // `real_v > real_max`. The saturating cast pinned
                 // `bits` to MAX; verify via the round-down image
                 // of MAX whether the cast actually overflowed.
-                // For hosts where MAX is f64-exact (host bits ≤ 53,
-                // and signed 128-bit), `to_f64_rd(MAX) == max_v_f64`
-                // and this check is a no-op — `scaled_ceil` ≤
-                // `max_v_f64` in the in-range branch by construction.
+                // For hosts where MAX is f64-exact (host bits ≤ 32,
+                // where the int fits in f64's 53-bit mantissa),
+                // `to_f64_rd(MAX) == max_v_f64` and this check is a
+                // no-op — `scaled_ceil` ≤ `max_v_f64` in the
+                // in-range branch by construction. For wider hosts
+                // (i64/u64/i128/u128 storage) it's a live guard.
                 if bits == <$Bits>::MAX
                     && <$Bits as $crate::float::BitsToF64Rd>::to_f64_rd(<$Bits>::MAX) < scaled_ceil
                 {

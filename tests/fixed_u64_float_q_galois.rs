@@ -26,6 +26,7 @@ macro_rules! props_for_float_q_l {
                     .prop_map(|b| Extended::Finite(FixedU64::<$Frac>::from_bits(b))),
             ],
             subset: l_only,
+            cases: 1024,
         }
     };
 }
