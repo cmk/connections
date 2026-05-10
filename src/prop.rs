@@ -19,7 +19,7 @@
 //! ## Downstream usage
 //!
 //! ```rust,no_run
-//! use connections::float::f064::F064F032;
+//! use connections::core::f064::F064F032;
 //! use connections::float::ExtendedFloat;
 //! use connections::prop::conn;
 //!
@@ -38,7 +38,7 @@
 //! ```ignore
 //! use connections::conn::ConnL;  // brings F064F032.conn_l() into scope
 //! use connections::prop::{arb, conn};
-//! use connections::float::f064::F064F032;
+//! use connections::core::f064::F064F032;
 //! use connections::float::ExtendedFloat;
 //! use proptest::prelude::*;
 //!

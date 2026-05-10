@@ -16,13 +16,13 @@
 use ::fixed::types::extra::U0;
 use ::fixed::{FixedI16, FixedI32, FixedI64, FixedI128, FixedU16, FixedU32, FixedU64, FixedU128};
 
-use connections::conn::{ConnL, ConnR};
-use connections::fixed;
-use connections::prop::conn as conn_laws;
-use core::num::{
+use ::core::num::{
     NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroU16, NonZeroU32, NonZeroU64,
     NonZeroU128,
 };
+use connections::conn::{ConnL, ConnR};
+use connections::prop::conn as conn_laws;
+use connections::{core, fixed};
 use proptest::prelude::*;
 
 // ── Signed NonZero: both Galois laws hold (asymmetric floor/ceil
@@ -56,10 +56,10 @@ macro_rules! signed_nz_props {
     };
 }
 
-signed_nz_props!(i016n016, fixed::i016::I016N016, i16, NonZeroI16);
-signed_nz_props!(i032n032, fixed::i032::I032N032, i32, NonZeroI32);
-signed_nz_props!(i064n064, fixed::i064::I064N064, i64, NonZeroI64);
-signed_nz_props!(i128n128, fixed::i128::I128N128, i128, NonZeroI128);
+signed_nz_props!(i016n016, core::i016::I016N016, i16, NonZeroI16);
+signed_nz_props!(i032n032, core::i032::I032N032, i32, NonZeroI32);
+signed_nz_props!(i064n064, core::i064::I064N064, i64, NonZeroI64);
+signed_nz_props!(i128n128, core::i128::I128N128, i128, NonZeroI128);
 
 // ── Unsigned NonZero: only galois_l holds. galois_r fails at the
 //    unsigned bottom plateau (no NonZero strictly below 1). ──────
@@ -87,10 +87,10 @@ macro_rules! unsigned_nz_props {
     };
 }
 
-unsigned_nz_props!(u016n016, fixed::u016::U016N016, u16, NonZeroU16);
-unsigned_nz_props!(u032n032, fixed::u032::U032N032, u32, NonZeroU32);
-unsigned_nz_props!(u064n064, fixed::u064::U064N064, u64, NonZeroU64);
-unsigned_nz_props!(u128n128, fixed::u128::U128N128, u128, NonZeroU128);
+unsigned_nz_props!(u016n016, core::u016::U016N016, u16, NonZeroU16);
+unsigned_nz_props!(u032n032, core::u032::U032N032, u32, NonZeroU32);
+unsigned_nz_props!(u064n064, core::u064::U064N064, u64, NonZeroU64);
+unsigned_nz_props!(u128n128, core::u128::U128N128, u128, NonZeroU128);
 
 // ── Cross-crate iso: both Galois laws hold (degenerate iso). ────
 

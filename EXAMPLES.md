@@ -156,7 +156,7 @@ nearest in-range source value or out to a synthetic infinity):
 
 ```rust
 use connections::conn::ConnL;
-use connections::fixed::u008::U008I016;
+use connections::core::u008::U008I016;
 use connections::extended::Extended;
 
 // Finite passes through.
@@ -189,7 +189,7 @@ instead, preserving the R-Galois `inner ⊣ floor` law:
 
 ```rust
 use connections::conn::ConnR;
-use connections::fixed::u032::U032I032;
+use connections::core::u032::U032I032;
 
 // Mid-range u32 PIDs that fit in i32 pass through.
 assert_eq!(U032I032.floor(1_u32),               1_i32);
@@ -212,7 +212,7 @@ assert_eq!(U032I032.lower(i32::MAX), i32::MAX as u32);
 
 ```rust
 use connections::conn::{ConnL, ConnR};
-use connections::fixed::u008::U008I016;
+use connections::core::u008::U008I016;
 use connections::extended::Extended;
 
 // The blanket `impl ConnL for Conn<A, B, L>` means `marker.ceil(x)`
@@ -303,7 +303,7 @@ stable builds skip the f16 path entirely:
 
 ```rust,ignore
 // Build with `--features f16` on nightly to enable F064F016.
-use connections::float::f064::F064F016;
+use connections::core::f064::F064F016;
 use connections::float::ExtendedFloat::Extend;
 
 // π narrows to f16. The two-sided round-trip brackets π.

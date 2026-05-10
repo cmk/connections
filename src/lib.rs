@@ -10,7 +10,7 @@
 //!
 //! | code     | type                         | meaning              |
 //! |----------|------------------------------|----------------------|
-//! | `F016`   | `float::f016::F016` (gated)   | IEEE binary16        |
+//! | `F016`   | `core::f016::F016` (gated)   | IEEE binary16        |
 //! | `F032`   | [`F032`](float::F032)        | IEEE binary32        |
 //! | `F064`   | [`F064`](float::F064)        | IEEE binary64        |
 //! | `F128`   | (deferred — `f128` unstable) | IEEE binary128       |
@@ -44,12 +44,13 @@
 //!
 //! [`fixed`]: https://docs.rs/fixed
 //!
-//! Std-int-conn families live alongside the Q-format ladder under
-//! `fixed::{i008,…,u128}`. Peer numeric Conns are source-oriented:
+//! Std-int Conn families live under `core::{i008,…,u128}` (the
+//! pure-`core`/`std` half of the crate's top-level split — see
+//! [`mod@core`]). Peer numeric Conns are source-oriented:
 //! `I008I016` (signed widening `Extended<i8> → i16`) lives in
-//! `fixed::i008`; `I016I008` (signed narrowing `i16 → i8`) lives in
-//! `fixed::i016`; `U008I008` (cross-sign non-widening `u8 → i8`) lives
-//! in `fixed::u008`.
+//! `core::i008`; `I016I008` (signed narrowing `i16 → i8`) lives in
+//! `core::i016`; `U008I008` (cross-sign non-widening `u8 → i8`) lives
+//! in `core::u008`.
 //! The signed-widening (`I###I###`) and unsigned-into-signed-widening
 //! (`U###I###`) families wrap the source in
 //! [`Extended`](extended::Extended) and ship as adjoint-triple markers
@@ -63,23 +64,23 @@
 //!
 //! Examples:
 //!
-//! - [`float::f064::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
-//! - `float::f064::F064F016` — `F064 → F016` (direct f64 → IEEE binary16, `f16` feature).
-//! - `float::f032::F032F016` — `F032 → F016` (f32 → IEEE binary16, `f16` feature).
-//! - [`fixed::u008::U008U016`] — `u8 → u16` saturating widen (§ Word.hs `w08w16`).
-//! - [`fixed::i008::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
-//! - [`fixed::u008::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
-//! - [`fixed::i016::I016I008`] — `i16 → i8` signed-narrowing saturating cast.
-//! - [`fixed::u064::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
-//! - [`fixed::u008::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
-//! - [`fixed::i016::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
+//! - [`core::f064::F064F032`] — `F064 → F032` (lossy IEEE narrowing).
+//! - `core::f064::F064F016` — `F064 → F016` (direct f64 → IEEE binary16, `f16` feature).
+//! - `core::f032::F032F016` — `F032 → F016` (f32 → IEEE binary16, `f16` feature).
+//! - [`core::u008::U008U016`] — `u8 → u16` saturating widen.
+//! - [`core::i008::I008I016`] — `Extended<i8> → i16` (signed widening, range-extended source).
+//! - [`core::u008::U008I016`] — `Extended<u8> → i16` (unsigned source into signed target).
+//! - [`core::i016::I016I008`] — `i16 → i8` signed-narrowing saturating cast.
+//! - [`core::u064::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
+//! - [`core::u008::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
+//! - [`core::i016::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
 //! - [`fixed::u008::Q008Q007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
 //!   the 7-bit MIDI velocity format).
 //! - [`fixed::u016::Q016Q015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
 //!   canonical signed-PCM-equivalent unsigned audio amplitude).
 //! - [`fixed::u032::Q032Q031`] — `FixedU32<U32> → FixedU32<U31>` (Q0.32 ↔ Q1.31,
 //!   the canonical 32-bit normalised-amplitude format).
-//! - [`fixed::i008::I008N008`] — `i8 → NonZeroI8` (asymmetric adjoint
+//! - [`core::i008::I008N008`] — `i8 → NonZeroI8` (asymmetric adjoint
 //!   at zero: `floor(0) = -1`, `ceil(0) = +1`).
 //! - [`fixed::i008::I008Q000`] — `i8 ↔ FixedI8<U0>` cross-crate iso
 //!   (Q8.0 lossless bridge to the std primitive).
@@ -99,7 +100,7 @@
 //! ```rust
 //! use connections::conn::ConnL;
 //! use connections::float::ExtendedFloat::Extend;
-//! use connections::float::f064::F064F032;
+//! use connections::core::f064::F064F032;
 //!
 //! let pi64 = Extend(std::f64::consts::PI);
 //! // f32's nearest representation of π widened losslessly to f64.
@@ -185,8 +186,8 @@
 #![forbid(unsafe_code)]
 
 pub mod addr;
-pub mod char;
 pub mod conn;
+pub mod core;
 pub mod extended;
 pub mod fixed;
 pub mod float;
@@ -198,7 +199,7 @@ pub mod lattice;
 #[cfg(feature = "time")]
 pub mod time;
 
-pub use fixed::LE;
+pub use core::LE;
 pub use interval::Interval;
 
 // Two-sided helpers (ConnK-bound) re-exported at the crate root for

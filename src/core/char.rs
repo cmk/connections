@@ -60,7 +60,7 @@ crate::conn_l! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::char::U032CHAR;
+    /// use connections::core::char::U032CHAR;
     /// use connections::conn::ConnL;
     /// use connections::extended::Extended;
     ///

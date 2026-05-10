@@ -1,10 +1,15 @@
-//! Binary fixed-point ladder over `fixed::FixedI8<Frac>`.
+//! Binary fixed-point ladder over `fixed::FixedI8<Frac>`, plus the
+//! cross-crate iso to `i8` and the IEEE-float → `FixedI8<F>` bridges.
 //!
 //! Frac level set: `{U0, U1, U2, U3, U4, U6, U8}` → 21 ordered pairs
 //! `(Fine, Coarse)` with `Fine > Coarse`. See [`super::i016`] for the
 //! design (this module mirrors it with `i8` inner / `i16` widening).
 //! Same totality + Galois-axiom guarantees; same saturation plateau,
 //! and the same boundary fixups in `ceil` / `floor`.
+//!
+//! Pure-`core` Conns sourced from `i8` (signed widening, sign-flipped
+//! BE/LE byte iso, `i8 ↔ NonZeroI8`, …) live next door in
+//! [`crate::core::i008`].
 //!
 //! # Examples
 //!
@@ -33,36 +38,11 @@
 //! Coarse plateau onto Fine::MAX/MIN, so it isn't order-reflecting and
 //! no true adjoint triple exists. See Plan 32 / `doc/design.md`.
 
-#[allow(unused_imports)]
-use super::{LE, ext_int, float_fixed, int_uint, nz_int_ext};
-#[cfg(test)]
-#[allow(unused_imports)]
-use crate::fixed::{
-    i016::I016I008, i032::I032I008, i064::I064I008, i128::I128I008, u008::U008I008, u016::U016I008,
-    u032::U032I008, u064::U064I008, u128::U128I008,
-};
+use super::float_fixed;
 use ::fixed::FixedI8;
 use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U8, Unsigned};
-use core::num::NonZeroI8;
 
-// - std-int Conns sourced from `i8` --------------------------------
-
-ext_int!(I008I016, i8, i16);
-ext_int!(I008I032, i8, i32);
-ext_int!(I008I064, i8, i64);
-ext_int!(I008I128, i8, i128);
-
-int_uint!(I008U008, i8, u8);
-int_uint!(I008U016, i8, u16);
-int_uint!(I008U032, i8, u32);
-int_uint!(I008U064, i8, u64);
-int_uint!(I008U128, i8, u128);
-
-// ── §2 i8 ↔ NonZeroI8 ────────────────────────────────────
-
-nz_int_ext!(I008N008, i8, NonZeroI8);
-
-// ── §3 cross-crate iso: i8 ↔ FixedI8<U0> ───────────────────────────
+// ── Cross-crate iso: i8 ↔ FixedI8<U0> ──────────────────────────────
 
 const fn i008q000_fwd(i: i8) -> FixedI8<U0> {
     FixedI8::<U0>::from_bits(i)
@@ -81,57 +61,7 @@ crate::iso! {
     }
 }
 
-// ── Sortable big-endian byte encodings ─────────────────────
-
-const fn i8_to_be01(x: i8) -> [u8; 1] {
-    [(x as u8) ^ 0x80]
-}
-const fn be01_to_i8(b: [u8; 1]) -> i8 {
-    (b[0] ^ 0x80) as i8
-}
-
-crate::iso! {
-    /// `i8 ↔ [u8; 1]` — sign-flipped iso so byte order matches signed order.
-    ///
-    /// Forward XORs the sign bit so `i8::MIN` maps to `[0x00]` and
-    /// `i8::MAX` maps to `[0xFF]`; the reverse XOR recovers the
-    /// signed value bit-exactly.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use connections::conn::{ConnL, ConnR};
-    /// use connections::fixed::i008::I008BE01;
-    ///
-    /// assert_eq!(I008BE01.ceil(i8::MIN), [0x00]);
-    /// assert_eq!(I008BE01.ceil(0_i8),    [0x80]);
-    /// assert_eq!(I008BE01.ceil(i8::MAX), [0xFF]);
-    /// assert_eq!(I008BE01.upper([0x00]), i8::MIN);
-    /// ```
-    pub I008BE01 : i8 => [u8; 1] {
-        forward: i8_to_be01,
-        back:    be01_to_i8,
-    }
-}
-
-// ── Sortable little-endian byte encodings ──────────────────
-
-const fn i8_to_le01(x: i8) -> LE<1> {
-    LE([(x as u8) ^ 0x80])
-}
-const fn le01_to_i8(b: LE<1>) -> i8 {
-    (b.0[0] ^ 0x80) as i8
-}
-
-crate::iso! {
-    /// `i8 ↔ LE<1>` — sign-flipped little-endian iso with numeric-sort ordering.
-    pub I008LE01 : i8 => LE<1> {
-        forward: i8_to_le01,
-        back:    le01_to_i8,
-    }
-}
-
-// ── §4 Q-format ladder over `FixedI8<Frac>` ─────────────────────────
+// ── Q-format ladder over `FixedI8<Frac>` ───────────────────────────
 
 /// `I### = FixedI8<U<frac>>` — i8-backed binary fixed-point with
 /// `<frac>` fractional bits.
@@ -217,7 +147,7 @@ fix_fix_i8!(Q006Q004, U6, U4);
 fix_fix_i8!(Q008Q004, U8, U4);
 fix_fix_i8!(Q008Q006, U8, U6);
 
-// ── §5 f32 → FixedI8<U<frac>> narrowing ────────────────────────────
+// ── f32 → FixedI8<U<frac>> narrowing ───────────────────────────────
 //
 // Host bit-width 8 ≤ f32 mantissa 24, so every Conn is a full
 // adjoint triple. `Q<frac>` = `FixedI8<U<frac>>` (signed Q-format
@@ -231,7 +161,7 @@ float_fixed!(pub F032Q004, f32, FixedI8, U4, i8);
 float_fixed!(pub F032Q006, f32, FixedI8, U6, i8);
 float_fixed!(pub F032Q008, f32, FixedI8, U8, i8);
 
-// ── §6 f64 → FixedI8<U<frac>> narrowing ────────────────────────────
+// ── f64 → FixedI8<U<frac>> narrowing ───────────────────────────────
 //
 // Host bit-width 8 ≤ f64 mantissa 53, so every Conn is a full
 // adjoint triple.
@@ -244,7 +174,7 @@ float_fixed!(pub F064Q004, f64, FixedI8, U4, i8);
 float_fixed!(pub F064Q006, f64, FixedI8, U6, i8);
 float_fixed!(pub F064Q008, f64, FixedI8, U8, i8);
 
-// ── §7 f16 → FixedI8<U<frac>> narrowing ────────────────────────────
+// ── f16 → FixedI8<U<frac>> narrowing ───────────────────────────────
 //
 // Host bit-width 8 ≤ f16 mantissa 11, so every Conn is a full
 // adjoint triple. Gated on `feature = "f16"` (nightly).
@@ -276,103 +206,7 @@ mod tests {
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
-    // ── §1 std-int spot checks (merged from former int/i8.rs) ──────
-
-    #[test]
-    fn i_to_i_saturate_high() {
-        assert_eq!(I016I008.ceil(i16::MAX), i8::MAX);
-        assert_eq!(I032I008.ceil(i32::MAX), i8::MAX);
-        assert_eq!(I064I008.ceil(i64::MAX), i8::MAX);
-        assert_eq!(I128I008.ceil(i128::MAX), i8::MAX);
-    }
-
-    #[test]
-    fn i_to_i_saturate_low() {
-        assert_eq!(I016I008.ceil(i16::MIN), i8::MIN);
-        assert_eq!(I032I008.ceil(i32::MIN), i8::MIN);
-        assert_eq!(I064I008.ceil(i64::MIN), i8::MIN);
-        assert_eq!(I128I008.ceil(i128::MIN), i8::MIN);
-    }
-
-    #[test]
-    fn i_to_i_round_trip_finite() {
-        for &b in &[i8::MIN, -1, 0, 1, i8::MAX] {
-            assert_eq!(I016I008.ceil(I016I008.upper(b)), b);
-            assert_eq!(I032I008.ceil(I032I008.upper(b)), b);
-            assert_eq!(I064I008.ceil(I064I008.upper(b)), b);
-            assert_eq!(I128I008.ceil(I128I008.upper(b)), b);
-        }
-    }
-
-    #[test]
-    fn i_to_i_inner_fine_max_fixup() {
-        assert_eq!(I016I008.upper(i8::MAX), i16::MAX);
-        assert_eq!(I032I008.upper(i8::MAX), i32::MAX);
-        assert_eq!(I064I008.upper(i8::MAX), i64::MAX);
-        assert_eq!(I128I008.upper(i8::MAX), i128::MAX);
-        assert_eq!(I016I008.upper(126), 126_i16);
-        assert_eq!(I016I008.upper(i8::MIN), i8::MIN as i16);
-    }
-
-    #[test]
-    fn u_to_i_neg_collapse() {
-        assert_eq!(U008I008.lower(-1), 0_u8);
-        assert_eq!(U008I008.lower(i8::MIN), 0_u8);
-        assert_eq!(U016I008.lower(-1), 0_u16);
-        assert_eq!(U128I008.lower(-50), 0_u128);
-    }
-
-    #[test]
-    fn u_to_i_high_saturate() {
-        assert_eq!(U008I008.floor(u8::MAX), i8::MAX);
-        assert_eq!(U016I008.floor(u16::MAX), i8::MAX);
-        assert_eq!(U064I008.floor(u64::MAX), i8::MAX);
-        assert_eq!(U128I008.floor(u128::MAX), i8::MAX);
-    }
-
-    #[test]
-    fn u_to_i_round_trip_finite_positive() {
-        for &b in &[0_i8, 1, 50, i8::MAX] {
-            assert_eq!(U008I008.floor(U008I008.lower(b)), b);
-            assert_eq!(U016I008.floor(U016I008.lower(b)), b);
-            assert_eq!(U128I008.floor(U128I008.lower(b)), b);
-        }
-    }
-
-    // u_to_i_ceil_eq_floor test deleted under Sprint B kind discipline:
-    // U008I008 is a one-sided R-Conn (no .ceil() method), so the property
-    // is structural rather than testable. Kept the surrounding test
-    // surface; the R-Galois law is exercised in tests/int_i8_galois.rs.
-
-    // ── §2 i8 ↔ NonZeroI8 spot checks ──────────────────────────────
-
-    #[test]
-    fn i008n008_floor_ceil_split_at_zero() {
-        // Asymmetric-adjoint at zero: floor lands on the largest
-        // NonZero ≤ 0 (-1); ceil lands on the smallest NonZero ≥ 0 (+1).
-        assert_eq!(I008N008.floor(0_i8), NonZeroI8::new(-1).unwrap());
-        assert_eq!(I008N008.ceil(0_i8), NonZeroI8::new(1).unwrap());
-    }
-
-    #[test]
-    fn i008n008_finite_nonzero_round_trip() {
-        for &v in &[i8::MIN, -50, -1, 1, 50, i8::MAX] {
-            let nz = NonZeroI8::new(v).unwrap();
-            assert_eq!(I008N008.ceil(v), nz);
-            assert_eq!(I008N008.floor(v), nz);
-        }
-    }
-
-    #[test]
-    fn i008n008_inner_is_total_embedding() {
-        // inner: NonZeroI8 → i8 is just .get().
-        for &v in &[i8::MIN, -1, 1, i8::MAX] {
-            let nz = NonZeroI8::new(v).unwrap();
-            assert_eq!(I008N008.upper(nz), v);
-        }
-    }
-
-    // ── §3 cross-crate iso (I008Q000) spot checks ──────────────────
+    // ── Cross-crate iso (I008Q000) spot checks ─────────────────────
 
     #[test]
     fn i008q000_round_trips_both_ways() {
@@ -388,34 +222,7 @@ mod tests {
         }
     }
 
-    // ── Property tests covering I008N008 (NonZero) and I008Q000 (iso)
-
-    fn arb_nz_i8() -> impl Strategy<Value = NonZeroI8> {
-        any::<i8>().prop_filter_map("non-zero i8", NonZeroI8::new)
-    }
-
     proptest! {
-        // I008N008: source is i8, target is NonZeroI8. Both Galois
-        // laws hold — the asymmetric floor/ceil at v=0 brackets the
-        // target's puncture between -1 and +1.
-        #[test]
-        fn i008n008_galois_l(a in any::<i8>(), b in arb_nz_i8()) {
-            prop_assert!(conn_laws::galois_l(&I008N008.conn_l(), a, b));
-        }
-
-        #[test]
-        fn i008n008_galois_r(a in any::<i8>(), b in arb_nz_i8()) {
-            prop_assert!(conn_laws::galois_r(&I008N008.conn_r(), a, b));
-        }
-
-        #[test]
-        fn i008n008_inner_then_ceil_recovers_nonzero(nz in arb_nz_i8()) {
-            // For non-zero nz, both ceil and floor recover nz from
-            // its Finite embedding via inner.
-            prop_assert_eq!(I008N008.ceil(I008N008.upper(nz)), nz);
-            prop_assert_eq!(I008N008.floor(I008N008.upper(nz)), nz);
-        }
-
         // I008Q000 is an iso — both Galois laws must hold.
         #[test]
         fn i008q000_galois_l(a in any::<i8>(), b_bits in any::<i8>()) {
@@ -484,78 +291,6 @@ mod tests {
         // along with the broken `floor_le_ceil` it created.)
         let fmin = FixedI8::<U4>::from_bits(i8::MIN);
         assert_eq!(Q004Q000.ceil(fmin), FixedI8::<U0>::from_bits(i8::MIN));
-    }
-
-    // ── BE byte-encoding tests ─────────────────────────────
-
-    fn arb_byte1() -> impl Strategy<Value = [u8; 1]> {
-        prop_oneof![
-            Just([0; 1]),
-            Just([0xFF; 1]),
-            Just([0x80]),
-            any::<[u8; 1]>()
-        ]
-    }
-
-    fn arb_lebyte1() -> impl Strategy<Value = LE<1>> {
-        arb_byte1().prop_map(LE)
-    }
-
-    proptest! {
-        #[test]
-        fn i008_be_iso_roundtrip_l(a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I008BE01.conn_l(), a));
-        }
-        #[test]
-        fn i008_be_roundtrip_ceil(b in arb_byte1()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I008BE01.conn_l(), b));
-        }
-        #[test]
-        fn i008_be_galois_l(a in any::<i8>(), b in arb_byte1()) {
-            prop_assert!(conn_laws::galois_l(&I008BE01.conn_l(), a, b));
-        }
-        #[test]
-        fn i008_be_galois_r(a in any::<i8>(), b in arb_byte1()) {
-            prop_assert!(conn_laws::galois_r(&I008BE01.conn_r(), a, b));
-        }
-        #[test]
-        fn i008_be_floor_le_ceil(a in any::<i8>()) {
-            prop_assert!(conn_laws::floor_le_ceil(&I008BE01, a));
-        }
-        #[test]
-        fn i008_be_order_preserving(a in any::<i8>(), b in any::<i8>()) {
-            prop_assert_eq!(a.cmp(&b), I008BE01.ceil(a).cmp(&I008BE01.ceil(b)));
-        }
-
-        #[test]
-        fn i008_le_iso_roundtrip_l(a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I008LE01.conn_l(), a));
-        }
-
-        #[test]
-        fn i008_le_roundtrip_ceil(b in arb_lebyte1()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I008LE01.conn_l(), b));
-        }
-
-        #[test]
-        fn i008_le_galois_l(a in any::<i8>(), b in arb_lebyte1()) {
-            prop_assert!(conn_laws::galois_l(&I008LE01.conn_l(), a, b));
-        }
-
-        #[test]
-        fn i008_le_galois_r(a in any::<i8>(), b in arb_lebyte1()) {
-            prop_assert!(conn_laws::galois_r(&I008LE01.conn_r(), a, b));
-        }
-
-        #[test]
-        fn i008_le_floor_le_ceil(a in any::<i8>()) {
-            prop_assert!(conn_laws::floor_le_ceil(&I008LE01, a));
-        }
-
-        #[test]
-        fn i008_le_order_preserving(a in any::<i8>(), b in any::<i8>()) {
-            prop_assert_eq!(a.cmp(&b), I008LE01.ceil(a).cmp(&I008LE01.ceil(b)));
-        }
     }
 
     // 21 conns × 5 properties = 105 generated proptests, via the

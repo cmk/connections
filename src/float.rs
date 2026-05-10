@@ -7,17 +7,17 @@
 //! Peer float Conns live with their source side after semantic
 //! specificity is considered:
 //!
-//! | Const          | Conn                                  | Module       |
-//! |----------------|---------------------------------------|--------------|
-//! | `F064F032`     | `Conn<F064, F032>` (lossy narrowing)  | [`mod@f064`] |
-//! | `F064F016`     | `Conn<F064, F016>` (`f16` feature)    | `f064`       |
-//! | `F032F016`     | `Conn<F032, F016>` (`f16` feature)    | `f032`       |
+//! | Const          | Conn                                  | Module                 |
+//! |----------------|---------------------------------------|------------------------|
+//! | `F064F032`     | `Conn<F064, F032>` (lossy narrowing)  | [`crate::core::f064`]  |
+//! | `F064F016`     | `Conn<F064, F016>` (`f16` feature)    | `crate::core::f064`    |
+//! | `F032F016`     | `Conn<F032, F016>` (`f16` feature)    | `crate::core::f032`    |
 //!
 //! ## Example
 //!
 //! ```rust
 //! use connections::conn::{ConnL, ConnR};  // brings .ceil/.floor in via default methods
-//! use connections::float::f064::F064F032;
+//! use connections::core::f064::F064F032;
 //! use connections::float::F064;
 //!
 //! // f64 → f32 narrowing rounds in two directions.
@@ -45,10 +45,11 @@
 //! incomparability with finites is inherited unchanged from
 //! `PartialOrd` on the wrapped `T`.
 
-#[cfg(feature = "f16")]
-pub mod f016;
-pub mod f032;
-pub mod f064;
+// Per-IEEE-width Conn modules moved to `crate::core::{f016,f032,f064}`
+// in Plan 26. This module retains the `ExtendedFloat<T>` wrapper type
+// and the float-only infrastructure (ULP machinery, `BitsToF64Rd`,
+// `RoundDownFromF64`, `def_walk_helpers!`, `float_ext_int!` macros)
+// that the relocated Conn submodules depend on.
 
 use std::ops::{
     Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign,
