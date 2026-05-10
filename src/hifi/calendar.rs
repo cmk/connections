@@ -38,7 +38,7 @@
 //! width), parallel to [`crate::fixed::i008::I008N008`].
 
 use crate::extended::Extended;
-use core::num::NonZeroU8;
+use ::core::num::NonZeroU8;
 use hifitime::{MonthName, Weekday};
 
 // ── MONTU008 ─────────────────────────────────────────────────────

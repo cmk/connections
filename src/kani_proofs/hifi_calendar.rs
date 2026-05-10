@@ -25,7 +25,7 @@ use crate::conn::ConnL;
 use crate::extended::Extended;
 use crate::hifi::{MONTN008, MONTU008, WKDYU008};
 use crate::prop::conn as conn_laws;
-use core::num::NonZeroU8;
+use ::core::num::NonZeroU8;
 use hifitime::{MonthName, Weekday};
 
 // ── Symbolic-input helpers ──────────────────────────────────────
