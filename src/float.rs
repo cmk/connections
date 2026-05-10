@@ -904,6 +904,147 @@ pub(crate) fn round_down_to_f16(b: i128) -> f16 {
     }
 }
 
+// ── Power-of-two scaling helpers for Q-format Conns ────────────────
+//
+// `float_fixed!` and `float_fixed_l!` (Phase 2) need `2^F` and `2^-F`
+// as f64 values to bridge between Q-format bit-storage and float
+// real-values. F can be up to 128 in our rung set, well within
+// f64's exponent range (normal: −1022..1023; denormal extends to
+// −1074), so both scales are exactly representable in f64. Computed
+// via direct bit-pattern construction so the helpers are `const fn`.
+
+/// `2^frac` as `f64`, exact for `frac ≤ 1023` (covers our `frac ≤ 128`
+/// rung cadence with room to spare).
+///
+/// Bias-1023 exponent encoding: `2^F` has biased exponent `1023 + F`,
+/// mantissa zero. `f64::from_bits` materialises the value at compile
+/// time.
+#[inline]
+pub(crate) const fn scale_pow2_f64(frac: u32) -> f64 {
+    let biased = (1023u64 + frac as u64) << 52;
+    f64::from_bits(biased)
+}
+
+/// `2^-frac` as `f64`, exact for `frac ≤ 1022` (normal range).
+/// Returns `0.0` for `frac > 1074` (true mathematical underflow); we
+/// only use `frac ≤ 128`, far inside the normal regime.
+///
+/// Splits at the normal/denormal boundary because f64 denormals have
+/// a different bit-pattern structure (implicit leading bit becomes
+/// zero, exponent field stays at zero). For our `frac ≤ 128` use
+/// case only the normal branch fires.
+#[inline]
+pub(crate) const fn scale_pow2_f64_neg(frac: u32) -> f64 {
+    if frac <= 1022 {
+        // Normal: biased exponent (1023 - frac).
+        let biased = (1023u64 - frac as u64) << 52;
+        f64::from_bits(biased)
+    } else if frac <= 1074 {
+        // Denormal: exponent = 0, mantissa = 1 << (1074 - frac).
+        let mantissa = 1u64 << (1074 - frac as u64);
+        f64::from_bits(mantissa)
+    } else {
+        0.0
+    }
+}
+
+// ── f64 → narrower float, round-toward-negative-infinity ───────────
+//
+// Used by `float_fixed_l!`'s `inner` so the f64 → source-float
+// downcast is order-correct in the L-Galois sense. Rust's stock
+// `v as f32` / `v as f16` rounds-to-nearest-even, which can
+// over-round at the f32/f16 ULP grid and break
+// `ceil(inner(b)) ≤ b`.
+
+/// `f64 → f32` with round-toward-negative-infinity. Mirrors
+/// [`round_down_to_f32`] but operates on a finite f64 value rather
+/// than an `i128` integer.
+pub(crate) fn round_down_f64_to_f32(v: f64) -> f32 {
+    let approx = v as f32;
+    if approx.is_nan() {
+        return approx;
+    }
+    if approx == f32::INFINITY {
+        // Positive overflow: largest f32 ≤ v is f32::MAX (when v is
+        // strictly above f32::MAX) or +∞ (when v is +∞ itself).
+        return if v > f32::MAX as f64 {
+            f32::MAX
+        } else {
+            f32::INFINITY
+        };
+    }
+    if approx == f32::NEG_INFINITY {
+        return f32::NEG_INFINITY;
+    }
+    // Finite f32: compare via exact f32→f64 upcast.
+    if (approx as f64) > v {
+        shift32(-1, approx)
+    } else {
+        approx
+    }
+}
+
+/// `f64 → f16` with round-toward-negative-infinity. Gated on `f16`.
+#[cfg(feature = "f16")]
+pub(crate) fn round_down_f64_to_f16(v: f64) -> f16 {
+    let approx: f16 = v as f16;
+    if approx.is_nan() {
+        return approx;
+    }
+    if approx == f16::INFINITY {
+        return if v > f16::MAX as f64 {
+            f16::MAX
+        } else {
+            f16::INFINITY
+        };
+    }
+    if approx == f16::NEG_INFINITY {
+        return f16::NEG_INFINITY;
+    }
+    if (approx as f64) > v {
+        crate::float::f016::shift16_f16(-1, approx)
+    } else {
+        approx
+    }
+}
+
+/// **Internal dispatch shim** for the `float_fixed!` / `float_fixed_l!`
+/// macros — picks the right `round_down_f64_to_*` per source float
+/// type. Hidden from the rendered docs and **not part of the
+/// crate's stable API surface**: same `pub`-but-sealed pattern as
+/// [`RoundDownFromI128`].
+///
+/// The trait is sealed via the `private::Sealed` supertrait, so
+/// downstream impls are a compile error rather than a silent
+/// L-Galois-breaking foot-gun.
+#[doc(hidden)]
+pub trait RoundDownFromF64: private::Sealed + Sized {
+    /// Cast `v: f64` to this float type, rounding toward `-∞`.
+    fn from_f64_rd(v: f64) -> Self;
+}
+
+impl RoundDownFromF64 for f64 {
+    #[inline]
+    fn from_f64_rd(v: f64) -> Self {
+        v
+    }
+}
+
+impl RoundDownFromF64 for f32 {
+    #[inline]
+    fn from_f64_rd(v: f64) -> Self {
+        round_down_f64_to_f32(v)
+    }
+}
+
+#[cfg(feature = "f16")]
+impl RoundDownFromF64 for f16 {
+    #[inline]
+    fn from_f64_rd(v: f64) -> Self {
+        round_down_f64_to_f16(v)
+    }
+}
+
 /// Generate the four ULP-walk helpers (`ascend_to_ceil`,
 /// `descend_to_ceil`, `ascend_to_floor`, `descend_to_floor`) for one
 /// `Src → Dst` precision-narrowing Conn, packaged in a private
