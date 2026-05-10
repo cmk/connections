@@ -11,7 +11,7 @@
 //! `RATIO = 2^128` doesn't fit in `u128` at all).
 
 #[allow(unused_imports)]
-use super::{LE, nz_uint_ext, uint_int_sat, uint_uint_narrow};
+use super::{LE, float_fixed_l, nz_uint_ext, uint_int_sat, uint_uint_narrow};
 #[cfg(test)]
 #[allow(unused_imports)]
 use crate::fixed::{
@@ -192,6 +192,30 @@ fix_fix_u128!(Q127Q096, F127, F96);
 fix_fix_u128!(Q128Q096, F128, F96);
 fix_fix_u128!(Q128Q127, F128, F127);
 
+// ── §5 f32 → FixedU128<U<frac>> narrowing ──────────────────────────
+//
+// Host bit-width 128 > f32 mantissa 24, every Conn is L-only.
+
+float_fixed_l!(pub F032Q000, f32, FixedU128, F0,   u128);
+float_fixed_l!(pub F032Q016, f32, FixedU128, F16,  u128);
+float_fixed_l!(pub F032Q032, f32, FixedU128, F32,  u128);
+float_fixed_l!(pub F032Q064, f32, FixedU128, F64,  u128);
+float_fixed_l!(pub F032Q096, f32, FixedU128, F96,  u128);
+float_fixed_l!(pub F032Q127, f32, FixedU128, F127, u128);
+float_fixed_l!(pub F032Q128, f32, FixedU128, F128, u128);
+
+// ── §6 f64 → FixedU128<U<frac>> narrowing ──────────────────────────
+//
+// Host bit-width 128 > f64 mantissa 53, every Conn is L-only.
+
+float_fixed_l!(pub F064Q000, f64, FixedU128, F0,   u128);
+float_fixed_l!(pub F064Q016, f64, FixedU128, F16,  u128);
+float_fixed_l!(pub F064Q032, f64, FixedU128, F32,  u128);
+float_fixed_l!(pub F064Q064, f64, FixedU128, F64,  u128);
+float_fixed_l!(pub F064Q096, f64, FixedU128, F96,  u128);
+float_fixed_l!(pub F064Q127, f64, FixedU128, F127, u128);
+float_fixed_l!(pub F064Q128, f64, FixedU128, F128, u128);
+
 // ────────────────────────────────────────────────────────────────────
 // Tests
 // ────────────────────────────────────────────────────────────────────
@@ -367,4 +391,40 @@ mod tests {
     // expensive) lives in `tests/fixed_u128_galois.rs`.
     // Hosting it as an integration test keeps the lib-test rustc
     // invocation under CI's container memory budget.
+
+    // ── §5/§6 f32/f64 → Q-format property tests ────────────────────
+    macro_rules! props_for_float_q_l {
+        ($mod_name:ident, $conn:ident, $float_ext:ident, $Frac:ty) => {
+            $crate::law_battery! {
+                mod $mod_name,
+                conn: $conn,
+                fine: $crate::prop::arb::$float_ext(),
+                coarse: prop_oneof![
+                    1 => Just(crate::extended::Extended::NegInf),
+                    1 => Just(crate::extended::Extended::PosInf),
+                    1 => Just(crate::extended::Extended::Finite(FixedU128::<$Frac>::from_bits(0))),
+                    1 => Just(crate::extended::Extended::Finite(FixedU128::<$Frac>::from_bits(u128::MAX))),
+                    8 => any::<u128>()
+                        .prop_map(|b| crate::extended::Extended::Finite(FixedU128::<$Frac>::from_bits(b))),
+                ],
+                subset: l_only,
+            }
+        };
+    }
+
+    props_for_float_q_l!(laws_f032q000, F032Q000, extended_float_f32, F0);
+    props_for_float_q_l!(laws_f032q016, F032Q016, extended_float_f32, F16);
+    props_for_float_q_l!(laws_f032q032, F032Q032, extended_float_f32, F32);
+    props_for_float_q_l!(laws_f032q064, F032Q064, extended_float_f32, F64);
+    props_for_float_q_l!(laws_f032q096, F032Q096, extended_float_f32, F96);
+    props_for_float_q_l!(laws_f032q127, F032Q127, extended_float_f32, F127);
+    props_for_float_q_l!(laws_f032q128, F032Q128, extended_float_f32, F128);
+
+    props_for_float_q_l!(laws_f064q000, F064Q000, extended_float_f64, F0);
+    props_for_float_q_l!(laws_f064q016, F064Q016, extended_float_f64, F16);
+    props_for_float_q_l!(laws_f064q032, F064Q032, extended_float_f64, F32);
+    props_for_float_q_l!(laws_f064q064, F064Q064, extended_float_f64, F64);
+    props_for_float_q_l!(laws_f064q096, F064Q096, extended_float_f64, F96);
+    props_for_float_q_l!(laws_f064q127, F064Q127, extended_float_f64, F127);
+    props_for_float_q_l!(laws_f064q128, F064Q128, extended_float_f64, F128);
 }

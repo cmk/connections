@@ -587,9 +587,8 @@ macro_rules! __float_fix_ceil_body {
             } else if v_f64 < min_v_f64 {
                 $crate::extended::Extended::Finite(min_q)
             } else {
-                let scale: f64 = $crate::float::scale_pow2_f64(
-                    <$Frac as ::fixed::types::extra::Unsigned>::U32,
-                );
+                let scale: f64 =
+                    $crate::float::scale_pow2_f64(<$Frac as ::fixed::types::extra::Unsigned>::U32);
                 let scaled: f64 = v_f64 * scale;
                 let bits: $Bits = scaled.ceil() as $Bits;
                 $crate::extended::Extended::Finite(<$Fixed<$Frac>>::from_bits(bits))
@@ -615,9 +614,8 @@ macro_rules! __float_fix_floor_body {
             } else if v_f64 < min_v_f64 {
                 $crate::extended::Extended::NegInf
             } else {
-                let scale: f64 = $crate::float::scale_pow2_f64(
-                    <$Frac as ::fixed::types::extra::Unsigned>::U32,
-                );
+                let scale: f64 =
+                    $crate::float::scale_pow2_f64(<$Frac as ::fixed::types::extra::Unsigned>::U32);
                 let scaled: f64 = v_f64 * scale;
                 let bits: $Bits = scaled.floor() as $Bits;
                 $crate::extended::Extended::Finite(<$Fixed<$Frac>>::from_bits(bits))
@@ -629,7 +627,7 @@ macro_rules! __float_fix_floor_body {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __float_fix_inner_body {
-    ($float:ty, $Fixed:ident, $Frac:ty, $b:ident) => {
+    ($float:ty, $Fixed:ident, $Frac:ty, $Bits:ty, $b:ident) => {
         // Map `Extended` sentinels to matching `ExtendedFloat`
         // sentinels. Same N5-ordering reasoning as
         // `__float_ext_int_inner_body!`: emitting `Extend(±INFINITY)`
@@ -637,15 +635,17 @@ macro_rules! __float_fix_inner_body {
         // `(Bot, NegInf)` boundaries.
         //
         // Finite arm: round-toward-negative-infinity via f64
-        // intermediate. `bits / 2^F` is exact in f64 when bits fit
-        // in 53 mantissa bits; for wider hosts the round-down at
-        // the i128 → f64 cast preserves L-Galois.
+        // intermediate. The host-bits-to-f64 dispatch uses
+        // [`BitsToF64Rd`](crate::float::BitsToF64Rd) so the u128
+        // host's top-end saturation (where `u128::MAX as f64` rounds
+        // up to `2^128`) is handled correctly — naive `q.to_bits()
+        // as i128` would wrap for `bits > i128::MAX` and break
+        // L-Galois at the high plateau.
         match $b {
             $crate::extended::Extended::NegInf => $crate::float::ExtendedFloat::Bot,
             $crate::extended::Extended::PosInf => $crate::float::ExtendedFloat::Top,
             $crate::extended::Extended::Finite(q) => {
-                let i: i128 = q.to_bits() as i128;
-                let approx_f64: f64 = $crate::float::round_down_to_f64(i);
+                let approx_f64: f64 = <$Bits as $crate::float::BitsToF64Rd>::to_f64_rd(q.to_bits());
                 let scale_neg: f64 = $crate::float::scale_pow2_f64_neg(
                     <$Frac as ::fixed::types::extra::Unsigned>::U32,
                 );
@@ -688,7 +688,7 @@ macro_rules! float_fixed {
                     fn inner(b: $crate::extended::Extended<$Fixed<$Frac>>)
                         -> $crate::float::ExtendedFloat<$float>
                     {
-                        $crate::__float_fix_inner_body!($float, $Fixed, $Frac, b)
+                        $crate::__float_fix_inner_body!($float, $Fixed, $Frac, $Bits, b)
                     }
                     inner
                 },
@@ -738,7 +738,7 @@ macro_rules! float_fixed_l {
             fn inner(b: $crate::extended::Extended<$Fixed<$Frac>>)
                 -> $crate::float::ExtendedFloat<$float>
             {
-                $crate::__float_fix_inner_body!($float, $Fixed, $Frac, b)
+                $crate::__float_fix_inner_body!($float, $Fixed, $Frac, $Bits, b)
             }
             $crate::conn::Conn::new_l(ceil, inner)
         };

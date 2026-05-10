@@ -5,7 +5,7 @@
 //! design (this module mirrors it with `i64` inner / `i128` widening).
 
 #[allow(unused_imports)]
-use super::{LE, ext_int, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext};
+use super::{LE, ext_int, float_fixed_l, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext};
 #[cfg(test)]
 #[allow(unused_imports)]
 use crate::fixed::{
@@ -157,6 +157,28 @@ fix_fix_i64!(Q064Q016, U64, U16);
 fix_fix_i64!(Q048Q032, U48, U32);
 fix_fix_i64!(Q064Q032, U64, U32);
 fix_fix_i64!(Q064Q048, U64, U48);
+
+// ── §5 f32 → FixedI64<U<frac>> narrowing ───────────────────────────
+//
+// Host bit-width 64 > f32 mantissa 24, every Conn is L-only.
+
+float_fixed_l!(pub F032Q000, f32, FixedI64, U0,  i64);
+float_fixed_l!(pub F032Q008, f32, FixedI64, U8,  i64);
+float_fixed_l!(pub F032Q016, f32, FixedI64, U16, i64);
+float_fixed_l!(pub F032Q032, f32, FixedI64, U32, i64);
+float_fixed_l!(pub F032Q048, f32, FixedI64, U48, i64);
+float_fixed_l!(pub F032Q064, f32, FixedI64, U64, i64);
+
+// ── §6 f64 → FixedI64<U<frac>> narrowing ───────────────────────────
+//
+// Host bit-width 64 > f64 mantissa 53, every Conn is L-only.
+
+float_fixed_l!(pub F064Q000, f64, FixedI64, U0,  i64);
+float_fixed_l!(pub F064Q008, f64, FixedI64, U8,  i64);
+float_fixed_l!(pub F064Q016, f64, FixedI64, U16, i64);
+float_fixed_l!(pub F064Q032, f64, FixedI64, U32, i64);
+float_fixed_l!(pub F064Q048, f64, FixedI64, U48, i64);
+float_fixed_l!(pub F064Q064, f64, FixedI64, U64, i64);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -344,4 +366,39 @@ mod tests {
     props_for_pair!(q048q032, Q048Q032, U48, U32);
     props_for_pair!(q064q032, Q064Q032, U64, U32);
     props_for_pair!(q064q048, Q064Q048, U64, U48);
+
+    // ── §5/§6 f32/f64 → Q-format property tests ────────────────────
+    macro_rules! props_for_float_q_l {
+        ($mod_name:ident, $conn:ident, $float_ext:ident, $Frac:ty) => {
+            $crate::law_battery! {
+                mod $mod_name,
+                conn: $conn,
+                fine: $crate::prop::arb::$float_ext(),
+                coarse: prop_oneof![
+                    1 => Just(crate::extended::Extended::NegInf),
+                    1 => Just(crate::extended::Extended::PosInf),
+                    1 => Just(crate::extended::Extended::Finite(FixedI64::<$Frac>::from_bits(0))),
+                    1 => Just(crate::extended::Extended::Finite(FixedI64::<$Frac>::from_bits(i64::MIN))),
+                    1 => Just(crate::extended::Extended::Finite(FixedI64::<$Frac>::from_bits(i64::MAX))),
+                    8 => any::<i64>()
+                        .prop_map(|b| crate::extended::Extended::Finite(FixedI64::<$Frac>::from_bits(b))),
+                ],
+                subset: l_only,
+            }
+        };
+    }
+
+    props_for_float_q_l!(laws_f032q000, F032Q000, extended_float_f32, U0);
+    props_for_float_q_l!(laws_f032q008, F032Q008, extended_float_f32, U8);
+    props_for_float_q_l!(laws_f032q016, F032Q016, extended_float_f32, U16);
+    props_for_float_q_l!(laws_f032q032, F032Q032, extended_float_f32, U32);
+    props_for_float_q_l!(laws_f032q048, F032Q048, extended_float_f32, U48);
+    props_for_float_q_l!(laws_f032q064, F032Q064, extended_float_f32, U64);
+
+    props_for_float_q_l!(laws_f064q000, F064Q000, extended_float_f64, U0);
+    props_for_float_q_l!(laws_f064q008, F064Q008, extended_float_f64, U8);
+    props_for_float_q_l!(laws_f064q016, F064Q016, extended_float_f64, U16);
+    props_for_float_q_l!(laws_f064q032, F064Q032, extended_float_f64, U32);
+    props_for_float_q_l!(laws_f064q048, F064Q048, extended_float_f64, U48);
+    props_for_float_q_l!(laws_f064q064, F064Q064, extended_float_f64, U64);
 }

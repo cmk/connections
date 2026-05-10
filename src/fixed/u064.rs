@@ -5,7 +5,7 @@
 //! `F63` (Q1.63), the canonical 64-bit normalised-amplitude format.
 
 #[allow(unused_imports)]
-use super::{LE, ext_int, nz_uint_ext, uint_int_sat, uint_uint, uint_uint_narrow};
+use super::{LE, ext_int, float_fixed_l, nz_uint_ext, uint_int_sat, uint_uint, uint_uint_narrow};
 #[cfg(test)]
 #[allow(unused_imports)]
 use crate::fixed::{
@@ -162,6 +162,30 @@ fix_fix_u64!(Q064Q032, F64, F32);
 fix_fix_u64!(Q063Q048, F63, F48);
 fix_fix_u64!(Q064Q048, F64, F48);
 fix_fix_u64!(Q064Q063, F64, F63);
+
+// ── §5 f32 → FixedU64<U<frac>> narrowing ───────────────────────────
+//
+// Host bit-width 64 > f32 mantissa 24, every Conn is L-only.
+
+float_fixed_l!(pub F032Q000, f32, FixedU64, F0,  u64);
+float_fixed_l!(pub F032Q008, f32, FixedU64, F8,  u64);
+float_fixed_l!(pub F032Q016, f32, FixedU64, F16, u64);
+float_fixed_l!(pub F032Q032, f32, FixedU64, F32, u64);
+float_fixed_l!(pub F032Q048, f32, FixedU64, F48, u64);
+float_fixed_l!(pub F032Q063, f32, FixedU64, F63, u64);
+float_fixed_l!(pub F032Q064, f32, FixedU64, F64, u64);
+
+// ── §6 f64 → FixedU64<U<frac>> narrowing ───────────────────────────
+//
+// Host bit-width 64 > f64 mantissa 53, every Conn is L-only.
+
+float_fixed_l!(pub F064Q000, f64, FixedU64, F0,  u64);
+float_fixed_l!(pub F064Q008, f64, FixedU64, F8,  u64);
+float_fixed_l!(pub F064Q016, f64, FixedU64, F16, u64);
+float_fixed_l!(pub F064Q032, f64, FixedU64, F32, u64);
+float_fixed_l!(pub F064Q048, f64, FixedU64, F48, u64);
+float_fixed_l!(pub F064Q063, f64, FixedU64, F63, u64);
+float_fixed_l!(pub F064Q064, f64, FixedU64, F64, u64);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests
@@ -326,4 +350,40 @@ mod tests {
     // ordered pairs) lives in `tests/fixed_u64_galois.rs` —
     // hosting it as an integration test keeps the lib-test rustc
     // invocation under CI's container memory budget.
+
+    // ── §5/§6 f32/f64 → Q-format property tests ────────────────────
+    macro_rules! props_for_float_q_l {
+        ($mod_name:ident, $conn:ident, $float_ext:ident, $Frac:ty) => {
+            $crate::law_battery! {
+                mod $mod_name,
+                conn: $conn,
+                fine: $crate::prop::arb::$float_ext(),
+                coarse: prop_oneof![
+                    1 => Just(crate::extended::Extended::NegInf),
+                    1 => Just(crate::extended::Extended::PosInf),
+                    1 => Just(crate::extended::Extended::Finite(FixedU64::<$Frac>::from_bits(0))),
+                    1 => Just(crate::extended::Extended::Finite(FixedU64::<$Frac>::from_bits(u64::MAX))),
+                    8 => any::<u64>()
+                        .prop_map(|b| crate::extended::Extended::Finite(FixedU64::<$Frac>::from_bits(b))),
+                ],
+                subset: l_only,
+            }
+        };
+    }
+
+    props_for_float_q_l!(laws_f032q000, F032Q000, extended_float_f32, F0);
+    props_for_float_q_l!(laws_f032q008, F032Q008, extended_float_f32, F8);
+    props_for_float_q_l!(laws_f032q016, F032Q016, extended_float_f32, F16);
+    props_for_float_q_l!(laws_f032q032, F032Q032, extended_float_f32, F32);
+    props_for_float_q_l!(laws_f032q048, F032Q048, extended_float_f32, F48);
+    props_for_float_q_l!(laws_f032q063, F032Q063, extended_float_f32, F63);
+    props_for_float_q_l!(laws_f032q064, F032Q064, extended_float_f32, F64);
+
+    props_for_float_q_l!(laws_f064q000, F064Q000, extended_float_f64, F0);
+    props_for_float_q_l!(laws_f064q008, F064Q008, extended_float_f64, F8);
+    props_for_float_q_l!(laws_f064q016, F064Q016, extended_float_f64, F16);
+    props_for_float_q_l!(laws_f064q032, F064Q032, extended_float_f64, F32);
+    props_for_float_q_l!(laws_f064q048, F064Q048, extended_float_f64, F48);
+    props_for_float_q_l!(laws_f064q063, F064Q063, extended_float_f64, F63);
+    props_for_float_q_l!(laws_f064q064, F064Q064, extended_float_f64, F64);
 }

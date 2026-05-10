@@ -956,6 +956,39 @@ pub(crate) const fn scale_pow2_f64_neg(frac: u32) -> f64 {
 // over-round at the f32/f16 ULP grid and break
 // `ceil(inner(b)) ≤ b`.
 
+/// `u128 → f64` with round-toward-negative-infinity.
+///
+/// Mirrors [`round_down_to_f64`] but for the unsigned 128-bit case
+/// where `b as i128` would wrap for `b > i128::MAX`. Used by the
+/// `float_fixed_l!` macro's `inner` to bridge u128 Q-format storage
+/// to its real-value f64 representation.
+pub(crate) fn round_down_to_f64_u128(b: u128) -> f64 {
+    let approx = b as f64;
+    if approx.is_nan() {
+        return approx;
+    }
+    if approx == f64::INFINITY {
+        // Defensive — `b as f64` rounds to at most 2^128 (exact
+        // f64), never +∞. Mirrors `round_down_to_f64`.
+        return f64::MAX;
+    }
+    // Top-end saturation: when `approx == 2^128` (the f64 image of
+    // any `b` in roughly `[2^128 - 2^75, u128::MAX]`), the cast
+    // back via `approx as u128` saturates to `u128::MAX`. Equal-
+    // bits comparison can't distinguish round-up from exact, so
+    // shift unconditionally — `2^128 > u128::MAX` in real terms.
+    if approx == (u128::MAX as f64) {
+        return shift64(-1, approx);
+    }
+    // Below the saturation threshold, `approx as u128` is exact;
+    // detect round-up and step down by one ULP if so.
+    if (approx as u128) > b {
+        shift64(-1, approx)
+    } else {
+        approx
+    }
+}
+
 /// `f64 → f32` with round-toward-negative-infinity. Mirrors
 /// [`round_down_to_f32`] but operates on a finite f64 value rather
 /// than an `i128` integer.
@@ -1042,6 +1075,107 @@ impl RoundDownFromF64 for f16 {
     #[inline]
     fn from_f64_rd(v: f64) -> Self {
         round_down_f64_to_f16(v)
+    }
+}
+
+/// **Internal dispatch shim** for the `float_fixed!` /
+/// `float_fixed_l!` macros — converts a Q-format host bit-pattern
+/// (`i8`/`u8`/.../`i128`/`u128`) to its f64 round-toward-negative-
+/// infinity representation. Same `pub`-but-sealed pattern as
+/// [`RoundDownFromI128`].
+///
+/// For host bit-widths ≤ 53 (`i8..i32`, `u8..u32`), `as f64` is
+/// exact; the impls return the identity cast. For 64-bit hosts
+/// (`i64`/`u64`), bits fit in `i128` and the i128-side
+/// [`round_down_to_f64`] is the right tool. For 128-bit signed
+/// (`i128`), the bits already are i128. For 128-bit unsigned
+/// (`u128`), bits exceed i128 range; dispatch to
+/// [`round_down_to_f64_u128`] which handles the
+/// `u128::MAX as f64 == 2^128` saturation explicitly.
+#[doc(hidden)]
+pub trait BitsToF64Rd: bits_private::Sealed + Sized {
+    /// Cast `self` to `f64`, rounding toward `-∞`.
+    fn to_f64_rd(self) -> f64;
+}
+
+mod bits_private {
+    pub trait Sealed {}
+    impl Sealed for i8 {}
+    impl Sealed for u8 {}
+    impl Sealed for i16 {}
+    impl Sealed for u16 {}
+    impl Sealed for i32 {}
+    impl Sealed for u32 {}
+    impl Sealed for i64 {}
+    impl Sealed for u64 {}
+    impl Sealed for i128 {}
+    impl Sealed for u128 {}
+}
+
+// 8-bit / 16-bit / 32-bit hosts: `as f64` is exact (bits ≤ 32 < 53).
+impl BitsToF64Rd for i8 {
+    #[inline]
+    fn to_f64_rd(self) -> f64 {
+        self as f64
+    }
+}
+impl BitsToF64Rd for u8 {
+    #[inline]
+    fn to_f64_rd(self) -> f64 {
+        self as f64
+    }
+}
+impl BitsToF64Rd for i16 {
+    #[inline]
+    fn to_f64_rd(self) -> f64 {
+        self as f64
+    }
+}
+impl BitsToF64Rd for u16 {
+    #[inline]
+    fn to_f64_rd(self) -> f64 {
+        self as f64
+    }
+}
+impl BitsToF64Rd for i32 {
+    #[inline]
+    fn to_f64_rd(self) -> f64 {
+        self as f64
+    }
+}
+impl BitsToF64Rd for u32 {
+    #[inline]
+    fn to_f64_rd(self) -> f64 {
+        self as f64
+    }
+}
+
+// 64-bit hosts: bits fit in i128 losslessly; reuse the i128 helper.
+impl BitsToF64Rd for i64 {
+    #[inline]
+    fn to_f64_rd(self) -> f64 {
+        round_down_to_f64(self as i128)
+    }
+}
+impl BitsToF64Rd for u64 {
+    #[inline]
+    fn to_f64_rd(self) -> f64 {
+        round_down_to_f64(self as i128)
+    }
+}
+
+// 128-bit hosts: signed already is i128; unsigned needs the
+// u128-specific top-end saturation handling.
+impl BitsToF64Rd for i128 {
+    #[inline]
+    fn to_f64_rd(self) -> f64 {
+        round_down_to_f64(self)
+    }
+}
+impl BitsToF64Rd for u128 {
+    #[inline]
+    fn to_f64_rd(self) -> f64 {
+        round_down_to_f64_u128(self)
     }
 }
 
