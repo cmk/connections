@@ -392,6 +392,27 @@ mod tests {
     // Hosting it as an integration test keeps the lib-test rustc
     // invocation under CI's container memory budget.
 
+    // ── Boundary spot checks: ceil at the f64-rounded host max ────
+    //
+    // `u128::MAX = 2^128 - 1` rounds up to `2^128` in f64. L-only
+    // ceil must route `Extend(2^128_f64)` to `PosInf`. Q0/Q16/Q32/
+    // Q64 frac levels all round up; Q96/Q127/Q128 are below f64
+    // mantissa boundary for the scaled max but we test a
+    // representative Q0 + Q64 combo here.
+    #[test]
+    fn f064q000_above_max_to_posinf() {
+        let above_max = u128::MAX as f64; // = 2^128
+        let v = crate::float::ExtendedFloat::Extend(above_max);
+        assert_eq!(F064Q000.ceil(v), crate::extended::Extended::PosInf);
+    }
+
+    #[test]
+    fn f064q064_above_max_to_posinf() {
+        let above_max = (u128::MAX as f64) / 2.0_f64.powi(64); // = 2^64
+        let v = crate::float::ExtendedFloat::Extend(above_max);
+        assert_eq!(F064Q064.ceil(v), crate::extended::Extended::PosInf);
+    }
+
     // ── §5/§6 f32/f64 → Q-format property tests ────────────────────
     macro_rules! props_for_float_q_l {
         ($mod_name:ident, $conn:ident, $float_ext:ident, $Frac:ty) => {

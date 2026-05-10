@@ -590,8 +590,26 @@ macro_rules! __float_fix_ceil_body {
                 let scale: f64 =
                     $crate::float::scale_pow2_f64(<$Frac as ::fixed::types::extra::Unsigned>::U32);
                 let scaled: f64 = v_f64 * scale;
-                let bits: $Bits = scaled.ceil() as $Bits;
-                $crate::extended::Extended::Finite(<$Fixed<$Frac>>::from_bits(bits))
+                let scaled_ceil: f64 = scaled.ceil();
+                let bits: $Bits = scaled_ceil as $Bits;
+                // Boundary-saturation overflow detection: when
+                // `<$Bits>::MAX` rounds up in f64 (host bits > 53),
+                // the strict `v_f64 > max_v_f64` guard above misses
+                // the case where `v_f64 == max_v_f64` while
+                // `real_v > real_max`. The saturating cast pinned
+                // `bits` to MAX; verify via the round-down image
+                // of MAX whether the cast actually overflowed.
+                // For hosts where MAX is f64-exact (host bits ≤ 53,
+                // and signed 128-bit), `to_f64_rd(MAX) == max_v_f64`
+                // and this check is a no-op — `scaled_ceil` ≤
+                // `max_v_f64` in the in-range branch by construction.
+                if bits == <$Bits>::MAX
+                    && <$Bits as $crate::float::BitsToF64Rd>::to_f64_rd(<$Bits>::MAX) < scaled_ceil
+                {
+                    $crate::extended::Extended::PosInf
+                } else {
+                    $crate::extended::Extended::Finite(<$Fixed<$Frac>>::from_bits(bits))
+                }
             }
         }
     }};

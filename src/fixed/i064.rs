@@ -367,6 +367,29 @@ mod tests {
     props_for_pair!(q064q032, Q064Q032, U64, U32);
     props_for_pair!(q064q048, Q064Q048, U64, U48);
 
+    // ── Boundary spot checks: ceil at the f64-rounded host max ────
+    //
+    // For `FixedI64<F0>`, `i64::MAX = 2^63 - 1` rounds up to `2^63`
+    // in f64. The L-only ceil must route `Extend(2^63_f64)` to
+    // `PosInf`, not `Finite(MAX)` — otherwise L-Galois fails at
+    // `(Extend(2^63_f64), Finite(MAX))` because
+    // `inner(Finite(MAX))` round-down steps to `2^63 - 2^10`,
+    // strictly below `2^63`.
+    #[test]
+    fn f064q000_above_max_to_posinf() {
+        let above_max = (i64::MAX as f64) * 2.0_f64.powi(0); // = 2^63
+        let v = crate::float::ExtendedFloat::Extend(above_max);
+        assert_eq!(F064Q000.ceil(v), crate::extended::Extended::PosInf);
+    }
+
+    #[test]
+    fn f064q008_above_max_to_posinf() {
+        // FixedI64<U8> max = (2^63 - 1) / 2^8 ≈ 2^55, f64 rounds to 2^55.
+        let above_max = (i64::MAX as f64) / 256.0_f64; // = 2^55
+        let v = crate::float::ExtendedFloat::Extend(above_max);
+        assert_eq!(F064Q008.ceil(v), crate::extended::Extended::PosInf);
+    }
+
     // ── §5/§6 f32/f64 → Q-format property tests ────────────────────
     macro_rules! props_for_float_q_l {
         ($mod_name:ident, $conn:ident, $float_ext:ident, $Frac:ty) => {
