@@ -12,9 +12,6 @@
 //!   f32 mantissa, so `inner` is not order-reflecting and only the
 //!   L-Galois adjunction holds).
 
-#[cfg(not(feature = "f16"))]
-#[allow(unused_imports)]
-use super::F032;
 #[cfg(feature = "f16")]
 use super::f016::{F016, ceil_f32_f16, floor_f32_f16};
 #[cfg(feature = "f16")]
