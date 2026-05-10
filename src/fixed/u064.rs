@@ -369,39 +369,7 @@ mod tests {
         assert_eq!(F064Q008.ceil(v), crate::extended::Extended::PosInf);
     }
 
-    // ── §5/§6 f32/f64 → Q-format property tests ────────────────────
-    macro_rules! props_for_float_q_l {
-        ($mod_name:ident, $conn:ident, $float_ext:ident, $Frac:ty) => {
-            $crate::law_battery! {
-                mod $mod_name,
-                conn: $conn,
-                fine: $crate::prop::arb::$float_ext(),
-                coarse: prop_oneof![
-                    1 => Just(crate::extended::Extended::NegInf),
-                    1 => Just(crate::extended::Extended::PosInf),
-                    1 => Just(crate::extended::Extended::Finite(FixedU64::<$Frac>::from_bits(0))),
-                    1 => Just(crate::extended::Extended::Finite(FixedU64::<$Frac>::from_bits(u64::MAX))),
-                    8 => any::<u64>()
-                        .prop_map(|b| crate::extended::Extended::Finite(FixedU64::<$Frac>::from_bits(b))),
-                ],
-                subset: l_only,
-            }
-        };
-    }
-
-    props_for_float_q_l!(laws_f032q000, F032Q000, extended_float_f32, F0);
-    props_for_float_q_l!(laws_f032q008, F032Q008, extended_float_f32, F8);
-    props_for_float_q_l!(laws_f032q016, F032Q016, extended_float_f32, F16);
-    props_for_float_q_l!(laws_f032q032, F032Q032, extended_float_f32, F32);
-    props_for_float_q_l!(laws_f032q048, F032Q048, extended_float_f32, F48);
-    props_for_float_q_l!(laws_f032q063, F032Q063, extended_float_f32, F63);
-    props_for_float_q_l!(laws_f032q064, F032Q064, extended_float_f32, F64);
-
-    props_for_float_q_l!(laws_f064q000, F064Q000, extended_float_f64, F0);
-    props_for_float_q_l!(laws_f064q008, F064Q008, extended_float_f64, F8);
-    props_for_float_q_l!(laws_f064q016, F064Q016, extended_float_f64, F16);
-    props_for_float_q_l!(laws_f064q032, F064Q032, extended_float_f64, F32);
-    props_for_float_q_l!(laws_f064q048, F064Q048, extended_float_f64, F48);
-    props_for_float_q_l!(laws_f064q063, F064Q063, extended_float_f64, F63);
-    props_for_float_q_l!(laws_f064q064, F064Q064, extended_float_f64, F64);
+    // The f32/f64 → Q-format Galois proptest battery (112 generated
+    // tests across 14 Conns, all L-only) lives in
+    // `tests/fixed_u64_float_q_galois.rs`.
 }

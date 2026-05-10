@@ -585,44 +585,10 @@ mod tests {
     props_for_pair!(q008q004, Q008Q004, U8, U4);
     props_for_pair!(q008q006, Q008Q006, U8, U6);
 
-    // ── §5/§6 f32/f64 → Q-format property tests ────────────────────
-    //
-    // Per-Conn law battery (full triple — host=8 ≤ both f32 and f64
-    // mantissa). Each generates 1024-case proptests for galois_l/r,
-    // closure_l/r, kernel_l/r, monotone_l/r, idempotent,
-    // floor_le_ceil, order_reflecting via `crate::law_battery!`.
-    macro_rules! props_for_float_q {
-        ($mod_name:ident, $conn:ident, $float_ext:ident, $Frac:ty) => {
-            $crate::law_battery! {
-                mod $mod_name,
-                conn: $conn,
-                fine: $crate::prop::arb::$float_ext(),
-                coarse: prop_oneof![
-                    1 => Just(crate::extended::Extended::NegInf),
-                    1 => Just(crate::extended::Extended::PosInf),
-                    1 => Just(crate::extended::Extended::Finite(FixedI8::<$Frac>::from_bits(0))),
-                    1 => Just(crate::extended::Extended::Finite(FixedI8::<$Frac>::from_bits(i8::MIN))),
-                    1 => Just(crate::extended::Extended::Finite(FixedI8::<$Frac>::from_bits(i8::MAX))),
-                    8 => any::<i8>()
-                        .prop_map(|b| crate::extended::Extended::Finite(FixedI8::<$Frac>::from_bits(b))),
-                ],
-            }
-        };
-    }
-
-    props_for_float_q!(laws_f032q000, F032Q000, extended_float_f32, U0);
-    props_for_float_q!(laws_f032q001, F032Q001, extended_float_f32, U1);
-    props_for_float_q!(laws_f032q002, F032Q002, extended_float_f32, U2);
-    props_for_float_q!(laws_f032q003, F032Q003, extended_float_f32, U3);
-    props_for_float_q!(laws_f032q004, F032Q004, extended_float_f32, U4);
-    props_for_float_q!(laws_f032q006, F032Q006, extended_float_f32, U6);
-    props_for_float_q!(laws_f032q008, F032Q008, extended_float_f32, U8);
-
-    props_for_float_q!(laws_f064q000, F064Q000, extended_float_f64, U0);
-    props_for_float_q!(laws_f064q001, F064Q001, extended_float_f64, U1);
-    props_for_float_q!(laws_f064q002, F064Q002, extended_float_f64, U2);
-    props_for_float_q!(laws_f064q003, F064Q003, extended_float_f64, U3);
-    props_for_float_q!(laws_f064q004, F064Q004, extended_float_f64, U4);
-    props_for_float_q!(laws_f064q006, F064Q006, extended_float_f64, U6);
-    props_for_float_q!(laws_f064q008, F064Q008, extended_float_f64, U8);
+    // The f32/f64 → Q-format Galois proptest battery (196 generated
+    // tests across 14 Conns) lives in
+    // `tests/fixed_i8_float_q_galois.rs`. Hosting it as an
+    // integration test keeps the lib-test rustc invocation under
+    // CI's container memory budget — same workaround as the
+    // unsigned-host Q→Q ladders use.
 }

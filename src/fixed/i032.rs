@@ -381,58 +381,7 @@ mod tests {
     props_for_pair!(q032q016, Q032Q016, U32, U16);
     props_for_pair!(q032q024, Q032Q024, U32, U24);
 
-    // ── §5/§6 f32/f64 → Q-format property tests ────────────────────
-    // §5 (f32 source): L-only — `subset: l_only`.
-    // §6 (f64 source): full triple — default subset.
-    macro_rules! props_for_float_q_l {
-        ($mod_name:ident, $conn:ident, $float_ext:ident, $Frac:ty) => {
-            $crate::law_battery! {
-                mod $mod_name,
-                conn: $conn,
-                fine: $crate::prop::arb::$float_ext(),
-                coarse: prop_oneof![
-                    1 => Just(crate::extended::Extended::NegInf),
-                    1 => Just(crate::extended::Extended::PosInf),
-                    1 => Just(crate::extended::Extended::Finite(FixedI32::<$Frac>::from_bits(0))),
-                    1 => Just(crate::extended::Extended::Finite(FixedI32::<$Frac>::from_bits(i32::MIN))),
-                    1 => Just(crate::extended::Extended::Finite(FixedI32::<$Frac>::from_bits(i32::MAX))),
-                    8 => any::<i32>()
-                        .prop_map(|b| crate::extended::Extended::Finite(FixedI32::<$Frac>::from_bits(b))),
-                ],
-                subset: l_only,
-            }
-        };
-    }
-    macro_rules! props_for_float_q_k {
-        ($mod_name:ident, $conn:ident, $float_ext:ident, $Frac:ty) => {
-            $crate::law_battery! {
-                mod $mod_name,
-                conn: $conn,
-                fine: $crate::prop::arb::$float_ext(),
-                coarse: prop_oneof![
-                    1 => Just(crate::extended::Extended::NegInf),
-                    1 => Just(crate::extended::Extended::PosInf),
-                    1 => Just(crate::extended::Extended::Finite(FixedI32::<$Frac>::from_bits(0))),
-                    1 => Just(crate::extended::Extended::Finite(FixedI32::<$Frac>::from_bits(i32::MIN))),
-                    1 => Just(crate::extended::Extended::Finite(FixedI32::<$Frac>::from_bits(i32::MAX))),
-                    8 => any::<i32>()
-                        .prop_map(|b| crate::extended::Extended::Finite(FixedI32::<$Frac>::from_bits(b))),
-                ],
-            }
-        };
-    }
-
-    props_for_float_q_l!(laws_f032q000, F032Q000, extended_float_f32, U0);
-    props_for_float_q_l!(laws_f032q004, F032Q004, extended_float_f32, U4);
-    props_for_float_q_l!(laws_f032q008, F032Q008, extended_float_f32, U8);
-    props_for_float_q_l!(laws_f032q016, F032Q016, extended_float_f32, U16);
-    props_for_float_q_l!(laws_f032q024, F032Q024, extended_float_f32, U24);
-    props_for_float_q_l!(laws_f032q032, F032Q032, extended_float_f32, U32);
-
-    props_for_float_q_k!(laws_f064q000, F064Q000, extended_float_f64, U0);
-    props_for_float_q_k!(laws_f064q004, F064Q004, extended_float_f64, U4);
-    props_for_float_q_k!(laws_f064q008, F064Q008, extended_float_f64, U8);
-    props_for_float_q_k!(laws_f064q016, F064Q016, extended_float_f64, U16);
-    props_for_float_q_k!(laws_f064q024, F064Q024, extended_float_f64, U24);
-    props_for_float_q_k!(laws_f064q032, F064Q032, extended_float_f64, U32);
+    // The f32/f64 → Q-format Galois proptest battery (132 generated
+    // tests across 12 Conns; 6 L-only under f32, 6 full-triple
+    // under f64) lives in `tests/fixed_i32_float_q_galois.rs`.
 }

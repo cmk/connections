@@ -470,37 +470,8 @@ mod tests {
     props_for_pair!(q016q008, Q016Q008, U16, U8);
     props_for_pair!(q016q012, Q016Q012, U16, U12);
 
-    // ── §5/§6 f32/f64 → Q-format property tests ────────────────────
-    macro_rules! props_for_float_q {
-        ($mod_name:ident, $conn:ident, $float_ext:ident, $Frac:ty) => {
-            $crate::law_battery! {
-                mod $mod_name,
-                conn: $conn,
-                fine: $crate::prop::arb::$float_ext(),
-                coarse: prop_oneof![
-                    1 => Just(crate::extended::Extended::NegInf),
-                    1 => Just(crate::extended::Extended::PosInf),
-                    1 => Just(crate::extended::Extended::Finite(FixedI16::<$Frac>::from_bits(0))),
-                    1 => Just(crate::extended::Extended::Finite(FixedI16::<$Frac>::from_bits(i16::MIN))),
-                    1 => Just(crate::extended::Extended::Finite(FixedI16::<$Frac>::from_bits(i16::MAX))),
-                    8 => any::<i16>()
-                        .prop_map(|b| crate::extended::Extended::Finite(FixedI16::<$Frac>::from_bits(b))),
-                ],
-            }
-        };
-    }
-
-    props_for_float_q!(laws_f032q000, F032Q000, extended_float_f32, U0);
-    props_for_float_q!(laws_f032q002, F032Q002, extended_float_f32, U2);
-    props_for_float_q!(laws_f032q004, F032Q004, extended_float_f32, U4);
-    props_for_float_q!(laws_f032q008, F032Q008, extended_float_f32, U8);
-    props_for_float_q!(laws_f032q012, F032Q012, extended_float_f32, U12);
-    props_for_float_q!(laws_f032q016, F032Q016, extended_float_f32, U16);
-
-    props_for_float_q!(laws_f064q000, F064Q000, extended_float_f64, U0);
-    props_for_float_q!(laws_f064q002, F064Q002, extended_float_f64, U2);
-    props_for_float_q!(laws_f064q004, F064Q004, extended_float_f64, U4);
-    props_for_float_q!(laws_f064q008, F064Q008, extended_float_f64, U8);
-    props_for_float_q!(laws_f064q012, F064Q012, extended_float_f64, U12);
-    props_for_float_q!(laws_f064q016, F064Q016, extended_float_f64, U16);
+    // The f32/f64 → Q-format Galois proptest battery (168 generated
+    // tests across 12 Conns) lives in
+    // `tests/fixed_i16_float_q_galois.rs`. Same lib-test memory
+    // workaround as the Q→Q ladder.
 }
