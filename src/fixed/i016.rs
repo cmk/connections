@@ -25,7 +25,9 @@
 //! lower extreme.
 
 #[allow(unused_imports)]
-use super::{LE, ext_int, float_fixed, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext};
+use super::{
+    LE, ext_int, float_fixed, float_fixed_l, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext,
+};
 #[cfg(test)]
 #[allow(unused_imports)]
 use crate::fixed::{
@@ -204,6 +206,25 @@ float_fixed!(pub F064Q004, f64, FixedI16, U4,  i16);
 float_fixed!(pub F064Q008, f64, FixedI16, U8,  i16);
 float_fixed!(pub F064Q012, f64, FixedI16, U12, i16);
 float_fixed!(pub F064Q016, f64, FixedI16, U16, i16);
+
+// ── §7 f16 → FixedI16<U<frac>> narrowing ───────────────────────────
+//
+// Host bit-width 16 > f16 mantissa 11, so the inner map aliases
+// distinct Q-format values onto the same f16 at large magnitudes —
+// L-only (`ceil ⊣ inner`). Gated on `feature = "f16"` (nightly).
+
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q000, f16, FixedI16, U0,  i16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q002, f16, FixedI16, U2,  i16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q004, f16, FixedI16, U4,  i16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q008, f16, FixedI16, U8,  i16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q012, f16, FixedI16, U12, i16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q016, f16, FixedI16, U16, i16);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests

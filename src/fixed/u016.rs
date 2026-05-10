@@ -21,7 +21,9 @@
 //! lower adjoint lawful.
 
 #[allow(unused_imports)]
-use super::{LE, ext_int, float_fixed, nz_uint_ext, uint_int_sat, uint_uint, uint_uint_narrow};
+use super::{
+    LE, ext_int, float_fixed, float_fixed_l, nz_uint_ext, uint_int_sat, uint_uint, uint_uint_narrow,
+};
 #[cfg(test)]
 #[allow(unused_imports)]
 use crate::fixed::{
@@ -214,6 +216,28 @@ float_fixed!(pub F064Q012, f64, FixedU16, F12, u16);
 float_fixed!(pub F064Q014, f64, FixedU16, F14, u16);
 float_fixed!(pub F064Q015, f64, FixedU16, F15, u16);
 float_fixed!(pub F064Q016, f64, FixedU16, F16, u16);
+
+// ── §7 f16 → FixedU16<U<frac>> narrowing ───────────────────────────
+//
+// Host bit-width 16 > f16 mantissa 11, so L-only (`ceil ⊣ inner`).
+// Gated on `feature = "f16"` (nightly).
+
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q000, f16, FixedU16, F0,  u16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q002, f16, FixedU16, F2,  u16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q004, f16, FixedU16, F4,  u16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q008, f16, FixedU16, F8,  u16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q012, f16, FixedU16, F12, u16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q014, f16, FixedU16, F14, u16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q015, f16, FixedU16, F15, u16);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q016, f16, FixedU16, F16, u16);
 
 // ────────────────────────────────────────────────────────────────────
 // Tests

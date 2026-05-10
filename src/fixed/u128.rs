@@ -216,6 +216,26 @@ float_fixed_l!(pub F064Q096, f64, FixedU128, F96,  u128);
 float_fixed_l!(pub F064Q127, f64, FixedU128, F127, u128);
 float_fixed_l!(pub F064Q128, f64, FixedU128, F128, u128);
 
+// ── §7 f16 → FixedU128<U<frac>> narrowing ──────────────────────────
+//
+// Host bit-width 128 > f16 mantissa 11, so L-only (`ceil ⊣ inner`).
+// Gated on `feature = "f16"` (nightly).
+
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q000, f16, FixedU128, F0,   u128);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q016, f16, FixedU128, F16,  u128);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q032, f16, FixedU128, F32,  u128);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q064, f16, FixedU128, F64,  u128);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q096, f16, FixedU128, F96,  u128);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q127, f16, FixedU128, F127, u128);
+#[cfg(feature = "f16")]
+float_fixed_l!(pub F016Q128, f16, FixedU128, F128, u128);
+
 // ────────────────────────────────────────────────────────────────────
 // Tests
 // ────────────────────────────────────────────────────────────────────

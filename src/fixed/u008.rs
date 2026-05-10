@@ -309,6 +309,28 @@ float_fixed!(pub F064Q006, f64, FixedU8, F6, u8);
 float_fixed!(pub F064Q007, f64, FixedU8, F7, u8);
 float_fixed!(pub F064Q008, f64, FixedU8, F8, u8);
 
+// ── §7 f16 → FixedU8<U<frac>> narrowing ────────────────────────────
+//
+// Host bit-width 8 ≤ f16 mantissa 11, so every Conn is a full
+// adjoint triple. Gated on `feature = "f16"` (nightly).
+
+#[cfg(feature = "f16")]
+float_fixed!(pub F016Q000, f16, FixedU8, F0, u8);
+#[cfg(feature = "f16")]
+float_fixed!(pub F016Q001, f16, FixedU8, F1, u8);
+#[cfg(feature = "f16")]
+float_fixed!(pub F016Q002, f16, FixedU8, F2, u8);
+#[cfg(feature = "f16")]
+float_fixed!(pub F016Q003, f16, FixedU8, F3, u8);
+#[cfg(feature = "f16")]
+float_fixed!(pub F016Q004, f16, FixedU8, F4, u8);
+#[cfg(feature = "f16")]
+float_fixed!(pub F016Q006, f16, FixedU8, F6, u8);
+#[cfg(feature = "f16")]
+float_fixed!(pub F016Q007, f16, FixedU8, F7, u8);
+#[cfg(feature = "f16")]
+float_fixed!(pub F016Q008, f16, FixedU8, F8, u8);
+
 // ────────────────────────────────────────────────────────────────────
 // Tests
 // ────────────────────────────────────────────────────────────────────
