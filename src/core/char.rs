@@ -94,8 +94,7 @@ mod tests {
             assert_eq!(
                 U032CHAR.ceil(Extended::Finite(u)),
                 Extended::Finite('\u{E000}'),
-                "ceil({:#x})",
-                u
+                "ceil({u:#x})",
             );
         }
     }

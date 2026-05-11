@@ -16,11 +16,11 @@ useDefault = true
 [allowlist]
 description = "Paths that contain token-shaped regex fragments, not real secrets"
 paths = [
-    # scripts/check-pii.sh contains patterns like `sk-[A-Za-z0-9]{20,}`
+    # scripts/check_pii.sh contains patterns like `sk-[A-Za-z0-9]{20,}`
     # and `ghp_[A-Za-z0-9]{36}` as DETECTION regexes — these are
     # fragments, not live tokens, but gitleaks' default rules match
     # them as shapes.
-    '''scripts/check-pii\.sh''',
+    '''scripts/check_pii\.sh''',
     # Plans under doc/plans/ sometimes quote these patterns when
     # describing the PII scanner.
     '''doc/plans/.*\.md''',

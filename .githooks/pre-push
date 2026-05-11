@@ -1,38 +1,50 @@
 #!/usr/bin/env bash
-# .githooks/pre-push — git-side pre-push gate.
+# .githooks/pre-push — git-side pre-push gate (expensive checks).
 #
-# Companion to `.githooks/pre-commit` that runs once per push instead
-# of once per commit. The pre-commit hook chain (fmt, PII, README
-# mirror, test, clippy) catches per-commit drift; this hook adds the
-# checks that are too expensive to run on every commit but cheap
-# enough to run once before the work leaves the laptop.
+# Runs `cargo test` + `cargo clippy` + `cargo doc` once per push,
+# instead of once per commit. The fast checks live in
+# `.githooks/pre-commit` and already ran when local commits were
+# created.
 #
-# Currently runs:
-#
-#   1. cargo doc --no-deps --features testing,macros,time
-#      --document-private-items
-#      with `RUSTDOCFLAGS=-D warnings` — fails on broken intra-doc
-#      links and rustdoc warnings. Mirrors the CI `doc:` job in
-#      `.gitlab-ci.yml` and the stable docs.rs feature surface. CI
-#      catches these on MR pipelines and post-merge main, but
-#      mid-sprint feature-branch pushes don't trigger an MR pipeline,
-#      so accumulated link rot can land unnoticed until an MR is
-#      opened. Running locally before push closes that gap.
-#
-# Activate alongside pre-commit via:
-#
-#     git config core.hooksPath .githooks
-#
-# Bypass with `--no-verify` only when explicitly authorized.
-#
-# Exit codes follow git convention: nonzero blocks the push.
+# Stdin contract from githooks(5):
+#   <local-ref> <local-sha> <remote-ref> <remote-sha>
+# One line per ref being pushed. A delete uses the all-zero local SHA.
+# We only fire the suite if at least one ref pushes a non-zero local SHA.
 
 set -euo pipefail
 
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
-# 1. cargo doc — blocking. Catches broken intra-doc links and rustdoc
-#    warnings before they reach CI. Mirrors the `.gitlab-ci.yml` doc:
-#    job's invocation so the local check and CI agree.
-RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features testing,macros,time --document-private-items
+step() {
+  printf 'pre-push: %s\n' "$*"
+}
+
+zero_sha="0000000000000000000000000000000000000000"
+have_push=0
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  if [[ -n "$local_sha" && "$local_sha" != "$zero_sha" ]]; then
+    have_push=1
+  fi
+done
+
+if [[ "$have_push" -eq 0 ]]; then
+  step "no refs to push (delete-only or no-op); skipping suite"
+  exit 0
+fi
+
+# 1. cargo test — blocking. Single-crate, no --workspace.
+step "cargo test --quiet"
+cargo test --features fixed,time,hifi,testing,macros --quiet
+
+# 2. cargo clippy — blocking.
+step "cargo clippy --all-targets --quiet -- -D warnings"
+cargo clippy --all-targets --quiet -- -D warnings
+
+# 3. cargo doc — blocking. Catches broken intra-doc links and rustdoc
+#    warnings before they reach CI. Mirrors the `.github/workflows/ci.yml`
+#    `doc` job's invocation so the local check and CI agree.
+step "cargo doc --no-deps --features fixed,testing,macros,time --document-private-items"
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features fixed,testing,macros,time --document-private-items
+
+step "OK"

@@ -1,6 +1,6 @@
 # cargo-deny configuration. Run locally with `cargo deny check` (after
 # `cargo install cargo-deny`); CI runs the same via the `deny` job in
-# `.gitlab-ci.yml`.
+# `.github/workflows/ci.yml`.
 
 [advisories]
 # Fail the build on any unpatched RUSTSEC advisory affecting the

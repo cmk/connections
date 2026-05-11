@@ -1,5 +1,0 @@
-# CODEOWNERS — reviewers auto-requested on MRs touching matching paths.
-#
-# Syntax: https://docs.gitlab.com/ee/user/project/codeowners/reference.html
-
-* @cmk

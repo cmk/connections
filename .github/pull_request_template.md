@@ -9,7 +9,7 @@ spot checks exercised. Every plan-level property must be passing. -->
 
 ## Review trail
 
-- [ ] `/sprint-review` run locally; `doc/reviews/review-NNNNN.md` is current for this MR.
+- [ ] `scripts/pr_review.sh` run locally; `doc/reviews/review-NNNNN.md` is current for this PR.
 - [ ] All must-fix items from the local review are resolved.
 - [ ] No `#[ignore]`d property tests (or: re-enablement plan documented in the plan's Review section).
-- [ ] `cargo fmt --all` has been run (CI enforces fmt before clippy).
+- [ ] `cargo fmt --all` has been run (the CI `clippy` job's fmt check is blocking).

@@ -25,8 +25,8 @@ doc/notes/
 # Python bytecode from scripts/
 scripts/__pycache__/
 
-# /watch-mr state counter (per-MR, gitignored by design)
-.watch-mr/
+# /pr-watch state counter (per-PR, gitignored by design)
+.pr-watch/
 
 # CLAUDE.md backup files (policy: backup before edit)
 CLAUDE.md.bak.*
