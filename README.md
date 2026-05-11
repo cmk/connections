@@ -1,6 +1,6 @@
-[![CI](https://gitlab.com/cmk/connections/badges/main/pipeline.svg)](https://gitlab.com/cmk/connections/-/pipelines)
+[![CI](https://github.com/cmk/connections/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/connections/actions/workflows/ci.yml)
 
-Read the docs [here](https://cmk.gitlab.io/connections/).
+Read the docs [here](https://cmk.github.io/connections/).
 
 Galois connections as first-class Rust values. Use them to cast lawfully
 between numeric types, and compose ladders of conversions whose round-trip
@@ -35,7 +35,7 @@ assert_eq!(I016BE02.upper(bytes), 258_i16);
 assert_eq!(I016BE02.lower(bytes), 258_i16);
 ```
 
-See [EXAMPLES.md](https://gitlab.com/cmk/connections/-/blob/main/EXAMPLES.md)
+See [EXAMPLES.md](https://github.com/cmk/connections/blob/main/EXAMPLES.md)
 for a sequence of ten worked examples in various domains.
 
 # Why this crate
@@ -80,7 +80,7 @@ connection.
 
 Here is a simple connection between two 3-element sets:
 
-![](https://gitlab.com/cmk/connections/-/raw/main/img/example.png)
+![](https://github.com/cmk/connections/raw/main/img/example.png)
 
 (image courtesy of [7 Sketches in Compositionality](https://math.mit.edu/~dspivak/teaching/sp18/7Sketches.pdf)).
 
@@ -157,7 +157,7 @@ the following 'sandwich' inequality: for every `a`, `floor(a) ≤ ceil(a)`
 Triples `ceil`/`inner`/`floor` that satisfy all three properties are known
 as [adjoint triples](https://ncatlab.org/nlab/show/adjoint+triple) — the
 `ceil ⊣ inner ⊣ floor` shape outlined in
-[Example 3](https://gitlab.com/cmk/connections/-/blob/main/EXAMPLES.md#example-3).
+[Example 3](https://github.com/cmk/connections/blob/main/EXAMPLES.md#example-3).
 
 The sandwich inequality is equivalent to the requirement that `inner` be
 [order-reflecting](https://en.wikipedia.org/wiki/Order_theory#Functions_between_orders).
@@ -335,7 +335,7 @@ Beyond the proptest law suite — which samples — every Galois law on
 every integer / Q-format / NonZero / iso connection is **SMT-proven**
 over the full bit-width domain via
 [Kani](https://model-checking.github.io/kani/). The proof tree lives at
-[`src/kani_proofs/`](https://gitlab.com/cmk/connections/-/tree/main/src/kani_proofs)
+[`src/kani_proofs/`](https://github.com/cmk/connections/tree/main/src/kani_proofs)
 and is gated behind `#[cfg(kani)]` so it compiles only under
 `cargo kani` — release builds, `cargo test`, and downstream consumers
 see no proof code. No new runtime dependency: Kani injects its own

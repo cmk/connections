@@ -5,8 +5,8 @@ version = "0.0.0"
 rust-version = "1.88"
 license = "MIT"
 description = "Lawful numerical conversions"
-repository = "https://gitlab.com/cmk/connections"
-homepage = "https://cmk.gitlab.io/connections/"
+repository = "https://github.com/cmk/connections"
+homepage = "https://cmk.github.io/connections/"
 documentation = "https://docs.rs/connections"
 readme = "README.md"
 categories = ["mathematics", "encoding"]
@@ -26,10 +26,13 @@ keywords = [
 # README + LICENSE + CHANGELOG.
 exclude = [
     "/.claude",
+    "/.github",
+    "/.githooks",
     "/.gitlab-ci.yml",
     "/.gitleaks.toml",
+    "/.pii-allow",
+    "/AGENTS.md",
     "/CLAUDE.md",
-    "/CODEOWNERS",
     "/deny.toml",
     "/doc",
     "/img",
