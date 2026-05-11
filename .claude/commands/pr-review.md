@@ -149,9 +149,10 @@ auto-fixes, do not make another commit; `pr_review.sh` already
 committed the local-review artifact as a doc fixup.
 
 The pre-commit hook runs `cargo fmt --check`, `scripts/check_pii.sh`,
-and `scripts/check_layers.sh`. The pre-push hook runs
-`cargo test --workspace` and `cargo clippy --all-targets -- -D warnings`.
-If either fails:
+and `scripts/check_readme_mirror.sh`. The pre-push hook runs
+`cargo test --features fixed,time,hifi,testing,macros`,
+`cargo clippy --all-targets -- -D warnings`, and a `cargo doc` with
+`RUSTDOCFLAGS=-D warnings`. If any of these fails:
 
 - Read the failure. If a specific auto-fix caused the breakage,
   revert that one edit, reclassify the corresponding item as
