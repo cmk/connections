@@ -2,7 +2,7 @@
 //! cross-crate iso to `i128` and the IEEE-float → `FixedI128<F>` bridges.
 //!
 //! Pure-`core` Conns sourced from `i128` (signed narrowing,
-//! sign-flipped BE/LE byte iso, `i128 ↔ NonZeroI128`, …) live next
+//! two's-complement B2/L2 byte iso, `i128 ↔ NonZeroI128`, …) live next
 //! door in [`crate::core::i128`].
 //!
 //! Stable Rust has no native `i256` to widen through, so the i64-style

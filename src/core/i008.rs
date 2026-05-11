@@ -1,11 +1,11 @@
 //! `i8`-source std-int Conns plus the `i8 ↔ NonZeroI8` adjoint and
-//! sortable big- / little-endian byte encodings.
+//! two's-complement big- / little-endian byte encodings.
 //!
 //! Q-format / cross-crate isos to `FixedI8<F>` live next door in
 //! [`crate::fixed::i008`].
 
 #[allow(unused_imports)]
-use crate::core::LE;
+use crate::core::{B2, L2};
 use crate::core::{ext_int, int_uint, nz_int_ext};
 use ::core::num::NonZeroI8;
 
@@ -26,51 +26,51 @@ int_uint!(I008U128, i8, u128);
 
 nz_int_ext!(I008N008, i8, NonZeroI8);
 
-// ── Sortable big-endian byte encodings ────────────────────────────
+// ── Two's-complement big-endian byte encodings ────────────────────
 
-const fn i8_to_be01(x: i8) -> [u8; 1] {
-    [(x as u8) ^ 0x80]
+const fn i8_to_be01(x: i8) -> B2<1> {
+    B2([x as u8])
 }
-const fn be01_to_i8(b: [u8; 1]) -> i8 {
-    (b[0] ^ 0x80) as i8
+const fn be01_to_i8(b: B2<1>) -> i8 {
+    b.0[0] as i8
 }
 
 crate::iso! {
-    /// `i8 ↔ [u8; 1]` — sign-flipped iso so byte order matches signed order.
+    /// `i8 ↔ B2<1>` — raw two's-complement big-endian iso.
     ///
-    /// Forward XORs the sign bit so `i8::MIN` maps to `[0x00]` and
-    /// `i8::MAX` maps to `[0xFF]`; the reverse XOR recovers the
-    /// signed value bit-exactly.
+    /// The wrapper orders raw two's-complement bytes by decoded signed
+    /// value, so the raw byte map remains lawful as an iso.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::conn::{ConnL, ConnR};
+    /// use connections::B2;
     /// use connections::core::i008::I008BE01;
     ///
-    /// assert_eq!(I008BE01.ceil(i8::MIN), [0x00]);
-    /// assert_eq!(I008BE01.ceil(0_i8),    [0x80]);
-    /// assert_eq!(I008BE01.ceil(i8::MAX), [0xFF]);
-    /// assert_eq!(I008BE01.upper([0x00]), i8::MIN);
+    /// assert_eq!(I008BE01.ceil(i8::MIN), B2([0x80]));
+    /// assert_eq!(I008BE01.ceil(0_i8),    B2([0x00]));
+    /// assert_eq!(I008BE01.ceil(i8::MAX), B2([0x7F]));
+    /// assert_eq!(I008BE01.upper(B2([0x80])), i8::MIN);
     /// ```
-    pub I008BE01 : i8 => [u8; 1] {
+    pub I008BE01 : i8 => B2<1> {
         forward: i8_to_be01,
         back:    be01_to_i8,
     }
 }
 
-// ── Sortable little-endian byte encodings ─────────────────────────
+// ── Two's-complement little-endian byte encodings ─────────────────
 
-const fn i8_to_le01(x: i8) -> LE<1> {
-    LE([(x as u8) ^ 0x80])
+const fn i8_to_le01(x: i8) -> L2<1> {
+    L2([x as u8])
 }
-const fn le01_to_i8(b: LE<1>) -> i8 {
-    (b.0[0] ^ 0x80) as i8
+const fn le01_to_i8(b: L2<1>) -> i8 {
+    b.0[0] as i8
 }
 
 crate::iso! {
-    /// `i8 ↔ LE<1>` — sign-flipped little-endian iso with numeric-sort ordering.
-    pub I008LE01 : i8 => LE<1> {
+    /// `i8 ↔ L2<1>` — raw two's-complement little-endian iso.
+    pub I008LE01 : i8 => L2<1> {
         forward: i8_to_le01,
         back:    le01_to_i8,
     }
@@ -208,74 +208,81 @@ mod tests {
         }
     }
 
-    // ── BE / LE byte-encoding tests ────────────────────────────────
+    // ── B2 / L2 byte-encoding tests ────────────────────────────────
 
-    fn arb_byte1() -> impl Strategy<Value = [u8; 1]> {
+    fn arb_byte1() -> impl Strategy<Value = B2<1>> {
         prop_oneof![
             Just([0; 1]),
             Just([0xFF; 1]),
             Just([0x80]),
             any::<[u8; 1]>()
         ]
+        .prop_map(B2)
     }
 
-    fn arb_lebyte1() -> impl Strategy<Value = LE<1>> {
-        arb_byte1().prop_map(LE)
+    fn arb_lebyte1() -> impl Strategy<Value = L2<1>> {
+        prop_oneof![
+            Just([0; 1]),
+            Just([0xFF; 1]),
+            Just([0x80]),
+            any::<[u8; 1]>()
+        ]
+        .prop_map(L2)
     }
 
     proptest! {
         #[test]
-        fn i008_be_iso_roundtrip_l(a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]) {
+        fn i008_b2_iso_roundtrip_l(a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]) {
             prop_assert!(conn_laws::iso_roundtrip_l(&I008BE01.conn_l(), a));
         }
         #[test]
-        fn i008_be_roundtrip_ceil(b in arb_byte1()) {
+        fn i008_b2_roundtrip_ceil(b in arb_byte1()) {
             prop_assert!(conn_laws::roundtrip_ceil(&I008BE01.conn_l(), b));
         }
         #[test]
-        fn i008_be_galois_l(a in any::<i8>(), b in arb_byte1()) {
+        fn i008_b2_galois_l(a in any::<i8>(), b in arb_byte1()) {
             prop_assert!(conn_laws::galois_l(&I008BE01.conn_l(), a, b));
         }
         #[test]
-        fn i008_be_galois_r(a in any::<i8>(), b in arb_byte1()) {
+        fn i008_b2_galois_r(a in any::<i8>(), b in arb_byte1()) {
             prop_assert!(conn_laws::galois_r(&I008BE01.conn_r(), a, b));
         }
         #[test]
-        fn i008_be_floor_le_ceil(a in any::<i8>()) {
+        fn i008_b2_floor_le_ceil(a in any::<i8>()) {
             prop_assert!(conn_laws::floor_le_ceil(&I008BE01, a));
         }
         #[test]
-        fn i008_be_order_preserving(a in any::<i8>(), b in any::<i8>()) {
+        fn i008_b2_order_preserving(a in any::<i8>(), b in any::<i8>()) {
             prop_assert_eq!(a.cmp(&b), I008BE01.ceil(a).cmp(&I008BE01.ceil(b)));
         }
 
         #[test]
-        fn i008_le_iso_roundtrip_l(a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]) {
+        fn i008_l2_iso_roundtrip_l(a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]) {
             prop_assert!(conn_laws::iso_roundtrip_l(&I008LE01.conn_l(), a));
         }
 
         #[test]
-        fn i008_le_roundtrip_ceil(b in arb_lebyte1()) {
+        fn i008_l2_roundtrip_ceil(b in arb_lebyte1()) {
             prop_assert!(conn_laws::roundtrip_ceil(&I008LE01.conn_l(), b));
         }
 
         #[test]
-        fn i008_le_galois_l(a in any::<i8>(), b in arb_lebyte1()) {
+        fn i008_l2_galois_l(a in any::<i8>(), b in arb_lebyte1()) {
             prop_assert!(conn_laws::galois_l(&I008LE01.conn_l(), a, b));
         }
 
         #[test]
-        fn i008_le_galois_r(a in any::<i8>(), b in arb_lebyte1()) {
+        fn i008_l2_galois_r(a in any::<i8>(), b in arb_lebyte1()) {
             prop_assert!(conn_laws::galois_r(&I008LE01.conn_r(), a, b));
         }
 
         #[test]
-        fn i008_le_floor_le_ceil(a in any::<i8>()) {
+        fn i008_l2_floor_le_ceil(a in any::<i8>()) {
             prop_assert!(conn_laws::floor_le_ceil(&I008LE01, a));
         }
 
         #[test]
-        fn i008_le_order_preserving(a in any::<i8>(), b in any::<i8>()) {
+        fn i008_l2_order_preserving(a in any::<i8>(), b in any::<i8>()) {
             prop_assert_eq!(a.cmp(&b), I008LE01.ceil(a).cmp(&I008LE01.ceil(b)));
         }
     }

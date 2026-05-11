@@ -2,7 +2,7 @@
 //! cross-crate iso to `i16` and the IEEE-float → `FixedI16<F>` bridges.
 //!
 //! Pure-`core` Conns sourced from `i16` (signed widening/narrowing,
-//! sign-flipped BE/LE byte iso, `i16 ↔ NonZeroI16`, …) live next door
+//! two's-complement B2/L2 byte iso, `i16 ↔ NonZeroI16`, …) live next door
 //! in [`crate::core::i016`].
 //!
 //! For each ordered pair `(FineFrac, CoarseFrac)` from the level set

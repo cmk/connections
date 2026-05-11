@@ -7,8 +7,8 @@
 //! Same totality + Galois-axiom guarantees; same saturation plateau,
 //! and the same boundary fixups in `ceil` / `floor`.
 //!
-//! Pure-`core` Conns sourced from `i8` (signed widening, sign-flipped
-//! BE/LE byte iso, `i8 ↔ NonZeroI8`, …) live next door in
+//! Pure-`core` Conns sourced from `i8` (signed widening,
+//! two's-complement B2/L2 byte iso, `i8 ↔ NonZeroI8`, …) live next door in
 //! [`crate::core::i008`].
 //!
 //! # Examples

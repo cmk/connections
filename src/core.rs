@@ -30,7 +30,7 @@
 //! | `U`    | 1L+3D | unsigned std primitive (`uN`). Digits = bit-width.      |
 //! | `F`    | 1L+3D | IEEE binary float (`f16`/`f32`/`f64`). Digits = bit-width. |
 //! | `N`    | 1L+3D | `NonZero<iN>` / `NonZero<uN>`. Sign implicit by module path; digits = bit-width. |
-//! | `BE`/`LE` | 2L+2D | big-/little-endian byte array `[u8; N]` / [`LE`]. Digits = byte count. |
+//! | `BE`/`LE` | 2L+2D | big-/little-endian byte array (`[u8; N]`, [`LE`], [`B2`], [`L2`]). Digits = byte count. |
 //!
 //! Cross-module name collisions are allowed and resolved by qualified import.
 //!
@@ -105,9 +105,117 @@ impl<const N: usize> AsRef<[u8; N]> for LE<N> {
     }
 }
 
+/// Big-endian two's-complement byte array wrapper with signed numeric-sort ordering.
+///
+/// Plain `[u8; N]` uses lexicographic order from index 0 upward, which
+/// makes unsigned big-endian byte arrays sortable but breaks signed
+/// two's-complement order because negative values have the sign bit set.
+/// `B2<N>` keeps the big-endian storage shape while ordering by the
+/// decoded signed value.
+#[repr(transparent)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct B2<const N: usize>(pub [u8; N]);
+
+impl<const N: usize> Ord for B2<N> {
+    #[inline]
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        if N == 0 {
+            return core::cmp::Ordering::Equal;
+        }
+
+        (self.0[0] ^ 0x80)
+            .cmp(&(other.0[0] ^ 0x80))
+            .then_with(|| self.0[1..].cmp(&other.0[1..]))
+    }
+}
+
+impl<const N: usize> PartialOrd for B2<N> {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for B2<N> {
+    #[inline]
+    fn from(bytes: [u8; N]) -> Self {
+        Self(bytes)
+    }
+}
+
+impl<const N: usize> From<B2<N>> for [u8; N] {
+    #[inline]
+    fn from(bytes: B2<N>) -> Self {
+        bytes.0
+    }
+}
+
+impl<const N: usize> AsRef<[u8; N]> for B2<N> {
+    #[inline]
+    fn as_ref(&self) -> &[u8; N] {
+        &self.0
+    }
+}
+
+/// Little-endian two's-complement byte array wrapper with signed numeric-sort ordering.
+///
+/// Plain `[u8; N]` uses lexicographic order from index 0 upward, which
+/// makes unsigned big-endian byte arrays sortable but breaks both
+/// little-endian byte order and signed two's-complement order. `L2<N>`
+/// keeps the little-endian storage shape while ordering by the decoded
+/// signed value.
+#[repr(transparent)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct L2<const N: usize>(pub [u8; N]);
+
+impl<const N: usize> Ord for L2<N> {
+    #[inline]
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        let mut lhs = self.0.iter().rev();
+        let mut rhs = other.0.iter().rev();
+
+        let Some(&lhs_sign) = lhs.next() else {
+            return core::cmp::Ordering::Equal;
+        };
+        let rhs_sign = *rhs.next().expect("matching const length");
+
+        (lhs_sign ^ 0x80)
+            .cmp(&(rhs_sign ^ 0x80))
+            .then_with(|| lhs.cmp(rhs))
+    }
+}
+
+impl<const N: usize> PartialOrd for L2<N> {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for L2<N> {
+    #[inline]
+    fn from(bytes: [u8; N]) -> Self {
+        Self(bytes)
+    }
+}
+
+impl<const N: usize> From<L2<N>> for [u8; N] {
+    #[inline]
+    fn from(bytes: L2<N>) -> Self {
+        bytes.0
+    }
+}
+
+impl<const N: usize> AsRef<[u8; N]> for L2<N> {
+    #[inline]
+    fn as_ref(&self) -> &[u8; N] {
+        &self.0
+    }
+}
+
 #[cfg(test)]
 mod le_tests {
-    use super::LE;
+    use super::{B2, L2, LE};
 
     #[test]
     fn le_order_compares_most_significant_byte_first() {
@@ -121,6 +229,36 @@ mod le_tests {
     fn le_equality_matches_inner_bytes() {
         assert_eq!(LE([1, 2, 3, 4]), LE([1, 2, 3, 4]));
         assert_ne!(LE([1, 2, 3, 4]), LE([1, 2, 3, 5]));
+    }
+
+    #[test]
+    fn b2_order_compares_as_signed_big_endian() {
+        assert!(B2([0x80]) < B2([0x00]));
+        assert!(B2([0xFF]) < B2([0x00]));
+        assert!(B2([0x80, 0x00]) < B2([0xFF, 0xFF]));
+        assert!(B2([0xFF, 0xFF]) < B2([0x00, 0x00]));
+        assert!(B2([0x00, 0x00]) < B2([0x7F, 0xFF]));
+    }
+
+    #[test]
+    fn b2_equality_matches_inner_bytes() {
+        assert_eq!(B2([1, 2, 3, 4]), B2([1, 2, 3, 4]));
+        assert_ne!(B2([1, 2, 3, 4]), B2([1, 2, 3, 5]));
+    }
+
+    #[test]
+    fn l2_order_compares_as_signed_little_endian() {
+        assert!(L2([0x80]) < L2([0x00]));
+        assert!(L2([0xFF]) < L2([0x00]));
+        assert!(L2([0x00, 0x80]) < L2([0xFF, 0xFF]));
+        assert!(L2([0xFF, 0xFF]) < L2([0x00, 0x00]));
+        assert!(L2([0x00, 0x00]) < L2([0xFF, 0x7F]));
+    }
+
+    #[test]
+    fn l2_equality_matches_inner_bytes() {
+        assert_eq!(L2([1, 2, 3, 4]), L2([1, 2, 3, 4]));
+        assert_ne!(L2([1, 2, 3, 4]), L2([1, 2, 3, 5]));
     }
 }
 

@@ -1,11 +1,11 @@
 //! `i64`-source std-int Conns plus the `i64 ↔ NonZeroI64` adjoint and
-//! sortable big- / little-endian byte encodings.
+//! two's-complement big- / little-endian byte encodings.
 //!
 //! Q-format / cross-crate isos to `FixedI64<F>` live next door in
 //! [`crate::fixed::i064`].
 
 #[allow(unused_imports)]
-use crate::core::LE;
+use crate::core::{B2, L2};
 use crate::core::{ext_int, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext};
 use ::core::num::NonZeroI64;
 
@@ -26,35 +26,35 @@ int_uint!(I064U128, i64, u128);
 
 nz_int_ext!(I064N064, i64, NonZeroI64);
 
-// ── Sortable big-endian byte encodings ────────────────────────────
+// ── Two's-complement big-endian byte encodings ────────────────────
 
-const fn i64_to_be08(x: i64) -> [u8; 8] {
-    ((x as u64) ^ 0x8000_0000_0000_0000).to_be_bytes()
+const fn i64_to_be08(x: i64) -> B2<8> {
+    B2(x.to_be_bytes())
 }
-const fn be08_to_i64(b: [u8; 8]) -> i64 {
-    (u64::from_be_bytes(b) ^ 0x8000_0000_0000_0000) as i64
+const fn be08_to_i64(b: B2<8>) -> i64 {
+    i64::from_be_bytes(b.0)
 }
 
 crate::iso! {
-    /// `i64 ↔ [u8; 8]` — sign-flipped big-endian iso.
-    pub I064BE08 : i64 => [u8; 8] {
+    /// `i64 ↔ B2<8>` — raw two's-complement big-endian iso.
+    pub I064BE08 : i64 => B2<8> {
         forward: i64_to_be08,
         back:    be08_to_i64,
     }
 }
 
-// ── Sortable little-endian byte encodings ─────────────────────────
+// ── Two's-complement little-endian byte encodings ─────────────────
 
-const fn i64_to_le08(x: i64) -> LE<8> {
-    LE(((x as u64) ^ 0x8000_0000_0000_0000).to_le_bytes())
+const fn i64_to_le08(x: i64) -> L2<8> {
+    L2(x.to_le_bytes())
 }
-const fn le08_to_i64(b: LE<8>) -> i64 {
-    (u64::from_le_bytes(b.0) ^ 0x8000_0000_0000_0000) as i64
+const fn le08_to_i64(b: L2<8>) -> i64 {
+    i64::from_le_bytes(b.0)
 }
 
 crate::iso! {
-    /// `i64 ↔ LE<8>` — sign-flipped little-endian iso with numeric-sort ordering.
-    pub I064LE08 : i64 => LE<8> {
+    /// `i64 ↔ L2<8>` — raw two's-complement little-endian iso.
+    pub I064LE08 : i64 => L2<8> {
         forward: i64_to_le08,
         back:    le08_to_i64,
     }
@@ -109,67 +109,67 @@ mod tests {
     // (Reference to I008I064/I016I064 is via the import above; the
     // signed-i64-source proptests for byte encodings appear next.)
 
-    fn arb_byte8() -> impl Strategy<Value = [u8; 8]> {
-        prop_oneof![Just([0; 8]), Just([0xFF; 8]), any::<[u8; 8]>()]
+    fn arb_byte8() -> impl Strategy<Value = B2<8>> {
+        prop_oneof![Just([0; 8]), Just([0xFF; 8]), any::<[u8; 8]>()].prop_map(B2)
     }
 
-    fn arb_lebyte8() -> impl Strategy<Value = LE<8>> {
-        arb_byte8().prop_map(LE)
+    fn arb_lebyte8() -> impl Strategy<Value = L2<8>> {
+        prop_oneof![Just([0; 8]), Just([0xFF; 8]), any::<[u8; 8]>()].prop_map(L2)
     }
 
     proptest! {
         #[test]
-        fn i64_be_iso_roundtrip_l(a in prop_oneof![Just(i64::MIN), Just(0i64), Just(i64::MAX), any::<i64>()]) {
+        fn i64_b2_iso_roundtrip_l(a in prop_oneof![Just(i64::MIN), Just(0i64), Just(i64::MAX), any::<i64>()]) {
             prop_assert!(conn_laws::iso_roundtrip_l(&I064BE08.conn_l(), a));
         }
         #[test]
-        fn i64_be_roundtrip_ceil(b in arb_byte8()) {
+        fn i64_b2_roundtrip_ceil(b in arb_byte8()) {
             prop_assert!(conn_laws::roundtrip_ceil(&I064BE08.conn_l(), b));
         }
         #[test]
-        fn i64_be_galois_l(a in any::<i64>(), b in arb_byte8()) {
+        fn i64_b2_galois_l(a in any::<i64>(), b in arb_byte8()) {
             prop_assert!(conn_laws::galois_l(&I064BE08.conn_l(), a, b));
         }
         #[test]
-        fn i64_be_galois_r(a in any::<i64>(), b in arb_byte8()) {
+        fn i64_b2_galois_r(a in any::<i64>(), b in arb_byte8()) {
             prop_assert!(conn_laws::galois_r(&I064BE08.conn_r(), a, b));
         }
         #[test]
-        fn i64_be_floor_le_ceil(a in any::<i64>()) {
+        fn i64_b2_floor_le_ceil(a in any::<i64>()) {
             prop_assert!(conn_laws::floor_le_ceil(&I064BE08, a));
         }
         #[test]
-        fn i64_be_order_preserving(a in any::<i64>(), b in any::<i64>()) {
+        fn i64_b2_order_preserving(a in any::<i64>(), b in any::<i64>()) {
             prop_assert_eq!(a.cmp(&b), I064BE08.ceil(a).cmp(&I064BE08.ceil(b)));
         }
 
         #[test]
-        fn i064_le_iso_roundtrip_l(a in prop_oneof![Just(i64::MIN), Just(0i64), Just(i64::MAX), any::<i64>()]) {
+        fn i064_l2_iso_roundtrip_l(a in prop_oneof![Just(i64::MIN), Just(0i64), Just(i64::MAX), any::<i64>()]) {
             prop_assert!(conn_laws::iso_roundtrip_l(&I064LE08.conn_l(), a));
         }
 
         #[test]
-        fn i064_le_roundtrip_ceil(b in arb_lebyte8()) {
+        fn i064_l2_roundtrip_ceil(b in arb_lebyte8()) {
             prop_assert!(conn_laws::roundtrip_ceil(&I064LE08.conn_l(), b));
         }
 
         #[test]
-        fn i064_le_galois_l(a in any::<i64>(), b in arb_lebyte8()) {
+        fn i064_l2_galois_l(a in any::<i64>(), b in arb_lebyte8()) {
             prop_assert!(conn_laws::galois_l(&I064LE08.conn_l(), a, b));
         }
 
         #[test]
-        fn i064_le_galois_r(a in any::<i64>(), b in arb_lebyte8()) {
+        fn i064_l2_galois_r(a in any::<i64>(), b in arb_lebyte8()) {
             prop_assert!(conn_laws::galois_r(&I064LE08.conn_r(), a, b));
         }
 
         #[test]
-        fn i064_le_floor_le_ceil(a in any::<i64>()) {
+        fn i064_l2_floor_le_ceil(a in any::<i64>()) {
             prop_assert!(conn_laws::floor_le_ceil(&I064LE08, a));
         }
 
         #[test]
-        fn i064_le_order_preserving(a in any::<i64>(), b in any::<i64>()) {
+        fn i064_l2_order_preserving(a in any::<i64>(), b in any::<i64>()) {
             prop_assert_eq!(a.cmp(&b), I064LE08.ceil(a).cmp(&I064LE08.ceil(b)));
         }
     }
