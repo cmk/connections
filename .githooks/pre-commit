@@ -1,31 +1,23 @@
 #!/usr/bin/env bash
-# .githooks/pre-commit — git-side pre-commit gate.
+# .githooks/pre-commit — git-side pre-commit gate (cheap checks).
 #
-# Companion to the Claude Code `PreToolUse` hook in
-# `.claude/settings.json`. The two layers complement each other:
+# Companion to:
 #
-#   - `.claude/settings.json` runs DURING agent iteration, BEFORE
+#   - `.claude/settings.json` runs DURING agent iteration, before
 #     the Bash call that invokes git fires. Catches issues without
 #     the agent needing to actually invoke git, which is faster
-#     feedback. Limitation: hooks run in Claude Code's session cwd,
-#     not the cwd a `cd` inside the matched compound command would
-#     reach. So a `cd <worktree> && git commit -m "..."` call has
-#     this layer's `cargo fmt` / `cargo clippy` checking the launch
-#     directory, not the worktree. Direct `git commit` runs from
-#     the project root are caught fine.
+#     feedback. But: it sees the staged diff at PreToolUse time,
+#     which means a chained command like `git add file && git
+#     commit -m ...` slips through — the `git add` half hasn't
+#     run yet at hook fire, so `check_pii.sh` reads an empty
+#     pre-add staged diff.
 #
-#   - `.githooks/pre-commit` (this file) runs at git's standard
-#     `pre-commit` hook point — AFTER staging, BEFORE the commit
-#     object is created, in the actual repo working directory. So
-#     it sees the actual staged content regardless of how the
-#     commit was invoked: chained `git add && git commit`,
-#     agent-invoked Bash calls in any worktree, terminal commits,
-#     IDE commits, all paths.
+#   - `.githooks/pre-push` runs expensive checks once per push
+#     instead of once per commit.
 #
-# This file is the unbypassable safety net at commit time. See
-# `.githooks/pre-push` for the once-per-push partner that runs
-# heavier checks (e.g. `cargo doc`) too expensive for every commit.
-# Activate both on a fresh clone with:
+# This file holds cheap deterministic checks that catch high-leverage
+# mistakes at commit time after staging. Activate hooks on a fresh
+# clone with:
 #
 #     git config core.hooksPath .githooks
 #
@@ -38,20 +30,22 @@ set -euo pipefail
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
+step() {
+  printf 'pre-commit: %s\n' "$*"
+}
+
 # 1. cargo fmt — blocking. Drift aborts the commit. Run
 #    `cargo fmt --all` to fix.
+step "cargo fmt --all -- --check"
 cargo fmt --all -- --check
 
-# 2. PII / secret scan — blocking. Greps the staged diff for
-#    absolute user-home paths and common API-token shapes.
-scripts/check-pii.sh
+# 2. PII / secret scan — blocking.
+step "scripts/check_pii.sh"
+scripts/check_pii.sh
 
 # 3. README-mirror drift check — blocking. Fails if README sections
 #    that are mirrored from rustdoc have drifted out of sync.
+step "scripts/check_readme_mirror.sh"
 scripts/check_readme_mirror.sh
 
-# 4. Test suite — blocking.
-cargo test --workspace --quiet
-
-# 5. Lints — blocking; matches CI.
-cargo clippy --all-targets --quiet -- -D warnings
+step "OK"
