@@ -7,7 +7,19 @@
 # dependency graph. Yanked crates are a warning (sometimes unavoidable
 # transitively) rather than an error.
 yanked = "warn"
-ignore = []
+ignore = [
+    # RUSTSEC-2026-0009 — `time` < 0.3.47 DoS via stack exhaustion in
+    # the RFC-2822 parser. We're pinned to `time = ">=0.3, <0.3.46"`
+    # to avoid 0.3.46's stricter `year >= -9999` assertion that our
+    # `arb_offset_dt` proptest strategy trips on at the Date::MIN
+    # boundary with a non-zero UTC offset. Connections does not call
+    # any RFC-2822 parser path (no `parse(Rfc2822)`, no
+    # `OffsetDateTime::parse(_, &Rfc2822)`), so the attack surface
+    # is zero for our usage. Drop this entry after clamping
+    # `arb_date()`'s year range so we can float `time = "0.3"` and
+    # adopt the fix that landed in 0.3.47.
+    "RUSTSEC-2026-0009",
+]
 
 [bans]
 # Multiple versions of the same crate usually indicate a dependency
