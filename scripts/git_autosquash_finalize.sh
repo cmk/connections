@@ -44,8 +44,9 @@ GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main
 
 cargo fmt --all -- --check
 scripts/check_pii.sh
-scripts/check_layers.sh
-cargo test --workspace
+scripts/check_readme_mirror.sh
+cargo test --features fixed,time,hifi,testing,macros
 cargo clippy --all-targets -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --features fixed,testing,macros,time --document-private-items
 
 git push --force-with-lease origin "HEAD:$branch"
