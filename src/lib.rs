@@ -74,15 +74,16 @@
 //! - [`core::u064::U064U008`] — `u64 → u8` unsigned-narrowing saturating cast.
 //! - [`core::u008::U008I008`] — `u8 → i8` non-widening cross-sign (right-Galois single-sided).
 //! - [`core::i016::I016U008`] — `i16 → u8` cross-sign narrowing (negative-clip + saturate).
-//! - [`fixed::u008::Q008Q007`] — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
+//! - `fixed::u008::Q008Q007` — `FixedU8<U8> → FixedU8<U7>` (Q0.8 ↔ Q1.7,
 //!   the 7-bit MIDI velocity format).
-//! - [`fixed::u016::Q016Q015`] — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
+//! - `fixed::u016::Q016Q015` — `FixedU16<U16> → FixedU16<U15>` (Q0.16 ↔ Q1.15,
 //!   canonical signed-PCM-equivalent unsigned audio amplitude).
-//! - [`fixed::u032::Q032Q031`] — `FixedU32<U32> → FixedU32<U31>` (Q0.32 ↔ Q1.31,
+//! - `fixed::u032::Q032Q031` — `FixedU32<U32> → FixedU32<U31>` (Q0.32 ↔ Q1.31,
 //!   the canonical 32-bit normalised-amplitude format).
 //! - [`core::i008::I008N008`] — `i8 → NonZeroI8` (asymmetric adjoint
 //!   at zero: `floor(0) = -1`, `ceil(0) = +1`).
-//! - [`fixed::i008::I008Q000`] — `i8 ↔ FixedI8<U0>` cross-crate iso
+//! - `fixed::i008::Q000I008` — `FixedI8<U0> ↔ i8` cross-crate iso
+//! - `fixed::i016::Q015I016` — signed normalized `FixedI16<U15> ↔ i16` bit iso
 //!   (Q8.0 lossless bridge to the std primitive).
 //!
 //! `F128` is blocked on `f128` stabilisation in stable Rust.
@@ -189,6 +190,8 @@ pub mod addr;
 pub mod conn;
 pub mod core;
 pub mod extended;
+#[cfg_attr(docsrs, doc(cfg(feature = "fixed")))]
+#[cfg(feature = "fixed")]
 pub mod fixed;
 pub mod float;
 #[cfg(feature = "hifi")]
@@ -238,7 +241,7 @@ pub mod prop;
 // one macro family in `src/fixed.rs` and proves the same laws that
 // `tests/*_galois.rs` exercise via proptest, but for *all* inputs
 // within the bit-width rather than a sampled subset.
-#[cfg(kani)]
+#[cfg(all(kani, feature = "fixed"))]
 mod kani_proofs;
 
 /// Codegen macros for downstream crates building their own

@@ -1,3 +1,5 @@
+#![cfg(feature = "fixed")]
+
 //! Galois-law proptest battery for `fixed::i128`'s f32/f64 → Q-format Conns.
 //! Both sources are L-only (host bits 128 > both mantissa thresholds).
 

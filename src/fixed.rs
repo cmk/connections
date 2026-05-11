@@ -13,7 +13,7 @@
 //!
 //! - [`mod@i008`] / [`mod@i016`] / [`mod@i032`] / [`mod@i064`] / [`mod@i128`] —
 //!   signed `FixedI<N><Frac>` Q-format Conns, plus the cross-crate iso
-//!   to the matching std integer (`I008Q000` etc.) and the
+//!   to the matching std integer (`Q000I008` etc.) and the
 //!   float-bridge Conns (`F032Q*` / `F064Q*`).
 //! - [`mod@u008`] / [`mod@u016`] / [`mod@u032`] / [`mod@u064`] / [`mod@u128`] —
 //!   unsigned `FixedU<N><Frac>` Q-format Conns plus their cross-crate
@@ -36,8 +36,10 @@
 //! Within this module, the `Q` prefix denotes a `FixedI<N>` /
 //! `FixedU<N>` Q-format side; sign is implicit from the module path
 //! (`fixed::i008` → signed 8-bit, `fixed::u008` → unsigned 8-bit) and
-//! the 3-digit field is the frac bit count. Cross-crate isos to the
-//! matching std primitive use the `I###Q000` / `U###Q000` shape.
+//! the 3-digit field is the frac bit count. Cross-crate Q.0 isos to
+//! the matching std primitive use the `Q000I###` / `Q000U###` shape;
+//! signed normalized bit isos use `Q<bits-1>I<bits>` (for example
+//! `Q015I016` for Q1.15 over `i16` storage).
 //! Float-bridge Conns use the `F032Q###` / `F064Q###` (and `F016Q###`
 //! gated on the `f16` feature) shapes, with the float side living on
 //! the left.

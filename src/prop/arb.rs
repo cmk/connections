@@ -1430,8 +1430,8 @@ mod hifi_epoch {
 
     /// `i128` strategy bounded to the GPST-anchored round-trippable
     /// range for `EGPSNANO`. Same asymmetric pattern as
-    /// [`arb_hifi_unix_nanos_in_range`]; bodies factored through
-    /// [`arb_hifi_scale_nanos_in_range`].
+    /// [`arb_hifi_unix_nanos_in_range`]; bodies share the same private
+    /// range helper.
     pub fn arb_hifi_gpst_nanos_in_range() -> impl Strategy<Value = i128> {
         arb_hifi_scale_nanos_in_range(GPST_REF_EPOCH.to_tai_duration().total_nanoseconds())
     }

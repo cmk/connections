@@ -6,22 +6,39 @@
 
 use super::float_fixed_l;
 use ::fixed::FixedI64;
-use ::fixed::types::extra::{U0, U8, U16, U32, U48, U64, Unsigned};
+use ::fixed::types::extra::{U0, U8, U16, U32, U48, U63, U64, Unsigned};
 
-// ── Cross-crate iso: i64 ↔ FixedI64<U0> ────────────────────────────
+// ── Cross-crate isos: FixedI64<U*> ↔ i64 ──────────────────────────
 
-const fn i064q000_fwd(i: i64) -> FixedI64<U0> {
+const fn q000i064_fwd(q: FixedI64<U0>) -> i64 {
+    q.to_bits()
+}
+const fn q000i064_bk(i: i64) -> FixedI64<U0> {
     FixedI64::<U0>::from_bits(i)
 }
-const fn i064q000_bk(q: FixedI64<U0>) -> i64 {
+
+const fn q063i064_fwd(q: FixedI64<U63>) -> i64 {
     q.to_bits()
+}
+const fn q063i064_bk(i: i64) -> FixedI64<U63> {
+    FixedI64::<U63>::from_bits(i)
 }
 
 crate::iso! {
-    /// `i64 ↔ FixedI64<U0>` — Q64.0 lossless iso. Degenerate Galois.
-    pub I064Q000 : i64 => FixedI64<U0> {
-        forward: i064q000_fwd,
-        back:    i064q000_bk,
+    /// `FixedI64<U0> ↔ i64` — Q64.0 lossless iso. Degenerate Galois.
+    pub Q000I064 : FixedI64<U0> => i64 {
+        forward: q000i064_fwd,
+        back:    q000i064_bk,
+    }
+}
+
+crate::iso! {
+    /// `FixedI64<U63> ↔ i64` — signed normalized Q1.63 lossless bit iso.
+    /// Numeric Q values cover `[-1, 1 - 2^-63]`; the primitive carries
+    /// the same two's-complement storage bits.
+    pub Q063I064 : FixedI64<U63> => i64 {
+        forward: q063i064_fwd,
+        back:    q063i064_bk,
     }
 }
 

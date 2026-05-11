@@ -6,22 +6,39 @@
 
 use super::{float_fixed, float_fixed_l};
 use ::fixed::FixedI32;
-use ::fixed::types::extra::{U0, U4, U8, U16, U24, U32, Unsigned};
+use ::fixed::types::extra::{U0, U4, U8, U16, U24, U31, U32, Unsigned};
 
-// ── Cross-crate iso: i32 ↔ FixedI32<U0> ────────────────────────────
+// ── Cross-crate isos: FixedI32<U*> ↔ i32 ──────────────────────────
 
-const fn i032q000_fwd(i: i32) -> FixedI32<U0> {
+const fn q000i032_fwd(q: FixedI32<U0>) -> i32 {
+    q.to_bits()
+}
+const fn q000i032_bk(i: i32) -> FixedI32<U0> {
     FixedI32::<U0>::from_bits(i)
 }
-const fn i032q000_bk(q: FixedI32<U0>) -> i32 {
+
+const fn q031i032_fwd(q: FixedI32<U31>) -> i32 {
     q.to_bits()
+}
+const fn q031i032_bk(i: i32) -> FixedI32<U31> {
+    FixedI32::<U31>::from_bits(i)
 }
 
 crate::iso! {
-    /// `i32 ↔ FixedI32<U0>` — Q32.0 lossless iso. Degenerate Galois.
-    pub I032Q000 : i32 => FixedI32<U0> {
-        forward: i032q000_fwd,
-        back:    i032q000_bk,
+    /// `FixedI32<U0> ↔ i32` — Q32.0 lossless iso. Degenerate Galois.
+    pub Q000I032 : FixedI32<U0> => i32 {
+        forward: q000i032_fwd,
+        back:    q000i032_bk,
+    }
+}
+
+crate::iso! {
+    /// `FixedI32<U31> ↔ i32` — signed normalized Q1.31 lossless bit iso.
+    /// Numeric Q values cover `[-1, 1 - 2^-31]`; the primitive carries
+    /// the same two's-complement storage bits.
+    pub Q031I032 : FixedI32<U31> => i32 {
+        forward: q031i032_fwd,
+        back:    q031i032_bk,
     }
 }
 

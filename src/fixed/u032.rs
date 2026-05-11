@@ -12,20 +12,20 @@ use ::fixed::types::extra::{
     U0 as F0, U4 as F4, U8 as F8, U16 as F16, U24 as F24, U31 as F31, U32 as F32, Unsigned,
 };
 
-// ── Cross-crate iso: u32 ↔ FixedU32<F0> ────────────────────────────
+// ── Cross-crate iso: FixedU32<F0> ↔ u32 ───────────────────────────
 
-const fn u032q000_fwd(i: u32) -> FixedU32<F0> {
-    FixedU32::<F0>::from_bits(i)
-}
-const fn u032q000_bk(q: FixedU32<F0>) -> u32 {
+const fn q000u032_fwd(q: FixedU32<F0>) -> u32 {
     q.to_bits()
+}
+const fn q000u032_bk(i: u32) -> FixedU32<F0> {
+    FixedU32::<F0>::from_bits(i)
 }
 
 crate::iso! {
-    /// `u32 ↔ FixedU32<F0>` — Q32.0 unsigned lossless iso. Degenerate Galois.
-    pub U032Q000 : u32 => FixedU32<F0> {
-        forward: u032q000_fwd,
-        back:    u032q000_bk,
+    /// `FixedU32<F0> ↔ u32` — Q32.0 unsigned lossless iso. Degenerate Galois.
+    pub Q000U032 : FixedU32<F0> => u32 {
+        forward: q000u032_fwd,
+        back:    q000u032_bk,
     }
 }
 

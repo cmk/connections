@@ -1,3 +1,5 @@
+#![cfg(feature = "fixed")]
+
 //! Galois-law proptest battery for `conn::fixed::u008`.
 //!
 //! Hosted as an integration test (separate crate) so the main lib

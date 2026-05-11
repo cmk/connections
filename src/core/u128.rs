@@ -2,7 +2,7 @@
 //! sortable big- / little-endian byte encodings.
 //!
 //! Q-format / cross-crate isos to `FixedU128<F>` live next door in
-//! [`crate::fixed::u128`].
+//! `crate::fixed::u128`.
 
 #[allow(unused_imports)]
 use crate::core::LE;

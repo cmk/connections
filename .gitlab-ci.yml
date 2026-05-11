@@ -83,17 +83,13 @@ clippy:
 doc:
   stage: check
   # Catch broken intra-doc links and rustdoc warnings before docs.rs
-  # builds the published release. The feature set
-  # `testing,macros,time` matches the docs.rs config in Cargo.toml
-  # so feature-gated items (`prop::arb`, `connections::macros`,
-  # `connections::time`) render the same way locally as on docs.rs.
-  # Cannot use `--all-features` here: the `f16` feature activates
-  # `#![cfg_attr(feature = "f16", feature(f16))]`, a nightly-only
-  # attribute that errors on this CI image's stable rustc.
+  # builds the published release. Keep this MR gate skinny: optional
+  # feature surfaces are covered by `doc-all-features-nightly` on
+  # schedules/manual runs and by docs.rs metadata for releases.
   variables:
     RUSTDOCFLAGS: "-D warnings"
   script:
-    - cargo doc --no-deps --features testing,macros,time --document-private-items
+    - cargo doc --no-deps --document-private-items
   # MR pipelines gate source changes. Post-merge main docs are rendered
   # by the strict `pages` job, so this check skips duplicated main work.
   rules:
@@ -128,18 +124,27 @@ test:
     - 'curl -fsSL "https://get.nexte.st/0.9.133/linux" | tar -xz -C /usr/local/bin cargo-nextest'
   script:
     # `nextest` parallelizes individual `#[test]` fns (vs `cargo test`
-    # which parallelizes only test binaries). Per-test timings are
-    # printed natively; the `[profile.ci]` block in
-    # `.config/nextest.toml` controls slow-timeout and fail-fast.
-    - cargo nextest run --workspace --profile ci
-    # nextest doesn't run doctests; keep `cargo test --doc` as a
-    # separate, fast pass to maintain doctest coverage.
-    - cargo test --workspace --doc
+    # which parallelizes only test binaries). The selector keeps MR
+    # pipelines conservative but avoids compiling/running unrelated
+    # connection families when the diff is local to one module.
+    - bash scripts/ci-select-tests.sh
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes: *rust_source_paths
     - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH
       changes: *rust_source_paths
+
+doc-all-features-nightly:
+  stage: check
+  image: rust:1.92
+  variables:
+    RUSTDOCFLAGS: "-D warnings"
+  script:
+    - rustup toolchain install nightly --profile minimal
+    - cargo +nightly doc --no-deps --all-features --document-private-items
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $DOC_ALL_FEATURES_NIGHTLY
 
 deny:
   stage: audit
@@ -326,7 +331,7 @@ kani:
 # that the Pages root URL lands on the crate index. Resulting URL:
 # `https://<group>.gitlab.io/<project>/connections/`.
 #
-# `--features testing,macros,time` matches the docs.rs config in
+# `--features fixed,testing,macros,time` matches the docs.rs config in
 # Cargo.toml so the Pages build renders the same stable feature surface
 # as the published docs. The `f16` feature stays off because it requires
 # nightly; users wanting that path build locally.
@@ -335,7 +340,7 @@ pages:
   variables:
     RUSTDOCFLAGS: "-D warnings"
   script:
-    - cargo doc --no-deps --features testing,macros,time --document-private-items
+    - cargo doc --no-deps --features fixed,testing,macros,time --document-private-items
     - rm -rf public
     - mv target/doc public
     - echo '<meta http-equiv="refresh" content="0; url=connections/">' > public/index.html

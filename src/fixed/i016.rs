@@ -16,22 +16,39 @@ use super::float_fixed;
 #[cfg(feature = "f16")]
 use super::float_fixed_l;
 use ::fixed::FixedI16;
-use ::fixed::types::extra::{U0, U2, U4, U8, U12, U16, Unsigned};
+use ::fixed::types::extra::{U0, U2, U4, U8, U12, U15, U16, Unsigned};
 
-// ── Cross-crate iso: i16 ↔ FixedI16<U0> ────────────────────────────
+// ── Cross-crate isos: FixedI16<U*> ↔ i16 ──────────────────────────
 
-const fn i016q000_fwd(i: i16) -> FixedI16<U0> {
+const fn q000i016_fwd(q: FixedI16<U0>) -> i16 {
+    q.to_bits()
+}
+const fn q000i016_bk(i: i16) -> FixedI16<U0> {
     FixedI16::<U0>::from_bits(i)
 }
-const fn i016q000_bk(q: FixedI16<U0>) -> i16 {
+
+const fn q015i016_fwd(q: FixedI16<U15>) -> i16 {
     q.to_bits()
+}
+const fn q015i016_bk(i: i16) -> FixedI16<U15> {
+    FixedI16::<U15>::from_bits(i)
 }
 
 crate::iso! {
-    /// `i16 ↔ FixedI16<U0>` — Q16.0 lossless iso. Degenerate Galois.
-    pub I016Q000 : i16 => FixedI16<U0> {
-        forward: i016q000_fwd,
-        back:    i016q000_bk,
+    /// `FixedI16<U0> ↔ i16` — Q16.0 lossless iso. Degenerate Galois.
+    pub Q000I016 : FixedI16<U0> => i16 {
+        forward: q000i016_fwd,
+        back:    q000i016_bk,
+    }
+}
+
+crate::iso! {
+    /// `FixedI16<U15> ↔ i16` — signed normalized Q1.15 lossless bit iso.
+    /// Numeric Q values cover `[-1, 1 - 2^-15]`; the primitive carries
+    /// the same two's-complement storage bits.
+    pub Q015I016 : FixedI16<U15> => i16 {
+        forward: q015i016_fwd,
+        back:    q015i016_bk,
     }
 }
 

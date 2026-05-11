@@ -2,7 +2,7 @@
 //! two's-complement big- / little-endian byte encodings.
 //!
 //! Q-format / cross-crate isos to `FixedI128<F>` live next door in
-//! [`crate::fixed::i128`].
+//! `crate::fixed::i128`.
 
 #[allow(unused_imports)]
 use crate::core::{B2, L2};

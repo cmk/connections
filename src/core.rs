@@ -2,7 +2,7 @@
 //! `iN`/`uN` std integers, IEEE floats (`f16`/`f32`/`f64`), `bool`,
 //! `char`, and [`core::num::NonZero<T>`]. The crate's only top-level
 //! domain split is between this module (Conns whose endpoints all
-//! ship in `core` / `std`) and [`crate::fixed`] (Conns where at least
+//! ship in `core` / `std`) and `crate::fixed` (Conns where at least
 //! one endpoint is a [`fixed`]-crate Q-format wrapper).
 //!
 //! [`fixed`]: https://docs.rs/fixed

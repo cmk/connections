@@ -1,5 +1,7 @@
+#![cfg(feature = "fixed")]
+
 //! Galois-law proptest battery for the NonZero (`I###N###`,
-//! `U###N###`) and cross-crate iso (`I###Q000`, `U###Q000`) Conn
+//! `U###N###`) and cross-crate iso (`Q000I###`, `Q000U###`) Conn
 //! families across all per-host-type widths except i8/u8 (whose
 //! representative spot+proptest coverage lives inline in
 //! `src/fixed/i008.rs` and `src/fixed/u008.rs`).
@@ -13,7 +15,7 @@
 //! `proptest!` blocks across `src/fixed/{i,u}{16,32,64,128}.rs`)
 //! keeps the lib-test compile time small.
 
-use ::fixed::types::extra::U0;
+use ::fixed::types::extra::{U0, U15, U31, U63, U127};
 use ::fixed::{FixedI16, FixedI32, FixedI64, FixedI128, FixedU16, FixedU32, FixedU64, FixedU128};
 
 use ::core::num::{
@@ -95,39 +97,43 @@ unsigned_nz_props!(u128n128, core::u128::U128N128, u128, NonZeroU128);
 // ── Cross-crate iso: both Galois laws hold (degenerate iso). ────
 
 macro_rules! iso_props {
-    ($mod_name:ident, $CONN:path, $A:ty, $FIXED:ident) => {
+    ($mod_name:ident, $CONN:path, $A:ty, $FIXED:ident, $FRAC:ty) => {
         mod $mod_name {
             use super::*;
 
             proptest! {
                 #[test]
-                fn galois_l(a in any::<$A>(), b_bits in any::<$A>()) {
-                    let b = $FIXED::<U0>::from_bits(b_bits);
+                fn galois_l(a_bits in any::<$A>(), b in any::<$A>()) {
+                    let a = $FIXED::<$FRAC>::from_bits(a_bits);
                     prop_assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
                 }
                 #[test]
-                fn galois_r(a in any::<$A>(), b_bits in any::<$A>()) {
-                    let b = $FIXED::<U0>::from_bits(b_bits);
+                fn galois_r(a_bits in any::<$A>(), b in any::<$A>()) {
+                    let a = $FIXED::<$FRAC>::from_bits(a_bits);
                     prop_assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
                 }
                 #[test]
                 fn round_trip_both_directions(v in any::<$A>()) {
-                    let q = $FIXED::<U0>::from_bits(v);
-                    prop_assert_eq!($CONN.upper($CONN.ceil(v)), v);
-                    prop_assert_eq!($CONN.ceil($CONN.upper(q)), q);
-                    prop_assert_eq!($CONN.lower($CONN.floor(v)), v);
-                    prop_assert_eq!($CONN.floor($CONN.lower(q)), q);
+                    let q = $FIXED::<$FRAC>::from_bits(v);
+                    prop_assert_eq!($CONN.upper($CONN.ceil(q)), q);
+                    prop_assert_eq!($CONN.ceil($CONN.upper(v)), v);
+                    prop_assert_eq!($CONN.lower($CONN.floor(q)), q);
+                    prop_assert_eq!($CONN.floor($CONN.lower(v)), v);
                 }
             }
         }
     };
 }
 
-iso_props!(i016q000, fixed::i016::I016Q000, i16, FixedI16);
-iso_props!(i032q000, fixed::i032::I032Q000, i32, FixedI32);
-iso_props!(i064q000, fixed::i064::I064Q000, i64, FixedI64);
-iso_props!(i128q000, fixed::i128::I128Q000, i128, FixedI128);
-iso_props!(u016q000, fixed::u016::U016Q000, u16, FixedU16);
-iso_props!(u032q000, fixed::u032::U032Q000, u32, FixedU32);
-iso_props!(u064q000, fixed::u064::U064Q000, u64, FixedU64);
-iso_props!(u128q000, fixed::u128::U128Q000, u128, FixedU128);
+iso_props!(q000i016, fixed::i016::Q000I016, i16, FixedI16, U0);
+iso_props!(q000i032, fixed::i032::Q000I032, i32, FixedI32, U0);
+iso_props!(q000i064, fixed::i064::Q000I064, i64, FixedI64, U0);
+iso_props!(q000i128, fixed::i128::Q000I128, i128, FixedI128, U0);
+iso_props!(q000u016, fixed::u016::Q000U016, u16, FixedU16, U0);
+iso_props!(q000u032, fixed::u032::Q000U032, u32, FixedU32, U0);
+iso_props!(q000u064, fixed::u064::Q000U064, u64, FixedU64, U0);
+iso_props!(q000u128, fixed::u128::Q000U128, u128, FixedU128, U0);
+iso_props!(q015i016, fixed::i016::Q015I016, i16, FixedI16, U15);
+iso_props!(q031i032, fixed::i032::Q031I032, i32, FixedI32, U31);
+iso_props!(q063i064, fixed::i064::Q063I064, i64, FixedI64, U63);
+iso_props!(q127i128, fixed::i128::Q127I128, i128, FixedI128, U127);

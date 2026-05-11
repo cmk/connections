@@ -1,3 +1,5 @@
+#![cfg(feature = "fixed")]
+
 //! Galois-law proptest battery for `fixed::u064`'s f16 → Q-format Conns.
 //!
 //! Gated on `feature = "f16"` (nightly). Host bit-width 64 > f16

@@ -1,3 +1,5 @@
+#![cfg(feature = "fixed")]
+
 //! Galois-law proptest battery for `conn::fixed::u064`. Integration
 //! test — see `tests/conn_fixed_u08_galois.rs` for rationale.
 

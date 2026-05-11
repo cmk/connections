@@ -2,7 +2,7 @@
 //! sortable big- / little-endian byte encodings.
 //!
 //! Q-format / cross-crate isos to `FixedU8<F>` live next door in
-//! [`crate::fixed::u008`]. The bool ↔ byte projections live in
+//! `crate::fixed::u008`. The bool ↔ byte projections live in
 //! [`crate::core::bool`].
 
 #[allow(unused_imports)]

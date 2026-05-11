@@ -25,19 +25,14 @@ this doc explains how those names get earned.
 
 ```rust
 use connections::conn::{ConnL, ConnR};
-use connections::fixed::i016::I016Q000;
-use fixed::types::extra::U0;
-use fixed::FixedI16;
+use connections::core::i016::I016BE02;
+use connections::B2;
 
-let q = FixedI16::<U0>::from_bits(5);
-assert_eq!(I016Q000.ceil(5_i16),  q);
-assert_eq!(I016Q000.floor(5_i16), q);
-assert_eq!(I016Q000.upper(q),     5_i16);
-assert_eq!(I016Q000.lower(q),     5_i16);
-
-let neg = FixedI16::<U0>::from_bits(-5);
-assert_eq!(I016Q000.ceil(-5_i16),  neg);
-assert_eq!(I016Q000.floor(-5_i16), neg);
+let bytes = B2([0x01, 0x02]);
+assert_eq!(I016BE02.ceil(258_i16), bytes);
+assert_eq!(I016BE02.floor(258_i16), bytes);
+assert_eq!(I016BE02.upper(bytes), 258_i16);
+assert_eq!(I016BE02.lower(bytes), 258_i16);
 ```
 
 See [EXAMPLES.md](https://gitlab.com/cmk/connections/-/blob/main/EXAMPLES.md)
@@ -277,7 +272,11 @@ Optional cargo features:
 
 | Feature | What it enables | Toolchain |
 |---------|-----------------|-----------|
+| `fixed` | `connections::fixed::{i008,…,u128}` Q-format ladders, float→Q bridges, Q.0 primitive isos, and signed normalized bit isos | stable |
 | `testing` | Re-exports `connections::prop::arb` (proptest strategies) for downstream test suites | stable |
+| `macros` | Re-exports the internal codegen macro families under `connections::macros` / crate-root macro paths | stable |
+| `time` | Civil-calendar and time-span Conns backed by the `time` crate | stable |
+| `hifi` | Nanosecond-precision `hifitime::Duration` / `Epoch` Conns | stable |
 | `f16` | IEEE binary16 connections (`F016`, `F032F016`, `F064F016`) and their proptest strategies | nightly (uses `#![feature(f16)]` — tracking [#116909](https://github.com/rust-lang/rust/issues/116909)) |
 
 The `connections::prop::conn` and `connections::prop::lattice`
@@ -298,10 +297,12 @@ generators are biased toward NaN, ±∞, ±0, denormals, and ULP-boundary
 values. Fixed-point generators are biased toward `0`, `±PREC`, and
 `±i64::MAX/PREC` so saturation boundaries are exercised on every run.
 
-Runtime dependencies are the [`fixed`](https://crates.io/crates/fixed)
-crate (binary fixed-point ladder) and the
-[`time`](https://crates.io/crates/time) crate (calendar / clock /
-duration types in `time`). Proptest is a dev-dependency, exposed
+Runtime dependencies are feature-gated. The
+[`fixed`](https://crates.io/crates/fixed) crate backs the optional
+binary fixed-point ladder, [`time`](https://crates.io/crates/time)
+backs the optional civil-calendar / clock surface, and
+[`hifitime`](https://crates.io/crates/hifitime) backs the optional
+high-precision time surface. Proptest is a dev-dependency, exposed
 publicly behind the `testing` feature for downstream test suites.
 
 Every connection ships with proptest coverage of the following laws — the
@@ -433,15 +434,15 @@ implement `ConnK`.
 | Family | Module |
 |--------|--------|
 | IEEE-754 types | `float` | 
-| Q-format binary fixed-point (`Q###Q###`, i8/u8 … i128/u128 backing) | `fixed::{i008,…,i128, u008,…,u128}` |
-| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `fixed::{i008,…,i128, u008,…,u128}` (alongside the Q-format ladder for the source side) |
-| `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `fixed::{i008,…,i128, u008,…,u128}` |
-| Cross-crate iso `{i,u}{N} ↔ Fixed{I,U}<U0>` (`I###Q000`, `U###Q000`) | `fixed::{i008,…,i128, u008,…,u128}` |
+| Q-format binary fixed-point (`Q###Q###`, i8/u8 … i128/u128 backing) | `fixed::{i008,…,i128, u008,…,u128}` (`fixed` cargo feature) |
+| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `core::{i008,…,i128, u008,…,u128}` |
+| `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `core::{i008,…,i128, u008,…,u128}` |
+| Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) and signed normalized bit isos (`Q007I008` … `Q127I128`) | `fixed::{i008,…,i128, u008,…,u128}` (`fixed` cargo feature) |
 | Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` cargo feature |
 | `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
 | `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
-| Sortable byte encodings (`U008BE01`, `U008LE01`, `I008BE01`, `I008LE01`, `BOOLBE01`, `BOOLLE01`, through `U128BE16`, `U128LE16`, `I128BE16`, `I128LE16`) | `fixed::{i008,…,i128, u008,…,u128}` |
+| Sortable byte encodings (`U008BE01`, `U008LE01`, `I008BE01`, `I008LE01`, `BOOLBE01`, `BOOLLE01`, through `U128BE16`, `U128LE16`, `I128BE16`, `I128LE16`) | `core::{bool, i008,…,i128, u008,…,u128}` |
 
 Constant-name prefixes are letter-disambiguated: `Q` for Q-format
 wrappers (sign and host bit-width come from the module path), `I`/`U`

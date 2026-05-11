@@ -2,7 +2,7 @@
 //! two's-complement big- / little-endian byte encodings.
 //!
 //! Q-format / cross-crate isos to `FixedI64<F>` live next door in
-//! [`crate::fixed::i064`].
+//! `crate::fixed::i064`.
 
 #[allow(unused_imports)]
 use crate::core::{B2, L2};

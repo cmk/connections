@@ -40,24 +40,41 @@
 
 use super::float_fixed;
 use ::fixed::FixedI8;
-use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U8, Unsigned};
+use ::fixed::types::extra::{U0, U1, U2, U3, U4, U6, U7, U8, Unsigned};
 
-// ── Cross-crate iso: i8 ↔ FixedI8<U0> ──────────────────────────────
+// ── Cross-crate isos: FixedI8<U*> ↔ i8 ────────────────────────────
 
-const fn i008q000_fwd(i: i8) -> FixedI8<U0> {
+const fn q000i008_fwd(q: FixedI8<U0>) -> i8 {
+    q.to_bits()
+}
+const fn q000i008_bk(i: i8) -> FixedI8<U0> {
     FixedI8::<U0>::from_bits(i)
 }
-const fn i008q000_bk(q: FixedI8<U0>) -> i8 {
+
+const fn q007i008_fwd(q: FixedI8<U7>) -> i8 {
     q.to_bits()
+}
+const fn q007i008_bk(i: i8) -> FixedI8<U7> {
+    FixedI8::<U7>::from_bits(i)
 }
 
 crate::iso! {
-    /// `i8 ↔ FixedI8<U0>` — Q8.0 lossless iso, the canonical bridge
+    /// `FixedI8<U0> ↔ i8` — Q8.0 lossless iso, the canonical bridge
     /// between the Q-format and std-int views of the same 8-bit signed
     /// integer storage. Degenerate Galois (`floor = ceil`).
-    pub I008Q000 : i8 => FixedI8<U0> {
-        forward: i008q000_fwd,
-        back:    i008q000_bk,
+    pub Q000I008 : FixedI8<U0> => i8 {
+        forward: q000i008_fwd,
+        back:    q000i008_bk,
+    }
+}
+
+crate::iso! {
+    /// `FixedI8<U7> ↔ i8` — signed normalized Q1.7 lossless bit iso.
+    /// Numeric Q values cover `[-1, 1 - 2^-7]`; the primitive carries
+    /// the same two's-complement storage bits.
+    pub Q007I008 : FixedI8<U7> => i8 {
+        forward: q007i008_fwd,
+        back:    q007i008_bk,
     }
 }
 
@@ -206,43 +223,52 @@ mod tests {
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
-    // ── Cross-crate iso (I008Q000) spot checks ─────────────────────
+    // ── Cross-crate iso (Q000I008) spot checks ─────────────────────
 
     #[test]
-    fn i008q000_round_trips_both_ways() {
+    fn q000i008_round_trips_both_ways() {
         for &v in &[i8::MIN, -1, 0, 1, 42, i8::MAX] {
             let q = FixedI8::<U0>::from_bits(v);
-            assert_eq!(I008Q000.ceil(v), q);
-            assert_eq!(I008Q000.floor(v), q);
-            assert_eq!(I008Q000.upper(q), v);
-            assert_eq!(I008Q000.lower(q), v);
+            assert_eq!(Q000I008.ceil(q), v);
+            assert_eq!(Q000I008.floor(q), v);
+            assert_eq!(Q000I008.upper(v), q);
+            assert_eq!(Q000I008.lower(v), q);
             // Iso: ceil ∘ inner = identity, inner ∘ ceil = identity.
-            assert_eq!(I008Q000.ceil(I008Q000.upper(q)), q);
-            assert_eq!(I008Q000.upper(I008Q000.ceil(v)), v);
+            assert_eq!(Q000I008.ceil(Q000I008.upper(v)), v);
+            assert_eq!(Q000I008.upper(Q000I008.ceil(q)), q);
         }
     }
 
     proptest! {
-        // I008Q000 is an iso — both Galois laws must hold.
+        // Q000I008 is an iso — both Galois laws must hold.
         #[test]
-        fn i008q000_galois_l(a in any::<i8>(), b_bits in any::<i8>()) {
-            let b = FixedI8::<U0>::from_bits(b_bits);
-            prop_assert!(conn_laws::galois_l(&I008Q000.conn_l(), a, b));
+        fn q000i008_galois_l(a_bits in any::<i8>(), b in any::<i8>()) {
+            let a = FixedI8::<U0>::from_bits(a_bits);
+            prop_assert!(conn_laws::galois_l(&Q000I008.conn_l(), a, b));
         }
 
         #[test]
-        fn i008q000_galois_r(a in any::<i8>(), b_bits in any::<i8>()) {
-            let b = FixedI8::<U0>::from_bits(b_bits);
-            prop_assert!(conn_laws::galois_r(&I008Q000.conn_r(), a, b));
+        fn q000i008_galois_r(a_bits in any::<i8>(), b in any::<i8>()) {
+            let a = FixedI8::<U0>::from_bits(a_bits);
+            prop_assert!(conn_laws::galois_r(&Q000I008.conn_r(), a, b));
         }
 
         #[test]
-        fn i008q000_round_trip_both_directions(v in any::<i8>()) {
+        fn q000i008_round_trip_both_directions(v in any::<i8>()) {
             let q = FixedI8::<U0>::from_bits(v);
-            prop_assert_eq!(I008Q000.upper(I008Q000.ceil(v)), v);
-            prop_assert_eq!(I008Q000.ceil(I008Q000.upper(q)), q);
-            prop_assert_eq!(I008Q000.lower(I008Q000.floor(v)), v);
-            prop_assert_eq!(I008Q000.floor(I008Q000.lower(q)), q);
+            prop_assert_eq!(Q000I008.upper(Q000I008.ceil(q)), q);
+            prop_assert_eq!(Q000I008.ceil(Q000I008.upper(v)), v);
+            prop_assert_eq!(Q000I008.lower(Q000I008.floor(q)), q);
+            prop_assert_eq!(Q000I008.floor(Q000I008.lower(v)), v);
+        }
+
+        #[test]
+        fn q007i008_round_trip_both_directions(v in any::<i8>()) {
+            let q = FixedI8::<U7>::from_bits(v);
+            prop_assert_eq!(Q007I008.upper(Q007I008.ceil(q)), q);
+            prop_assert_eq!(Q007I008.ceil(Q007I008.upper(v)), v);
+            prop_assert_eq!(Q007I008.lower(Q007I008.floor(q)), q);
+            prop_assert_eq!(Q007I008.floor(Q007I008.lower(v)), v);
         }
     }
 

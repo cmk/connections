@@ -1,3 +1,5 @@
+#![cfg(feature = "fixed")]
+
 //! Galois-law proptest battery for `fixed::i032`'s f32/f64 → Q-format Conns.
 //!
 //! See `tests/fixed_i8_float_q_galois.rs` for the rationale. f32

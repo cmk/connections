@@ -41,7 +41,7 @@ exclude = [
 ]
 
 [dependencies]
-fixed = "1"
+fixed = { version = "1", optional = true }
 time = { version = "0.3", optional = true }
 hifitime = { version = "4.3", optional = true, default-features = false }
 proptest = { version = "1", optional = true }
@@ -51,6 +51,8 @@ proptest = "1"
 trybuild = "1"
 
 [features]
+fixed = ["dep:fixed"]
+
 # Expose `connections::prop::arb` (proptest strategies) to
 # downstream crates. The `connections::prop::conn` and
 # `connections::prop::lattice` predicates are always public — they
@@ -100,7 +102,7 @@ macros = []
 # `#[cfg_attr(docsrs, doc(cfg(feature = "testing")))]` mirrors that
 # surface the gating in the rendered docs.
 [package.metadata.docs.rs]
-features = ["testing", "macros", "time"]
+features = ["fixed", "testing", "macros", "time"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 # Declare `cfg(kani)` so `cargo build` / `cargo test` don't warn about

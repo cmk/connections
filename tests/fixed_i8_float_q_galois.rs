@@ -1,3 +1,5 @@
+#![cfg(feature = "fixed")]
+
 //! Galois-law proptest battery for `fixed::i008`'s f32/f64 → Q-format Conns.
 //!
 //! Hosted as an integration test (separate crate) so the main lib

@@ -921,6 +921,7 @@ pub(crate) fn round_down_to_f16(b: i128) -> f16 {
 /// mantissa zero. `f64::from_bits` materialises the value at compile
 /// time.
 #[inline]
+#[cfg(feature = "fixed")]
 pub(crate) const fn scale_pow2_f64(frac: u32) -> f64 {
     let biased = (1023u64 + frac as u64) << 52;
     f64::from_bits(biased)
@@ -935,6 +936,7 @@ pub(crate) const fn scale_pow2_f64(frac: u32) -> f64 {
 /// zero, exponent field stays at zero). For our `frac ≤ 128` use
 /// case only the normal branch fires.
 #[inline]
+#[cfg(feature = "fixed")]
 pub(crate) const fn scale_pow2_f64_neg(frac: u32) -> f64 {
     if frac <= 1022 {
         // Normal: biased exponent (1023 - frac).

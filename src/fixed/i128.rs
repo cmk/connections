@@ -13,22 +13,39 @@
 
 use super::float_fixed_l;
 use ::fixed::FixedI128;
-use ::fixed::types::extra::{U0, U16, U32, U64, U96, U128, Unsigned};
+use ::fixed::types::extra::{U0, U16, U32, U64, U96, U127, U128, Unsigned};
 
-// ── Cross-crate iso: i128 ↔ FixedI128<U0> ──────────────────────────
+// ── Cross-crate isos: FixedI128<U*> ↔ i128 ────────────────────────
 
-const fn i128q000_fwd(i: i128) -> FixedI128<U0> {
+const fn q000i128_fwd(q: FixedI128<U0>) -> i128 {
+    q.to_bits()
+}
+const fn q000i128_bk(i: i128) -> FixedI128<U0> {
     FixedI128::<U0>::from_bits(i)
 }
-const fn i128q000_bk(q: FixedI128<U0>) -> i128 {
+
+const fn q127i128_fwd(q: FixedI128<U127>) -> i128 {
     q.to_bits()
+}
+const fn q127i128_bk(i: i128) -> FixedI128<U127> {
+    FixedI128::<U127>::from_bits(i)
 }
 
 crate::iso! {
-    /// `i128 ↔ FixedI128<U0>` — Q128.0 lossless iso. Degenerate Galois.
-    pub I128Q000 : i128 => FixedI128<U0> {
-        forward: i128q000_fwd,
-        back:    i128q000_bk,
+    /// `FixedI128<U0> ↔ i128` — Q128.0 lossless iso. Degenerate Galois.
+    pub Q000I128 : FixedI128<U0> => i128 {
+        forward: q000i128_fwd,
+        back:    q000i128_bk,
+    }
+}
+
+crate::iso! {
+    /// `FixedI128<U127> ↔ i128` — signed normalized Q1.127 lossless bit iso.
+    /// Numeric Q values cover `[-1, 1 - 2^-127]`; the primitive carries
+    /// the same two's-complement storage bits.
+    pub Q127I128 : FixedI128<U127> => i128 {
+        forward: q127i128_fwd,
+        back:    q127i128_bk,
     }
 }
 
