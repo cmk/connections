@@ -11,7 +11,7 @@ on every integer / Q-format / NonZero / iso connection is
 [Kani](https://model-checking.github.io/kani/) (see
 [Testing → SMT verification](#smt-verification-kani)).
 
-**MSRV: Rust 1.85.** Bumps to the MSRV will be treated as minor-version
+**MSRV: Rust 1.88.** Bumps to the MSRV will be treated as minor-version
 changes — pin `connections = "0.1"` and an MSRV upgrade will surface as
 a 0.2 release rather than a silent break on a patch update.
 

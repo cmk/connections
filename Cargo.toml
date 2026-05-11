@@ -2,7 +2,7 @@
 name = "connections"
 edition = "2024"
 version = "0.0.0"
-rust-version = "1.85"
+rust-version = "1.88"
 license = "MIT"
 description = "Lawful numerical conversions"
 repository = "https://gitlab.com/cmk/connections"
@@ -42,7 +42,11 @@ exclude = [
 
 [dependencies]
 fixed = { version = "1", optional = true }
-time = { version = "0.3", optional = true }
+# Upper-bounded to <0.3.46 because 0.3.46 added a stricter `year >= -9999`
+# assertion that our proptest strategies (arb_extended_offset_dt et al.) trip
+# on. Floating this back to "0.3" is a follow-up after clamping the date /
+# offset generators so normalized UTC dates stay in range.
+time = { version = ">=0.3, <0.3.46", optional = true }
 hifitime = { version = "4.3", optional = true, default-features = false }
 proptest = { version = "1", optional = true }
 
