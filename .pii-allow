@@ -14,3 +14,10 @@
 # documentation as examples of what the scan catches.
 /Users/runner/
 /home/runner/
+
+# Historical GitLab-era review/plan content under doc/reviews/gitlab/
+# may quote absolute /Users/cmk/.claude/... paths that were captured
+# in the audit trail. The content is unchanged on the rename; check_pii
+# diff-walks the new path as a pure add, so allow these well-known
+# local-only references explicitly.
+\[/Users/cmk/\.claude/plans/

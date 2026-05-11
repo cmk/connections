@@ -410,11 +410,13 @@ debt: Remove dead handshake branch
 Keep subjects under 72 characters. Use the body for non-obvious
 decisions.
 
-Historical note: `doc/reviews/review-00000.md..review-00098.md` carry
-GitLab-era `<!-- glab-id: -->` / `<!-- glab-discussion: -->` markers
-and MR-iid references; those resolve against the old GitLab project
-and are audit-trail only. New review files use `<!-- gh-id: -->` via
-`scripts/pr_report.py`.
+Historical note: `doc/reviews/gitlab/review-00002.md..review-00098.md`
+carry GitLab-era `<!-- glab-id: -->` / `<!-- glab-discussion: -->`
+markers and MR-iid references; those resolve against the old GitLab
+project and are audit-trail only. The `gitlab/` subdirectory exists
+so GitHub-issued PR numbers can reclaim `doc/reviews/review-NNNNN.md`
+without colliding with the frozen GitLab archive. New review files
+use `<!-- gh-id: -->` via `scripts/pr_report.py`.
 
 ## Sprint plan format
 
