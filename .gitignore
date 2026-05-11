@@ -17,6 +17,7 @@ proptest-regressions/
 
 # Agent
 doc/chats/
+doc/notes/
 
 # MCP server config — contains machine-local binary paths
 .mcp.json
