@@ -9,6 +9,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  deployments: write
 
 concurrency:
   group: 'pages'
@@ -42,3 +43,33 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Prune previous github-pages deployments
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # Best-effort cleanup. The artifact has already published by
+          # this point; any failure here (list, parse, or per-id
+          # mutation) is logged and ignored so a transient gh/jq error
+          # doesn't redden the deploy job. Stragglers get caught on the
+          # next push.
+          #
+          # `pipefail` makes a failing `gh api` propagate through the
+          # pipe so the `|| { warn }` fallback actually fires;
+          # otherwise jq exits 0 on empty input and we'd silently
+          # prune nothing.
+          # `--paginate` + `jq -s 'add // []'` covers >100 records, so
+          # a long-disabled workflow can still drain its backlog.
+          set -o pipefail
+          ids=$(
+            gh api --paginate "repos/$GH_REPO/deployments?environment=github-pages&per_page=100" \
+              | jq -s -r 'add // [] | sort_by(.created_at) | reverse | .[1:] | .[].id'
+          ) || { echo "warn: could not list deployments to prune"; ids=; }
+          printf '%s\n' "$ids" | while read -r id; do
+            [ -n "$id" ] || continue
+            gh api --silent -X POST "repos/$GH_REPO/deployments/$id/statuses" \
+              -f state=inactive \
+              || echo "warn: could not mark $id inactive"
+            gh api --silent -X DELETE "repos/$GH_REPO/deployments/$id" \
+              || echo "warn: could not delete $id"
+          done
