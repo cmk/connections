@@ -7,14 +7,14 @@
 //!   bare partial-order law predicates.
 //! - `arb` — proptest strategies (`arb_f64`, `arb_f32`,
 //!   `arb_f64_bounded`, `arb_f16`, the `extended_float_*` and
-//!   time-crate generators). Gated on the `testing` feature, which
+//!   time-crate generators). Gated on the `proptest` feature, which
 //!   flips `proptest` from this crate's dev-dep to an optional
 //!   regular dep so downstream callers can pull it in.
 //!
 //! Each predicate is a pure `bool`-returning fn over this crate's
 //! types; downstream wraps them in their own `proptest!` blocks.
 //! In-crate tests use the predicate modules through
-//! `cfg(any(test, feature = "testing"))`.
+//! `cfg(any(test, feature = "proptest"))`.
 //!
 //! ## Downstream usage
 //!
@@ -32,7 +32,7 @@
 //! assert!(conn::galois_l(&F064F032.conn_l(), a, b));
 //! ```
 //!
-//! With the `testing` feature enabled, downstream proptest blocks
+//! With the `proptest` feature enabled, downstream proptest blocks
 //! can drive the predicates over arbitrary inputs:
 //!
 //! ```ignore
@@ -61,6 +61,6 @@ pub mod conn;
 pub mod interval;
 pub mod lattice;
 
-#[cfg(any(test, feature = "testing"))]
-#[cfg_attr(docsrs, doc(cfg(feature = "testing")))]
+#[cfg(any(test, feature = "proptest"))]
+#[cfg_attr(docsrs, doc(cfg(feature = "proptest")))]
 pub mod arb;

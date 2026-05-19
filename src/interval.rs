@@ -51,7 +51,7 @@ use core::cmp::Ordering;
 /// # Examples
 ///
 /// ```rust
-/// use connections::Interval;
+/// use connections::interval::Interval;
 ///
 /// let i = Interval::new(1, 3);
 /// assert!(i.contains(&2));
@@ -94,7 +94,7 @@ impl<A> Interval<A> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::Interval;
+    /// use connections::interval::Interval;
     /// let i = Interval::singleton(7_i32);
     /// assert!(i.contains(&7));
     /// assert!(!i.contains(&8));
@@ -121,7 +121,7 @@ impl<A> Interval<A> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::Interval;
+    /// use connections::interval::Interval;
     /// // In-order endpoints retained:
     /// assert!(matches!(
     ///     Interval::new(1, 3),
@@ -164,7 +164,7 @@ impl<A> Interval<A> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::Interval;
+    /// use connections::interval::Interval;
     /// assert!(Interval::new(1, 3).contains(&2));
     /// assert!(!Interval::<i32>::Empty.contains(&0));
     /// ```
@@ -189,7 +189,7 @@ impl<A> Interval<A> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::Interval;
+    /// use connections::interval::Interval;
     /// // Monotone +1: endpoints map and remain in order.
     /// assert!(matches!(
     ///     Interval::new(1_i32, 3).imap(|x| x + 1),

@@ -1,4 +1,4 @@
-//! Property predicates for [`Interval<A>`](crate::Interval).
+//! Property predicates for [`Interval<A>`](crate::interval::Interval).
 //!
 //! Each predicate is a pure `bool`-returning fn over the type;
 //! downstream callers wrap them in their own `proptest!` blocks.
@@ -6,7 +6,7 @@
 //! predicate over `i32` to guard against regressions in the
 //! `Interval` core itself.
 
-use crate::Interval;
+use crate::interval::Interval;
 use core::cmp::Ordering;
 
 /// `Interval::new(x, y)` is `Closed` iff `x ≤ y` (preorder-wise),

@@ -310,7 +310,7 @@ where
     B: Copy,
 {
     let i = crate::conn::interval(t, x);
-    matches!(i, crate::Interval::Empty) || i.contains(&x)
+    matches!(i, crate::interval::Interval::Empty) || i.contains(&x)
 }
 
 /// Bracket endpoints are themselves grid-aligned: re-bracketing
@@ -325,10 +325,10 @@ where
     B: Copy,
 {
     match crate::conn::interval(t, x) {
-        crate::Interval::Empty => true,
-        crate::Interval::Closed { lo, hi } => {
-            crate::conn::interval(t, lo) == crate::Interval::Closed { lo, hi: lo }
-                && crate::conn::interval(t, hi) == crate::Interval::Closed { lo: hi, hi }
+        crate::interval::Interval::Empty => true,
+        crate::interval::Interval::Closed { lo, hi } => {
+            crate::conn::interval(t, lo) == crate::interval::Interval::Closed { lo, hi: lo }
+                && crate::conn::interval(t, hi) == crate::interval::Interval::Closed { lo: hi, hi }
         }
     }
 }
@@ -342,8 +342,8 @@ where
     B: Copy + Eq,
 {
     match crate::conn::interval(t, x) {
-        crate::Interval::Empty => true,
-        crate::Interval::Closed { lo, hi } => {
+        crate::interval::Interval::Empty => true,
+        crate::interval::Interval::Closed { lo, hi } => {
             t.conn_r().floor(lo) == t.conn_r().floor(x) && t.conn_l().ceil(hi) == t.conn_l().ceil(x)
         }
     }

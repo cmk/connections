@@ -67,7 +67,7 @@ use core::cmp::Ordering;
 use core::marker::PhantomData;
 use core::ops::Sub;
 
-use crate::Interval;
+use crate::interval::Interval;
 
 // ── Kind markers ─────────────────────────────────────────────────────
 
@@ -115,6 +115,29 @@ impl<A, B, K: Kind> Copy for Conn<A, B, K> {}
 impl<A, B, K: Kind> Clone for Conn<A, B, K> {
     fn clone(&self) -> Self {
         *self
+    }
+}
+
+// `PhantomData<fn() -> K>` is invariant in `K` but is universally
+// `Eq` / `Hash`; the only state distinguishing two `Conn` values is the
+// `(f, g)` fn-pointer pair. Fn-pointer equality is reference-identity
+// on the same monomorphisation.
+impl<A, B, K: Kind> PartialEq for Conn<A, B, K> {
+    fn eq(&self, other: &Self) -> bool {
+        core::ptr::fn_addr_eq(self.f, other.f) && core::ptr::fn_addr_eq(self.g, other.g)
+    }
+}
+impl<A, B, K: Kind> Eq for Conn<A, B, K> {}
+
+impl<A, B, K: Kind> core::fmt::Debug for Conn<A, B, K> {
+    fn fmt(&self, fmtr: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            fmtr,
+            "Conn<{} → {}, {}>",
+            core::any::type_name::<A>(),
+            core::any::type_name::<B>(),
+            core::any::type_name::<K>(),
+        )
     }
 }
 
@@ -589,7 +612,7 @@ impl<T> ConnK for T where T: ConnL + ConnR<A = <T as ConnL>::A, B = <T as ConnL>
 /// # Examples
 ///
 /// ```rust
-/// use connections::Interval;
+/// use connections::interval::Interval;
 /// use connections::conn::interval;
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::core::f064::F064F032;
@@ -1014,6 +1037,7 @@ macro_rules! compose_k {
         $vis:vis $name:ident : $A:ty => $B:ty => $C:ty = $t1:path, $t2:path $(,)?
     ) => {
         $(#[$meta])*
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
         $vis struct $name;
         impl $crate::conn::ConnL for $name {
             type A = $A;
@@ -1063,6 +1087,7 @@ macro_rules! conn_k {
         }
     ) => {
         $(#[$meta])*
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
         $vis struct $name;
         impl $crate::conn::ConnL for $name {
             type A = $A;

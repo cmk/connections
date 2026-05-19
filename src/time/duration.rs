@@ -1288,8 +1288,7 @@ mod sdur_tests {
         ] {
             assert!(
                 conn_laws::kernel_l(&SDURU128, b),
-                "kernel_l violated at b = {:?}",
-                b
+                "kernel_l violated at b = {b:?}"
             );
         }
     }

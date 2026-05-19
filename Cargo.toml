@@ -1,10 +1,10 @@
 [package]
 name = "connections"
 edition = "2024"
-version = "0.0.0"
+version = "0.1.0"
 rust-version = "1.88"
 license = "MIT"
-description = "Lawful numerical conversions"
+description = "Galois connections as first-class values: lawful numeric casts, Q-format / IEEE / time ladders"
 repository = "https://github.com/cmk/connections"
 homepage = "https://cmk.github.io/connections/"
 documentation = "https://docs.rs/connections"
@@ -12,8 +12,8 @@ readme = "README.md"
 categories = ["mathematics", "encoding"]
 keywords = [
     "cast",
-    "round",
-    "point",
+    "galois",
+    "fixed-point",
     "numeric",
     "lattice"
     ]
@@ -37,7 +37,7 @@ exclude = [
     "/doc",
     "/img",
     "/proptest.toml",
-    "/proptest-regressions",
+    "/proptest-regressions/",
     "/rust-toolchain.toml",
     "/rustfmt.toml",
     "/scripts",
@@ -65,7 +65,7 @@ fixed = ["dep:fixed"]
 # `connections::prop::lattice` predicates are always public — they
 # only depend on this crate's own types (Conn, Ple, Heyting, …) and
 # don't need proptest at all.
-testing = ["dep:proptest"]
+proptest = ["dep:proptest"]
 
 # Enable civil-calendar and time-span Conns backed by the `time` crate
 # under `connections::time::*`. This is opt-in because the crate's
@@ -94,22 +94,25 @@ hifi = ["dep:hifitime"]
 # Re-export the crate's internal codegen macros under
 # `connections::macros` for downstream crates building their own
 # bounded-integer / Q-format / NonZero / iso lattices on top of
-# this crate. Adds no new code (the macros already exist as
-# `pub(crate)`); just lifts visibility. See `src/macros.rs`.
+# this crate. Adds no new code (the macros already exist behind
+# `#[cfg_attr(feature = "macros", macro_export)]`); just lifts
+# their visibility to the crate root. The macro families are
+# defined per-domain in `src/conn.rs`, `src/extended.rs`,
+# `src/core.rs`, `src/float.rs`, and `src/fixed.rs`.
 macros = []
 
 # docs.rs builds on stable rustc by default. We can't use
 # `all-features = true` because the `f16` feature activates
 # `#![cfg_attr(feature = "f16", feature(f16))]` — a nightly-only
-# attribute that errors on stable. Opt into `testing` and `macros`
+# attribute that errors on stable. Opt into `proptest` and `macros`
 # (both stable-rustc-compatible). The `f16`-gated items (`F016`,
 # `F032F016`, `F064F016`, `arb_f16`, `extended_float_f16`) won't
 # appear in the docs.rs-rendered docs until std `f16` stabilizes.
 # The `--cfg docsrs` flag activates the
-# `#[cfg_attr(docsrs, doc(cfg(feature = "testing")))]` mirrors that
+# `#[cfg_attr(docsrs, doc(cfg(feature = "proptest")))]` mirrors that
 # surface the gating in the rendered docs.
 [package.metadata.docs.rs]
-features = ["fixed", "testing", "macros", "time"]
+features = ["fixed", "proptest", "macros", "time"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 # Declare `cfg(kani)` so `cargo build` / `cargo test` don't warn about

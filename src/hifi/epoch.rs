@@ -364,7 +364,7 @@ crate::conn_l! {
 //
 // Mirrors the production `f064etai_ceil` walk-entry but returns
 // `(z, steps)` instead of dropping `_steps`. Used by
-// `crate::kani_proofs::hifi_walk` to prove the iteration bound is
+// `crate::kani::hifi_walk` to prove the iteration bound is
 // ≤ 2 over the non-fast-path finite domain. The `EUTC` walk is
 // deferred — its widen (`Epoch::to_unix_seconds`) consults the
 // leap-second table, which makes the loop's per-iteration cost
@@ -1607,7 +1607,7 @@ crate::conn_l! {
     }
 }
 
-// Proof-only walk + solver step probes — see `crate::kani_proofs::hifi_walk`.
+// Proof-only walk + solver step probes — see `crate::kani::hifi_walk`.
 #[cfg(kani)]
 pub(crate) fn f64_etdt_ceil_walk_steps_for_proof(v: f64) -> (Epoch, u32) {
     let est = Epoch::from_tt_seconds(v);
@@ -2644,12 +2644,10 @@ mod tests {
             Extended::Finite(got) => {
                 assert!(
                     (got - j2000_et).abs() < 1.0 * hifitime::Unit::Nanosecond,
-                    "F064ETDE.ceil(0.0) = {:?}, expected near {:?}",
-                    got,
-                    j2000_et,
+                    "F064ETDE.ceil(0.0) = {got:?}, expected near {j2000_et:?}",
                 );
             }
-            other => panic!("expected Finite, got {:?}", other),
+            other => panic!("expected Finite, got {other:?}"),
         }
     }
 
@@ -2674,12 +2672,10 @@ mod tests {
             Extended::Finite(got) => {
                 assert!(
                     (got - j2000_tdb).abs() < 1.0 * hifitime::Unit::Nanosecond,
-                    "F064ETDB.ceil(0.0) = {:?}, expected near {:?}",
-                    got,
-                    j2000_tdb,
+                    "F064ETDB.ceil(0.0) = {got:?}, expected near {j2000_tdb:?}",
                 );
             }
-            other => panic!("expected Finite, got {:?}", other),
+            other => panic!("expected Finite, got {other:?}"),
         }
     }
 
@@ -2804,11 +2800,10 @@ mod tests {
                 let drift = (got - j2000_et).abs();
                 assert!(
                     drift <= 1.0 * hifitime::Unit::Nanosecond,
-                    "ET round-trip at J2000 diverged: Δ {:?}",
-                    drift,
+                    "ET round-trip at J2000 diverged: Δ {drift:?}",
                 );
             }
-            other => panic!("expected Finite, got {:?}", other),
+            other => panic!("expected Finite, got {other:?}"),
         }
     }
 
@@ -2822,11 +2817,10 @@ mod tests {
                 let drift = (got - j2000_tdb).abs();
                 assert!(
                     drift <= 1.0 * hifitime::Unit::Nanosecond,
-                    "TDB round-trip at J2000 diverged: Δ {:?}",
-                    drift,
+                    "TDB round-trip at J2000 diverged: Δ {drift:?}",
                 );
             }
-            other => panic!("expected Finite, got {:?}", other),
+            other => panic!("expected Finite, got {other:?}"),
         }
     }
 

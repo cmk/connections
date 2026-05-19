@@ -3,7 +3,7 @@
 //! `(A, B)`, and a bare `Conn<_, _, L>` is not a `ConnR`.
 
 use connections::conn::Conn;
-use connections::round;
+use connections::prelude::round;
 
 const L_CONN: Conn<i32, i32> = Conn::new_l(|x| x, |x| x);
 
