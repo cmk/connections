@@ -77,7 +77,7 @@ letter / digit shapes:
 | `A123` form | 1+3 | `F064`       | most families: `F`, `I`, `U`, `Q`, `N`            |
 | `AB12` form | 2+2 | `FD12`       | reserved (lifted-out decimal `FD<dd>`)            |
 | `ABC1` form | 3+1 | `FDX1`       | reserved — no current uses                        |
-| `ABCD` form | 4+0 | `DURN`       | domain mnemonics: `time` (`DURNSECS`, `DATEJDAY`, `OFDTNANO`, …), `addr` (`IPV4`, `IPV6`, `SOV4`, …), `char` |
+| `ABCD` form | 4+0 | `TDUR`       | domain mnemonics: `time` (`TDURSECS`, `DATEJDAY`, `ODTMNANO`, …), `addr` (`IPV4`, `IPV6`, `SOV4`, …), `char` |
 
 The two sides may pick **independently**: a Conn that bridges two
 families with different prefix lengths is allowed and expected.
@@ -107,7 +107,7 @@ Canonical examples:
 | `F064F032`    | `ExtendedFloat<f64>` → `ExtendedFloat<f32>` (lossy IEEE narrowing) |
 | `Q008Q004`    | `FixedI8<U8>` → `FixedI8<U4>` in `fixed::i8` (Q0.8 → Q4.4)  |
 | `U032CHAR`    | `Extended<u32>` → `Extended<char>` (codepoint projection)   |
-| `DURNSECS`    | `Duration` → `Extended<i64>` (whole seconds, 4L+0D both sides) |
+| `TDURSECS`    | `time::Duration` → `Extended<i64>` (whole seconds, 4L+0D both sides) |
 
 Hard rules:
 
@@ -192,7 +192,7 @@ Worked examples:
 | `I008Q000`    | `i8` / `FixedI8<U0>`               | (1) FixedI8 more specific  | `fixed::i008`   |
 | `U032CHAR`    | `Extended<u32>` / `Extended<char>` | (1) char more specific     | `core::char`    |
 | `DATEJDAY`    | `Extended<Date>` / `i32`           | (1) `Date` more specific   | `time::date`    |
-| `OFDTNANO`    | `Extended<OffsetDateTime>` / `i128`| (1) `OffsetDateTime` wins  | `time::offset`  |
+| `ODTMNANO`    | `Extended<OffsetDateTime>` / `i128`| (1) `OffsetDateTime` wins  | `time::offset`  |
 
 Cross-module name collisions are allowed — e.g. `fixed::i8::Q008Q000`
 and `fixed::i64::Q008Q000` both exist; users resolve by qualified

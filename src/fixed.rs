@@ -111,6 +111,13 @@
 // above our `F ≤ 128` rung cadence), and routing through f64
 // sidesteps the f32 `2^128` overflow.
 
+// `#[macro_export]` is mandatory even though the macro is internal:
+// the public-facing `float_fixed_l!` / `float_fixed_r!` macros — used
+// in this crate's own `src/fixed/{i,u}NNN.rs` files even when the
+// `macros` cargo feature is off — expand into `$crate::__float_fix_*_body!`
+// invocations, which only resolve when the helper sits at the crate
+// root. The `__` prefix and `#[doc(hidden)]` mark it as not part of the
+// public surface; downstream callers should never invoke it directly.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __float_fix_ceil_body {

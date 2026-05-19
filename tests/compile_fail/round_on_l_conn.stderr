@@ -7,7 +7,7 @@ error[E0277]: the trait bound `Conn<i32, i32>: ConnR` is not satisfied
    |                  required by a bound introduced by this call
    |
    = help: the trait `ConnR` is implemented for `Conn<A, B, R>`
-note: required by a bound in `connections::round`
+note: required by a bound in `connections::conn::round`
   --> src/conn.rs
    |
    | pub fn round<T, A, B>(t: &T, x: A) -> B

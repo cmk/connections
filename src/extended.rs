@@ -369,6 +369,7 @@ macro_rules! lift_r {
 #[macro_export]
 macro_rules! lift_k {
     ($name:ident : $A:ty => $B:ty = $parent:path $(,)?) => {
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
         pub struct $name;
         impl $crate::conn::ConnL for $name {
             type A = $crate::extended::Extended<$A>;

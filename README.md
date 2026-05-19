@@ -1,3 +1,6 @@
+[![crates.io](https://img.shields.io/crates/v/connections.svg)](https://crates.io/crates/connections)
+[![docs.rs](https://img.shields.io/docsrs/connections)](https://docs.rs/connections)
+[![MSRV](https://img.shields.io/badge/MSRV-1.88-blue.svg)](https://github.com/cmk/connections)
 [![CI](https://github.com/cmk/connections/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/connections/actions/workflows/ci.yml)
 
 Read the docs [here](https://cmk.github.io/connections/).
@@ -24,9 +27,9 @@ an L-side or triple Conn, `.lower` for an R-side Conn). The rest of
 this doc explains how those names get earned.
 
 ```rust
-use connections::conn::{ConnL, ConnR};
+use connections::prelude::*;
+use connections::core::B2;
 use connections::core::i016::I016BE02;
-use connections::B2;
 
 let bytes = B2([0x01, 0x02]);
 assert_eq!(I016BE02.ceil(258_i16), bytes);
@@ -264,7 +267,7 @@ cargo add connections
 
 | | |
 |--|--|
-| **MSRV** | Rust 1.85 (matches `rust-toolchain.toml`) |
+| **MSRV** | Rust 1.88 (matches `rust-toolchain.toml`) |
 | **Edition** | 2024 |
 | **License** | MIT (see [`LICENSE-MIT`](LICENSE-MIT)) |
 
@@ -273,7 +276,7 @@ Optional cargo features:
 | Feature | What it enables | Toolchain |
 |---------|-----------------|-----------|
 | `fixed` | `connections::fixed::{i008,…,u128}` Q-format ladders, float→Q bridges, Q.0 primitive isos, and signed normalized bit isos | stable |
-| `testing` | Re-exports `connections::prop::arb` (proptest strategies) for downstream test suites | stable |
+| `proptest` | Re-exports `connections::prop::arb` (proptest strategies) for downstream test suites | stable |
 | `macros` | Re-exports the internal codegen macro families under `connections::macros` / crate-root macro paths | stable |
 | `time` | Civil-calendar and time-span Conns backed by the `time` crate | stable |
 | `hifi` | Nanosecond-precision `hifitime::Duration` / `Epoch` Conns | stable |

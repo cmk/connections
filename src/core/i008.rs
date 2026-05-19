@@ -45,7 +45,7 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::conn::{ConnL, ConnR};
-    /// use connections::B2;
+    /// use connections::core::B2;
     /// use connections::core::i008::I008BE01;
     ///
     /// assert_eq!(I008BE01.ceil(i8::MIN), B2([0x80]));

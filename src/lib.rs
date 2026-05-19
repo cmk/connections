@@ -94,9 +94,9 @@
 //!
 //! ## ConnK
 //!
-//! The two-sided helpers (`ConnK`-bound free fns re-exported at the
-//! crate root) carry the following π-bracket worked-example thread in
-//! their per-fn doctests:
+//! The two-sided helpers ([`ConnK`](conn::ConnK)-bound free fns,
+//! re-exported via [`prelude`]) carry the following π-bracket
+//! worked-example thread in their per-fn doctests:
 //!
 //! ```rust
 //! use connections::conn::ConnL;
@@ -114,17 +114,17 @@
 //! ```
 //!
 //! - [`interval`](crate::conn::interval) — bracket of `x` as an
-//!   [`Interval<A>`](crate::Interval) (closed cell `[lo, hi] ⊆ A`
+//!   [`Interval<A>`](crate::interval::Interval) (closed cell `[lo, hi] ⊆ A`
 //!   sharing `x`'s B-projection; `Interval::Empty` for NaN-bearing
 //!   inputs)
-//! - [`truncate`](crate::truncate),
-//!   [`truncate1`](crate::truncate1),
-//!   [`truncate2`](crate::truncate2) — round-toward-zero through the triple
-//! - [`round`](crate::round) — round-to-nearest f32 of true π
+//! - [`truncate`](crate::prelude::truncate),
+//!   [`truncate1`](crate::prelude::truncate1),
+//!   [`truncate2`](crate::prelude::truncate2) — round-toward-zero through the triple
+//! - [`round`](crate::prelude::round) — round-to-nearest f32 of true π
 //!   (ties broken toward zero)
-//! - [`round1`](crate::round1) — Newton step on `sin` near π
-//! - [`round2`](crate::round2) — catastrophic-cancellation recovery
-//! - [`median`](crate::median) — Birkhoff median (i32 ordered lattice
+//! - [`round1`](crate::prelude::round1) — Newton step on `sin` near π
+//! - [`round2`](crate::prelude::round2) — catastrophic-cancellation recovery
+//! - [`median`](crate::prelude::median) — Birkhoff median (i32 ordered lattice
 //!   + N5 lattice with NaN, both at the function's doctest)
 //!
 //! Principal-filter / principal-ideal predicates live as inherent
@@ -159,8 +159,8 @@
 //! the parents' views via `compose_l!` / `compose_r!`. The bare
 //! [`compose!`](crate::compose) is a forwarder to `compose_l!`,
 //! mirroring the `K = L` default of [`Conn`](crate::conn::Conn). Runtime composition is
-//! deferred until a closure-capturing `DynConn` variant lands — see
-//! `doc/design.md`.
+//! deferred until a closure-capturing `DynConn` variant lands; see the
+//! repository's `doc/design.md` (not shipped in the published crate).
 //!
 //! ## Codegen macros
 //!
@@ -184,6 +184,7 @@
 // because `#![feature(f16)]` is a nightly-only attribute. Default stable
 // builds skip the f16 path entirely.
 #![cfg_attr(feature = "f16", feature(f16))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![forbid(unsafe_code)]
 
 pub mod addr;
@@ -202,30 +203,36 @@ pub mod lattice;
 #[cfg(feature = "time")]
 pub mod time;
 
-pub use crate::core::{B2, L2, LE};
-pub use interval::Interval;
-
-// Two-sided helpers (ConnK-bound) re-exported at the crate root for
-// ergonomic access (`connections::round(&t, x)` rather than the
-// module path). One-sided ops (`ceil` / `upper` / `floor` / `lower`
-// and their `1` / `2` lifters) are inherent methods on
-// `Conn<_, _, L>` / `Conn<_, _, R>` (and trait-default methods on
-// `ConnL` / `ConnR`), accessed via `c.ceil(x)` etc.
-//
-// Note on glob-imports: `round` / `truncate` are bare function names
-// at the crate root. If you `use connections::*` alongside another
-// crate's glob (e.g. `use num_traits::*`), the names may collide.
-// Resolution is by argument type — these take `&T: ConnL<A = A, B = B> + ConnR<A = A, B = B>` as
-// their first argument, so a wrong `round` will produce a type error
-// rather than silent misbehavior — but prefer named imports
-// (`use connections::{round, truncate};`) over globs to make the
-// origin explicit.
-pub use conn::{interval, median, round, round1, round2, truncate, truncate1, truncate2};
-
-// Capability traits — re-export so `use connections::*` brings
-// `.ceil()` / `.upper()` / `.floor()` / `.lower()` into scope for
-// triple markers via default-method dispatch.
-pub use conn::{ConnK, ConnL, ConnR};
+/// Idiomatic batch import of the trait family, two-sided helpers, and
+/// the [`Interval`](crate::interval::Interval) bracket type.
+///
+/// Two-sided ops (`round`, `truncate`, `median`, `interval` and the
+/// `1` / `2` lifters) are bare-named functions; routing them through
+/// the prelude keeps them inside an opt-in namespace and out of the
+/// crate-root glob's collision surface (`std::iter::Iterator::round`
+/// once it lands, `num_traits::ToPrimitive`, etc.). One-sided ops
+/// (`ceil` / `upper` / `floor` / `lower` and their `1` / `2` lifters)
+/// are inherent methods on `Conn<_, _, L>` / `Conn<_, _, R>` reached
+/// through the capability traits also re-exported here.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::prelude::*;
+/// use connections::core::f064::F064F032;
+/// use connections::float::ExtendedFloat::Extend;
+///
+/// // `ConnL::ceil` arrives via the prelude.
+/// let pi32 = F064F032.ceil(Extend(std::f64::consts::PI));
+/// assert_eq!(pi32, Extend(std::f32::consts::PI));
+/// ```
+pub mod prelude {
+    pub use crate::conn::{ConnK, ConnL, ConnR};
+    pub use crate::conn::{
+        interval, median, round, round1, round2, truncate, truncate1, truncate2,
+    };
+    pub use crate::interval::Interval;
+}
 
 // Property predicates (`prop::conn`, `prop::lattice`) and proptest
 // strategies (`prop::arb`) for downstream crates that want to drive
@@ -242,7 +249,7 @@ pub mod prop;
 // `tests/*_galois.rs` exercise via proptest, but for *all* inputs
 // within the bit-width rather than a sampled subset.
 #[cfg(all(kani, feature = "fixed"))]
-mod kani_proofs;
+mod kani;
 
 /// Codegen macros for downstream crates building their own
 /// bounded-integer / Q-format / NonZero / iso lattices on top of
@@ -263,6 +270,9 @@ mod kani_proofs;
 /// | [`compose_l!`]        | compose a chain of L-Conn paths into a fresh `Conn<Src, Dst>`.                |
 /// | [`compose_r!`]        | compose a chain of R-Conn paths into a fresh `Conn<Src, Dst, R>`.             |
 /// | [`compose!`]          | forwarder to [`compose_l!`] (mirrors the `K = L` default of [`Conn`](crate::conn::Conn)).        |
+/// | [`lift_l!`]           | lift a unary fn over `A` through an L-pair to its `B`-endo form.              |
+/// | [`lift_r!`]           | lift a unary fn over `A` through an R-pair to its `B`-endo form.              |
+/// | [`lift_k!`]           | lift a unary fn over `A` through a triple marker (both kinds at once).        |
 /// | [`uint_uint!`]        | `Conn<u_N, u_M>` widening (left-Galois).                                      |
 /// | [`int_uint!`]         | `Conn<i_N, u_M>` widening / same-width cross-sign (left-Galois).              |
 /// | [`ext_int!`]          | `Conn<Extended<$A>, $B>` widening with Extended source (full triple).         |
@@ -281,6 +291,9 @@ mod kani_proofs;
 /// [`compose!`]: crate::compose
 /// [`compose_l!`]: crate::compose_l
 /// [`compose_r!`]: crate::compose_r
+/// [`lift_l!`]: crate::lift_l
+/// [`lift_r!`]: crate::lift_r
+/// [`lift_k!`]: crate::lift_k
 /// [`uint_uint!`]: crate::uint_uint
 /// [`int_uint!`]: crate::int_uint
 /// [`ext_int!`]: crate::ext_int

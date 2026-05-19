@@ -499,7 +499,7 @@ crate::conn_l! {
 // by the macro and called from this module's
 // `*_solve_matches_walk_in_safe_range` proptest cross-checks);
 // `*_solve_steps_for_proof` calls `solve_to_ceil`. Each has a
-// matching pair of harnesses in `crate::kani_proofs::hifi_walk` —
+// matching pair of harnesses in `crate::kani::hifi_walk` —
 // see the time/duration.rs banner for the full rationale on
 // keeping both. Fast-paths are omitted; matching `kani::assume`s
 // live in the harnesses.

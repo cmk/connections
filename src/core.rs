@@ -536,6 +536,7 @@ macro_rules! nz_int_ext {
             stringify!($NZ),
             "` (signed; floor/ceil split 0 between -1 and +1)."
         )]
+        #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
         pub struct $NAME;
 
         impl $NAME {
