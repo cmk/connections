@@ -9,9 +9,9 @@
 //! - `F032U032` / `F032U064` / `F032I032` / `F032I064` — L-only.
 
 #[cfg(feature = "f16")]
-use super::f016::{F016, ceil_f32_f16, floor_f32_f16};
+use super::f016::{ceil_f32_f16, floor_f32_f16};
 #[cfg(feature = "f16")]
-use crate::float::{ExtendedFloat, F032};
+use crate::float::{ExtendedFloat, F016, F032};
 use crate::float::{float_ext_int, float_ext_int_l};
 
 #[cfg(feature = "f16")]
@@ -44,7 +44,7 @@ fn f032f016_floor(x: F032) -> F016 {
 #[cfg(feature = "f16")]
 #[cfg_attr(docsrs, doc(cfg(feature = "f16")))]
 crate::conn_k! {
-    /// Connection between [`crate::float::F032`] and [`super::f016::F016`].
+    /// Connection between [`crate::float::F032`] and [`crate::float::F016`].
     ///
     /// ```
     /// # #![feature(f16)]

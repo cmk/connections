@@ -1,9 +1,12 @@
-//! [`F016`] (`ExtendedFloat<f16>`) plus the 16-bit ULP machinery used by
-//! the source-hosted half-precision Conns.
+//! [`F016`](crate::float::F016) (`ExtendedFloat<f16>`) plus the 16-bit
+//! ULP machinery used by the source-hosted half-precision Conns.
 //!
 //! [`crate::core::f032::F032F016`] and [`crate::core::f064::F064F016`]
-//! live in their source modules; this module supplies the target type
-//! and shared rounding helpers.
+//! live in their source modules; this module supplies the rounding
+//! helpers shared between them. The `F016` type alias itself lives in
+//! [`crate::float`] alongside [`F032`](crate::float::F032) and
+//! [`F064`](crate::float::F064) — keep all three float aliases in one
+//! place rather than scattering them across the per-width modules.
 //!
 //! The whole module is gated on the `f16` cargo feature (declared
 //! `#[cfg(feature = "f16")] pub mod f016;` in the parent), which
@@ -14,9 +17,6 @@ use crate::float::{
 };
 
 impl_float_ext!(f16);
-
-/// IEEE binary16 (half-precision) wrapped under the N5 lattice.
-pub type F016 = ExtendedFloat<f16>;
 
 // ── 16-bit ULP machinery ───────────────────────────────────────────
 
