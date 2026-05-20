@@ -1,5 +1,7 @@
-[![crates.io](https://img.shields.io/crates/v/connections.svg)](https://crates.io/crates/connections)
-[![docs.rs](https://img.shields.io/docsrs/connections)](https://docs.rs/connections)
+<!-- TODO: on first crates.io publish, swap badges back to dynamic
+     shields.io/crates/v/connections.svg + shields.io/docsrs/connections -->
+[![crates.io](https://img.shields.io/badge/crates.io-unreleased-lightgrey.svg)](https://crates.io/crates/connections)
+[![docs](https://img.shields.io/badge/docs-github.io-blue.svg)](https://cmk.github.io/connections/)
 [![MSRV](https://img.shields.io/badge/MSRV-1.88-blue.svg)](https://github.com/cmk/connections)
 [![CI](https://github.com/cmk/connections/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/connections/actions/workflows/ci.yml)
 
@@ -124,7 +126,7 @@ The crate keeps two distinct naming axes on purpose:
 
 - **Position names** — `upper` (the upper adjoint of the L-pair) and
   `lower` (the lower adjoint of the R-pair) — match the math: a
-  generic `T: ConnK<A,B>` bound exposes both because a triple has both
+  generic `T: ConnK` bound exposes both because a triple has both
   adjunctions, regardless of which way each one rounds in any concrete
   instance.
 - **Direction names** — `ceil` (rounds up) and `floor` (rounds down) —
@@ -133,24 +135,51 @@ The crate keeps two distinct naming axes on purpose:
   calling `.floor()` on an L-kind connection, or `ceil` on an R-kind
   connection results in a compiler error.
 
+> **Note.** One-sided connections ship as `pub const NAME: Conn<A, B, K>`
+> items; the two-sided (triple) form is a `pub struct NAME` marker
+> (see [2-kinded connections](#2-kinded-connections)).
+
 ## 2-kinded connections
 
-In many cases it is possible to get **both** sides using the same common
-`inner` function. Furthermore if `inner` is order-reflecting (see below)
-then a third group of 'ambidextrous' functions (e.g. `round`, `truncate`
-, etc.) is available through a zero-sized `ConnK` marker type with
-capability traits, `ConnL<A, B>` and `ConnR<A, B>`. These traits `conn_l`
-and `conn_r` methods project to the L-view and R-view `Conn`s of the
-triple. The trait names match the value-type spellings on purpose:
-the blanket `impl ConnL for Conn<A, B, L>` (and the R-side analogue)
-makes every one-sided value also satisfy the trait, so a generic
-`T: ConnL<A, B>` bound accepts triple markers and raw `Conn<A, B, L>`
-values uniformly. The "third function" — the adjoint that distinguishes
-a triple from a one-sided Conn — lives as a free function in module
-scope, referenced from the marker's trait impls; no struct in the
-crate stores three fns. Two-sided helpers (`round`, `truncate`, …)
-bind on the `ConnK<A, B>` super-trait (`= ConnL + ConnR`) and reach
-through both views.
+When the same `inner` function determines **both** the L-side ceiling
+and the R-side floor, the pair packages as a single *adjoint triple* —
+`ceil ⊣ inner ⊣ floor` — rather than two unrelated one-sided values.
+
+If additionally `inner` is order-reflecting (see [Sandwich
+inequality](#sandwich-inequality)), the triple gains a third group of
+'ambidextrous' helpers (`round`, `truncate`, …) that bind on both
+kinds at once.
+
+A triple ships as a **zero-sized marker struct** that implements
+two capability traits, hence the super-trait that ties them together:
+
+- **`ConnL`** — capability trait with associated types `type A: Copy;
+  type B: Copy;` and a `conn_l()` projection to the L-view
+  `Conn<A, B, L>`. Default methods expose `.ceil()` and `.upper()`.
+- **`ConnR`** — symmetric capability trait whose `conn_r()` projects
+  to the R-view `Conn<A, B, R>`. Default methods expose `.floor()`
+  and `.lower()`.
+- **`ConnK`** — super-trait `ConnL + ConnR` over the same `(A, B)`
+  pair; the two-sided helpers (`round`, `truncate`, …) bind on
+  `ConnK` and reach through both views.
+
+The trait names match the value-type spellings on purpose: a blanket
+`impl ConnL for Conn<A, B, L>` (and the R-side analogue) makes every
+one-sided value also satisfy the trait, so a generic `T: ConnL` bound
+accepts triple markers and raw `Conn<A, B, L>` values uniformly. To
+constrain `A`/`B` at the bound site, bind the associated types as
+`T: ConnL<A = A, B = B>`.
+
+> **Convention.** One-sided connections ship as `pub const`s of type
+> `Conn<A, B, L>` or `Conn<A, B, R>`. Two-sided (triple) connections
+> ship as `pub struct`s — zero-sized marker types implementing both
+> `ConnL` and `ConnR`. The const-vs-struct shape tells you which kind
+> a name refers to at a glance.
+
+The "third function" — the adjoint that distinguishes a triple from a
+one-sided Conn — lives as a free function in module scope, referenced
+from the marker's trait impls; no struct in the crate stores three
+function pointers.
 
 You construct a `ConnK` marker out of three functions: `ceil`, `inner`, 
 and `floor`. Both `ceil`/`inner` and `inner`/`floor` must satisfy the 
@@ -423,8 +452,8 @@ full tree runs in well under two minutes.
 - Two-sided helpers (re-exported at the crate root): `interval`,
   `midpoint`, `round`/`round1`/`round2`,
   `truncate`/`truncate1`/`truncate2`, `median`. All bind on
-  `T: ConnK<A, B>` (= `ConnL + ConnR`), so they're callable only on
-  triple markers — not on one-sided Conns.
+  `T: ConnK` (super-trait of `ConnL + ConnR` over the same `(A, B)`),
+  so they're callable only on triple markers — not on one-sided Conns.
 
 Kind discipline is structural: calling `.floor(...)` on an L-kind
 Conn is a compile error (the method only exists on `Conn<_, _, R>`),
