@@ -145,6 +145,8 @@ Per-domain Conn families:
 | `core`    | `core`/`std` (i8…u128, f16/f32/f64, char, bool, NonZero) | `i008.rs`–`i128.rs`, `u008.rs`–`u128.rs` (std-int + NonZero), `f016.rs`/`f032.rs`/`f064.rs` (IEEE), `char.rs`, `bool.rs` |
 | `fixed`   | `fixed`                                    | `i008.rs`–`i128.rs`, `u008.rs`–`u128.rs` (Q-format + cross-crate iso `I###Q000` + float-bridge `F0XXQ###`) |
 | `time`    | `time`, `std::time`                        | `clock.rs`, `date.rs`, `datetime.rs`, `duration.rs`, `offset.rs` |
+| `hifi`    | `hifitime`                                 | `duration.rs`, `epoch.rs`, `calendar.rs` |
+| `uhlc`    | `uhlc`                                     | `ntp64.rs`, `id.rs` |
 | `float`   | (this crate)                               | `ExtendedFloat<T>` + ULP/rounding helpers + `float_ext_int!` macros |
 | `addr`    | `std::net`                                 | `ip.rs`, `socket.rs` |
 | `conn`    | (this crate)                               | `Conn<A, B, K>`, `compose!` / `triple!` / `iso!` macros, free fns operating on a `Conn` |

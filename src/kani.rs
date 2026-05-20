@@ -90,6 +90,8 @@ mod nz_ext;
 mod time_pure;
 #[cfg(feature = "time")]
 mod time_walk;
+#[cfg(feature = "uhlc")]
+mod uhlc;
 mod uint_narrow;
 mod uint_sat;
 mod uint_widen;
