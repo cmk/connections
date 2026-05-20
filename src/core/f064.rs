@@ -9,11 +9,13 @@
 //!   triples derived from `F032<X> ∘ F064F032`.
 
 #[cfg(feature = "f16")]
-use super::f016::{F016, ceil_f64_f16, floor_f64_f16};
+use super::f016::{ceil_f64_f16, floor_f64_f16};
 use super::f032::{F032I008, F032I016, F032U008, F032U016};
 #[cfg(test)]
 #[allow(unused_imports)]
 use crate::conn::Conn;
+#[cfg(feature = "f16")]
+use crate::float::F016;
 use crate::float::{
     ExtendedFloat, F032, F064, def_walk_helpers, float_ext_int, float_ext_int_l, shift32,
     widen_f32_f64,

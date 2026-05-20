@@ -904,7 +904,7 @@ pub(crate) fn round_down_to_f16(b: i128) -> f16 {
     }
     // `approx as i128`: f16 finite values fit in i128 exactly.
     if (approx as i128) > b {
-        crate::float::f016::shift16_f16(-1, approx)
+        crate::core::f016::shift16_f16(-1, approx)
     } else {
         approx
     }
@@ -1043,7 +1043,7 @@ pub(crate) fn round_down_f64_to_f16(v: f64) -> f16 {
         return f16::NEG_INFINITY;
     }
     if (approx as f64) > v {
-        crate::float::f016::shift16_f16(-1, approx)
+        crate::core::f016::shift16_f16(-1, approx)
     } else {
         approx
     }
