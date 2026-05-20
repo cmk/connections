@@ -68,34 +68,48 @@ macro_rules! prove_ext_int {
     };
 }
 
-// ── i16 destinations ────────────────────────────────────────────────
-use crate::fixed::i016 as fi016;
-prove_ext_int!(i008i016, fi016::I008I016, i8, i16);
-prove_ext_int!(u008i016, fi016::U008I016, u8, i16);
+// Per AGENTS.md `## Conn placement`, ext_int!-generated `I###I###` /
+// `U###I###` widening Conns live in their source module — tie-break
+// rule (2). The harnesses below import per-source so the path matches
+// the actual hosting after the Plan-26 `core/`/`fixed/` split.
 
-// ── i32 destinations ────────────────────────────────────────────────
-use crate::fixed::i032 as fi032;
-prove_ext_int!(i008i032, fi032::I008I032, i8, i32);
-prove_ext_int!(i016i032, fi032::I016I032, i16, i32);
-prove_ext_int!(u008i032, fi032::U008I032, u8, i32);
-prove_ext_int!(u016i032, fi032::U016I032, u16, i32);
+use crate::core::i008 as ci008;
+use crate::core::i016 as ci016;
+use crate::core::i032 as ci032;
+use crate::core::i064 as ci064;
+use crate::core::u008 as cu008;
+use crate::core::u016 as cu016;
+use crate::core::u032 as cu032;
+use crate::core::u064 as cu064;
 
-// ── i64 destinations ────────────────────────────────────────────────
-use crate::fixed::i064 as fi064;
-prove_ext_int!(i008i064, fi064::I008I064, i8, i64);
-prove_ext_int!(i016i064, fi064::I016I064, i16, i64);
-prove_ext_int!(i032i064, fi064::I032I064, i32, i64);
-prove_ext_int!(u008i064, fi064::U008I064, u8, i64);
-prove_ext_int!(u016i064, fi064::U016I064, u16, i64);
-prove_ext_int!(u032i064, fi064::U032I064, u32, i64);
+// ── Signed widenings (I###I###, source-keyed) ───────────────────────
 
-// ── i128 destinations ───────────────────────────────────────────────
-use crate::fixed::i128 as fi128;
-prove_ext_int!(i008i128, fi128::I008I128, i8, i128);
-prove_ext_int!(i016i128, fi128::I016I128, i16, i128);
-prove_ext_int!(i032i128, fi128::I032I128, i32, i128);
-prove_ext_int!(i064i128, fi128::I064I128, i64, i128);
-prove_ext_int!(u008i128, fi128::U008I128, u8, i128);
-prove_ext_int!(u016i128, fi128::U016I128, u16, i128);
-prove_ext_int!(u032i128, fi128::U032I128, u32, i128);
-prove_ext_int!(u064i128, fi128::U064I128, u64, i128);
+prove_ext_int!(i008i016, ci008::I008I016, i8, i16);
+prove_ext_int!(i008i032, ci008::I008I032, i8, i32);
+prove_ext_int!(i008i064, ci008::I008I064, i8, i64);
+prove_ext_int!(i008i128, ci008::I008I128, i8, i128);
+
+prove_ext_int!(i016i032, ci016::I016I032, i16, i32);
+prove_ext_int!(i016i064, ci016::I016I064, i16, i64);
+prove_ext_int!(i016i128, ci016::I016I128, i16, i128);
+
+prove_ext_int!(i032i064, ci032::I032I064, i32, i64);
+prove_ext_int!(i032i128, ci032::I032I128, i32, i128);
+
+prove_ext_int!(i064i128, ci064::I064I128, i64, i128);
+
+// ── Cross-sign widenings (U###I###, source-keyed) ───────────────────
+
+prove_ext_int!(u008i016, cu008::U008I016, u8, i16);
+prove_ext_int!(u008i032, cu008::U008I032, u8, i32);
+prove_ext_int!(u008i064, cu008::U008I064, u8, i64);
+prove_ext_int!(u008i128, cu008::U008I128, u8, i128);
+
+prove_ext_int!(u016i032, cu016::U016I032, u16, i32);
+prove_ext_int!(u016i064, cu016::U016I064, u16, i64);
+prove_ext_int!(u016i128, cu016::U016I128, u16, i128);
+
+prove_ext_int!(u032i064, cu032::U032I064, u32, i64);
+prove_ext_int!(u032i128, cu032::U032I128, u32, i128);
+
+prove_ext_int!(u064i128, cu064::U064I128, u64, i128);

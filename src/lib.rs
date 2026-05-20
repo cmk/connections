@@ -10,7 +10,7 @@
 //!
 //! | code     | type                         | meaning              |
 //! |----------|------------------------------|----------------------|
-//! | `F016`   | `core::f016::F016` (gated)   | IEEE binary16        |
+//! | `F016`   | `float::F016` (gated)        | IEEE binary16        |
 //! | `F032`   | [`F032`](float::F032)        | IEEE binary32        |
 //! | `F064`   | [`F064`](float::F064)        | IEEE binary64        |
 //! | `F128`   | (deferred — `f128` unstable) | IEEE binary128       |
@@ -282,6 +282,10 @@ mod kani;
 /// | [`int_uint_narrow!`]  | `Conn<i_N, u_M>` narrowing (left-Galois).                                     |
 /// | [`nz_int_ext!`]       | `Conn<i_N, NonZero<i_N>>` asymmetric-at-zero adjoint (full triple).           |
 /// | [`nz_uint_ext!`]      | `Conn<u_N, NonZero<u_N>>` saturating-to-NonZero(1) (left-Galois).             |
+/// | [`nz_uint_widen!`]    | `Conn<NonZero<u_N>, NonZero<u_M>>` widening saturating-at-max (left-Galois).  |
+/// | [`nz_int_narrow!`]    | `Conn<NonZero<i_N>, NonZero<i_M>>` narrowing saturating-at-MIN/MAX (left-Galois). |
+/// | [`nz_uint_narrow!`]   | `Conn<NonZero<u_N>, NonZero<u_M>>` narrowing saturating-at-max (left-Galois). |
+/// | [`law_battery!`]      | declaration-form proptest suite for a Conn — galois / round-trip / floor_le_ceil. |
 ///
 /// [`iso!`]: crate::iso
 /// [`conn_k!`]: crate::conn_k
@@ -303,11 +307,16 @@ mod kani;
 /// [`int_uint_narrow!`]: crate::int_uint_narrow
 /// [`nz_int_ext!`]: crate::nz_int_ext
 /// [`nz_uint_ext!`]: crate::nz_uint_ext
+/// [`nz_uint_widen!`]: crate::nz_uint_widen
+/// [`nz_int_narrow!`]: crate::nz_int_narrow
+/// [`nz_uint_narrow!`]: crate::nz_uint_narrow
+/// [`law_battery!`]: crate::law_battery
 #[cfg(feature = "macros")]
 pub mod macros {
     pub use crate::{
         compose, compose_k, compose_l, compose_r, conn_k, conn_l, conn_r, ext_int, int_int_narrow,
-        int_uint, int_uint_narrow, iso, lift_k, lift_l, lift_r, nz_int_ext, nz_uint_ext,
-        uint_int_sat, uint_uint, uint_uint_narrow,
+        int_uint, int_uint_narrow, iso, law_battery, lift_k, lift_l, lift_r, nz_int_ext,
+        nz_int_narrow, nz_uint_ext, nz_uint_narrow, nz_uint_widen, uint_int_sat, uint_uint,
+        uint_uint_narrow,
     };
 }

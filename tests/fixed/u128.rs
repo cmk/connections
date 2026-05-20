@@ -1,8 +1,8 @@
-//! Galois-law proptest battery for `conn::fixed::u128`. Integration
-//! test — see `tests/conn_fixed_u08_galois.rs` for rationale.
+//! Galois-law proptest battery for `fixed::u128`. Integration
+//! test — see `tests/fixed/u008.rs` for rationale.
 //!
 //! u128 generators are expensive; case count capped to 64 (same
-//! precedent as `conn::fixed::i128`).
+//! precedent as `fixed::i128`).
 
 use connections::fixed::u128::*;
 use fixed::FixedU128;

@@ -98,7 +98,7 @@ fn unix_max_nanos() -> i128 {
 // (`2⁵³ ≈ 9 × 10¹⁵`) — and produces an off-by-(seconds) boundary
 // value. Doing the integer division **first** lands the result
 // at `±10¹⁴`, well inside the exact-integer range, so the trailing
-// `as f64` cast is exact. (MR !64 round-2 review.)
+// `as f64` cast is exact.
 
 #[inline]
 fn hd_min_secs_f64() -> f64 {
@@ -122,7 +122,7 @@ fn hd_max_secs_f64() -> f64 {
 // that threshold has `Finite(HD::MIN_TAI epoch)` as its Galois-L
 // adjoint (the smallest Finite b satisfying v ≤ inner(b)). The walk
 // would converge to the same answer; the fast-path just skips the
-// 10¹² descend steps. (MR !64 rounds 3-4 review discussion.)
+// 10¹² descend steps.
 
 #[inline]
 fn unix_min_secs_f64() -> f64 {
@@ -301,7 +301,7 @@ fn f064etai_ceil(x: F064) -> Extended<Epoch> {
     // see helpers); going through `HD::MAX.to_seconds()` directly
     // would f64-cast a `±10²³`-magnitude value past the exact-
     // integer range and could miss out-of-range inputs by the
-    // boundary rounding error. (MR !64 round-2 review.)
+    // boundary rounding error.
     let max_secs = hd_max_secs_f64();
     let min_secs = hd_min_secs_f64();
     if v > max_secs {
@@ -577,7 +577,6 @@ fn f064eunx_ceil(x: F064) -> Extended<Epoch> {
     // `epoch_to_unix_f64(Epoch::from_tai_duration(HD::MAX))` would
     // f64-cast through `to_unix_seconds` at `±10²³` magnitude past
     // f64's exact-integer range and could miss out-of-range inputs.
-    // (MR !64 round-2 review.)
     let unix_max_secs = unix_max_secs_f64();
     let unix_min_secs = unix_min_secs_f64();
     if v > unix_max_secs {
@@ -717,9 +716,9 @@ fn bdt_max_nanos() -> i128 {
 }
 
 // Per-scale f64 second bounds via integer division (`nanos / 10⁹`,
-// landing at ~10¹⁴ — exact in f64). The MR !64 round-2 lesson:
-// going through `to_seconds()` directly f64-casts a value past
-// `2⁵³`, off-by-seconds at the boundary.
+// landing at ~10¹⁴ — exact in f64). Going through `to_seconds()`
+// directly f64-casts a value past `2⁵³`, off-by-seconds at the
+// boundary.
 
 #[inline]
 fn gpst_min_secs_f64() -> f64 {
@@ -2015,8 +2014,7 @@ mod tests {
         // would take ~10¹² steps; the `<=` boundary check fast-paths
         // to MIN. Uses `hd_min_secs_f64()` (matches the implementation's
         // threshold) rather than `HD::MIN.to_seconds()` whose `±10²³`-
-        // magnitude f64 cast could disagree by ULPs. (MR !63 round-3
-        // shape, carried into MR !64.)
+        // magnitude f64 cast could disagree by ULPs.
         let v_min = ExtendedFloat::Extend(hd_min_secs_f64());
         assert_eq!(
             F064ETAI.ceil(v_min),
@@ -2027,7 +2025,7 @@ mod tests {
     // Pins the asymmetric-name vs equal-value relationship between
     // `unix_min_secs_f64` and `hd_min_secs_f64`. Documented at length
     // above their definitions; the test makes the equality machine-
-    // checked so it can't drift silently. (MR !64 round-5 follow-up.)
+    // checked so it can't drift silently.
     #[test]
     fn unix_min_secs_f64_equals_hd_min_secs_f64() {
         assert_eq!(unix_min_secs_f64(), hd_min_secs_f64());
@@ -2040,7 +2038,6 @@ mod tests {
     // collapses to `hd_min_secs_f64` via UTC subtraction underflow.
     // The walk converges to `Finite(HD::MIN_TAI epoch)`. Guards
     // against regressions of the round-3/4 fast-path discussion.
-    // (MR !64 round-5 follow-up.)
     #[test]
     fn f064eunx_below_hd_min_secs_collapses_to_hd_min() {
         let v = ExtendedFloat::Extend(hd_min_secs_f64() - 1.0);
@@ -2349,7 +2346,7 @@ mod tests {
         // <https://gssc.esa.int/navipedia/index.php/Time_References_in_GNSS#GPS_Time_.28GPST.29>)
         // rather than `hifitime::SECONDS_GPS_TAI_OFFSET`, so the
         // assertion remains independent of the constant the Conn
-        // itself transitively depends on. (MR !66 round-1.)
+        // itself transitively depends on.
         let e = Epoch::from_tai_seconds(3_000_000_000.0); // ~rough 1995 TAI
         let gpst_secs = EGPSHDUR.ceil(e).to_seconds();
         let expected = e.to_tai_seconds() - 2_524_953_619.0;

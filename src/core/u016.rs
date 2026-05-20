@@ -6,8 +6,10 @@
 
 #[allow(unused_imports)]
 use crate::core::LE;
-use crate::core::{ext_int, nz_uint_ext, uint_int_sat, uint_uint, uint_uint_narrow};
-use ::core::num::NonZeroU16;
+use crate::core::{
+    ext_int, nz_uint_ext, nz_uint_narrow, nz_uint_widen, uint_int_sat, uint_uint, uint_uint_narrow,
+};
+use ::core::num::{NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128};
 
 // ── §1 std-int Conns sourced from `u16` ───────────────────────────
 
@@ -25,6 +27,16 @@ uint_uint!(U016U128, u16, u128);
 // ── §3 u16 ↔ NonZeroU16 ───────────────────────────────────────────
 
 nz_uint_ext!(U016N016, u16, NonZeroU16);
+
+// ── NonZero unsigned narrowings ───────────────────────────────────
+
+nz_uint_narrow!(N016N008, NonZeroU16, u16, NonZeroU8, u8);
+
+// ── NonZero unsigned widenings ────────────────────────────────────
+
+nz_uint_widen!(N016N032, NonZeroU16, u16, NonZeroU32, u32);
+nz_uint_widen!(N016N064, NonZeroU16, u16, NonZeroU64, u64);
+nz_uint_widen!(N016N128, NonZeroU16, u16, NonZeroU128, u128);
 
 // ── Sortable big-endian byte encodings ────────────────────────────
 
@@ -124,6 +136,37 @@ mod tests {
         assert_eq!(I128U016.ceil(i128::MAX), u16::MAX);
         assert_eq!(I032U016.upper(u16::MAX), i32::MAX);
         assert_eq!(I128U016.upper(u16::MAX), i128::MAX);
+    }
+
+    // ── NonZero unsigned narrowing (N016N008) spot + property ─────
+
+    fn arb_nz_u8() -> impl Strategy<Value = NonZeroU8> {
+        any::<u8>().prop_filter_map("non-zero u8", NonZeroU8::new)
+    }
+    fn arb_nz_u16() -> impl Strategy<Value = NonZeroU16> {
+        any::<u16>().prop_filter_map("non-zero u16", NonZeroU16::new)
+    }
+
+    #[test]
+    fn n016n008_saturates_above_target_max() {
+        let big = NonZeroU16::new(u16::MAX).unwrap();
+        let just_above = NonZeroU16::new(u8::MAX as u16 + 1).unwrap();
+        let in_range = NonZeroU16::new(42).unwrap();
+        assert_eq!(N016N008.ceil(big), NonZeroU8::new(u8::MAX).unwrap());
+        assert_eq!(N016N008.ceil(just_above), NonZeroU8::new(u8::MAX).unwrap());
+        assert_eq!(N016N008.ceil(in_range), NonZeroU8::new(42).unwrap());
+        // FINE_MAX fixup: inner(NZ(u8::MAX)) = NZ(u16::MAX)
+        assert_eq!(
+            N016N008.upper(NonZeroU8::new(u8::MAX).unwrap()),
+            NonZeroU16::new(u16::MAX).unwrap()
+        );
+    }
+
+    proptest! {
+        #[test]
+        fn n016n008_galois_l(a in arb_nz_u16(), b in arb_nz_u8()) {
+            prop_assert!(conn_laws::galois_l(&N016N008.conn_l(), a, b));
+        }
     }
 
     fn arb_byte2() -> impl Strategy<Value = [u8; 2]> {

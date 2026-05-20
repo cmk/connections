@@ -1,5 +1,5 @@
-//! Galois-law proptest battery for `conn::std::i32`. Integration
-//! test — see `tests/conn_std_u8_galois.rs` for rationale.
+//! Galois-law proptest battery for `core::i032`. Integration
+//! test — see `tests/core/u008.rs` for rationale.
 
 #[allow(unused_imports)]
 use connections::conn::{ConnL, ConnR};
@@ -76,7 +76,7 @@ ext_int_props!(u016i032, U016I032, arb_ext_u16(), any::<i32>());
 
 // §1 I→I narrowing — single-sided left-Galois.
 // `galois_lower` intentionally omitted; see
-// `tests/conn_std_u8_galois.rs`.
+// `tests/core/u008.rs`.
 macro_rules! single_sided_props {
     ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {

@@ -1,5 +1,5 @@
-//! Galois-law proptest battery for `conn::std::i16`. Integration
-//! test — see `tests/conn_std_u8_galois.rs` for rationale.
+//! Galois-law proptest battery for `core::i016`. Integration
+//! test — see `tests/core/u008.rs` for rationale.
 //!
 //! Existing widening Conns use the Extended-source full-triple
 //! battery. T3 (I→I narrowing) and T5 (U→I non-widening) commits
@@ -84,7 +84,7 @@ ext_int_props!(u008i016, U008I016, arb_ext_u8(), any::<i16>());
 
 // §1 I→I narrowing — single-sided left-Galois.
 // `galois_lower` intentionally omitted; see
-// `tests/conn_std_u8_galois.rs`.
+// `tests/core/u008.rs`.
 macro_rules! single_sided_props {
     ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {

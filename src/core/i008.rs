@@ -5,7 +5,7 @@
 //! `crate::fixed::i008`.
 
 #[allow(unused_imports)]
-use crate::core::{B2, L2};
+use crate::core::{B2, L2, LX};
 use crate::core::{ext_int, int_uint, nz_int_ext};
 use ::core::num::NonZeroI8;
 
@@ -73,6 +73,45 @@ crate::iso! {
     pub I008LE01 : i8 => L2<1> {
         forward: i8_to_le01,
         back:    le01_to_i8,
+    }
+}
+
+// ── Lex-key big-endian encoding (LX) ──────────────────────────────
+
+const fn i8_to_lx01(x: i8) -> LX<1> {
+    LX([(x as u8).wrapping_add(0x80)])
+}
+const fn lx01_to_i8(b: LX<1>) -> i8 {
+    b.0[0].wrapping_sub(0x80) as i8
+}
+
+crate::iso! {
+    /// `i8 ↔ LX<1>` — bias-encoded big-endian iso whose raw byte
+    /// `Ord` matches signed numeric order.
+    ///
+    /// Encoder maps `x: i8` to `[(x as u8).wrapping_add(0x80)]`: the
+    /// sign-bit flip turns signed values into unsigned values whose
+    /// big-endian byte representation is directly lex-sortable. Use
+    /// this rather than [`I008BE01`] when the consumer compares bytes
+    /// without a custom `Ord` — byte-keyed stores, on-disk sorted indices, etc.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use connections::conn::{ConnL, ConnR};
+    /// use connections::core::LX;
+    /// use connections::core::i008::I008LX01;
+    ///
+    /// assert_eq!(I008LX01.ceil(i8::MIN), LX([0x00]));
+    /// assert_eq!(I008LX01.ceil(0_i8),    LX([0x80]));
+    /// assert_eq!(I008LX01.ceil(i8::MAX), LX([0xFF]));
+    /// // Raw byte lex compare matches signed numeric compare.
+    /// assert!(I008LX01.ceil(i8::MIN) < I008LX01.ceil(0));
+    /// assert!(I008LX01.ceil(0)       < I008LX01.ceil(i8::MAX));
+    /// ```
+    pub I008LX01 : i8 => LX<1> {
+        forward: i8_to_lx01,
+        back:    lx01_to_i8,
     }
 }
 
@@ -284,6 +323,69 @@ mod tests {
         #[test]
         fn i008_l2_order_preserving(a in any::<i8>(), b in any::<i8>()) {
             prop_assert_eq!(a.cmp(&b), I008LE01.ceil(a).cmp(&I008LE01.ceil(b)));
+        }
+    }
+
+    // ── LX (lex-sortable big-endian) byte-encoding tests ──────────
+
+    fn arb_lxbyte1() -> impl Strategy<Value = LX<1>> {
+        prop_oneof![
+            Just([0; 1]),
+            Just([0x80]),
+            Just([0xFF; 1]),
+            any::<[u8; 1]>()
+        ]
+        .prop_map(LX)
+    }
+
+    #[test]
+    fn i008lx01_boundary_bytes() {
+        // Bias-encoded boundaries: MIN→0x00, 0→0x80, MAX→0xFF.
+        // Raw byte lex compare matches signed numeric order.
+        assert_eq!(I008LX01.ceil(i8::MIN), LX([0x00]));
+        assert_eq!(I008LX01.ceil(0_i8), LX([0x80]));
+        assert_eq!(I008LX01.ceil(i8::MAX), LX([0xFF]));
+        assert_eq!(I008LX01.upper(LX([0x00])), i8::MIN);
+        assert_eq!(I008LX01.upper(LX([0x80])), 0_i8);
+        assert_eq!(I008LX01.upper(LX([0xFF])), i8::MAX);
+    }
+
+    proptest! {
+        #[test]
+        fn i008_lx_iso_roundtrip_l(
+            a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]
+        ) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&I008LX01.conn_l(), a));
+        }
+
+        #[test]
+        fn i008_lx_roundtrip_ceil(b in arb_lxbyte1()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&I008LX01.conn_l(), b));
+        }
+
+        #[test]
+        fn i008_lx_galois_l(a in any::<i8>(), b in arb_lxbyte1()) {
+            prop_assert!(conn_laws::galois_l(&I008LX01.conn_l(), a, b));
+        }
+
+        #[test]
+        fn i008_lx_galois_r(a in any::<i8>(), b in arb_lxbyte1()) {
+            prop_assert!(conn_laws::galois_r(&I008LX01.conn_r(), a, b));
+        }
+
+        #[test]
+        fn i008_lx_floor_le_ceil(a in any::<i8>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&I008LX01, a));
+        }
+
+        // The I008LX01 contract: signed numeric compare ⟺ raw byte
+        // lex compare on the bias-encoded bytes. This is the whole
+        // point of the bias-encoding Conn.
+        #[test]
+        fn i008_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i8>(), b in any::<i8>()) {
+            let ka = I008LX01.ceil(a).0;
+            let kb = I008LX01.ceil(b).0;
+            prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }
 }

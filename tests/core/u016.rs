@@ -1,5 +1,5 @@
-//! Galois-law proptest battery for `conn::std::u16`. Integration
-//! test — see `tests/conn_std_u8_galois.rs` for rationale.
+//! Galois-law proptest battery for `core::u016`. Integration
+//! test — see `tests/core/u008.rs` for rationale.
 
 #[allow(unused_imports)]
 use connections::conn::{ConnL, ConnR};
@@ -11,7 +11,7 @@ use proptest::prelude::*;
 
 // Tests `galois_upper` only; `galois_lower` is intentionally
 // omitted (fails by design for `Conn::new_left` at saturation
-// plateaus). See `tests/conn_std_u8_galois.rs` for the worked
+// plateaus). See `tests/core/u008.rs` for the worked
 // counter-example.
 macro_rules! single_sided_props {
     ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {

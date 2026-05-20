@@ -64,31 +64,31 @@ macro_rules! prove_uint_sat {
     };
 }
 
-// ── i8 destinations ─────────────────────────────────────────────────
-use crate::fixed::i008 as fi008;
-prove_uint_sat!(u008i008, fi008::U008I008, u8, i8);
-prove_uint_sat!(u016i008, fi008::U016I008, u16, i8);
-prove_uint_sat!(u032i008, fi008::U032I008, u32, i8);
-prove_uint_sat!(u064i008, fi008::U064I008, u64, i8);
-prove_uint_sat!(u128i008, fi008::U128I008, u128, i8);
+// Per AGENTS.md `## Conn placement`, U###I### Conns live in the source
+// (unsigned) module. The harnesses below import per-source so the path
+// matches the actual hosting after the Plan-26 `core/`/`fixed/` split.
 
-// ── i16 destinations ────────────────────────────────────────────────
-use crate::fixed::i016 as fi016;
-prove_uint_sat!(u016i016, fi016::U016I016, u16, i16);
-prove_uint_sat!(u032i016, fi016::U032I016, u32, i16);
-prove_uint_sat!(u064i016, fi016::U064I016, u64, i16);
-prove_uint_sat!(u128i016, fi016::U128I016, u128, i16);
+use crate::core::u008 as cu008;
+use crate::core::u016 as cu016;
+use crate::core::u032 as cu032;
+use crate::core::u064 as cu064;
+use crate::core::u128 as cu128;
 
-// ── i32 destinations ────────────────────────────────────────────────
-use crate::fixed::i032 as fi032;
-prove_uint_sat!(u064i032, fi032::U064I032, u64, i32);
-prove_uint_sat!(u128i032, fi032::U128I032, u128, i32);
+prove_uint_sat!(u008i008, cu008::U008I008, u8, i8);
 
-// ── i64 destinations ────────────────────────────────────────────────
-use crate::fixed::i064 as fi064;
-prove_uint_sat!(u064i064, fi064::U064I064, u64, i64);
-prove_uint_sat!(u128i064, fi064::U128I064, u128, i64);
+prove_uint_sat!(u016i008, cu016::U016I008, u16, i8);
+prove_uint_sat!(u016i016, cu016::U016I016, u16, i16);
 
-// ── i128 destinations ───────────────────────────────────────────────
-use crate::fixed::i128 as fi128;
-prove_uint_sat!(u128i128, fi128::U128I128, u128, i128);
+prove_uint_sat!(u032i008, cu032::U032I008, u32, i8);
+prove_uint_sat!(u032i016, cu032::U032I016, u32, i16);
+
+prove_uint_sat!(u064i008, cu064::U064I008, u64, i8);
+prove_uint_sat!(u064i016, cu064::U064I016, u64, i16);
+prove_uint_sat!(u064i032, cu064::U064I032, u64, i32);
+prove_uint_sat!(u064i064, cu064::U064I064, u64, i64);
+
+prove_uint_sat!(u128i008, cu128::U128I008, u128, i8);
+prove_uint_sat!(u128i016, cu128::U128I016, u128, i16);
+prove_uint_sat!(u128i032, cu128::U128I032, u128, i32);
+prove_uint_sat!(u128i064, cu128::U128I064, u128, i64);
+prove_uint_sat!(u128i128, cu128::U128I128, u128, i128);

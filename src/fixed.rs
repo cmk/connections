@@ -62,22 +62,14 @@
 //! `core`/`fixed` split.
 //!
 //! The std-int Conn macros (`ext_int!`, `int_uint!`, `nz_int_ext!`,
-//! …) used to live here; after Plan 26 they live in [`crate::core`].
-//! For backward-compat the per-primitive submodules below import them
-//! via `use crate::core::{…}` (and this module re-exports them under
-//! their original names so `use super::{…}` from this module's
-//! children continues to compile during the migration).
+//! …) live in [`crate::core`]; per-host-type submodules import them
+//! via `use crate::core::{…}` directly.
 //!
 //! The `fixed`-crate `FixedI<N><F>` / `FixedU<N><F>` types already
 //! derive `PartialEq` / `Eq` / `PartialOrd` / `Ord` upstream —
 //! totally ordered by their underlying integer bits — so they flow
 //! through any `T: Eq + PartialOrd` law predicate without per-crate
 //! impls.
-
-// `LE<N>` and the std-int Conn macros moved to `src/core.rs` in
-// Plan 26. The submodules below now import what they need directly
-// from `crate::core::*`; this module no longer needs to re-export
-// them.
 
 // ── Float → Q-format Conn macros ───────────────────────────────────
 //

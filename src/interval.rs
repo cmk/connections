@@ -65,7 +65,7 @@ use core::cmp::Ordering;
 /// let nan = f64::NAN;
 /// assert_eq!(Interval::new(nan, nan), Interval::<f64>::Empty);
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub enum Interval<A> {
     /// The empty interval, containing nothing.
     #[default]

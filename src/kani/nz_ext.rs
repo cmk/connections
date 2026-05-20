@@ -128,27 +128,27 @@ macro_rules! prove_nz_unsigned {
 }
 
 // ── Signed: full triples ────────────────────────────────────────────
-use crate::fixed::i008 as fi008;
-use crate::fixed::i016 as fi016;
-use crate::fixed::i032 as fi032;
-use crate::fixed::i064 as fi064;
-use crate::fixed::i128 as fi128;
+use crate::core::i008 as ci008;
+use crate::core::i016 as ci016;
+use crate::core::i032 as ci032;
+use crate::core::i064 as ci064;
+use crate::core::i128 as ci128;
 
-prove_nz_signed!(i008n008, fi008::I008N008, i8, NonZeroI8);
-prove_nz_signed!(i016n016, fi016::I016N016, i16, NonZeroI16);
-prove_nz_signed!(i032n032, fi032::I032N032, i32, NonZeroI32);
-prove_nz_signed!(i064n064, fi064::I064N064, i64, NonZeroI64);
-prove_nz_signed!(i128n128, fi128::I128N128, i128, NonZeroI128);
+prove_nz_signed!(i008n008, ci008::I008N008, i8, NonZeroI8);
+prove_nz_signed!(i016n016, ci016::I016N016, i16, NonZeroI16);
+prove_nz_signed!(i032n032, ci032::I032N032, i32, NonZeroI32);
+prove_nz_signed!(i064n064, ci064::I064N064, i64, NonZeroI64);
+prove_nz_signed!(i128n128, ci128::I128N128, i128, NonZeroI128);
 
 // ── Unsigned: L-Galois only ─────────────────────────────────────────
-use crate::fixed::u008 as fu008;
-use crate::fixed::u016 as fu016;
-use crate::fixed::u032 as fu032;
-use crate::fixed::u064 as fu064;
-use crate::fixed::u128 as fu128;
+use crate::core::u008 as cu008;
+use crate::core::u016 as cu016;
+use crate::core::u032 as cu032;
+use crate::core::u064 as cu064;
+use crate::core::u128 as cu128;
 
-prove_nz_unsigned!(u008n008, fu008::U008N008, u8, NonZeroU8);
-prove_nz_unsigned!(u016n016, fu016::U016N016, u16, NonZeroU16);
-prove_nz_unsigned!(u032n032, fu032::U032N032, u32, NonZeroU32);
-prove_nz_unsigned!(u064n064, fu064::U064N064, u64, NonZeroU64);
-prove_nz_unsigned!(u128n128, fu128::U128N128, u128, NonZeroU128);
+prove_nz_unsigned!(u008n008, cu008::U008N008, u8, NonZeroU8);
+prove_nz_unsigned!(u016n016, cu016::U016N016, u16, NonZeroU16);
+prove_nz_unsigned!(u032n032, cu032::U032N032, u32, NonZeroU32);
+prove_nz_unsigned!(u064n064, cu064::U064N064, u64, NonZeroU64);
+prove_nz_unsigned!(u128n128, cu128::U128N128, u128, NonZeroU128);

@@ -6,8 +6,10 @@
 
 #[allow(unused_imports)]
 use crate::core::LE;
-use crate::core::{ext_int, nz_uint_ext, uint_int_sat, uint_uint, uint_uint_narrow};
-use ::core::num::NonZeroU32;
+use crate::core::{
+    ext_int, nz_uint_ext, nz_uint_narrow, nz_uint_widen, uint_int_sat, uint_uint, uint_uint_narrow,
+};
+use ::core::num::{NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128};
 
 // ── §1 std-int Conns sourced from `u32` ───────────────────────────
 
@@ -25,6 +27,16 @@ uint_uint!(U032U128, u32, u128);
 // ── §3 u32 ↔ NonZeroU32 ───────────────────────────────────────────
 
 nz_uint_ext!(U032N032, u32, NonZeroU32);
+
+// ── NonZero unsigned narrowings ───────────────────────────────────
+
+nz_uint_narrow!(N032N008, NonZeroU32, u32, NonZeroU8, u8);
+nz_uint_narrow!(N032N016, NonZeroU32, u32, NonZeroU16, u16);
+
+// ── NonZero unsigned widenings ────────────────────────────────────
+
+nz_uint_widen!(N032N064, NonZeroU32, u32, NonZeroU64, u64);
+nz_uint_widen!(N032N128, NonZeroU32, u32, NonZeroU128, u128);
 
 // ── Sortable big-endian byte encodings ────────────────────────────
 
@@ -110,6 +122,29 @@ mod tests {
         assert_eq!(I128U032.ceil(i128::MIN), 0);
         assert_eq!(I064U032.upper(u32::MAX), i64::MAX);
         assert_eq!(I128U032.upper(u32::MAX), i128::MAX);
+    }
+
+    // ── NonZero unsigned narrowing (N032N###) spot + property ─────
+
+    fn arb_nz_u8() -> impl Strategy<Value = NonZeroU8> {
+        any::<u8>().prop_filter_map("non-zero u8", NonZeroU8::new)
+    }
+    fn arb_nz_u16() -> impl Strategy<Value = NonZeroU16> {
+        any::<u16>().prop_filter_map("non-zero u16", NonZeroU16::new)
+    }
+    fn arb_nz_u32() -> impl Strategy<Value = NonZeroU32> {
+        any::<u32>().prop_filter_map("non-zero u32", NonZeroU32::new)
+    }
+
+    proptest! {
+        #[test]
+        fn n032n008_galois_l(a in arb_nz_u32(), b in arb_nz_u8()) {
+            prop_assert!(conn_laws::galois_l(&N032N008.conn_l(), a, b));
+        }
+        #[test]
+        fn n032n016_galois_l(a in arb_nz_u32(), b in arb_nz_u16()) {
+            prop_assert!(conn_laws::galois_l(&N032N016.conn_l(), a, b));
+        }
     }
 
     fn arb_byte4() -> impl Strategy<Value = [u8; 4]> {

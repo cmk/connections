@@ -35,7 +35,7 @@
 //! → u8` target code (`A123` shape, `U` = unsigned int + 8-bit
 //! width). `N008` is the matching canonical form for the
 //! `NonZeroU8` target (`A123` shape, `N` = `NonZero<*>` + 8-bit
-//! width), parallel to `crate::fixed::i008::I008N008`.
+//! width), parallel to `crate::core::i008::I008N008`.
 
 use crate::extended::Extended;
 use ::core::num::NonZeroU8;
@@ -268,7 +268,7 @@ mod tests {
     // across both calendar Conns. A new Conn family with a different
     // canonical integer range should NOT reuse this — define its own
     // boundary-biased helper rather than inheriting MONT/WKDY-specific
-    // values. (MR !69 round-1.)
+    // values.
     fn arb_u8_calendar() -> impl Strategy<Value = u8> {
         prop_oneof![
             1 => Just(0_u8),
@@ -382,8 +382,7 @@ mod tests {
         // recover `Finite(January)`, NOT `NegInf`. The collapse on
         // `ceil` is one-way; a refactor that inverted the inner arm
         // (`inner(1) → NegInf`) would silently break the round-trip
-        // round-trip while still satisfying monotonicity. (MR !69
-        // round-1.)
+        // round-trip while still satisfying monotonicity.
         let one = NonZeroU8::new(1).unwrap();
         assert_eq!(MONTN008.upper(one), Extended::Finite(MonthName::January),);
     }
