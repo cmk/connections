@@ -52,6 +52,7 @@ fixed = { version = "1", optional = true }
 time = { version = ">=0.3, <0.3.46", optional = true }
 hifitime = { version = "4.3", optional = true, default-features = false }
 proptest = { version = "1", optional = true }
+uhlc = { version = "0.9", optional = true, default-features = false }
 
 [dev-dependencies]
 proptest = "1"
@@ -91,6 +92,13 @@ f16 = []
 # can re-enable the corresponding hifitime features themselves.
 hifi = ["dep:hifitime"]
 
+# Enable HLC bridge Conns under `connections::uhlc::*` backed by the
+# `uhlc` crate. Pulled with `default-features = false` to skip
+# `uhlc`'s default `["std", "serde"]` (which would drag in
+# `humantime`, `lazy_static`, `log`, `rand/std`) — the iso /
+# right-Galois Conns shipped here only need the bare types.
+uhlc = ["dep:uhlc"]
+
 # Re-export the crate's internal codegen macros under
 # `connections::macros` for downstream crates building their own
 # bounded-integer / Q-format / NonZero / iso lattices on top of
@@ -112,7 +120,7 @@ macros = []
 # `#[cfg_attr(docsrs, doc(cfg(feature = "proptest")))]` mirrors that
 # surface the gating in the rendered docs.
 [package.metadata.docs.rs]
-features = ["fixed", "proptest", "macros", "time"]
+features = ["fixed", "proptest", "macros", "time", "hifi", "uhlc"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 # Declare `cfg(kani)` so `cargo build` / `cargo test` don't warn about

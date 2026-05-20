@@ -202,6 +202,9 @@ pub mod lattice;
 #[cfg_attr(docsrs, doc(cfg(feature = "time")))]
 #[cfg(feature = "time")]
 pub mod time;
+#[cfg_attr(docsrs, doc(cfg(feature = "uhlc")))]
+#[cfg(feature = "uhlc")]
+pub mod uhlc;
 
 /// Idiomatic batch import of the trait family, two-sided helpers, and
 /// the [`Interval`](crate::interval::Interval) bracket type.

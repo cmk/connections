@@ -27,8 +27,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.88.0
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --features fixed,time,hifi,proptest,macros
-      - run: cargo test --doc --features fixed,time,hifi,proptest,macros
+      # `--jobs 2` caps parallel rustc instances so the test build's
+      # peak memory stays under the GHA runner's ~7 GB budget. Without
+      # it, the proptest-heavy test binaries randomly OOM-kill the
+      # runner (exit 143) right around the link stage — see PR #8
+      # rounds 2/3 for the failure pattern. Wall-clock cost is ~2×
+      # over uncapped, still well under any job-timeout limit.
+      - run: cargo test --jobs 2 --features fixed,time,hifi,uhlc,proptest,macros
+      - run: cargo test --jobs 2 --doc --features fixed,time,hifi,uhlc,proptest,macros
 
   doc:
     runs-on: ubuntu-latest
@@ -38,7 +44,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.88.0
       - uses: Swatinem/rust-cache@v2
-      - run: cargo doc --no-deps --features fixed,proptest,macros,time --document-private-items
+      - run: cargo doc --no-deps --features fixed,proptest,macros,time,uhlc --document-private-items
 
   deny:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
