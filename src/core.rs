@@ -213,6 +213,46 @@ impl<const N: usize> AsRef<[u8; N]> for L2<N> {
     }
 }
 
+/// Byte-array wrapper whose default-derived `Ord` is raw
+/// lexicographic compare over the bytes.
+///
+/// `LX<N>` itself does no encoding or decoding — it just carries
+/// the contract that comparison walks the bytes left-to-right.
+/// Producers that want numeric-equivalent ordering ship Conns
+/// (`IxxxLXxy` in `src/core/iNNN.rs`) that bias signed inputs by
+/// `1 << (bits-1)` before big-endian encoding so the stored bytes
+/// sort numerically; consumers that just want lex ordering over
+/// arbitrary bytes can use the wrapper directly.
+///
+/// Typical consumers are byte-keyed stores (LMDB, RocksDB, sled,
+/// etc.) that compare keys directly without consulting Rust's
+/// `Ord`, and sorted in-memory containers where the lex contract
+/// is explicit. For 2s-complement preservation use [`B2`] / [`L2`].
+#[repr(transparent)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct LX<const N: usize>(pub [u8; N]);
+
+impl<const N: usize> From<[u8; N]> for LX<N> {
+    #[inline]
+    fn from(bytes: [u8; N]) -> Self {
+        Self(bytes)
+    }
+}
+
+impl<const N: usize> From<LX<N>> for [u8; N] {
+    #[inline]
+    fn from(bytes: LX<N>) -> Self {
+        bytes.0
+    }
+}
+
+impl<const N: usize> AsRef<[u8; N]> for LX<N> {
+    #[inline]
+    fn as_ref(&self) -> &[u8; N] {
+        &self.0
+    }
+}
+
 #[cfg(test)]
 mod le_tests {
     use super::{B2, L2, LE};
@@ -617,6 +657,74 @@ macro_rules! nz_uint_ext {
 }
 pub(crate) use nz_uint_ext;
 
+/// `Conn<NonZero<u_N>, NonZero<u_M>>` widening
+/// (`bits(u_N) < bits(u_M)`).
+///
+/// Mirrors [`uint_uint!`] at the [`NonZero`](core::num) layer.
+/// `ceil` lossless-widens via `n.get() as $UM`; the result is never
+/// zero because `NonZero<u_N>.get() ≥ 1`. `inner` saturates targets
+/// above `u_N::MAX` down to `NonZero<u_N>::new(u_N::MAX)`. The zero
+/// gap of [`nz_uint_ext!`] doesn't appear here — `NonZero<u_M>.get()
+/// ≥ 1`, so the clipped value is always `≥ 1` after the saturation,
+/// and `NonZero<u_N>::new` succeeds without panic.
+///
+/// Single-sided left-Galois ([`Conn::new_l`]) — the saturation
+/// plateau at `NonZero<u_N>::MAX` lives on the source side.
+///
+/// [`Conn::new_l`]: crate::conn::Conn::new_l
+/// [`uint_uint!`]: crate::uint_uint
+/// [`nz_uint_ext!`]: crate::nz_uint_ext
+#[cfg_attr(feature = "macros", macro_export)]
+macro_rules! nz_uint_widen {
+    ($NAME:ident, $NZN:ty, $UN:ty, $NZM:ty, $UM:ty) => {
+#[rustfmt::skip]
+        #[doc = concat!(
+            "`",
+            stringify!($NZN),
+            " → ",
+            stringify!($NZM),
+            "` lossless widening; `inner` saturates at `",
+            stringify!($NZN),
+            "::MAX`."
+        )]
+        pub const $NAME: $crate::conn::Conn<$NZN, $NZM> = {
+            fn ceil(n: $NZN) -> $NZM {
+                match <$NZM>::new(n.get() as $UM) {
+                    Some(nz) => nz,
+                    // unreachable: NZN::get() ≥ 1, cast preserves value
+                    None => panic!("nz_uint_widen::ceil produced zero"),
+                }
+            }
+            fn inner(m: $NZM) -> $NZN {
+                let cap = <$UN>::MAX as $UM;
+                let val = m.get();
+                let clipped = if val > cap { cap } else { val };
+                match <$NZN>::new(clipped as $UN) {
+                    Some(nz) => nz,
+                    // unreachable: clipped ≥ NZM::get() ≥ 1, cap ≥ 1
+                    None => panic!("nz_uint_widen::inner produced zero"),
+                }
+            }
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
+    };
+}
+pub(crate) use nz_uint_widen;
+
+// No `nz_int_widen!`. Signed `NonZero<i_N> → NonZero<i_M>` (N < M)
+// cannot be expressed as a bare `Conn<NonZero<i_N>, NonZero<i_M>>`:
+// the target side has plateaus on *both* ends (values in
+// `[i_M::MIN, i_N::MIN as i_M - 1]` below the source range, and
+// `[i_N::MAX as i_M + 1, i_M::MAX]` above it). Closing the lower
+// plateau requires a `-Inf` sentinel on the source — which
+// `NonZero<i_N>` does not provide — so no `inner` choice satisfies
+// L-Galois on the lower plateau. R-Galois fails symmetrically on the
+// upper plateau. Compare `nz_uint_widen!`, where the unsigned lower
+// bound `u_N::MIN = 0 < 1 = NonZero<u_M>::MIN` makes the lower
+// plateau empty and saturation is sound. Use `nz_int_ext!` +
+// `ext_int!` to widen via `i_N -> Extended<i_N> -> i_M ->
+// NonZero<i_M>` when needed.
+
 /// `Conn<i_N, u_M>` narrowing (`bits(i_N) > bits(u_M)`).
 ///
 /// `ceil` clips negatives to `0` and saturates positives at
@@ -646,6 +754,141 @@ macro_rules! int_uint_narrow {
     };
 }
 pub(crate) use int_uint_narrow;
+
+/// `Conn<NonZero<i_N>, NonZero<i_M>>` narrowing
+/// (`bits(i_N) > bits(i_M)`).
+///
+/// Mirrors [`int_int_narrow!`] at the signed [`NonZero`](core::num)
+/// layer. `ceil` saturates source values above `i_M::MAX` to
+/// `i_M::MAX` and below `i_M::MIN` to `i_M::MIN` (both nonzero, so
+/// no zero gap reappears). `inner` is the lossless `as`-widen with a
+/// FINE_MAX fixup (`inner(i_M::MAX) = i_N::MAX`).
+///
+/// **Why no FINE_MIN fixup?** Same argument as [`int_int_narrow!`]:
+/// the low-end source plateau covers every `a < i_M::MIN as i_N`,
+/// where `ceil(a) = i_M::MIN ≤ b` is always true and
+/// `inner(b) ≥ i_M::MIN as i_N > a` is always true (since
+/// `i_M::MIN as i_N > i_N::MIN ≥ a` by the bit-width constraint),
+/// so the law's LHS and RHS match without a fixup. Compare the high
+/// end, where `ceil` collapsing onto `i_M::MAX` does require the
+/// fixup so `a ≤ inner(i_M::MAX) = i_N::MAX` holds.
+///
+/// Single-sided left-Galois ([`Conn::new_l`]).
+///
+/// [`Conn::new_l`]: crate::conn::Conn::new_l
+/// [`int_int_narrow!`]: crate::int_int_narrow
+#[cfg_attr(feature = "macros", macro_export)]
+macro_rules! nz_int_narrow {
+    ($NAME:ident, $NZN:ty, $IN:ty, $NZM:ty, $IM:ty) => {
+#[rustfmt::skip]
+        #[doc = concat!(
+            "`",
+            stringify!($NZN),
+            " → ",
+            stringify!($NZM),
+            "` saturating narrow; `inner` widens with FINE_MAX fixup at `",
+            stringify!($NZM),
+            "::MAX`."
+        )]
+        pub const $NAME: $crate::conn::Conn<$NZN, $NZM> = {
+            fn ceil(n: $NZN) -> $NZM {
+                let val = n.get();
+                let clipped = if val > <$IM>::MAX as $IN {
+                    <$IM>::MAX
+                } else if val < <$IM>::MIN as $IN {
+                    <$IM>::MIN
+                } else {
+                    val as $IM
+                };
+                match <$NZM>::new(clipped) {
+                    Some(nz) => nz,
+                    // unreachable: IN value != 0, clipped takes IM::MIN / IM::MAX /
+                    // (val as IM); IM::MIN < 0 < IM::MAX, and val in [IM::MIN, IM::MAX]
+                    // preserves nonzero-ness.
+                    None => panic!("nz_int_narrow::ceil produced zero"),
+                }
+            }
+            fn inner(m: $NZM) -> $NZN {
+                let v: $IN = if m.get() == <$IM>::MAX {
+                    <$IN>::MAX
+                } else {
+                    m.get() as $IN
+                };
+                match <$NZN>::new(v) {
+                    Some(nz) => nz,
+                    // unreachable: m.get() != 0; widen preserves nonzero
+                    None => panic!("nz_int_narrow::inner produced zero"),
+                }
+            }
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
+    };
+}
+pub(crate) use nz_int_narrow;
+
+/// `Conn<NonZero<u_N>, NonZero<u_M>>` narrowing
+/// (`bits(u_N) > bits(u_M)`).
+///
+/// Mirrors [`uint_uint_narrow!`] at the unsigned
+/// [`NonZero`](core::num) layer. `ceil` saturates source values
+/// above `u_M::MAX` to `u_M::MAX` (nonzero) before downcasting. No
+/// low-end branch: source values start at `NonZero<u_N> ≥ 1`, and
+/// `u_M::MIN = 0 < 1`, so no source value can fall below the target's
+/// minimum representable. The zero gap of [`nz_uint_ext!`] doesn't
+/// reappear here — both endpoints' NonZero range is `[1, ::MAX]`.
+///
+/// `inner` is the lossless `as`-widen with a FINE_MAX fixup
+/// (`inner(u_M::MAX) = u_N::MAX`).
+///
+/// Single-sided left-Galois ([`Conn::new_l`]).
+///
+/// [`Conn::new_l`]: crate::conn::Conn::new_l
+/// [`uint_uint_narrow!`]: crate::uint_uint_narrow
+/// [`nz_uint_ext!`]: crate::nz_uint_ext
+#[cfg_attr(feature = "macros", macro_export)]
+macro_rules! nz_uint_narrow {
+    ($NAME:ident, $NZN:ty, $UN:ty, $NZM:ty, $UM:ty) => {
+#[rustfmt::skip]
+        #[doc = concat!(
+            "`",
+            stringify!($NZN),
+            " → ",
+            stringify!($NZM),
+            "` saturating narrow; `inner` widens with FINE_MAX fixup at `",
+            stringify!($NZM),
+            "::MAX`."
+        )]
+        pub const $NAME: $crate::conn::Conn<$NZN, $NZM> = {
+            fn ceil(n: $NZN) -> $NZM {
+                let val = n.get();
+                let clipped = if val > <$UM>::MAX as $UN {
+                    <$UM>::MAX
+                } else {
+                    val as $UM
+                };
+                match <$NZM>::new(clipped) {
+                    Some(nz) => nz,
+                    // unreachable: UN value ≥ 1, clipped ∈ [1, UM::MAX]
+                    None => panic!("nz_uint_narrow::ceil produced zero"),
+                }
+            }
+            fn inner(m: $NZM) -> $NZN {
+                let v: $UN = if m.get() == <$UM>::MAX {
+                    <$UN>::MAX
+                } else {
+                    m.get() as $UN
+                };
+                match <$NZN>::new(v) {
+                    Some(nz) => nz,
+                    // unreachable: m.get() ≥ 1; widen preserves nonzero
+                    None => panic!("nz_uint_narrow::inner produced zero"),
+                }
+            }
+            $crate::conn::Conn::new_l(ceil, inner)
+        };
+    };
+}
+pub(crate) use nz_uint_narrow;
 
 // ── Per-primitive submodules ───────────────────────────────────────
 

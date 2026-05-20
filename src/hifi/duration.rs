@@ -71,14 +71,14 @@ fn hd_min_secs() -> i64 {
     // exact-integer range (`2⁵³ ≈ 9 × 10¹⁵`) — losing ones of seconds
     // of precision and producing an off-by-one boundary value. The
     // `roundtrip_ceil` proptest at the boundary catches this; the
-    // integer path avoids it entirely. (Spotted in MR !63 review.)
+    // integer path avoids it entirely.
     //
     // `total_nanoseconds()` for `HD::MIN` / `HD::MAX` is an **exact
     // multiple of 10⁹** (each `NANOSECONDS_PER_CENTURY` is 100 × 365.25
     // × 86400 × 10⁹ = 3 155 760 000 × 10⁹ ns, divisible by 10⁹), so
     // truncation-vs-floor doesn't matter at the boundary —
     // `hd_min_max_total_ns_divisible_by_billion` (test below) guards
-    // this invariant. (MR !63 round-4 follow-up.)
+    // this invariant.
     (HD::MIN.total_nanoseconds() / 1_000_000_000) as i64
 }
 
@@ -182,7 +182,7 @@ fn hdursecs_ceil(d: Extended<HD>) -> i64 {
             // `[0, 10⁹)`, matching how we then "round up" sub-second
             // tails toward +∞ (i.e., this is ceiling division —
             // `s_floor + 1` is *toward* zero for negatives, *away*
-            // from zero for positives). (MR !63 round-5.)
+            // from zero for positives).
             let one_billion: i128 = 1_000_000_000;
             let s_floor: i64 = total_ns.div_euclid(one_billion) as i64;
             let sub: i128 = total_ns.rem_euclid(one_billion);
@@ -348,7 +348,7 @@ fn f064hdur_ceil(x: F064) -> Extended<HD> {
     // boundary rounding error. `hd_{min,max}_secs() as f64` casts an
     // i64 already at `±10¹⁴` (well inside f64-exact-int range) so the
     // cast is precise. Same fix shape as the round-2 migration of
-    // `hd_{min,max}_secs` for `HDURSECS`. (MR !63 round-3 review.)
+    // `hd_{min,max}_secs` for `HDURSECS`.
     let max_secs = hd_max_secs() as f64;
     let min_secs = hd_min_secs() as f64;
     if v > max_secs {
@@ -437,7 +437,7 @@ fn f032hdur_ceil(x: F032) -> Extended<HD> {
     // commentary. The trailing `as f32` cast is lossy on its own (f32
     // ULP at `±10¹⁴` is much wider than the i64 unit), but starting
     // from the integer-correct `hd_{min,max}_secs()` rules out the
-    // additive boundary error from the f64 detour. (MR !63 round-3.)
+    // additive boundary error from the f64 detour.
     let max_secs = hd_max_secs() as f32;
     let min_secs = hd_min_secs() as f32;
     if v > max_secs {
@@ -555,7 +555,7 @@ mod tests {
     // hifitime ever introduced a non-second-aligned MIN / MAX, the
     // i128-truncation `total_nanoseconds() / 1_000_000_000` would silently
     // disagree with floor-division and the `roundtrip_ceil` boundary
-    // would slip by one second. (MR !63 round-4 follow-up.)
+    // would slip by one second.
     #[test]
     fn hd_min_max_total_ns_divisible_by_billion() {
         assert_eq!(HD::MIN.total_nanoseconds() % 1_000_000_000, 0);
@@ -671,7 +671,7 @@ mod tests {
     fn hdursecs_synthetic_arms() {
         // Use the same integer-arithmetic derivation as `hd_max_secs`
         // — `HD::MAX.to_seconds() as i64` is the lossy f64-cast path
-        // the helper was migrated off of (MR !63 round 1).
+        // the helper was migrated off of.
         let max_s = (HD::MAX.total_nanoseconds() / 1_000_000_000) as i64;
         assert_eq!(HDURSECS.ceil(Extended::NegInf), i64::MIN);
         assert_eq!(HDURSECS.ceil(Extended::PosInf), max_s + 1);
@@ -681,9 +681,9 @@ mod tests {
 
     // Boundary spot check: `inner` flips to NegInf/PosInf at exactly
     // `min_s - 1` / `max_s + 1`, which is also exactly where `galois_l`
-    // is most likely to fail. (MR !63 round-3 follow-up — these can't
-    // live in `arb_hifi_total_secs_in_range` because that strategy
-    // feeds `roundtrip_ceil`, which would fail at saturation values.)
+    // is most likely to fail. These can't live in
+    // `arb_hifi_total_secs_in_range` because that strategy feeds
+    // `roundtrip_ceil`, which would fail at saturation values.
     #[test]
     fn hdursecs_inner_saturation_boundary() {
         let min_s = (HD::MIN.total_nanoseconds() / 1_000_000_000) as i64;
@@ -816,7 +816,7 @@ mod tests {
     // Uses the same integer-derived bound as the implementation
     // (`hd_min_secs() as f64`) — `HD::MIN.to_seconds()` would f64-cast
     // a `±10²³`-magnitude value past the exact-integer range and could
-    // disagree with the implementation's threshold. (MR !63 round-3.)
+    // disagree with the implementation's threshold.
     #[test]
     fn f64_hdur_ceil_min_secs_fast_path() {
         let v_min = ExtendedFloat::Extend(hd_min_secs() as f64);

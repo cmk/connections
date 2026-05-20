@@ -1,8 +1,8 @@
-//! Galois-law proptest battery for `conn::fixed::u016`.
+//! Galois-law proptest battery for `fixed::u016`.
 //!
-//! See `tests/conn_fixed_u08_galois.rs` for the rationale: this is
-//! an integration test rather than a `#[cfg(test)] mod` inside
-//! `src/conn/fixed/u016.rs` to keep the lib-test rustc invocation
+//! See `tests/fixed/u008.rs` for the rationale: this is an
+//! integration test rather than a `#[cfg(test)] mod` inside
+//! `src/fixed/u016.rs` to keep the lib-test rustc invocation
 //! under CI's container memory budget.
 
 use connections::fixed::u016::*;

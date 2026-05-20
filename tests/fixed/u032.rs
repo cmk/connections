@@ -1,5 +1,5 @@
-//! Galois-law proptest battery for `conn::fixed::u032`. Integration
-//! test — see `tests/conn_fixed_u08_galois.rs` for rationale.
+//! Galois-law proptest battery for `fixed::u032`. Integration
+//! test — see `tests/fixed/u008.rs` for rationale.
 
 use connections::fixed::u032::*;
 use fixed::FixedU32;

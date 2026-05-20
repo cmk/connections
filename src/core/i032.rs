@@ -5,9 +5,9 @@
 //! `crate::fixed::i032`.
 
 #[allow(unused_imports)]
-use crate::core::{B2, L2};
-use crate::core::{ext_int, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext};
-use ::core::num::NonZeroI32;
+use crate::core::{B2, L2, LX};
+use crate::core::{ext_int, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext, nz_int_narrow};
+use ::core::num::{NonZeroI8, NonZeroI16, NonZeroI32};
 
 // ── §1 std-int Conns sourced from `i32` ───────────────────────────
 
@@ -25,6 +25,11 @@ int_uint!(I032U128, i32, u128);
 // ── §3 i32 ↔ NonZeroI32 ───────────────────────────────────────────
 
 nz_int_ext!(I032N032, i32, NonZeroI32);
+
+// ── NonZero signed narrowings ─────────────────────────────────────
+
+nz_int_narrow!(N032N008, NonZeroI32, i32, NonZeroI8, i8);
+nz_int_narrow!(N032N016, NonZeroI32, i32, NonZeroI16, i16);
 
 // ── Two's-complement big-endian byte encodings ────────────────────
 
@@ -57,6 +62,27 @@ crate::iso! {
     pub I032LE04 : i32 => L2<4> {
         forward: i32_to_le04,
         back:    le04_to_i32,
+    }
+}
+
+// ── Lex-key big-endian encoding (LX) ──────────────────────────────
+
+const fn i32_to_lx04(x: i32) -> LX<4> {
+    LX((x as u32).wrapping_add(0x8000_0000).to_be_bytes())
+}
+const fn lx04_to_i32(b: LX<4>) -> i32 {
+    u32::from_be_bytes(b.0).wrapping_sub(0x8000_0000) as i32
+}
+
+crate::iso! {
+    /// `i32 ↔ LX<4>` — bias-encoded big-endian iso whose raw byte
+    /// `Ord` matches signed numeric order. See [`I008LX01`] for the
+    /// design rationale.
+    ///
+    /// [`I008LX01`]: crate::core::i008::I008LX01
+    pub I032LX04 : i32 => LX<4> {
+        forward: i32_to_lx04,
+        back:    lx04_to_i32,
     }
 }
 
@@ -113,6 +139,29 @@ mod tests {
         assert_eq!(U032I032.lower(-1), 0_u32);
         assert_eq!(U064I032.floor(u64::MAX), i32::MAX);
         assert_eq!(U128I032.lower(i32::MIN), 0_u128);
+    }
+
+    // ── NonZero signed narrowing (N032N###) spot + property ───────
+
+    fn arb_nz_i8() -> impl Strategy<Value = NonZeroI8> {
+        any::<i8>().prop_filter_map("non-zero i8", NonZeroI8::new)
+    }
+    fn arb_nz_i16() -> impl Strategy<Value = NonZeroI16> {
+        any::<i16>().prop_filter_map("non-zero i16", NonZeroI16::new)
+    }
+    fn arb_nz_i32() -> impl Strategy<Value = NonZeroI32> {
+        any::<i32>().prop_filter_map("non-zero i32", NonZeroI32::new)
+    }
+
+    proptest! {
+        #[test]
+        fn n032n008_galois_l(a in arb_nz_i32(), b in arb_nz_i8()) {
+            prop_assert!(conn_laws::galois_l(&N032N008.conn_l(), a, b));
+        }
+        #[test]
+        fn n032n016_galois_l(a in arb_nz_i32(), b in arb_nz_i16()) {
+            prop_assert!(conn_laws::galois_l(&N032N016.conn_l(), a, b));
+        }
     }
 
     fn arb_byte4() -> impl Strategy<Value = B2<4>> {
@@ -177,6 +226,59 @@ mod tests {
         #[test]
         fn i032_l2_order_preserving(a in any::<i32>(), b in any::<i32>()) {
             prop_assert_eq!(a.cmp(&b), I032LE04.ceil(a).cmp(&I032LE04.ceil(b)));
+        }
+    }
+
+    // ── LX (lex-sortable big-endian) byte-encoding tests ──────────
+
+    fn arb_lxbyte4() -> impl Strategy<Value = LX<4>> {
+        prop_oneof![
+            Just([0; 4]),
+            Just([0x80, 0x00, 0x00, 0x00]),
+            Just([0xFF; 4]),
+            any::<[u8; 4]>()
+        ]
+        .prop_map(LX)
+    }
+
+    #[test]
+    fn i032lx04_boundary_bytes() {
+        assert_eq!(I032LX04.ceil(i32::MIN), LX([0x00, 0x00, 0x00, 0x00]));
+        assert_eq!(I032LX04.ceil(0_i32), LX([0x80, 0x00, 0x00, 0x00]));
+        assert_eq!(I032LX04.ceil(i32::MAX), LX([0xFF, 0xFF, 0xFF, 0xFF]));
+        assert_eq!(I032LX04.upper(LX([0x00, 0x00, 0x00, 0x00])), i32::MIN);
+        assert_eq!(I032LX04.upper(LX([0x80, 0x00, 0x00, 0x00])), 0_i32);
+        assert_eq!(I032LX04.upper(LX([0xFF, 0xFF, 0xFF, 0xFF])), i32::MAX);
+    }
+
+    proptest! {
+        #[test]
+        fn i032_lx_iso_roundtrip_l(
+            a in prop_oneof![Just(i32::MIN), Just(0i32), Just(i32::MAX), any::<i32>()]
+        ) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&I032LX04.conn_l(), a));
+        }
+        #[test]
+        fn i032_lx_roundtrip_ceil(b in arb_lxbyte4()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&I032LX04.conn_l(), b));
+        }
+        #[test]
+        fn i032_lx_galois_l(a in any::<i32>(), b in arb_lxbyte4()) {
+            prop_assert!(conn_laws::galois_l(&I032LX04.conn_l(), a, b));
+        }
+        #[test]
+        fn i032_lx_galois_r(a in any::<i32>(), b in arb_lxbyte4()) {
+            prop_assert!(conn_laws::galois_r(&I032LX04.conn_r(), a, b));
+        }
+        #[test]
+        fn i032_lx_floor_le_ceil(a in any::<i32>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&I032LX04, a));
+        }
+        #[test]
+        fn i032_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i32>(), b in any::<i32>()) {
+            let ka = I032LX04.ceil(a).0;
+            let kb = I032LX04.ceil(b).0;
+            prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }
 }

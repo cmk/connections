@@ -5,9 +5,9 @@
 //! `crate::fixed::i016`.
 
 #[allow(unused_imports)]
-use crate::core::{B2, L2};
-use crate::core::{ext_int, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext};
-use ::core::num::NonZeroI16;
+use crate::core::{B2, L2, LX};
+use crate::core::{ext_int, int_int_narrow, int_uint, int_uint_narrow, nz_int_ext, nz_int_narrow};
+use ::core::num::{NonZeroI8, NonZeroI16};
 
 // ── §1 std-int Conns sourced from `i16` ───────────────────────────
 
@@ -25,6 +25,10 @@ int_uint!(I016U128, i16, u128);
 // ── §3 i16 ↔ NonZeroI16 ───────────────────────────────────────────
 
 nz_int_ext!(I016N016, i16, NonZeroI16);
+
+// ── NonZero signed narrowings ─────────────────────────────────────
+
+nz_int_narrow!(N016N008, NonZeroI16, i16, NonZeroI8, i8);
 
 // ── Two's-complement big-endian byte encodings ────────────────────
 
@@ -57,6 +61,27 @@ crate::iso! {
     pub I016LE02 : i16 => L2<2> {
         forward: i16_to_le02,
         back:    le02_to_i16,
+    }
+}
+
+// ── Lex-key big-endian encoding (LX) ──────────────────────────────
+
+const fn i16_to_lx02(x: i16) -> LX<2> {
+    LX((x as u16).wrapping_add(0x8000).to_be_bytes())
+}
+const fn lx02_to_i16(b: LX<2>) -> i16 {
+    u16::from_be_bytes(b.0).wrapping_sub(0x8000) as i16
+}
+
+crate::iso! {
+    /// `i16 ↔ LX<2>` — bias-encoded big-endian iso whose raw byte
+    /// `Ord` matches signed numeric order. See [`I008LX01`] for the
+    /// design rationale.
+    ///
+    /// [`I008LX01`]: crate::core::i008::I008LX01
+    pub I016LX02 : i16 => LX<2> {
+        forward: i16_to_lx02,
+        back:    lx02_to_i16,
     }
 }
 
@@ -142,6 +167,41 @@ mod tests {
         assert_eq!(U128I016.floor(u128::MAX), i16::MAX);
     }
 
+    // ── NonZero signed narrowing (N016N008) spot + property ───────
+
+    fn arb_nz_i8() -> impl Strategy<Value = NonZeroI8> {
+        any::<i8>().prop_filter_map("non-zero i8", NonZeroI8::new)
+    }
+    fn arb_nz_i16() -> impl Strategy<Value = NonZeroI16> {
+        any::<i16>().prop_filter_map("non-zero i16", NonZeroI16::new)
+    }
+
+    #[test]
+    fn n016n008_saturates_both_plateaus() {
+        let big_pos = NonZeroI16::new(i16::MAX).unwrap();
+        let big_neg = NonZeroI16::new(i16::MIN).unwrap();
+        let in_range = NonZeroI16::new(42).unwrap();
+        assert_eq!(N016N008.ceil(big_pos), NonZeroI8::new(i8::MAX).unwrap());
+        assert_eq!(N016N008.ceil(big_neg), NonZeroI8::new(i8::MIN).unwrap());
+        assert_eq!(N016N008.ceil(in_range), NonZeroI8::new(42).unwrap());
+        // FINE_MAX fixup: inner(NZ(i8::MAX)) = NZ(i16::MAX)
+        assert_eq!(
+            N016N008.upper(NonZeroI8::new(i8::MAX).unwrap()),
+            NonZeroI16::new(i16::MAX).unwrap()
+        );
+        assert_eq!(
+            N016N008.upper(NonZeroI8::new(i8::MIN).unwrap()),
+            NonZeroI16::new(i8::MIN as i16).unwrap()
+        );
+    }
+
+    proptest! {
+        #[test]
+        fn n016n008_galois_l(a in arb_nz_i16(), b in arb_nz_i8()) {
+            prop_assert!(conn_laws::galois_l(&N016N008.conn_l(), a, b));
+        }
+    }
+
     fn arb_byte2() -> impl Strategy<Value = B2<2>> {
         prop_oneof![Just([0; 2]), Just([0xFF; 2]), any::<[u8; 2]>()].prop_map(B2)
     }
@@ -204,6 +264,61 @@ mod tests {
         #[test]
         fn i016_l2_order_preserving(a in any::<i16>(), b in any::<i16>()) {
             prop_assert_eq!(a.cmp(&b), I016LE02.ceil(a).cmp(&I016LE02.ceil(b)));
+        }
+    }
+
+    // ── LX (lex-sortable big-endian) byte-encoding tests ──────────
+
+    fn arb_lxbyte2() -> impl Strategy<Value = LX<2>> {
+        prop_oneof![
+            Just([0; 2]),
+            Just([0x80, 0x00]),
+            Just([0xFF; 2]),
+            any::<[u8; 2]>()
+        ]
+        .prop_map(LX)
+    }
+
+    #[test]
+    fn i016lx02_boundary_bytes() {
+        assert_eq!(I016LX02.ceil(i16::MIN), LX([0x00, 0x00]));
+        assert_eq!(I016LX02.ceil(0_i16), LX([0x80, 0x00]));
+        assert_eq!(I016LX02.ceil(i16::MAX), LX([0xFF, 0xFF]));
+        assert_eq!(I016LX02.upper(LX([0x00, 0x00])), i16::MIN);
+        assert_eq!(I016LX02.upper(LX([0x80, 0x00])), 0_i16);
+        assert_eq!(I016LX02.upper(LX([0xFF, 0xFF])), i16::MAX);
+    }
+
+    proptest! {
+        #[test]
+        fn i016_lx_iso_roundtrip_l(
+            a in prop_oneof![Just(i16::MIN), Just(0i16), Just(i16::MAX), any::<i16>()]
+        ) {
+            prop_assert!(conn_laws::iso_roundtrip_l(&I016LX02.conn_l(), a));
+        }
+        #[test]
+        fn i016_lx_roundtrip_ceil(b in arb_lxbyte2()) {
+            prop_assert!(conn_laws::roundtrip_ceil(&I016LX02.conn_l(), b));
+        }
+        #[test]
+        fn i016_lx_galois_l(a in any::<i16>(), b in arb_lxbyte2()) {
+            prop_assert!(conn_laws::galois_l(&I016LX02.conn_l(), a, b));
+        }
+        #[test]
+        fn i016_lx_galois_r(a in any::<i16>(), b in arb_lxbyte2()) {
+            prop_assert!(conn_laws::galois_r(&I016LX02.conn_r(), a, b));
+        }
+        #[test]
+        fn i016_lx_floor_le_ceil(a in any::<i16>()) {
+            prop_assert!(conn_laws::floor_le_ceil(&I016LX02, a));
+        }
+        // The I016LX02 contract: signed numeric compare ⟺ raw byte
+        // lex compare on the bias-encoded bytes.
+        #[test]
+        fn i016_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i16>(), b in any::<i16>()) {
+            let ka = I016LX02.ceil(a).0;
+            let kb = I016LX02.ceil(b).0;
+            prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }
 }

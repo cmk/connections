@@ -42,19 +42,25 @@ fn f032f016_floor(x: F032) -> F016 {
 }
 
 #[cfg(feature = "f16")]
+#[cfg_attr(docsrs, doc(cfg(feature = "f16")))]
 crate::conn_k! {
     /// Connection between [`crate::float::F032`] and [`super::f016::F016`].
     ///
     /// ```
     /// # #![feature(f16)]
     /// use connections::core::f032::F032F016;
-    /// use connections::float::{ExtendedFloat::Extend, F032};
+    /// use connections::float::ExtendedFloat::Extend;
     ///
-    /// let pi = Extend(std::f32::consts::PI);
-    /// let pi_up = F032F016.ceil(pi);
-    /// let pi_down = F032F016.floor(pi);
-    /// assert!(F032F016.upper(pi_down) <= pi);
-    /// assert!(pi <= F032F016.upper(pi_up));
+    /// // PI's two nearest f16 grid points (spacing 2^-9 in [2, 4)).
+    /// let pi_f32 = Extend(std::f32::consts::PI);
+    /// let pi_f16_floor = Extend(3.140_625_f16);
+    /// let pi_f16_ceil  = Extend(3.142_578_125_f16);
+    ///
+    /// assert_eq!(F032F016.floor(pi_f32), pi_f16_floor);
+    /// assert_eq!(F032F016.ceil(pi_f32),  pi_f16_ceil);
+    /// // Widening lifts each grid point to its f32 image exactly:
+    /// assert_eq!(F032F016.upper(pi_f16_floor), Extend(3.140_625_f32));
+    /// assert_eq!(F032F016.upper(pi_f16_ceil),  Extend(3.142_578_125_f32));
     /// ```
     pub F032F016 : F032 => F016 {
         ceil:  f032f016_ceil,

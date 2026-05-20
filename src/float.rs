@@ -641,6 +641,11 @@ impl From<u32> for ExtendedFloat<f64> {
     }
 }
 
+/// IEEE binary16 wrapped under the N5 lattice.
+#[cfg(feature = "f16")]
+#[cfg_attr(docsrs, doc(cfg(feature = "f16")))]
+pub type F016 = ExtendedFloat<f16>;
+
 /// IEEE binary32 wrapped under the N5 lattice.
 pub type F032 = ExtendedFloat<f32>;
 

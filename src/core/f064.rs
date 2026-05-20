@@ -57,6 +57,7 @@ fn f064f016_floor(x: F064) -> F016 {
 }
 
 #[cfg(feature = "f16")]
+#[cfg_attr(docsrs, doc(cfg(feature = "f16")))]
 crate::conn_k! {
     /// Direct `f64 ↔ f16` narrowing under the N5 lattice.
     ///
@@ -65,9 +66,13 @@ crate::conn_k! {
     /// use connections::core::f064::F064F016;
     /// use connections::float::ExtendedFloat::Extend;
     ///
-    /// let pi = Extend(std::f64::consts::PI);
-    /// let pi_up = F064F016.ceil(pi);
-    /// assert!(F064F016.upper(pi_up) >= pi);
+    /// // PI's f16 ceiling — the next f16 grid point above PI.
+    /// let pi_f64 = Extend(std::f64::consts::PI);
+    /// let pi_f16_ceil = Extend(3.142_578_125_f16);
+    ///
+    /// assert_eq!(F064F016.ceil(pi_f64), pi_f16_ceil);
+    /// // Widening back to f64 picks up the f16 grid point exactly:
+    /// assert_eq!(F064F016.upper(pi_f16_ceil), Extend(3.142_578_125_f64));
     /// ```
     pub F064F016 : F064 => F016 {
         ceil:  f064f016_ceil,
@@ -101,18 +106,23 @@ crate::conn_k! {
     /// ```rust
     /// use connections::conn::{ConnL, ConnR};
     /// use connections::core::f064::F064F032;
+    /// use connections::float::ExtendedFloat::Extend;
+    ///
+    /// // PI in f64-precision and the two f32 grid points that bracket it.
+    /// // The error term `pi32_err ≈ +8.74e-8` is the f32 round-off on PI.
+    /// let pi_f64 = Extend(std::f64::consts::PI);
+    /// let pi_f32_floor = Extend(3.141_592_502_593_994_f64);
+    /// let pi_f32_ceil  = Extend(std::f32::consts::PI as f64);
+    ///
+    /// assert_eq!(F064F032.floor(pi_f64), Extend(3.141_592_502_593_994_f64 as f32));
+    /// assert_eq!(F064F032.ceil(pi_f64),  Extend(std::f32::consts::PI));
+    /// // Widening lifts each f32 grid point to its exact f64 image.
+    /// assert_eq!(F064F032.upper(F064F032.floor(pi_f64)), pi_f32_floor);
+    /// assert_eq!(F064F032.upper(F064F032.ceil(pi_f64)),  pi_f32_ceil);
+    ///
+    /// // Sentinel pass-through.
     /// use connections::float::ExtendedFloat;
-    ///
-    /// let pi_f64 = ExtendedFloat::Extend(core::f64::consts::PI);
-    /// let lo = F064F032.floor(pi_f64);
-    /// let hi = F064F032.ceil(pi_f64);
-    /// assert!(matches!(lo, ExtendedFloat::Extend(_)));
-    /// assert!(matches!(hi, ExtendedFloat::Extend(_)));
-    /// let lo_back = F064F032.upper(lo);
-    /// let hi_back = F064F032.upper(hi);
-    /// assert!(lo_back <= pi_f64 && pi_f64 <= hi_back);
-    ///
-    /// assert_eq!(F064F032.ceil(ExtendedFloat::Bot), ExtendedFloat::Bot);
+    /// assert_eq!(F064F032.ceil(ExtendedFloat::Bot),  ExtendedFloat::Bot);
     /// assert_eq!(F064F032.floor(ExtendedFloat::Top), ExtendedFloat::Top);
     /// ```
     pub F064F032 : F064 => F032 {

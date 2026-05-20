@@ -1,5 +1,5 @@
-//! Galois-law proptest battery for `conn::std::i8`. Integration
-//! test — see `tests/conn_std_u8_galois.rs` for rationale.
+//! Galois-law proptest battery for `core::i008`. Integration
+//! test — see `tests/core/u008.rs` for rationale.
 //!
 //! No widening lands on `i8`. Population is split between left-
 //! Galois single-sided narrowing (`I??I008`, T3) and right-Galois
@@ -14,7 +14,7 @@ use connections::core::{
 use proptest::prelude::*;
 
 // `galois_lower` intentionally omitted; see
-// `tests/conn_std_u8_galois.rs`.
+// `tests/core/u008.rs`.
 macro_rules! single_sided_props {
     ($mod_name:ident, $CONN:path, $arb_src:expr, $arb_tgt:expr) => {
         mod $mod_name {

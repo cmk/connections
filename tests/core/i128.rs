@@ -1,5 +1,5 @@
-//! Galois-law proptest battery for `conn::std::i128`. Integration
-//! test — see `tests/conn_std_u8_galois.rs` for rationale.
+//! Galois-law proptest battery for `core::i128`. Integration
+//! test — see `tests/core/u008.rs` for rationale.
 
 #[allow(unused_imports)]
 use connections::conn::{ConnL, ConnR};

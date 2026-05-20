@@ -1,15 +1,16 @@
-//! Galois-law proptest battery for `conn::fixed::u008`.
+//! Galois-law proptest battery for `fixed::u008`.
 //!
-//! Hosted as an integration test (separate crate) so the main lib
-//! test binary doesn't carry all 252 generated test functions for
-//! this module — the unsigned binary-fixed sprint added enough new
+//! Hosted in the integration-test crate (`tests/fixed.rs`
+//! aggregator + `#[path]`-mounted siblings) so the main lib-test
+//! binary doesn't carry all the generated test functions for this
+//! module — the unsigned binary-fixed sprint added enough new
 //! tests to push the lib-test rustc invocation past CI's container
-//! memory budget. Each `tests/conn_fixed_u<width>_galois.rs` is a
-//! standalone rustc invocation, so peak memory per compile stays
-//! within budget.
+//! memory budget. The integration-test compilation gets its own
+//! rustc invocation, so peak memory per compile stays within
+//! budget.
 //!
 //! Spot tests stay collocated with the source in
-//! `src/conn/fixed/u008.rs` — they're cheap to compile.
+//! `src/fixed/u008.rs` — they're cheap to compile.
 
 use connections::fixed::u008::*;
 use fixed::FixedU8;

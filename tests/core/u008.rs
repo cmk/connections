@@ -1,8 +1,7 @@
-//! Galois-law proptest battery for `conn::std::u8`.
+//! Galois-law proptest battery for `core::u008`.
 //!
 //! Hosted as an integration test (separate crate) so the lib-test
-//! binary stays small — same precedent as
-//! `tests/conn_fixed_u<width>_galois.rs`.
+//! binary stays small — same precedent as `tests/fixed/u008.rs`.
 
 #[allow(unused_imports)]
 use connections::conn::{ConnL, ConnR};
