@@ -42,6 +42,16 @@
 //! let _ = fi064::Q008Q000;    // i64-backed Q56.8 → Q64.0
 //! ```
 //!
+//! Each `fixed::iN` / `fixed::uN` submodule also exports a per-host
+//! `pub type` alias family — for example
+//! `fixed::i008::I004 = FixedI8<U4>` (signed Q4.4) and
+//! `fixed::u016::U008 = FixedU16<U8>` (unsigned Q8.8) — for direct use
+//! of the wrapper type without a Conn. The `I`/`U` prefix marks host
+//! signedness and the three digits are the frac level — a deliberately
+//! distinct namespace from the Conn-name `Q###` prefix used in
+//! `Q008Q004`-style identifiers. The `fixed` module docs (gated on the
+//! `fixed` feature) carry the full layering rationale.
+//!
 //! [`fixed`]: https://docs.rs/fixed
 //!
 //! Std-int Conn families live under `core::{i008,…,u128}` (the
