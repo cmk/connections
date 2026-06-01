@@ -79,13 +79,13 @@ macro_rules! prove_nz_signed {
             #[kani::proof]
             fn ceil_never_panics() {
                 let a: $A = kani::any();
-                let _ = $CONN.conn_l().ceil(a);
+                let _ = crate::conn::ceil(&$CONN, a);
             }
 
             #[kani::proof]
             fn floor_never_panics() {
                 let a: $A = kani::any();
-                let _ = $CONN.conn_r().floor(a);
+                let _ = crate::conn::floor(&$CONN, a);
             }
         }
     };
@@ -121,7 +121,7 @@ macro_rules! prove_nz_unsigned {
             #[kani::proof]
             fn ceil_never_panics() {
                 let a: $A = kani::any();
-                let _ = $CONN.conn_l().ceil(a);
+                let _ = crate::conn::ceil(&$CONN, a);
             }
         }
     };

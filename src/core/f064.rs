@@ -72,9 +72,9 @@ crate::conn_k! {
     /// let pi_f64 = Extend(std::f64::consts::PI);
     /// let pi_f16_ceil = Extend(3.142_578_125_f16);
     ///
-    /// assert_eq!(F064F016.ceil(pi_f64), pi_f16_ceil);
+    /// assert_eq!(connections::conn::ceil(&F064F016, pi_f64), pi_f16_ceil);
     /// // Widening back to f64 picks up the f16 grid point exactly:
-    /// assert_eq!(F064F016.upper(pi_f16_ceil), Extend(3.142_578_125_f64));
+    /// assert_eq!(connections::conn::upper(&F064F016, pi_f16_ceil), Extend(3.142_578_125_f64));
     /// ```
     pub F064F016 : F064 => F016 {
         ceil:  f064f016_ceil,
@@ -116,16 +116,16 @@ crate::conn_k! {
     /// let pi_f32_floor = Extend(3.141_592_502_593_994_f64);
     /// let pi_f32_ceil  = Extend(std::f32::consts::PI as f64);
     ///
-    /// assert_eq!(F064F032.floor(pi_f64), Extend(3.141_592_502_593_994_f64 as f32));
-    /// assert_eq!(F064F032.ceil(pi_f64),  Extend(std::f32::consts::PI));
+    /// assert_eq!(connections::conn::floor(&F064F032, pi_f64), Extend(3.141_592_502_593_994_f64 as f32));
+    /// assert_eq!(connections::conn::ceil(&F064F032, pi_f64),  Extend(std::f32::consts::PI));
     /// // Widening lifts each f32 grid point to its exact f64 image.
-    /// assert_eq!(F064F032.upper(F064F032.floor(pi_f64)), pi_f32_floor);
-    /// assert_eq!(F064F032.upper(F064F032.ceil(pi_f64)),  pi_f32_ceil);
+    /// assert_eq!(connections::conn::upper(&F064F032, connections::conn::floor(&F064F032, pi_f64)), pi_f32_floor);
+    /// assert_eq!(connections::conn::upper(&F064F032, connections::conn::ceil(&F064F032, pi_f64)),  pi_f32_ceil);
     ///
     /// // Sentinel pass-through.
     /// use connections::float::ExtendedFloat;
-    /// assert_eq!(F064F032.ceil(ExtendedFloat::Bot),  ExtendedFloat::Bot);
-    /// assert_eq!(F064F032.floor(ExtendedFloat::Top), ExtendedFloat::Top);
+    /// assert_eq!(connections::conn::ceil(&F064F032, ExtendedFloat::Bot),  ExtendedFloat::Bot);
+    /// assert_eq!(connections::conn::floor(&F064F032, ExtendedFloat::Top), ExtendedFloat::Top);
     /// ```
     pub F064F032 : F064 => F032 {
         ceil:  f064f032_ceil,
@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn ceil_exact_value() {
         assert_eq!(
-            F064F032.ceil(ExtendedFloat::Extend(0.5_f64)),
+            crate::conn::ceil(&F064F032, ExtendedFloat::Extend(0.5_f64)),
             ExtendedFloat::Extend(0.5_f32)
         );
     }
@@ -272,14 +272,14 @@ mod tests {
     #[test]
     fn floor_exact_value() {
         assert_eq!(
-            F064F032.floor(ExtendedFloat::Extend(0.5_f64)),
+            crate::conn::floor(&F064F032, ExtendedFloat::Extend(0.5_f64)),
             ExtendedFloat::Extend(0.5_f32)
         );
     }
 
     #[test]
     fn ceil_nan() {
-        match F064F032.ceil(ExtendedFloat::Extend(f64::NAN)) {
+        match crate::conn::ceil(&F064F032, ExtendedFloat::Extend(f64::NAN)) {
             ExtendedFloat::Extend(v) => assert!(v.is_nan()),
             _ => panic!("expected Extend(NaN)"),
         }
@@ -287,7 +287,7 @@ mod tests {
 
     #[test]
     fn floor_nan() {
-        match F064F032.floor(ExtendedFloat::Extend(f64::NAN)) {
+        match crate::conn::floor(&F064F032, ExtendedFloat::Extend(f64::NAN)) {
             ExtendedFloat::Extend(v) => assert!(v.is_nan()),
             _ => panic!("expected Extend(NaN)"),
         }
@@ -295,7 +295,7 @@ mod tests {
 
     #[test]
     fn inner_nan() {
-        match F064F032.upper(ExtendedFloat::Extend(f32::NAN)) {
+        match crate::conn::upper(&F064F032, ExtendedFloat::Extend(f32::NAN)) {
             ExtendedFloat::Extend(v) => assert!(v.is_nan()),
             _ => panic!("expected Extend(NaN)"),
         }
@@ -304,17 +304,35 @@ mod tests {
     #[test]
     fn ceil_ge_floor() {
         let x = ExtendedFloat::Extend(std::f64::consts::PI);
-        assert!(F064F032.floor(x) <= F064F032.ceil(x));
+        assert!(crate::conn::floor(&F064F032, x) <= crate::conn::ceil(&F064F032, x));
     }
 
     #[test]
     fn bot_top_pass_through() {
-        assert_eq!(F064F032.ceil(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F064F032.floor(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F064F032.ceil(ExtendedFloat::Top), ExtendedFloat::Top);
-        assert_eq!(F064F032.floor(ExtendedFloat::Top), ExtendedFloat::Top);
-        assert_eq!(F064F032.upper(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F064F032.upper(ExtendedFloat::Top), ExtendedFloat::Top);
+        assert_eq!(
+            crate::conn::ceil(&F064F032, ExtendedFloat::Bot),
+            ExtendedFloat::Bot
+        );
+        assert_eq!(
+            crate::conn::floor(&F064F032, ExtendedFloat::Bot),
+            ExtendedFloat::Bot
+        );
+        assert_eq!(
+            crate::conn::ceil(&F064F032, ExtendedFloat::Top),
+            ExtendedFloat::Top
+        );
+        assert_eq!(
+            crate::conn::floor(&F064F032, ExtendedFloat::Top),
+            ExtendedFloat::Top
+        );
+        assert_eq!(
+            crate::conn::upper(&F064F032, ExtendedFloat::Bot),
+            ExtendedFloat::Bot
+        );
+        assert_eq!(
+            crate::conn::upper(&F064F032, ExtendedFloat::Top),
+            ExtendedFloat::Top
+        );
     }
 
     crate::law_battery! { mod laws, conn: F064F032, fine: ef64(), coarse: ef32(), subset: numeric_only, }
@@ -360,11 +378,11 @@ mod tests {
     #[test]
     fn f064i032_exact_int() {
         assert_eq!(
-            F064I032.ceil(ExtendedFloat::Extend(2.5_f64)),
+            crate::conn::ceil(&F064I032, ExtendedFloat::Extend(2.5_f64)),
             Extended::Finite(3_i32)
         );
         assert_eq!(
-            F064I032.floor(ExtendedFloat::Extend(2.5_f64)),
+            crate::conn::floor(&F064I032, ExtendedFloat::Extend(2.5_f64)),
             Extended::Finite(2_i32)
         );
     }
@@ -372,44 +390,53 @@ mod tests {
     #[test]
     fn f064u064_saturate_high() {
         let huge = ExtendedFloat::Extend(1.0e30_f64);
-        assert_eq!(F064U064.ceil(huge), Extended::PosInf);
+        assert_eq!(crate::conn::ceil(&F064U064, huge), Extended::PosInf);
     }
 
     #[test]
     fn f064i064_saturate_low() {
         let huge_neg = ExtendedFloat::Extend(-1.0e30_f64);
-        assert_eq!(F064I064.ceil(huge_neg), Extended::Finite(i64::MIN));
+        assert_eq!(
+            crate::conn::ceil(&F064I064, huge_neg),
+            Extended::Finite(i64::MIN)
+        );
     }
 
     #[test]
     fn f064u064_at_plateau_to_posinf() {
         let plateau = ExtendedFloat::Extend(2.0_f64.powi(64));
-        assert_eq!(F064U064.ceil(plateau), Extended::PosInf);
+        assert_eq!(crate::conn::ceil(&F064U064, plateau), Extended::PosInf);
     }
 
     #[test]
     fn f064i064_at_plateau_to_posinf() {
         let plateau = ExtendedFloat::Extend(2.0_f64.powi(63));
-        assert_eq!(F064I064.ceil(plateau), Extended::PosInf);
+        assert_eq!(crate::conn::ceil(&F064I064, plateau), Extended::PosInf);
     }
 
     #[test]
     fn f064u064_just_past_plateau_to_posinf() {
         let v = f64::from_bits(2.0_f64.powi(64).to_bits() + 1);
-        assert_eq!(F064U064.ceil(ExtendedFloat::Extend(v)), Extended::PosInf,);
+        assert_eq!(
+            crate::conn::ceil(&F064U064, ExtendedFloat::Extend(v)),
+            Extended::PosInf,
+        );
     }
 
     #[test]
     fn f064i064_just_past_plateau_to_posinf() {
         let v = f64::from_bits(2.0_f64.powi(63).to_bits() + 1);
-        assert_eq!(F064I064.ceil(ExtendedFloat::Extend(v)), Extended::PosInf,);
+        assert_eq!(
+            crate::conn::ceil(&F064I064, ExtendedFloat::Extend(v)),
+            Extended::PosInf,
+        );
     }
 
     #[test]
     fn f064u008_composed_matches_direct_path() {
         let v = ExtendedFloat::Extend(42.7_f64);
-        assert_eq!(F064U008.ceil(v), Extended::Finite(43));
-        assert_eq!(F064U008.floor(v), Extended::Finite(42));
+        assert_eq!(crate::conn::ceil(&F064U008, v), Extended::Finite(43));
+        assert_eq!(crate::conn::floor(&F064U008, v), Extended::Finite(42));
     }
 
     crate::law_battery! { mod laws_u032, conn: F064U032, fine: extended_float_f64(), coarse: arb_extended_u32(), cases: 1024, }

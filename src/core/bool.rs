@@ -33,15 +33,14 @@ crate::conn_l! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::ConnL;
     /// use connections::core::bool::BOOLBE01;
     ///
-    /// assert_eq!(BOOLBE01.ceil(false), [0]);
-    /// assert_eq!(BOOLBE01.ceil(true),  [1]);
-    /// assert_eq!(BOOLBE01.upper([0]),   false);
-    /// assert_eq!(BOOLBE01.upper([1]),   true);
+    /// assert_eq!(connections::conn::ceil(&BOOLBE01, false), [0]);
+    /// assert_eq!(connections::conn::ceil(&BOOLBE01, true),  [1]);
+    /// assert_eq!(connections::conn::upper(&BOOLBE01, [0]),   false);
+    /// assert_eq!(connections::conn::upper(&BOOLBE01, [1]),   true);
     /// // Non-canonical encodings collapse to true:
-    /// assert_eq!(BOOLBE01.upper([0xFF]), true);
+    /// assert_eq!(connections::conn::upper(&BOOLBE01, [0xFF]), true);
     /// ```
     pub BOOLBE01 : bool => [u8; 1] {
         ceil:  bool_to_be01,
@@ -69,15 +68,14 @@ crate::conn_l! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::ConnL;
     /// use connections::core::{LE, bool::BOOLLE01};
     ///
-    /// assert_eq!(BOOLLE01.ceil(false), LE([0]));
-    /// assert_eq!(BOOLLE01.ceil(true),  LE([1]));
-    /// assert_eq!(BOOLLE01.upper(LE([0])), false);
-    /// assert_eq!(BOOLLE01.upper(LE([1])), true);
+    /// assert_eq!(connections::conn::ceil(&BOOLLE01, false), LE([0]));
+    /// assert_eq!(connections::conn::ceil(&BOOLLE01, true),  LE([1]));
+    /// assert_eq!(connections::conn::upper(&BOOLLE01, LE([0])), false);
+    /// assert_eq!(connections::conn::upper(&BOOLLE01, LE([1])), true);
     /// // Non-canonical encodings collapse to true:
-    /// assert_eq!(BOOLLE01.upper(LE([0xFF])), true);
+    /// assert_eq!(connections::conn::upper(&BOOLLE01, LE([0xFF])), true);
     /// ```
     pub BOOLLE01 : bool => LE<1> {
         ceil:  bool_to_le01,
@@ -97,15 +95,15 @@ mod tests {
     fn bool_le_upper_is_greatest_preimage_with_ceil_below_byte() {
         for byte in 0..=u8::MAX {
             let b = LE([byte]);
-            let upper = BOOLLE01.upper(b);
-            let greatest_preimage = BOOLLE01.ceil(true) <= b;
+            let upper = crate::conn::upper(&BOOLLE01, b);
+            let greatest_preimage = crate::conn::ceil(&BOOLLE01, true) <= b;
 
             assert_eq!(upper, byte != 0);
             assert_eq!(upper, greatest_preimage);
-            assert!(BOOLLE01.ceil(upper) <= b);
+            assert!(crate::conn::ceil(&BOOLLE01, upper) <= b);
 
             if !upper {
-                assert!(BOOLLE01.ceil(true) > b);
+                assert!(crate::conn::ceil(&BOOLLE01, true) > b);
             }
         }
     }
@@ -136,7 +134,7 @@ mod tests {
 
         #[test]
         fn bool_be_order_preserving(a: bool, b: bool) {
-            prop_assert_eq!(a.cmp(&b), BOOLBE01.ceil(a).cmp(&BOOLBE01.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&BOOLBE01, a).cmp(&crate::conn::ceil(&BOOLBE01, b)));
         }
 
         #[test]
@@ -151,15 +149,15 @@ mod tests {
 
         #[test]
         fn bool_le_kernel_l_for_noncanonical_true_bytes(b in arb_lebyte1().prop_filter("noncanonical true byte", |b| b.0[0] > 1)) {
-            prop_assert_eq!(BOOLLE01.upper(b), true);
-            prop_assert_eq!(BOOLLE01.ceil(BOOLLE01.upper(b)), LE([1]));
+            prop_assert_eq!(crate::conn::upper(&BOOLLE01, b), true);
+            prop_assert_eq!(crate::conn::ceil(&BOOLLE01, crate::conn::upper(&BOOLLE01, b)), LE([1]));
             prop_assert!(conn_laws::kernel_l(&BOOLLE01, b));
             prop_assert!(!conn_laws::roundtrip_ceil(&BOOLLE01, b));
         }
 
         #[test]
         fn bool_le_order_preserving(a: bool, b: bool) {
-            prop_assert_eq!(a.cmp(&b), BOOLLE01.ceil(a).cmp(&BOOLLE01.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&BOOLLE01, a).cmp(&crate::conn::ceil(&BOOLLE01, b)));
         }
     }
 }

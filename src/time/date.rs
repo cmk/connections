@@ -57,11 +57,11 @@ crate::conn_l! {
     /// use time::{Date, Month};
     ///
     /// let epoch = Date::from_calendar_date(1970, Month::January, 1).unwrap();
-    /// assert_eq!(DATEJDAY.ceil(Extended::Finite(epoch)), 2_440_588);
-    /// assert_eq!(DATEJDAY.upper(2_440_588), Extended::Finite(epoch));
+    /// assert_eq!(connections::conn::ceil(&DATEJDAY, Extended::Finite(epoch)), 2_440_588);
+    /// assert_eq!(connections::conn::upper(&DATEJDAY, 2_440_588), Extended::Finite(epoch));
     ///
     /// // Out-of-range julian day saturates to PosInf.
-    /// assert_eq!(DATEJDAY.upper(i32::MAX), Extended::PosInf);
+    /// assert_eq!(connections::conn::upper(&DATEJDAY, i32::MAX), Extended::PosInf);
     /// ```
     pub DATEJDAY : Extended<Date> => i32 {
         ceil:  datejday_ceil,
@@ -124,34 +124,40 @@ mod tests {
     #[test]
     fn epoch_is_2440588() {
         let epoch = Date::from_calendar_date(1970, Month::January, 1).unwrap();
-        assert_eq!(DATEJDAY.ceil(Extended::Finite(epoch)), 2_440_588);
-        assert_eq!(DATEJDAY.upper(2_440_588), Extended::Finite(epoch));
+        assert_eq!(
+            crate::conn::ceil(&DATEJDAY, Extended::Finite(epoch)),
+            2_440_588
+        );
+        assert_eq!(
+            crate::conn::upper(&DATEJDAY, 2_440_588),
+            Extended::Finite(epoch)
+        );
     }
 
     #[test]
     fn min_max_round_trip() {
         assert_eq!(
-            DATEJDAY.upper(Date::MIN.to_julian_day()),
+            crate::conn::upper(&DATEJDAY, Date::MIN.to_julian_day()),
             Extended::Finite(Date::MIN),
         );
         assert_eq!(
-            DATEJDAY.upper(Date::MAX.to_julian_day()),
+            crate::conn::upper(&DATEJDAY, Date::MAX.to_julian_day()),
             Extended::Finite(Date::MAX),
         );
     }
 
     #[test]
     fn saturation_extremes() {
-        assert_eq!(DATEJDAY.upper(i32::MAX), Extended::PosInf);
-        assert_eq!(DATEJDAY.upper(i32::MIN), Extended::NegInf);
-        assert_eq!(DATEJDAY.upper(MIN_JD - 1), Extended::NegInf);
-        assert_eq!(DATEJDAY.upper(MAX_JD + 1), Extended::PosInf);
+        assert_eq!(crate::conn::upper(&DATEJDAY, i32::MAX), Extended::PosInf);
+        assert_eq!(crate::conn::upper(&DATEJDAY, i32::MIN), Extended::NegInf);
+        assert_eq!(crate::conn::upper(&DATEJDAY, MIN_JD - 1), Extended::NegInf);
+        assert_eq!(crate::conn::upper(&DATEJDAY, MAX_JD + 1), Extended::PosInf);
 
-        assert_eq!(DATEJDAY.ceil(Extended::NegInf), i32::MIN);
-        assert_eq!(DATEJDAY.ceil(Extended::PosInf), MAX_JD + 1);
+        assert_eq!(crate::conn::ceil(&DATEJDAY, Extended::NegInf), i32::MIN);
+        assert_eq!(crate::conn::ceil(&DATEJDAY, Extended::PosInf), MAX_JD + 1);
         // `new_left` wires `floor = ceil` structurally.
-        assert_eq!(DATEJDAY.ceil(Extended::NegInf), i32::MIN);
-        assert_eq!(DATEJDAY.ceil(Extended::PosInf), MAX_JD + 1);
+        assert_eq!(crate::conn::ceil(&DATEJDAY, Extended::NegInf), i32::MIN);
+        assert_eq!(crate::conn::ceil(&DATEJDAY, Extended::PosInf), MAX_JD + 1);
     }
 
     // ── DATEJDAY Galois law battery (one-sided L) ───────────────

@@ -151,26 +151,32 @@ mod tests {
     #[test]
     fn spot_q31_to_q32() {
         let q31 = FixedU32::<F31>::from_bits(1 << 30);
-        let q32 = Q032Q031.upper(q31);
+        let q32 = crate::conn::upper(&Q032Q031, q31);
         assert_eq!(q32, FixedU32::<F32>::from_bits(1 << 31));
-        assert_eq!(Q032Q031.ceil(q32), q31);
+        assert_eq!(crate::conn::ceil(&Q032Q031, q32), q31);
     }
 
     #[test]
     fn spot_q016q008_on_grid() {
         let q1616 = FixedU32::<F16>::from_bits(98304);
-        assert_eq!(Q016Q008.ceil(q1616), FixedU32::<F8>::from_bits(384));
-        assert_eq!(Q016Q008.upper(FixedU32::<F8>::from_bits(384)), q1616);
+        assert_eq!(
+            crate::conn::ceil(&Q016Q008, q1616),
+            FixedU32::<F8>::from_bits(384)
+        );
+        assert_eq!(
+            crate::conn::upper(&Q016Q008, FixedU32::<F8>::from_bits(384)),
+            q1616
+        );
     }
 
     #[test]
     fn spot_q032q000_degenerate() {
         assert_eq!(
-            Q032Q000.upper(FixedU32::<F0>::from_bits(0)),
+            crate::conn::upper(&Q032Q000, FixedU32::<F0>::from_bits(0)),
             FixedU32::<F32>::from_bits(0),
         );
         assert_eq!(
-            Q032Q000.upper(FixedU32::<F0>::from_bits(1)),
+            crate::conn::upper(&Q032Q000, FixedU32::<F0>::from_bits(1)),
             FixedU32::<F32>::from_bits(u32::MAX),
         );
     }
@@ -178,6 +184,9 @@ mod tests {
     #[test]
     fn spot_boundary_fixups() {
         let fmin = FixedU32::<F16>::from_bits(0);
-        assert_eq!(Q016Q008.ceil(fmin), FixedU32::<F8>::from_bits(0));
+        assert_eq!(
+            crate::conn::ceil(&Q016Q008, fmin),
+            FixedU32::<F8>::from_bits(0)
+        );
     }
 }

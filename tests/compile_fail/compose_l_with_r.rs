@@ -1,7 +1,7 @@
 //! Composing an L-kind Conn with an R-kind Conn through `compose_l!`
-//! should fail to type-check: the macro's expansion calls `.ceil()`
-//! on each operand — which is an inherent method only on
-//! `Conn<_, _, L>`. The R operand has no `.ceil()` method.
+//! should fail to type-check: the macro's expansion calls
+//! `ceil(&operand, ...)` on each operand, and the R operand does not
+//! implement `ConnL`.
 
 use connections::compose_l;
 use connections::conn::{Conn, R};

@@ -45,7 +45,9 @@ macro_rules! prove_iso_le {
             fn order_preserving() {
                 let a: $T = kani::any();
                 let b: $T = kani::any();
-                assert!(a.cmp(&b) == $CONN.ceil(a).cmp(&$CONN.ceil(b)));
+                assert!(
+                    a.cmp(&b) == crate::conn::ceil(&$CONN, a).cmp(&crate::conn::ceil(&$CONN, b))
+                );
             }
         }
     };
@@ -92,7 +94,9 @@ macro_rules! prove_iso_l2 {
             fn order_preserving() {
                 let a: $T = kani::any();
                 let b: $T = kani::any();
-                assert!(a.cmp(&b) == $CONN.ceil(a).cmp(&$CONN.ceil(b)));
+                assert!(
+                    a.cmp(&b) == crate::conn::ceil(&$CONN, a).cmp(&crate::conn::ceil(&$CONN, b))
+                );
             }
         }
     };

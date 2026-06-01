@@ -86,6 +86,6 @@ mod hlid_lx16 {
     #[kani::proof]
     fn lower_never_panics() {
         let bytes: [u8; 16] = kani::any();
-        let _ = HLIDLX16.lower(LX(bytes));
+        let _ = crate::conn::lower(&HLIDLX16, LX(bytes));
     }
 }

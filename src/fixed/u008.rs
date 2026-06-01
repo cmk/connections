@@ -168,12 +168,18 @@ mod tests {
     fn q000u008_round_trips_both_ways() {
         for &v in &[0_u8, 1, 42, u8::MAX] {
             let q = FixedU8::<F0>::from_bits(v);
-            assert_eq!(Q000U008.ceil(q), v);
-            assert_eq!(Q000U008.floor(q), v);
-            assert_eq!(Q000U008.upper(v), q);
-            assert_eq!(Q000U008.lower(v), q);
-            assert_eq!(Q000U008.ceil(Q000U008.upper(v)), v);
-            assert_eq!(Q000U008.upper(Q000U008.ceil(q)), q);
+            assert_eq!(crate::conn::ceil(&Q000U008, q), v);
+            assert_eq!(crate::conn::floor(&Q000U008, q), v);
+            assert_eq!(crate::conn::upper(&Q000U008, v), q);
+            assert_eq!(crate::conn::lower(&Q000U008, v), q);
+            assert_eq!(
+                crate::conn::ceil(&Q000U008, crate::conn::upper(&Q000U008, v)),
+                v
+            );
+            assert_eq!(
+                crate::conn::upper(&Q000U008, crate::conn::ceil(&Q000U008, q)),
+                q
+            );
         }
     }
 
@@ -193,33 +199,39 @@ mod tests {
         #[test]
         fn q000u008_round_trip_both_directions(v in any::<u8>()) {
             let q = FixedU8::<F0>::from_bits(v);
-            prop_assert_eq!(Q000U008.upper(Q000U008.ceil(q)), q);
-            prop_assert_eq!(Q000U008.ceil(Q000U008.upper(v)), v);
-            prop_assert_eq!(Q000U008.lower(Q000U008.floor(q)), q);
-            prop_assert_eq!(Q000U008.floor(Q000U008.lower(v)), v);
+            prop_assert_eq!(crate::conn::upper(&Q000U008, crate::conn::ceil(&Q000U008, q)), q);
+            prop_assert_eq!(crate::conn::ceil(&Q000U008, crate::conn::upper(&Q000U008, v)), v);
+            prop_assert_eq!(crate::conn::lower(&Q000U008, crate::conn::floor(&Q000U008, q)), q);
+            prop_assert_eq!(crate::conn::floor(&Q000U008, crate::conn::lower(&Q000U008, v)), v);
         }
     }
 
     #[test]
     fn spot_midi_velocity_q17_to_q08() {
         let velocity_64 = FixedU8::<F7>::from_bits(64);
-        let pixel = Q008Q007.upper(velocity_64);
+        let pixel = crate::conn::upper(&Q008Q007, velocity_64);
         assert_eq!(pixel, FixedU8::<F8>::from_bits(128));
-        assert_eq!(Q008Q007.ceil(pixel), velocity_64);
+        assert_eq!(crate::conn::ceil(&Q008Q007, pixel), velocity_64);
     }
 
     #[test]
     fn spot_q17_max_velocity_to_q08() {
         let velocity_max = FixedU8::<F7>::from_bits(127);
-        assert_eq!(Q008Q007.upper(velocity_max), FixedU8::<F8>::from_bits(254));
+        assert_eq!(
+            crate::conn::upper(&Q008Q007, velocity_max),
+            FixedU8::<F8>::from_bits(254)
+        );
     }
 
     #[test]
     fn spot_q004q000_on_grid() {
         let q44 = FixedU8::<F4>::from_bits(24);
-        assert_eq!(Q004Q000.ceil(q44), FixedU8::<F0>::from_bits(2));
         assert_eq!(
-            Q004Q000.upper(FixedU8::<F0>::from_bits(1)),
+            crate::conn::ceil(&Q004Q000, q44),
+            FixedU8::<F0>::from_bits(2)
+        );
+        assert_eq!(
+            crate::conn::upper(&Q004Q000, FixedU8::<F0>::from_bits(1)),
             FixedU8::<F4>::from_bits(16)
         );
     }
@@ -227,15 +239,15 @@ mod tests {
     #[test]
     fn spot_q008q000_degenerate() {
         assert_eq!(
-            Q008Q000.upper(FixedU8::<F0>::from_bits(0)),
+            crate::conn::upper(&Q008Q000, FixedU8::<F0>::from_bits(0)),
             FixedU8::<F8>::from_bits(0),
         );
         assert_eq!(
-            Q008Q000.upper(FixedU8::<F0>::from_bits(1)),
+            crate::conn::upper(&Q008Q000, FixedU8::<F0>::from_bits(1)),
             FixedU8::<F8>::from_bits(u8::MAX),
         );
         assert_eq!(
-            Q008Q000.upper(FixedU8::<F0>::from_bits(255)),
+            crate::conn::upper(&Q008Q000, FixedU8::<F0>::from_bits(255)),
             FixedU8::<F8>::from_bits(u8::MAX),
         );
     }
@@ -243,6 +255,9 @@ mod tests {
     #[test]
     fn spot_boundary_fixups() {
         let fmin = FixedU8::<F4>::from_bits(0);
-        assert_eq!(Q004Q000.ceil(fmin), FixedU8::<F0>::from_bits(0));
+        assert_eq!(
+            crate::conn::ceil(&Q004Q000, fmin),
+            FixedU8::<F0>::from_bits(0)
+        );
     }
 }

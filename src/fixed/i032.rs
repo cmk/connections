@@ -158,22 +158,28 @@ mod tests {
     #[test]
     fn spot_q016q008_on_grid() {
         let q1616 = FixedI32::<U16>::from_bits(98304);
-        assert_eq!(Q016Q008.ceil(q1616), FixedI32::<U8>::from_bits(384));
-        assert_eq!(Q016Q008.upper(FixedI32::<U8>::from_bits(384)), q1616);
+        assert_eq!(
+            crate::conn::ceil(&Q016Q008, q1616),
+            FixedI32::<U8>::from_bits(384)
+        );
+        assert_eq!(
+            crate::conn::upper(&Q016Q008, FixedI32::<U8>::from_bits(384)),
+            q1616
+        );
     }
 
     #[test]
     fn spot_q032q000_degenerate() {
         assert_eq!(
-            Q032Q000.upper(FixedI32::<U0>::from_bits(0)),
+            crate::conn::upper(&Q032Q000, FixedI32::<U0>::from_bits(0)),
             FixedI32::<U32>::from_bits(0),
         );
         assert_eq!(
-            Q032Q000.upper(FixedI32::<U0>::from_bits(1)),
+            crate::conn::upper(&Q032Q000, FixedI32::<U0>::from_bits(1)),
             FixedI32::<U32>::from_bits(i32::MAX),
         );
         assert_eq!(
-            Q032Q000.upper(FixedI32::<U0>::from_bits(-1)),
+            crate::conn::upper(&Q032Q000, FixedI32::<U0>::from_bits(-1)),
             FixedI32::<U32>::from_bits(i32::MIN),
         );
     }
@@ -181,7 +187,10 @@ mod tests {
     #[test]
     fn spot_boundary_fixups() {
         let fmin = FixedI32::<U16>::from_bits(i32::MIN);
-        assert_eq!(Q016Q008.ceil(fmin), FixedI32::<U8>::from_bits(i32::MIN));
+        assert_eq!(
+            crate::conn::ceil(&Q016Q008, fmin),
+            FixedI32::<U8>::from_bits(i32::MIN)
+        );
     }
 
     macro_rules! props_for_pair {

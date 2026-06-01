@@ -104,12 +104,15 @@
 //!
 //! ## ConnK
 //!
-//! The two-sided helpers ([`ConnK`](conn::ConnK)-bound free fns,
-//! re-exported via [`prelude`]) carry the following π-bracket
-//! worked-example thread in their per-fn doctests:
+//! The helper functions live in the [`conn`] module. Callers who want
+//! bare helper names can opt into [`prelude`], which re-exports the same
+//! Conn DSL without adding common names like `ceil`, `floor`, or `round`
+//! to the crate root. The two-sided [`ConnK`](conn::ConnK)-bound helpers
+//! carry the following π-bracket worked-example thread in their per-fn
+//! doctests:
 //!
 //! ```rust
-//! use connections::conn::ConnL;
+//! use connections::conn::upper;
 //! use connections::float::ExtendedFloat::Extend;
 //! use connections::core::f064::F064F032;
 //!
@@ -120,28 +123,22 @@
 //! // Lossless ≠ precise: the value is still the f32 approximation.
 //! assert_ne!(pi64, pi32);
 //! // upper just widens; for F064F032 that's the f32 → f64 cast.
-//! assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
+//! assert_eq!(upper(&F064F032, Extend(std::f32::consts::PI)), pi32);
 //! ```
 //!
 //! - [`interval`](crate::conn::interval) — bracket of `x` as an
 //!   [`Interval<A>`](crate::interval::Interval) (closed cell `[lo, hi] ⊆ A`
 //!   sharing `x`'s B-projection; `Interval::Empty` for NaN-bearing
 //!   inputs)
-//! - [`truncate`](crate::prelude::truncate),
-//!   [`truncate1`](crate::prelude::truncate1),
-//!   [`truncate2`](crate::prelude::truncate2) — round-toward-zero through the triple
-//! - [`round`](crate::prelude::round) — round-to-nearest f32 of true π
+//! - [`truncate`](crate::conn::truncate),
+//!   [`truncate1`](crate::conn::truncate1),
+//!   [`truncate2`](crate::conn::truncate2) — round-toward-zero through the triple
+//! - [`round`](crate::conn::round) — round-to-nearest f32 of true π
 //!   (ties broken toward zero)
-//! - [`round1`](crate::prelude::round1) — Newton step on `sin` near π
-//! - [`round2`](crate::prelude::round2) — catastrophic-cancellation recovery
-//! - [`median`](crate::prelude::median) — Birkhoff median (i32 ordered lattice
+//! - [`round1`](crate::conn::round1) — Newton step on `sin` near π
+//! - [`round2`](crate::conn::round2) — catastrophic-cancellation recovery
+//! - [`median`](crate::conn::median) — Birkhoff median (i32 ordered lattice
 //!   + N5 lattice with NaN, both at the function's doctest)
-//!
-//! Principal-filter / principal-ideal predicates live as inherent
-//! methods on the one-sided views: [`Conn::filter_l`](crate::conn::Conn::filter_l)
-//! on `Conn<_, _, L>` (upward-closed: `ceil(a) ≤ b`),
-//! [`Conn::filter_r`](crate::conn::Conn::filter_r) on `Conn<_, _, R>`
-//! (downward-closed: `b ≤ floor(a)`).
 //!
 //! ## Composition
 //!
@@ -216,17 +213,15 @@ pub mod time;
 #[cfg(feature = "uhlc")]
 pub mod uhlc;
 
-/// Idiomatic batch import of the trait family, two-sided helpers, and
-/// the [`Interval`](crate::interval::Interval) bracket type.
+/// Opt-in glob import of the Conn DSL.
 ///
-/// Two-sided ops (`round`, `truncate`, `median`, `interval` and the
-/// `1` / `2` lifters) are bare-named functions; routing them through
-/// the prelude keeps them inside an opt-in namespace and out of the
-/// crate-root glob's collision surface (`std::iter::Iterator::round`
-/// once it lands, `num_traits::ToPrimitive`, etc.). One-sided ops
-/// (`ceil` / `upper` / `floor` / `lower` and their `1` / `2` lifters)
-/// are inherent methods on `Conn<_, _, L>` / `Conn<_, _, R>` reached
-/// through the capability traits also re-exported here.
+/// Canonical helper paths remain `connections::conn::{...}`. This
+/// module re-exports the common Conn traits, helpers, and
+/// [`Interval`](crate::interval::Interval) for callers who prefer bare
+/// names via `use connections::prelude::*`; the crate root intentionally
+/// stays free of these common helper names. The helpers are re-exported
+/// in the same order as the capability traits: [`ConnK`](crate::conn::ConnK),
+/// [`ConnL`](crate::conn::ConnL), then [`ConnR`](crate::conn::ConnR).
 ///
 /// # Examples
 ///
@@ -235,15 +230,19 @@ pub mod uhlc;
 /// use connections::core::f064::F064F032;
 /// use connections::float::ExtendedFloat::Extend;
 ///
-/// // `ConnL::ceil` arrives via the prelude.
-/// let pi32 = F064F032.ceil(Extend(std::f64::consts::PI));
+/// let pi32 = ceil(&F064F032, Extend(std::f64::consts::PI));
 /// assert_eq!(pi32, Extend(std::f32::consts::PI));
 /// ```
 pub mod prelude {
     pub use crate::conn::{ConnK, ConnL, ConnR};
+    #[rustfmt::skip]
     pub use crate::conn::{
-        interval, median, round, round1, round2, truncate, truncate1, truncate2,
+        interval, truncate, truncate1, truncate2, round, round1, round2, median,
     };
+    #[rustfmt::skip]
+    pub use crate::conn::{upper, ceil, ceil1, ceil2};
+    #[rustfmt::skip]
+    pub use crate::conn::{lower, floor, floor1, floor2};
     pub use crate::interval::Interval;
 }
 

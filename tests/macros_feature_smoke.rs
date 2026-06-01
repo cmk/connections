@@ -16,8 +16,6 @@ use connections::macros as _curated_namespace;
 
 // `iso!` — a tiny `MyId(u64) <-> u64` bijection.
 mod iso_smoke {
-    use connections::conn::ConnL;
-
     const fn fwd(x: u64) -> u64 {
         x
     }
@@ -35,15 +33,16 @@ mod iso_smoke {
     #[test]
     fn iso_round_trip() {
         for v in [0_u64, 1, 42, u64::MAX] {
-            assert_eq!(IDU064.ceil(IDU064.upper(v)), v);
+            assert_eq!(
+                connections::conn::ceil(&IDU064, connections::conn::upper(&IDU064, v)),
+                v
+            );
         }
     }
 }
 
 // `conn_k!` — same shape as iso! but with explicit ceil/inner/floor.
 mod triple_smoke {
-    use connections::conn::{ConnL, ConnR};
-
     const fn ceil_(x: i32) -> i32 {
         x
     }
@@ -64,8 +63,8 @@ mod triple_smoke {
 
     #[test]
     fn triple_both_views() {
-        assert_eq!(IDI032.ceil(7), 7);
-        assert_eq!(IDI032.conn_r().floor(7), 7);
+        assert_eq!(connections::conn::ceil(&IDI032, 7), 7);
+        assert_eq!(connections::conn::floor(&IDI032, 7), 7);
     }
 }
 
@@ -75,12 +74,12 @@ mod uint_uint_smoke {
 
     #[test]
     fn widens() {
-        assert_eq!(SMOKE_U008U016.ceil(255_u8), 255_u16);
+        assert_eq!(connections::conn::ceil(&SMOKE_U008U016, 255_u8), 255_u16);
     }
 
     #[test]
     fn inner_saturates() {
-        assert_eq!(SMOKE_U008U016.upper(u16::MAX), u8::MAX);
+        assert_eq!(connections::conn::upper(&SMOKE_U008U016, u16::MAX), u8::MAX);
     }
 }
 
@@ -92,14 +91,23 @@ mod ext_int_smoke {
 
     #[test]
     fn ext_finite() {
-        assert_eq!(SMOKE_EXT08.ceil(Extended::Finite(1_i8)), 1_i16);
+        assert_eq!(
+            connections::conn::ceil(&SMOKE_EXT08, Extended::Finite(1_i8)),
+            1_i16
+        );
     }
 
     #[test]
     fn ext_synthetic() {
         // `inner` saturates outside [BELOW, ABOVE] to NegInf/PosInf.
-        assert_eq!(SMOKE_EXT08.upper(i16::MIN), Extended::NegInf);
-        assert_eq!(SMOKE_EXT08.upper(i16::MAX), Extended::PosInf);
+        assert_eq!(
+            connections::conn::upper(&SMOKE_EXT08, i16::MIN),
+            Extended::NegInf
+        );
+        assert_eq!(
+            connections::conn::upper(&SMOKE_EXT08, i16::MAX),
+            Extended::PosInf
+        );
     }
 }
 
@@ -117,17 +125,16 @@ mod narrow_macro_smoke {
     #[test]
     fn all_compile() {
         // Touch each so the compiler doesn't dead-code them.
-        let _ = SMOKE_I016I008.ceil(0_i16);
-        let _ = SMOKE_U016U008.ceil(0_u16);
-        let _ = SMOKE_I016U008.ceil(0_i16);
-        let _ = SMOKE_U016I008.floor(0_u16);
-        let _ = SMOKE_I008U008.ceil(0_i8);
+        let _ = connections::conn::ceil(&SMOKE_I016I008, 0_i16);
+        let _ = connections::conn::ceil(&SMOKE_U016U008, 0_u16);
+        let _ = connections::conn::ceil(&SMOKE_I016U008, 0_i16);
+        let _ = connections::conn::floor(&SMOKE_U016I008, 0_u16);
+        let _ = connections::conn::ceil(&SMOKE_I008U008, 0_i8);
     }
 }
 
 // `nz_int_ext!` and `nz_uint_ext!` — NonZero adjoints.
 mod nz_smoke {
-    use connections::conn::{ConnL, ConnR};
     use core::num::{NonZeroI8, NonZeroU8};
 
     connections::nz_int_ext!(SmokeNzI8, i8, NonZeroI8);
@@ -136,13 +143,22 @@ mod nz_smoke {
     #[test]
     fn nz_int_at_zero() {
         // floor and ceil split zero between -1 and +1.
-        assert_eq!(SmokeNzI8.floor(0_i8), NonZeroI8::new(-1).unwrap());
-        assert_eq!(SmokeNzI8.ceil(0_i8), NonZeroI8::new(1).unwrap());
+        assert_eq!(
+            connections::conn::floor(&SmokeNzI8, 0_i8),
+            NonZeroI8::new(-1).unwrap()
+        );
+        assert_eq!(
+            connections::conn::ceil(&SmokeNzI8, 0_i8),
+            NonZeroI8::new(1).unwrap()
+        );
     }
 
     #[test]
     fn nz_uint_at_zero() {
         // Unsigned: 0 collapses to NonZero(1) via ceil.
-        assert_eq!(SMOKE_NZ_U8.ceil(0_u8), NonZeroU8::new(1).unwrap());
+        assert_eq!(
+            connections::conn::ceil(&SMOKE_NZ_U8, 0_u8),
+            NonZeroU8::new(1).unwrap()
+        );
     }
 }

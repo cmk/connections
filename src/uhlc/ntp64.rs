@@ -61,9 +61,9 @@ mod tests {
     #[test]
     fn boundary_values() {
         // The two corners of the u64 range round-trip losslessly.
-        assert_eq!(NDURU064.ceil(NTP64(0)), 0);
-        assert_eq!(NDURU064.upper(0), NTP64(0));
-        assert_eq!(NDURU064.ceil(NTP64(u64::MAX)), u64::MAX);
-        assert_eq!(NDURU064.upper(u64::MAX), NTP64(u64::MAX));
+        assert_eq!(crate::conn::ceil(&NDURU064, NTP64(0)), 0);
+        assert_eq!(crate::conn::upper(&NDURU064, 0), NTP64(0));
+        assert_eq!(crate::conn::ceil(&NDURU064, NTP64(u64::MAX)), u64::MAX);
+        assert_eq!(crate::conn::upper(&NDURU064, u64::MAX), NTP64(u64::MAX));
     }
 }

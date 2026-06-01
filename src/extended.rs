@@ -63,8 +63,8 @@
 //! const CHAIN: Conn<Extended<i64>, Extended<i64>, L> =
 //!     compose_l!(LIFTED, ID_E);
 //!
-//! assert_eq!(CHAIN.ceil(Extended::Finite(7)),  Extended::Finite(7));
-//! assert_eq!(CHAIN.upper(Extended::PosInf),    Extended::PosInf);
+//! assert_eq!(connections::conn::ceil(&CHAIN, Extended::Finite(7)),  Extended::Finite(7));
+//! assert_eq!(connections::conn::upper(&CHAIN, Extended::PosInf),    Extended::PosInf);
 //! ```
 //!
 //! Marker combo (`lift_k!` marker into `compose_k!`, then back into
@@ -112,7 +112,10 @@
 //! // operand at runtime via `.conn_l()`.
 //! let final_chain = compose_l!(CHAIN_K.conn_l(), EXTQ_IDENTITY.conn_l());
 //! let q = FixedI16::<U0>::from_bits(7);
-//! assert_eq!(final_chain.ceil(Extended::Finite(7_i16)), Extended::Finite(q));
+//! assert_eq!(
+//!     connections::conn::ceil(&final_chain, Extended::Finite(7_i16)),
+//!     Extended::Finite(q),
+//! );
 //! ```
 //!
 //! [`Conn<Extended<A>, Extended<B>, L>`]: crate::conn::Conn
@@ -260,9 +263,9 @@ impl<T: Ord> Ord for Extended<T> {
 /// const ID: Conn<i64, i64, L> = Conn::identity();
 /// const LIFTED: Conn<Extended<i64>, Extended<i64>, L> = lift_l!(ID);
 ///
-/// assert_eq!(LIFTED.ceil(Extended::NegInf), Extended::NegInf);
-/// assert_eq!(LIFTED.ceil(Extended::PosInf), Extended::PosInf);
-/// assert_eq!(LIFTED.ceil(Extended::Finite(7_i64)), Extended::Finite(7_i64));
+/// assert_eq!(connections::conn::ceil(&LIFTED, Extended::NegInf), Extended::NegInf);
+/// assert_eq!(connections::conn::ceil(&LIFTED, Extended::PosInf), Extended::PosInf);
+/// assert_eq!(connections::conn::ceil(&LIFTED, Extended::Finite(7_i64)), Extended::Finite(7_i64));
 /// ```
 #[macro_export]
 macro_rules! lift_l {
@@ -271,14 +274,14 @@ macro_rules! lift_l {
             |a| match a {
                 $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
                 $crate::extended::Extended::Finite(x) => {
-                    $crate::extended::Extended::Finite($crate::conn::ConnL::ceil(&$parent, x))
+                    $crate::extended::Extended::Finite($crate::conn::ceil(&$parent, x))
                 }
                 $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
             },
             |b| match b {
                 $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
                 $crate::extended::Extended::Finite(y) => {
-                    $crate::extended::Extended::Finite($crate::conn::ConnL::upper(&$parent, y))
+                    $crate::extended::Extended::Finite($crate::conn::upper(&$parent, y))
                 }
                 $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
             },
@@ -306,9 +309,9 @@ macro_rules! lift_l {
 /// const ID_R: Conn<i64, i64, R> = Conn::<i64, i64, L>::identity().swap_l();
 /// const LIFTED: Conn<Extended<i64>, Extended<i64>, R> = lift_r!(ID_R);
 ///
-/// assert_eq!(LIFTED.floor(Extended::NegInf), Extended::NegInf);
-/// assert_eq!(LIFTED.floor(Extended::PosInf), Extended::PosInf);
-/// assert_eq!(LIFTED.floor(Extended::Finite(7_i64)), Extended::Finite(7_i64));
+/// assert_eq!(connections::conn::floor(&LIFTED, Extended::NegInf), Extended::NegInf);
+/// assert_eq!(connections::conn::floor(&LIFTED, Extended::PosInf), Extended::PosInf);
+/// assert_eq!(connections::conn::floor(&LIFTED, Extended::Finite(7_i64)), Extended::Finite(7_i64));
 /// ```
 #[macro_export]
 macro_rules! lift_r {
@@ -317,14 +320,14 @@ macro_rules! lift_r {
             |b| match b {
                 $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
                 $crate::extended::Extended::Finite(y) => {
-                    $crate::extended::Extended::Finite($crate::conn::ConnR::lower(&$parent, y))
+                    $crate::extended::Extended::Finite($crate::conn::lower(&$parent, y))
                 }
                 $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
             },
             |a| match a {
                 $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
                 $crate::extended::Extended::Finite(x) => {
-                    $crate::extended::Extended::Finite($crate::conn::ConnR::floor(&$parent, x))
+                    $crate::extended::Extended::Finite($crate::conn::floor(&$parent, x))
                 }
                 $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
             },
@@ -358,13 +361,13 @@ macro_rules! lift_r {
 /// lift_k!(EXTQ000I016 : FixedI16<U0> => i16 = Q000I016);
 ///
 /// // Synthetic markers map identically.
-/// assert_eq!(EXTQ000I016.ceil(Extended::NegInf), Extended::NegInf);
-/// assert_eq!(EXTQ000I016.floor(Extended::PosInf), Extended::PosInf);
+/// assert_eq!(connections::conn::ceil(&EXTQ000I016, Extended::NegInf), Extended::NegInf);
+/// assert_eq!(connections::conn::floor(&EXTQ000I016, Extended::PosInf), Extended::PosInf);
 ///
 /// // Finite arm dispatches through the parent (lossless on Q000I016).
 /// let q = FixedI16::<U0>::from_bits(42);
-/// assert_eq!(EXTQ000I016.ceil(Extended::Finite(q)), Extended::Finite(42_i16));
-/// assert_eq!(EXTQ000I016.upper(Extended::Finite(42_i16)), Extended::Finite(q));
+/// assert_eq!(connections::conn::ceil(&EXTQ000I016, Extended::Finite(q)), Extended::Finite(42_i16));
+/// assert_eq!(connections::conn::upper(&EXTQ000I016, Extended::Finite(42_i16)), Extended::Finite(q));
 /// ```
 #[macro_export]
 macro_rules! lift_k {
@@ -584,28 +587,58 @@ mod lift_tests {
     fn lift_l_identity_synthetic_arms() {
         const ID: Conn<i64, i64, L> = Conn::identity();
         const LIFTED: Conn<Extended<i64>, Extended<i64>, L> = lift_l!(ID);
-        assert_eq!(LIFTED.ceil(Extended::NegInf), Extended::NegInf);
-        assert_eq!(LIFTED.ceil(Extended::PosInf), Extended::PosInf);
-        assert_eq!(LIFTED.upper(Extended::NegInf), Extended::NegInf);
-        assert_eq!(LIFTED.upper(Extended::PosInf), Extended::PosInf);
+        assert_eq!(
+            crate::conn::ceil(&LIFTED, Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::ceil(&LIFTED, Extended::PosInf),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::conn::upper(&LIFTED, Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::upper(&LIFTED, Extended::PosInf),
+            Extended::PosInf
+        );
     }
 
     #[test]
     fn lift_r_identity_synthetic_arms() {
         const ID_R: Conn<i64, i64, R> = Conn::<i64, i64, L>::identity().swap_l();
         const LIFTED: Conn<Extended<i64>, Extended<i64>, R> = lift_r!(ID_R);
-        assert_eq!(LIFTED.floor(Extended::NegInf), Extended::NegInf);
-        assert_eq!(LIFTED.floor(Extended::PosInf), Extended::PosInf);
-        assert_eq!(LIFTED.lower(Extended::NegInf), Extended::NegInf);
-        assert_eq!(LIFTED.lower(Extended::PosInf), Extended::PosInf);
+        assert_eq!(
+            crate::conn::floor(&LIFTED, Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::floor(&LIFTED, Extended::PosInf),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::conn::lower(&LIFTED, Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::lower(&LIFTED, Extended::PosInf),
+            Extended::PosInf
+        );
     }
 
     #[test]
     fn lift_l_identity_finite_passthrough() {
         const ID: Conn<i64, i64, L> = Conn::identity();
         const LIFTED: Conn<Extended<i64>, Extended<i64>, L> = lift_l!(ID);
-        assert_eq!(LIFTED.ceil(Extended::Finite(7)), Extended::Finite(7));
-        assert_eq!(LIFTED.upper(Extended::Finite(-3)), Extended::Finite(-3));
+        assert_eq!(
+            crate::conn::ceil(&LIFTED, Extended::Finite(7)),
+            Extended::Finite(7)
+        );
+        assert_eq!(
+            crate::conn::upper(&LIFTED, Extended::Finite(-3)),
+            Extended::Finite(-3)
+        );
     }
 
     // Marker that lifts the iso `Q000I016 : FixedI16<U0> ↔ i16` to
@@ -617,12 +650,30 @@ mod lift_tests {
     fn lift_k_q000i016_synthetic_arms() {
         // Both views agree on the synthetic arms (and on identity at
         // Finite values, since Q000I016 is an iso).
-        assert_eq!(EXTQ000I016.ceil(Extended::NegInf), Extended::NegInf);
-        assert_eq!(EXTQ000I016.ceil(Extended::PosInf), Extended::PosInf);
-        assert_eq!(EXTQ000I016.floor(Extended::NegInf), Extended::NegInf);
-        assert_eq!(EXTQ000I016.floor(Extended::PosInf), Extended::PosInf);
-        assert_eq!(EXTQ000I016.upper(Extended::NegInf), Extended::NegInf);
-        assert_eq!(EXTQ000I016.lower(Extended::PosInf), Extended::PosInf);
+        assert_eq!(
+            crate::conn::ceil(&EXTQ000I016, Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::ceil(&EXTQ000I016, Extended::PosInf),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::conn::floor(&EXTQ000I016, Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::floor(&EXTQ000I016, Extended::PosInf),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::conn::upper(&EXTQ000I016, Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::lower(&EXTQ000I016, Extended::PosInf),
+            Extended::PosInf
+        );
     }
 
     #[test]
@@ -630,19 +681,19 @@ mod lift_tests {
         let q = FixedI16::<U0>::from_bits(42);
         // Parent's ceil/upper agree on Finite values:
         assert_eq!(
-            EXTQ000I016.ceil(Extended::Finite(q)),
+            crate::conn::ceil(&EXTQ000I016, Extended::Finite(q)),
             Extended::Finite(42_i16)
         );
         assert_eq!(
-            EXTQ000I016.upper(Extended::Finite(42_i16)),
+            crate::conn::upper(&EXTQ000I016, Extended::Finite(42_i16)),
             Extended::Finite(q)
         );
         assert_eq!(
-            EXTQ000I016.floor(Extended::Finite(q)),
+            crate::conn::floor(&EXTQ000I016, Extended::Finite(q)),
             Extended::Finite(42_i16)
         );
         assert_eq!(
-            EXTQ000I016.lower(Extended::Finite(42_i16)),
+            crate::conn::lower(&EXTQ000I016, Extended::Finite(42_i16)),
             Extended::Finite(q)
         );
     }
@@ -654,7 +705,10 @@ mod lift_tests {
         const ID: Conn<i64, i64, L> = Conn::identity();
         const LIFTED: Conn<Extended<i64>, Extended<i64>, L> = lift_l!(ID);
         // Reading a const inside a fn proves it const-evaluated.
-        assert_eq!(LIFTED.ceil(Extended::Finite(0)), Extended::Finite(0));
+        assert_eq!(
+            crate::conn::ceil(&LIFTED, Extended::Finite(0)),
+            Extended::Finite(0)
+        );
     }
 
     // ── Property batteries ─────────────────────────────────────────
@@ -710,8 +764,14 @@ mod lift_tests {
         // Const-init through compose_l!; the lift slot replaces the
         // motivating-use-case L-only Conn that lands in `Extended<…>`.
         const CHAIN: Conn<Extended<i64>, Extended<i64>, L> = crate::compose_l!(LIFTED, ID_EXT);
-        assert_eq!(CHAIN.ceil(Extended::Finite(7)), Extended::Finite(7));
-        assert_eq!(CHAIN.upper(Extended::PosInf), Extended::PosInf);
+        assert_eq!(
+            crate::conn::ceil(&CHAIN, Extended::Finite(7)),
+            Extended::Finite(7)
+        );
+        assert_eq!(
+            crate::conn::upper(&CHAIN, Extended::PosInf),
+            Extended::PosInf
+        );
     }
 
     #[test]
@@ -738,7 +798,13 @@ mod lift_tests {
         let chain: Conn<Extended<FixedI16<U0>>, Extended<i16>, L> =
             crate::compose_l!(EXTQ000I016.conn_l(), ID_EXT_I16);
         let q = FixedI16::<U0>::from_bits(99);
-        assert_eq!(chain.ceil(Extended::Finite(q)), Extended::Finite(99_i16));
-        assert_eq!(chain.ceil(Extended::NegInf), Extended::NegInf);
+        assert_eq!(
+            crate::conn::ceil(&chain, Extended::Finite(q)),
+            Extended::Finite(99_i16)
+        );
+        assert_eq!(
+            crate::conn::ceil(&chain, Extended::NegInf),
+            Extended::NegInf
+        );
     }
 }

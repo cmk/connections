@@ -65,13 +65,13 @@ crate::conn_l! {
     /// use connections::extended::Extended;
     ///
     /// // Valid codepoints pass through.
-    /// assert_eq!(U032CHAR.ceil(Extended::Finite('A' as u32)), Extended::Finite('A'));
+    /// assert_eq!(connections::conn::ceil(&U032CHAR, Extended::Finite('A' as u32)), Extended::Finite('A'));
     ///
     /// // Surrogate gap: ceil jumps up.
-    /// assert_eq!(U032CHAR.ceil(Extended::Finite(0xD800)), Extended::Finite('\u{E000}'));
+    /// assert_eq!(connections::conn::ceil(&U032CHAR, Extended::Finite(0xD800)), Extended::Finite('\u{E000}'));
     ///
     /// // Above CHAR_MAX: ceil → PosInf.
-    /// assert_eq!(U032CHAR.ceil(Extended::Finite(0x110000)), Extended::PosInf);
+    /// assert_eq!(connections::conn::ceil(&U032CHAR, Extended::Finite(0x110000)), Extended::PosInf);
     /// ```
     pub U032CHAR : Extended<u32> => Extended<char> {
         ceil:  ceil_u32_char,
@@ -92,7 +92,7 @@ mod tests {
     fn surrogate_gap_ceil() {
         for u in [0xD800_u32, 0xD900, 0xDFFF] {
             assert_eq!(
-                U032CHAR.ceil(Extended::Finite(u)),
+                crate::conn::ceil(&U032CHAR, Extended::Finite(u)),
                 Extended::Finite('\u{E000}'),
                 "ceil({u:#x})",
             );
@@ -101,19 +101,25 @@ mod tests {
 
     #[test]
     fn beyond_max_ceil() {
-        assert_eq!(U032CHAR.ceil(Extended::Finite(0x110000)), Extended::PosInf);
-        assert_eq!(U032CHAR.ceil(Extended::Finite(u32::MAX)), Extended::PosInf);
+        assert_eq!(
+            crate::conn::ceil(&U032CHAR, Extended::Finite(0x110000)),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::conn::ceil(&U032CHAR, Extended::Finite(u32::MAX)),
+            Extended::PosInf
+        );
     }
 
     #[test]
     fn valid_passthrough() {
         for &c in &['\u{0}', 'A', '\n', '\u{D7FF}', '\u{E000}', '\u{10FFFF}'] {
             assert_eq!(
-                U032CHAR.ceil(Extended::Finite(c as u32)),
+                crate::conn::ceil(&U032CHAR, Extended::Finite(c as u32)),
                 Extended::Finite(c)
             );
             assert_eq!(
-                U032CHAR.upper(Extended::Finite(c)),
+                crate::conn::upper(&U032CHAR, Extended::Finite(c)),
                 Extended::Finite(c as u32)
             );
         }
@@ -121,10 +127,22 @@ mod tests {
 
     #[test]
     fn extremes_pass_through() {
-        assert_eq!(U032CHAR.ceil(Extended::NegInf), Extended::NegInf);
-        assert_eq!(U032CHAR.ceil(Extended::PosInf), Extended::PosInf);
-        assert_eq!(U032CHAR.upper(Extended::NegInf), Extended::NegInf);
-        assert_eq!(U032CHAR.upper(Extended::PosInf), Extended::PosInf);
+        assert_eq!(
+            crate::conn::ceil(&U032CHAR, Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::ceil(&U032CHAR, Extended::PosInf),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::conn::upper(&U032CHAR, Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::upper(&U032CHAR, Extended::PosInf),
+            Extended::PosInf
+        );
     }
 
     // ── Property tests ─────────────────────────────────────────────

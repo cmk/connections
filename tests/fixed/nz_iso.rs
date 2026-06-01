@@ -48,8 +48,8 @@ macro_rules! signed_nz_props {
                 }
                 #[test]
                 fn inner_then_ceil_recovers(nz in arb_nz()) {
-                    prop_assert_eq!($CONN.ceil($CONN.upper(nz)), nz);
-                    prop_assert_eq!($CONN.floor($CONN.upper(nz)), nz);
+                    prop_assert_eq!(connections::conn::ceil(&$CONN, connections::conn::upper(&$CONN, nz)), nz);
+                    prop_assert_eq!(connections::conn::floor(&$CONN, connections::conn::upper(&$CONN, nz)), nz);
                 }
             }
         }
@@ -80,7 +80,7 @@ macro_rules! unsigned_nz_props {
                 }
                 #[test]
                 fn inner_then_ceil_recovers(nz in arb_nz()) {
-                    prop_assert_eq!($CONN.ceil($CONN.upper(nz)), nz);
+                    prop_assert_eq!(connections::conn::ceil(&$CONN, connections::conn::upper(&$CONN, nz)), nz);
                 }
             }
         }
@@ -113,10 +113,10 @@ macro_rules! iso_props {
                 #[test]
                 fn round_trip_both_directions(v in any::<$A>()) {
                     let q = $FIXED::<$FRAC>::from_bits(v);
-                    prop_assert_eq!($CONN.upper($CONN.ceil(q)), q);
-                    prop_assert_eq!($CONN.ceil($CONN.upper(v)), v);
-                    prop_assert_eq!($CONN.lower($CONN.floor(q)), q);
-                    prop_assert_eq!($CONN.floor($CONN.lower(v)), v);
+                    prop_assert_eq!(connections::conn::upper(&$CONN, connections::conn::ceil(&$CONN, q)), q);
+                    prop_assert_eq!(connections::conn::ceil(&$CONN, connections::conn::upper(&$CONN, v)), v);
+                    prop_assert_eq!(connections::conn::lower(&$CONN, connections::conn::floor(&$CONN, q)), q);
+                    prop_assert_eq!(connections::conn::floor(&$CONN, connections::conn::lower(&$CONN, v)), v);
                 }
             }
         }

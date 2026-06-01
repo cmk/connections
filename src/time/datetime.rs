@@ -45,7 +45,7 @@ crate::conn_l! {
     /// `p.time() == MIDNIGHT`, otherwise `Finite(p.date().next_day())`
     /// (or `PosInf` if `p.date() == Date::MAX` and `p` carries a sub-day
     /// fraction). Because `floor = ceil` under `new_left`, callers
-    /// reading `PDTMDATE.ceil(p)` get the **rounded-up** answer (next
+    /// reading `connections::conn::ceil(&PDTMDATE, p)` get the **rounded-up** answer (next
     /// day), not the truncated `Finite(p.date())` they'd get under the
     /// previous full-triple. Callers needing the truncating direction
     /// can compute it explicitly: `Extended::Finite(p.date())` for `p !=
@@ -62,13 +62,13 @@ crate::conn_l! {
     ///
     /// // Midnight: ceil resolves to the same day.
     /// let p_midnight = PrimitiveDateTime::new(day, Time::MIDNIGHT);
-    /// assert_eq!(PDTMDATE.ceil(p_midnight), Extended::Finite(day));
+    /// assert_eq!(connections::conn::ceil(&PDTMDATE, p_midnight), Extended::Finite(day));
     ///
     /// // Any later time: ceil rolls forward to next day.
     /// let p_later = PrimitiveDateTime::new(day, Time::from_hms(0, 0, 1).unwrap());
-    /// assert_eq!(PDTMDATE.ceil(p_later), Extended::Finite(day.next_day().unwrap()));
+    /// assert_eq!(connections::conn::ceil(&PDTMDATE, p_later), Extended::Finite(day.next_day().unwrap()));
     ///
-    /// assert_eq!(PDTMDATE.upper(Extended::Finite(day)), p_midnight);
+    /// assert_eq!(connections::conn::upper(&PDTMDATE, Extended::Finite(day)), p_midnight);
     /// ```
     pub PDTMDATE : PrimitiveDateTime => Extended<Date> {
         ceil:  pdtmdate_ceil,
@@ -129,35 +129,59 @@ mod tests {
     fn midnight_fixes_date() {
         let d = Date::from_calendar_date(2000, Month::January, 1).unwrap();
         let p = PrimitiveDateTime::new(d, Time::MIDNIGHT);
-        assert_eq!(PDTMDATE.ceil(p), Extended::Finite(d));
-        assert_eq!(PDTMDATE.upper(Extended::Finite(d)), p);
+        assert_eq!(crate::conn::ceil(&PDTMDATE, p), Extended::Finite(d));
+        assert_eq!(crate::conn::upper(&PDTMDATE, Extended::Finite(d)), p);
     }
 
     #[test]
     fn one_ns_after_midnight_ceils_to_next_day() {
         let d = Date::from_calendar_date(2000, Month::January, 1).unwrap();
         let p = PrimitiveDateTime::new(d, Time::from_hms_nano(0, 0, 0, 1).unwrap());
-        assert_eq!(PDTMDATE.ceil(p), Extended::Finite(d.next_day().unwrap()));
+        assert_eq!(
+            crate::conn::ceil(&PDTMDATE, p),
+            Extended::Finite(d.next_day().unwrap())
+        );
         // `new_left` wires `floor = ceil` structurally.
-        assert_eq!(PDTMDATE.ceil(p), Extended::Finite(d.next_day().unwrap()));
+        assert_eq!(
+            crate::conn::ceil(&PDTMDATE, p),
+            Extended::Finite(d.next_day().unwrap())
+        );
     }
 
     #[test]
     fn extremes() {
-        assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MIN), Extended::NegInf);
+        assert_eq!(
+            crate::conn::ceil(&PDTMDATE, PrimitiveDateTime::MIN),
+            Extended::NegInf
+        );
         // `floor = ceil` structurally — both NegInf at PDT::MIN.
-        assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MIN), Extended::NegInf);
-        assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MAX), Extended::PosInf);
-        assert_eq!(PDTMDATE.ceil(PrimitiveDateTime::MAX), Extended::PosInf);
+        assert_eq!(
+            crate::conn::ceil(&PDTMDATE, PrimitiveDateTime::MIN),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::ceil(&PDTMDATE, PrimitiveDateTime::MAX),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::conn::ceil(&PDTMDATE, PrimitiveDateTime::MAX),
+            Extended::PosInf
+        );
 
-        assert_eq!(PDTMDATE.upper(Extended::NegInf), PrimitiveDateTime::MIN);
-        assert_eq!(PDTMDATE.upper(Extended::PosInf), PrimitiveDateTime::MAX);
+        assert_eq!(
+            crate::conn::upper(&PDTMDATE, Extended::NegInf),
+            PrimitiveDateTime::MIN
+        );
+        assert_eq!(
+            crate::conn::upper(&PDTMDATE, Extended::PosInf),
+            PrimitiveDateTime::MAX
+        );
     }
 
     #[test]
     fn date_max_with_subday_ceils_to_posinf() {
         let p = PrimitiveDateTime::new(Date::MAX, Time::from_hms_nano(0, 0, 0, 1).unwrap());
-        assert_eq!(PDTMDATE.ceil(p), Extended::PosInf);
+        assert_eq!(crate::conn::ceil(&PDTMDATE, p), Extended::PosInf);
     }
 
     // ── PDTMDATE Galois law battery (one-sided L) ───────────────

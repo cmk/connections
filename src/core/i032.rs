@@ -106,39 +106,51 @@ mod tests {
 
     #[test]
     fn i008i032_round_trip_at_finite_boundaries() {
-        assert_eq!(I008I032.ceil(Extended::Finite(i8::MIN)), -128);
-        assert_eq!(I008I032.ceil(Extended::Finite(i8::MAX)), 127);
-        assert_eq!(I008I032.upper(-128), Extended::Finite(i8::MIN));
-        assert_eq!(I008I032.upper(127), Extended::Finite(i8::MAX));
+        assert_eq!(
+            crate::conn::ceil(&I008I032, Extended::Finite(i8::MIN)),
+            -128
+        );
+        assert_eq!(crate::conn::ceil(&I008I032, Extended::Finite(i8::MAX)), 127);
+        assert_eq!(
+            crate::conn::upper(&I008I032, -128),
+            Extended::Finite(i8::MIN)
+        );
+        assert_eq!(
+            crate::conn::upper(&I008I032, 127),
+            Extended::Finite(i8::MAX)
+        );
     }
 
     #[test]
     fn u016i032_inner_partitions() {
-        assert_eq!(U016I032.upper(-1), Extended::NegInf);
-        assert_eq!(U016I032.upper(0), Extended::Finite(0));
-        assert_eq!(U016I032.upper(65_535), Extended::Finite(u16::MAX));
-        assert_eq!(U016I032.upper(65_536), Extended::PosInf);
+        assert_eq!(crate::conn::upper(&U016I032, -1), Extended::NegInf);
+        assert_eq!(crate::conn::upper(&U016I032, 0), Extended::Finite(0));
+        assert_eq!(
+            crate::conn::upper(&U016I032, 65_535),
+            Extended::Finite(u16::MAX)
+        );
+        assert_eq!(crate::conn::upper(&U016I032, 65_536), Extended::PosInf);
     }
 
     #[test]
     fn i_to_i32_saturate() {
-        assert_eq!(I064I032.ceil(i64::MAX), i32::MAX);
-        assert_eq!(I064I032.ceil(i64::MIN), i32::MIN);
-        assert_eq!(I128I032.ceil(i128::MAX), i32::MAX);
-        assert_eq!(I128I032.ceil(i128::MIN), i32::MIN);
+        assert_eq!(crate::conn::ceil(&I064I032, i64::MAX), i32::MAX);
+        assert_eq!(crate::conn::ceil(&I064I032, i64::MIN), i32::MIN);
+        assert_eq!(crate::conn::ceil(&I128I032, i128::MAX), i32::MAX);
+        assert_eq!(crate::conn::ceil(&I128I032, i128::MIN), i32::MIN);
     }
 
     #[test]
     fn i_to_i32_inner_fine_max_fixup() {
-        assert_eq!(I064I032.upper(i32::MAX), i64::MAX);
-        assert_eq!(I128I032.upper(i32::MAX), i128::MAX);
+        assert_eq!(crate::conn::upper(&I064I032, i32::MAX), i64::MAX);
+        assert_eq!(crate::conn::upper(&I128I032, i32::MAX), i128::MAX);
     }
 
     #[test]
     fn u_to_i32_neg_and_high() {
-        assert_eq!(U032I032.lower(-1), 0_u32);
-        assert_eq!(U064I032.floor(u64::MAX), i32::MAX);
-        assert_eq!(U128I032.lower(i32::MIN), 0_u128);
+        assert_eq!(crate::conn::lower(&U032I032, -1), 0_u32);
+        assert_eq!(crate::conn::floor(&U064I032, u64::MAX), i32::MAX);
+        assert_eq!(crate::conn::lower(&U128I032, i32::MIN), 0_u128);
     }
 
     // ── NonZero signed narrowing (N032N###) spot + property ───────
@@ -195,7 +207,7 @@ mod tests {
         }
         #[test]
         fn i32_b2_order_preserving(a in any::<i32>(), b in any::<i32>()) {
-            prop_assert_eq!(a.cmp(&b), I032BE04.ceil(a).cmp(&I032BE04.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&I032BE04, a).cmp(&crate::conn::ceil(&I032BE04, b)));
         }
 
         #[test]
@@ -225,7 +237,7 @@ mod tests {
 
         #[test]
         fn i032_l2_order_preserving(a in any::<i32>(), b in any::<i32>()) {
-            prop_assert_eq!(a.cmp(&b), I032LE04.ceil(a).cmp(&I032LE04.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&I032LE04, a).cmp(&crate::conn::ceil(&I032LE04, b)));
         }
     }
 
@@ -243,12 +255,30 @@ mod tests {
 
     #[test]
     fn i032lx04_boundary_bytes() {
-        assert_eq!(I032LX04.ceil(i32::MIN), LX([0x00, 0x00, 0x00, 0x00]));
-        assert_eq!(I032LX04.ceil(0_i32), LX([0x80, 0x00, 0x00, 0x00]));
-        assert_eq!(I032LX04.ceil(i32::MAX), LX([0xFF, 0xFF, 0xFF, 0xFF]));
-        assert_eq!(I032LX04.upper(LX([0x00, 0x00, 0x00, 0x00])), i32::MIN);
-        assert_eq!(I032LX04.upper(LX([0x80, 0x00, 0x00, 0x00])), 0_i32);
-        assert_eq!(I032LX04.upper(LX([0xFF, 0xFF, 0xFF, 0xFF])), i32::MAX);
+        assert_eq!(
+            crate::conn::ceil(&I032LX04, i32::MIN),
+            LX([0x00, 0x00, 0x00, 0x00])
+        );
+        assert_eq!(
+            crate::conn::ceil(&I032LX04, 0_i32),
+            LX([0x80, 0x00, 0x00, 0x00])
+        );
+        assert_eq!(
+            crate::conn::ceil(&I032LX04, i32::MAX),
+            LX([0xFF, 0xFF, 0xFF, 0xFF])
+        );
+        assert_eq!(
+            crate::conn::upper(&I032LX04, LX([0x00, 0x00, 0x00, 0x00])),
+            i32::MIN
+        );
+        assert_eq!(
+            crate::conn::upper(&I032LX04, LX([0x80, 0x00, 0x00, 0x00])),
+            0_i32
+        );
+        assert_eq!(
+            crate::conn::upper(&I032LX04, LX([0xFF, 0xFF, 0xFF, 0xFF])),
+            i32::MAX
+        );
     }
 
     proptest! {
@@ -276,8 +306,8 @@ mod tests {
         }
         #[test]
         fn i032_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i32>(), b in any::<i32>()) {
-            let ka = I032LX04.ceil(a).0;
-            let kb = I032LX04.ceil(b).0;
+            let ka = crate::conn::ceil(&I032LX04, a).0;
+            let kb = crate::conn::ceil(&I032LX04, b).0;
             prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }

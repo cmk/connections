@@ -107,30 +107,36 @@ mod tests {
 
     #[test]
     fn i032i064_extends_to_one_above() {
-        assert_eq!(I032I064.ceil(Extended::PosInf), (i32::MAX as i64) + 1);
-        assert_eq!(I032I064.ceil(Extended::NegInf), i64::MIN);
+        assert_eq!(
+            crate::conn::ceil(&I032I064, Extended::PosInf),
+            (i32::MAX as i64) + 1
+        );
+        assert_eq!(crate::conn::ceil(&I032I064, Extended::NegInf), i64::MIN);
     }
 
     #[test]
     fn u032i064_extends_to_one_above() {
-        assert_eq!(U032I064.ceil(Extended::PosInf), 4_294_967_296);
-        assert_eq!(U032I064.ceil(Extended::NegInf), i64::MIN);
+        assert_eq!(
+            crate::conn::ceil(&U032I064, Extended::PosInf),
+            4_294_967_296
+        );
+        assert_eq!(crate::conn::ceil(&U032I064, Extended::NegInf), i64::MIN);
     }
 
     #[test]
     fn i128i064_saturate_and_fixup() {
-        assert_eq!(I128I064.ceil(i128::MAX), i64::MAX);
-        assert_eq!(I128I064.ceil(i128::MIN), i64::MIN);
-        assert_eq!(I128I064.upper(i64::MAX), i128::MAX);
-        assert_eq!(I128I064.upper(i64::MIN), i64::MIN as i128);
+        assert_eq!(crate::conn::ceil(&I128I064, i128::MAX), i64::MAX);
+        assert_eq!(crate::conn::ceil(&I128I064, i128::MIN), i64::MIN);
+        assert_eq!(crate::conn::upper(&I128I064, i64::MAX), i128::MAX);
+        assert_eq!(crate::conn::upper(&I128I064, i64::MIN), i64::MIN as i128);
     }
 
     #[test]
     fn u_to_i64_neg_and_high() {
-        assert_eq!(U064I064.lower(-1), 0_u64);
-        assert_eq!(U064I064.floor(u64::MAX), i64::MAX);
-        assert_eq!(U128I064.lower(i64::MIN), 0_u128);
-        assert_eq!(U128I064.floor(u128::MAX), i64::MAX);
+        assert_eq!(crate::conn::lower(&U064I064, -1), 0_u64);
+        assert_eq!(crate::conn::floor(&U064I064, u64::MAX), i64::MAX);
+        assert_eq!(crate::conn::lower(&U128I064, i64::MIN), 0_u128);
+        assert_eq!(crate::conn::floor(&U128I064, u128::MAX), i64::MAX);
     }
 
     // (Reference to I008I064/I016I064 is via the import above; the
@@ -197,7 +203,7 @@ mod tests {
         }
         #[test]
         fn i64_b2_order_preserving(a in any::<i64>(), b in any::<i64>()) {
-            prop_assert_eq!(a.cmp(&b), I064BE08.ceil(a).cmp(&I064BE08.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&I064BE08, a).cmp(&crate::conn::ceil(&I064BE08, b)));
         }
 
         #[test]
@@ -227,7 +233,7 @@ mod tests {
 
         #[test]
         fn i064_l2_order_preserving(a in any::<i64>(), b in any::<i64>()) {
-            prop_assert_eq!(a.cmp(&b), I064LE08.ceil(a).cmp(&I064LE08.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&I064LE08, a).cmp(&crate::conn::ceil(&I064LE08, b)));
         }
     }
 
@@ -245,12 +251,18 @@ mod tests {
 
     #[test]
     fn i064lx08_boundary_bytes() {
-        assert_eq!(I064LX08.ceil(i64::MIN), LX([0x00; 8]));
-        assert_eq!(I064LX08.ceil(0_i64), LX([0x80, 0, 0, 0, 0, 0, 0, 0]));
-        assert_eq!(I064LX08.ceil(i64::MAX), LX([0xFF; 8]));
-        assert_eq!(I064LX08.upper(LX([0x00; 8])), i64::MIN);
-        assert_eq!(I064LX08.upper(LX([0x80, 0, 0, 0, 0, 0, 0, 0])), 0_i64);
-        assert_eq!(I064LX08.upper(LX([0xFF; 8])), i64::MAX);
+        assert_eq!(crate::conn::ceil(&I064LX08, i64::MIN), LX([0x00; 8]));
+        assert_eq!(
+            crate::conn::ceil(&I064LX08, 0_i64),
+            LX([0x80, 0, 0, 0, 0, 0, 0, 0])
+        );
+        assert_eq!(crate::conn::ceil(&I064LX08, i64::MAX), LX([0xFF; 8]));
+        assert_eq!(crate::conn::upper(&I064LX08, LX([0x00; 8])), i64::MIN);
+        assert_eq!(
+            crate::conn::upper(&I064LX08, LX([0x80, 0, 0, 0, 0, 0, 0, 0])),
+            0_i64
+        );
+        assert_eq!(crate::conn::upper(&I064LX08, LX([0xFF; 8])), i64::MAX);
     }
 
     proptest! {
@@ -278,8 +290,8 @@ mod tests {
         }
         #[test]
         fn i064_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i64>(), b in any::<i64>()) {
-            let ka = I064LX08.ceil(a).0;
-            let kb = I064LX08.ceil(b).0;
+            let ka = crate::conn::ceil(&I064LX08, a).0;
+            let kb = crate::conn::ceil(&I064LX08, b).0;
             prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }

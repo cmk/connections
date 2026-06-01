@@ -169,44 +169,65 @@ mod tests {
     #[test]
     fn spot_q008q004_on_grid() {
         let q88 = FixedI16::<U8>::from_bits(384);
-        assert_eq!(Q008Q004.ceil(q88), FixedI16::<U4>::from_bits(24));
-        assert_eq!(Q008Q004.upper(FixedI16::<U4>::from_bits(24)), q88);
+        assert_eq!(
+            crate::conn::ceil(&Q008Q004, q88),
+            FixedI16::<U4>::from_bits(24)
+        );
+        assert_eq!(
+            crate::conn::upper(&Q008Q004, FixedI16::<U4>::from_bits(24)),
+            q88
+        );
     }
 
     #[test]
     fn spot_q008q004_off_grid_positive() {
         let off = FixedI16::<U8>::from_bits(358);
-        assert_eq!(Q008Q004.ceil(off), FixedI16::<U4>::from_bits(23));
+        assert_eq!(
+            crate::conn::ceil(&Q008Q004, off),
+            FixedI16::<U4>::from_bits(23)
+        );
     }
 
     #[test]
     fn spot_q008q004_off_grid_negative() {
         let neg = FixedI16::<U8>::from_bits(-358);
-        assert_eq!(Q008Q004.ceil(neg), FixedI16::<U4>::from_bits(-22));
+        assert_eq!(
+            crate::conn::ceil(&Q008Q004, neg),
+            FixedI16::<U4>::from_bits(-22)
+        );
     }
 
     #[test]
     fn spot_q008q004_saturation_boundary() {
         let fmax = FixedI16::<U8>::from_bits(i16::MAX);
-        assert_eq!(Q008Q004.ceil(fmax), FixedI16::<U4>::from_bits(2048));
-        assert_eq!(Q008Q004.upper(FixedI16::<U4>::from_bits(2048)), fmax);
+        assert_eq!(
+            crate::conn::ceil(&Q008Q004, fmax),
+            FixedI16::<U4>::from_bits(2048)
+        );
+        assert_eq!(
+            crate::conn::upper(&Q008Q004, FixedI16::<U4>::from_bits(2048)),
+            fmax
+        );
 
         let fmin = FixedI16::<U8>::from_bits(i16::MIN);
-        assert_eq!(Q008Q004.ceil(fmin), FixedI16::<U4>::from_bits(i16::MIN));
+        assert_eq!(
+            crate::conn::ceil(&Q008Q004, fmin),
+            FixedI16::<U4>::from_bits(i16::MIN)
+        );
     }
 
     #[test]
     fn spot_q016q000_degenerate() {
         assert_eq!(
-            Q016Q000.upper(FixedI16::<U0>::from_bits(0)),
+            crate::conn::upper(&Q016Q000, FixedI16::<U0>::from_bits(0)),
             FixedI16::<U16>::from_bits(0),
         );
         assert_eq!(
-            Q016Q000.upper(FixedI16::<U0>::from_bits(1)),
+            crate::conn::upper(&Q016Q000, FixedI16::<U0>::from_bits(1)),
             FixedI16::<U16>::from_bits(i16::MAX),
         );
         assert_eq!(
-            Q016Q000.upper(FixedI16::<U0>::from_bits(-1)),
+            crate::conn::upper(&Q016Q000, FixedI16::<U0>::from_bits(-1)),
             FixedI16::<U16>::from_bits(i16::MIN),
         );
     }

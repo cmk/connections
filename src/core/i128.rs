@@ -110,23 +110,35 @@ mod tests {
 
     #[test]
     fn i064i128_extends_to_one_above() {
-        assert_eq!(I064I128.ceil(Extended::PosInf), (i64::MAX as i128) + 1);
-        assert_eq!(I064I128.ceil(Extended::NegInf), i128::MIN);
+        assert_eq!(
+            crate::conn::ceil(&I064I128, Extended::PosInf),
+            (i64::MAX as i128) + 1
+        );
+        assert_eq!(crate::conn::ceil(&I064I128, Extended::NegInf), i128::MIN);
     }
 
     #[test]
     fn u064i128_extends_to_one_above() {
-        assert_eq!(U064I128.ceil(Extended::PosInf), (u64::MAX as i128) + 1);
-        assert_eq!(U064I128.ceil(Extended::NegInf), i128::MIN);
+        assert_eq!(
+            crate::conn::ceil(&U064I128, Extended::PosInf),
+            (u64::MAX as i128) + 1
+        );
+        assert_eq!(crate::conn::ceil(&U064I128, Extended::NegInf), i128::MIN);
     }
 
     #[test]
     fn u128i128_neg_and_high() {
-        assert_eq!(U128I128.lower(-1), 0_u128);
-        assert_eq!(U128I128.lower(i128::MIN), 0_u128);
-        assert_eq!(U128I128.floor(u128::MAX), i128::MAX);
-        assert_eq!(U128I128.floor(U128I128.lower(50)), 50);
-        assert_eq!(U128I128.floor(U128I128.lower(i128::MAX)), i128::MAX);
+        assert_eq!(crate::conn::lower(&U128I128, -1), 0_u128);
+        assert_eq!(crate::conn::lower(&U128I128, i128::MIN), 0_u128);
+        assert_eq!(crate::conn::floor(&U128I128, u128::MAX), i128::MAX);
+        assert_eq!(
+            crate::conn::floor(&U128I128, crate::conn::lower(&U128I128, 50)),
+            50
+        );
+        assert_eq!(
+            crate::conn::floor(&U128I128, crate::conn::lower(&U128I128, i128::MAX)),
+            i128::MAX
+        );
     }
 
     // ── NonZero signed narrowing (N128N###) spot + property ──────
@@ -197,7 +209,7 @@ mod tests {
         }
         #[test]
         fn i128_b2_order_preserving(a in any::<i128>(), b in any::<i128>()) {
-            prop_assert_eq!(a.cmp(&b), I128BE16.ceil(a).cmp(&I128BE16.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&I128BE16, a).cmp(&crate::conn::ceil(&I128BE16, b)));
         }
 
         #[test]
@@ -222,7 +234,7 @@ mod tests {
         }
         #[test]
         fn i128_l2_order_preserving(a in any::<i128>(), b in any::<i128>()) {
-            prop_assert_eq!(a.cmp(&b), I128LE16.ceil(a).cmp(&I128LE16.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&I128LE16, a).cmp(&crate::conn::ceil(&I128LE16, b)));
         }
     }
 
@@ -250,12 +262,12 @@ mod tests {
             a[0] = 0x80;
             a
         };
-        assert_eq!(I128LX16.ceil(i128::MIN), LX([0x00; 16]));
-        assert_eq!(I128LX16.ceil(0_i128), LX(mid));
-        assert_eq!(I128LX16.ceil(i128::MAX), LX([0xFF; 16]));
-        assert_eq!(I128LX16.upper(LX([0x00; 16])), i128::MIN);
-        assert_eq!(I128LX16.upper(LX(mid)), 0_i128);
-        assert_eq!(I128LX16.upper(LX([0xFF; 16])), i128::MAX);
+        assert_eq!(crate::conn::ceil(&I128LX16, i128::MIN), LX([0x00; 16]));
+        assert_eq!(crate::conn::ceil(&I128LX16, 0_i128), LX(mid));
+        assert_eq!(crate::conn::ceil(&I128LX16, i128::MAX), LX([0xFF; 16]));
+        assert_eq!(crate::conn::upper(&I128LX16, LX([0x00; 16])), i128::MIN);
+        assert_eq!(crate::conn::upper(&I128LX16, LX(mid)), 0_i128);
+        assert_eq!(crate::conn::upper(&I128LX16, LX([0xFF; 16])), i128::MAX);
     }
 
     proptest! {
@@ -283,8 +295,8 @@ mod tests {
         }
         #[test]
         fn i128_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i128>(), b in any::<i128>()) {
-            let ka = I128LX16.ceil(a).0;
-            let kb = I128LX16.ceil(b).0;
+            let ka = crate::conn::ceil(&I128LX16, a).0;
+            let kb = crate::conn::ceil(&I128LX16, b).0;
             prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }

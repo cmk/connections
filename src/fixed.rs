@@ -26,9 +26,9 @@
 //! use connections::core::u032::U032I032;
 //!
 //! // u32 PID into i32 — saturates instead of wrapping for large values.
-//! assert_eq!(U032I032.floor(1_u32), 1_i32);
-//! assert_eq!(U032I032.floor((i32::MAX as u32) + 1), i32::MAX);
-//! assert_eq!(U032I032.floor(u32::MAX), i32::MAX);
+//! assert_eq!(connections::conn::floor(&U032I032, 1_u32), 1_i32);
+//! assert_eq!(connections::conn::floor(&U032I032, (i32::MAX as u32) + 1), i32::MAX);
+//! assert_eq!(connections::conn::floor(&U032I032, u32::MAX), i32::MAX);
 //! ```
 //!
 //! ## Conn-name prefix conventions

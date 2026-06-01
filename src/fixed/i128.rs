@@ -185,31 +185,31 @@ mod tests {
     #[test]
     fn degenerate_max_shift() {
         assert_eq!(
-            Q128Q000.upper(FixedI128::<U0>::from_bits(0)),
+            crate::conn::upper(&Q128Q000, FixedI128::<U0>::from_bits(0)),
             FixedI128::<U128>::from_bits(0),
         );
         assert_eq!(
-            Q128Q000.upper(FixedI128::<U0>::from_bits(1)),
+            crate::conn::upper(&Q128Q000, FixedI128::<U0>::from_bits(1)),
             FixedI128::<U128>::from_bits(i128::MAX),
         );
         assert_eq!(
-            Q128Q000.upper(FixedI128::<U0>::from_bits(-1)),
+            crate::conn::upper(&Q128Q000, FixedI128::<U0>::from_bits(-1)),
             FixedI128::<U128>::from_bits(i128::MIN),
         );
         assert_eq!(
-            Q128Q000.ceil(FixedI128::<U128>::from_bits(0)),
+            crate::conn::ceil(&Q128Q000, FixedI128::<U128>::from_bits(0)),
             FixedI128::<U0>::from_bits(0),
         );
         assert_eq!(
-            Q128Q000.ceil(FixedI128::<U128>::from_bits(1)),
+            crate::conn::ceil(&Q128Q000, FixedI128::<U128>::from_bits(1)),
             FixedI128::<U0>::from_bits(1),
         );
         assert_eq!(
-            Q128Q000.ceil(FixedI128::<U128>::from_bits(-1)),
+            crate::conn::ceil(&Q128Q000, FixedI128::<U128>::from_bits(-1)),
             FixedI128::<U0>::from_bits(0),
         );
         assert_eq!(
-            Q128Q000.ceil(FixedI128::<U128>::from_bits(i128::MIN)),
+            crate::conn::ceil(&Q128Q000, FixedI128::<U128>::from_bits(i128::MIN)),
             FixedI128::<U0>::from_bits(i128::MIN),
         );
     }
@@ -217,26 +217,29 @@ mod tests {
     #[test]
     fn spot_q128q064_on_grid() {
         let coarse_one = FixedI128::<U64>::from_bits(1);
-        let fine_via_inner = Q128Q064.upper(coarse_one);
+        let fine_via_inner = crate::conn::upper(&Q128Q064, coarse_one);
         assert_eq!(fine_via_inner, FixedI128::<U128>::from_bits(1_i128 << 64));
     }
 
     #[test]
     fn spot_boundary_fixups() {
         let fmin = FixedI128::<U128>::from_bits(i128::MIN);
-        assert_eq!(Q128Q064.ceil(fmin), FixedI128::<U64>::from_bits(i128::MIN));
+        assert_eq!(
+            crate::conn::ceil(&Q128Q064, fmin),
+            FixedI128::<U64>::from_bits(i128::MIN)
+        );
     }
 
     #[test]
     fn inner_saturates_on_overflow() {
         let big_coarse = FixedI128::<U16>::from_bits(i128::MAX);
         assert_eq!(
-            Q128Q016.upper(big_coarse),
+            crate::conn::upper(&Q128Q016, big_coarse),
             FixedI128::<U128>::from_bits(i128::MAX),
         );
         let neg_coarse = FixedI128::<U16>::from_bits(i128::MIN);
         assert_eq!(
-            Q128Q016.upper(neg_coarse),
+            crate::conn::upper(&Q128Q016, neg_coarse),
             FixedI128::<U128>::from_bits(i128::MIN),
         );
     }

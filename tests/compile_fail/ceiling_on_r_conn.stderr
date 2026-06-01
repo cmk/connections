@@ -1,8 +1,17 @@
-error[E0599]: no method named `ceil` found for struct `Conn<i32, i32, R>` in the current scope
-  --> tests/compile_fail/ceiling_on_r_conn.rs:11:20
+error[E0277]: the trait bound `Conn<i32, i32, R>: ConnL` is not satisfied
+  --> tests/compile_fail/ceiling_on_r_conn.rs:10:37
    |
-11 |     let _ = R_CONN.ceil(0_i32);
-   |                    ^^^^ method not found in `Conn<i32, i32, R>`
+10 |     let _ = connections::conn::ceil(&R_CONN, 0_i32);
+   |             ----------------------- ^^^^^^^ the trait `ConnL` is not implemented for `Conn<i32, i32, R>`
+   |             |
+   |             required by a bound introduced by this call
    |
-   = note: the method was found for
-           - `Conn<A, B>`
+   = help: the trait `ConnL` is implemented for `Conn<A, B>`
+note: required by a bound in `connections::conn::ceil`
+  --> src/conn.rs
+   |
+   | pub fn ceil<T, A, B>(t: &T, a: A) -> B
+   |        ---- required by a bound in this function
+   | where
+   |     T: ?Sized + ConnL<A = A, B = B>,
+   |                 ^^^^^^^^^^^^^^^^^^^ required by this bound in `ceil`

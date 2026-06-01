@@ -50,8 +50,8 @@ crate::conn_r! {
     /// `Conn<ID, LX<16>, R>` — `ID`'s 16-byte representation with
     /// saturating decode at the all-zero byte string.
     ///
-    /// - `.floor(id)` (lossless): `id` → its LE-bytes-as-`LX<16>`.
-    /// - `.lower(lx)` (saturating): valid bytes round-trip; the
+    /// - `floor(&HLIDLX16, id)` (lossless): `id` → its LE-bytes-as-`LX<16>`.
+    /// - `lower(&HLIDLX16, lx)` (saturating): valid bytes round-trip; the
     ///   single all-zero `LX([0; 16])` value saturates *up* to the
     ///   lex-min valid `ID`. R-Galois holds at this boundary;
     ///   L-Galois does not — that's why this is a `conn_r!`, not
@@ -117,7 +117,7 @@ mod tests {
         #[test]
         fn roundtrip_floor_nonpuncture(b in arb_nonpuncture_lx16()) {
             // floor(lower(b)) == b on non-puncture inputs.
-            prop_assert_eq!(HLIDLX16.floor(HLIDLX16.lower(b)).0, b.0);
+            prop_assert_eq!(crate::conn::floor(&HLIDLX16, crate::conn::lower(&HLIDLX16, b)).0, b.0);
         }
     }
 
@@ -141,19 +141,22 @@ mod tests {
     #[test]
     fn lower_total_at_puncture() {
         let z = LX([0u8; 16]);
-        let id = HLIDLX16.lower(z);
+        let id = crate::conn::lower(&HLIDLX16, z);
         let mut expected = [0u8; 16];
         expected[15] = 1;
         assert_eq!(id.to_le_bytes(), expected);
     }
 
-    /// Floor is lossless; round-trip via `.lower()` returns the
+    /// Floor is lossless; round-trip via `lower(&HLIDLX16, ...)` returns the
     /// original `ID` for every non-puncture byte string (which is
     /// every byte string that came from a real `ID`).
     #[test]
     fn floor_lower_roundtrip_spot() {
         let id = ID::from(NonZeroU128::new(0x12345678).unwrap());
-        let lx = HLIDLX16.floor(id);
-        assert_eq!(HLIDLX16.lower(lx).to_le_bytes(), id.to_le_bytes());
+        let lx = crate::conn::floor(&HLIDLX16, id);
+        assert_eq!(
+            crate::conn::lower(&HLIDLX16, lx).to_le_bytes(),
+            id.to_le_bytes()
+        );
     }
 }

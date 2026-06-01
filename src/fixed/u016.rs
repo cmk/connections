@@ -169,43 +169,52 @@ mod tests {
     #[test]
     fn spot_q15_audio_to_q16() {
         let q15 = FixedU16::<F15>::from_bits(16384);
-        let q16 = Q016Q015.upper(q15);
+        let q16 = crate::conn::upper(&Q016Q015, q15);
         assert_eq!(q16, FixedU16::<F16>::from_bits(32768));
-        assert_eq!(Q016Q015.ceil(q16), q15);
+        assert_eq!(crate::conn::ceil(&Q016Q015, q16), q15);
     }
 
     #[test]
     fn spot_q14_midi_to_q16() {
         let q14 = FixedU16::<F14>::from_bits(8192);
-        let q16 = Q016Q014.upper(q14);
+        let q16 = crate::conn::upper(&Q016Q014, q14);
         assert_eq!(q16, FixedU16::<F16>::from_bits(32768));
     }
 
     #[test]
     fn spot_q008q004_on_grid() {
         let q88 = FixedU16::<F8>::from_bits(384);
-        assert_eq!(Q008Q004.ceil(q88), FixedU16::<F4>::from_bits(24));
-        assert_eq!(Q008Q004.upper(FixedU16::<F4>::from_bits(24)), q88);
+        assert_eq!(
+            crate::conn::ceil(&Q008Q004, q88),
+            FixedU16::<F4>::from_bits(24)
+        );
+        assert_eq!(
+            crate::conn::upper(&Q008Q004, FixedU16::<F4>::from_bits(24)),
+            q88
+        );
     }
 
     #[test]
     fn spot_q008q004_off_grid() {
         let off = FixedU16::<F8>::from_bits(358);
-        assert_eq!(Q008Q004.ceil(off), FixedU16::<F4>::from_bits(23));
+        assert_eq!(
+            crate::conn::ceil(&Q008Q004, off),
+            FixedU16::<F4>::from_bits(23)
+        );
     }
 
     #[test]
     fn spot_q016q000_degenerate() {
         assert_eq!(
-            Q016Q000.upper(FixedU16::<F0>::from_bits(0)),
+            crate::conn::upper(&Q016Q000, FixedU16::<F0>::from_bits(0)),
             FixedU16::<F16>::from_bits(0),
         );
         assert_eq!(
-            Q016Q000.upper(FixedU16::<F0>::from_bits(1)),
+            crate::conn::upper(&Q016Q000, FixedU16::<F0>::from_bits(1)),
             FixedU16::<F16>::from_bits(u16::MAX),
         );
         assert_eq!(
-            Q016Q000.upper(FixedU16::<F0>::from_bits(u16::MAX)),
+            crate::conn::upper(&Q016Q000, FixedU16::<F0>::from_bits(u16::MAX)),
             FixedU16::<F16>::from_bits(u16::MAX),
         );
     }
@@ -213,6 +222,9 @@ mod tests {
     #[test]
     fn spot_boundary_fixups() {
         let fmin = FixedU16::<F8>::from_bits(0);
-        assert_eq!(Q008Q004.ceil(fmin), FixedU16::<F4>::from_bits(0));
+        assert_eq!(
+            crate::conn::ceil(&Q008Q004, fmin),
+            FixedU16::<F4>::from_bits(0)
+        );
     }
 }

@@ -40,30 +40,30 @@ macro_rules! ext_int_props {
             proptest! {
                 #[test]
                 fn galois_upper(a in $arb_src, b in $arb_tgt) {
-                    prop_assert_eq!($CONN.ceil(a) <= b, a <= $CONN.upper(b));
+                    prop_assert_eq!(connections::conn::ceil(&$CONN, a) <= b, a <= connections::conn::upper(&$CONN, b));
                 }
                 #[test]
                 fn closure_upper(a in $arb_src) {
-                    prop_assert!(a <= $CONN.upper($CONN.ceil(a)));
+                    prop_assert!(a <= connections::conn::upper(&$CONN, connections::conn::ceil(&$CONN, a)));
                 }
                 #[test]
                 fn ceil_monotone(a1 in $arb_src, a2 in $arb_src) {
                     let (lo, hi) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
-                    prop_assert!($CONN.ceil(lo) <= $CONN.ceil(hi));
+                    prop_assert!(connections::conn::ceil(&$CONN, lo) <= connections::conn::ceil(&$CONN, hi));
                 }
                 #[test]
                 fn inner_monotone(b1 in $arb_tgt, b2 in $arb_tgt) {
                     let (lo, hi) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
-                    prop_assert!($CONN.upper(lo) <= $CONN.upper(hi));
+                    prop_assert!(connections::conn::upper(&$CONN, lo) <= connections::conn::upper(&$CONN, hi));
                 }
                 #[test]
                 fn kernel_upper(b in $arb_tgt) {
-                    prop_assert!($CONN.ceil($CONN.upper(b)) <= b);
+                    prop_assert!(connections::conn::ceil(&$CONN, connections::conn::upper(&$CONN, b)) <= b);
                 }
                 #[test]
                 fn idempotent(a in $arb_src) {
-                    let once = $CONN.upper($CONN.ceil(a));
-                    let twice = $CONN.upper($CONN.ceil(once));
+                    let once = connections::conn::upper(&$CONN, connections::conn::ceil(&$CONN, a));
+                    let twice = connections::conn::upper(&$CONN, connections::conn::ceil(&$CONN, once));
                     prop_assert_eq!(once, twice);
                 }
             }
@@ -89,26 +89,26 @@ macro_rules! single_sided_props {
             proptest! {
                 #[test]
                 fn galois_upper(a in $arb_src, b in $arb_tgt) {
-                    prop_assert_eq!($CONN.ceil(a) <= b, a <= $CONN.upper(b));
+                    prop_assert_eq!(connections::conn::ceil(&$CONN, a) <= b, a <= connections::conn::upper(&$CONN, b));
                 }
                 #[test]
                 fn ceil_monotone(a1 in $arb_src, a2 in $arb_src) {
                     let (lo, hi) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
-                    prop_assert!($CONN.ceil(lo) <= $CONN.ceil(hi));
+                    prop_assert!(connections::conn::ceil(&$CONN, lo) <= connections::conn::ceil(&$CONN, hi));
                 }
                 #[test]
                 fn inner_monotone(b1 in $arb_tgt, b2 in $arb_tgt) {
                     let (lo, hi) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
-                    prop_assert!($CONN.upper(lo) <= $CONN.upper(hi));
+                    prop_assert!(connections::conn::upper(&$CONN, lo) <= connections::conn::upper(&$CONN, hi));
                 }
                 #[test]
                 fn kernel(b in $arb_tgt) {
-                    prop_assert!($CONN.ceil($CONN.upper(b)) <= b);
+                    prop_assert!(connections::conn::ceil(&$CONN, connections::conn::upper(&$CONN, b)) <= b);
                 }
                 #[test]
                 fn idempotent(a in $arb_src) {
-                    let once = $CONN.upper($CONN.ceil(a));
-                    let twice = $CONN.upper($CONN.ceil(once));
+                    let once = connections::conn::upper(&$CONN, connections::conn::ceil(&$CONN, a));
+                    let twice = connections::conn::upper(&$CONN, connections::conn::ceil(&$CONN, once));
                     prop_assert_eq!(once, twice);
                 }
             }
@@ -127,26 +127,26 @@ macro_rules! single_sided_right_props {
             proptest! {
                 #[test]
                 fn galois_lower(a in $arb_src, b in $arb_tgt) {
-                    prop_assert_eq!($CONN.lower(b) <= a, b <= $CONN.floor(a));
+                    prop_assert_eq!(connections::conn::lower(&$CONN, b) <= a, b <= connections::conn::floor(&$CONN, a));
                 }
                 #[test]
                 fn floor_monotone(a1 in $arb_src, a2 in $arb_src) {
                     let (lo, hi) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
-                    prop_assert!($CONN.floor(lo) <= $CONN.floor(hi));
+                    prop_assert!(connections::conn::floor(&$CONN, lo) <= connections::conn::floor(&$CONN, hi));
                 }
                 #[test]
                 fn inner_monotone(b1 in $arb_tgt, b2 in $arb_tgt) {
                     let (lo, hi) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
-                    prop_assert!($CONN.lower(lo) <= $CONN.lower(hi));
+                    prop_assert!(connections::conn::lower(&$CONN, lo) <= connections::conn::lower(&$CONN, hi));
                 }
                 #[test]
                 fn kernel_lower(b in $arb_tgt) {
-                    prop_assert!(b <= $CONN.floor($CONN.lower(b)));
+                    prop_assert!(b <= connections::conn::floor(&$CONN, connections::conn::lower(&$CONN, b)));
                 }
                 #[test]
                 fn idempotent(a in $arb_src) {
-                    let once = $CONN.lower($CONN.floor(a));
-                    let twice = $CONN.lower($CONN.floor(once));
+                    let once = connections::conn::lower(&$CONN, connections::conn::floor(&$CONN, a));
+                    let twice = connections::conn::lower(&$CONN, connections::conn::floor(&$CONN, once));
                     prop_assert_eq!(once, twice);
                 }
             }

@@ -48,10 +48,10 @@ crate::iso! {
     /// use connections::core::B2;
     /// use connections::core::i008::I008BE01;
     ///
-    /// assert_eq!(I008BE01.ceil(i8::MIN), B2([0x80]));
-    /// assert_eq!(I008BE01.ceil(0_i8),    B2([0x00]));
-    /// assert_eq!(I008BE01.ceil(i8::MAX), B2([0x7F]));
-    /// assert_eq!(I008BE01.upper(B2([0x80])), i8::MIN);
+    /// assert_eq!(connections::conn::ceil(&I008BE01, i8::MIN), B2([0x80]));
+    /// assert_eq!(connections::conn::ceil(&I008BE01, 0_i8),    B2([0x00]));
+    /// assert_eq!(connections::conn::ceil(&I008BE01, i8::MAX), B2([0x7F]));
+    /// assert_eq!(connections::conn::upper(&I008BE01, B2([0x80])), i8::MIN);
     /// ```
     pub I008BE01 : i8 => B2<1> {
         forward: i8_to_be01,
@@ -102,12 +102,12 @@ crate::iso! {
     /// use connections::core::LX;
     /// use connections::core::i008::I008LX01;
     ///
-    /// assert_eq!(I008LX01.ceil(i8::MIN), LX([0x00]));
-    /// assert_eq!(I008LX01.ceil(0_i8),    LX([0x80]));
-    /// assert_eq!(I008LX01.ceil(i8::MAX), LX([0xFF]));
+    /// assert_eq!(connections::conn::ceil(&I008LX01, i8::MIN), LX([0x00]));
+    /// assert_eq!(connections::conn::ceil(&I008LX01, 0_i8),    LX([0x80]));
+    /// assert_eq!(connections::conn::ceil(&I008LX01, i8::MAX), LX([0xFF]));
     /// // Raw byte lex compare matches signed numeric compare.
-    /// assert!(I008LX01.ceil(i8::MIN) < I008LX01.ceil(0));
-    /// assert!(I008LX01.ceil(0)       < I008LX01.ceil(i8::MAX));
+    /// assert!(connections::conn::ceil(&I008LX01, i8::MIN) < connections::conn::ceil(&I008LX01, 0));
+    /// assert!(connections::conn::ceil(&I008LX01, 0)       < connections::conn::ceil(&I008LX01, i8::MAX));
     /// ```
     pub I008LX01 : i8 => LX<1> {
         forward: i8_to_lx01,
@@ -136,62 +136,83 @@ mod tests {
 
     #[test]
     fn i_to_i_saturate_high() {
-        assert_eq!(I016I008.ceil(i16::MAX), i8::MAX);
-        assert_eq!(I032I008.ceil(i32::MAX), i8::MAX);
-        assert_eq!(I064I008.ceil(i64::MAX), i8::MAX);
-        assert_eq!(I128I008.ceil(i128::MAX), i8::MAX);
+        assert_eq!(crate::conn::ceil(&I016I008, i16::MAX), i8::MAX);
+        assert_eq!(crate::conn::ceil(&I032I008, i32::MAX), i8::MAX);
+        assert_eq!(crate::conn::ceil(&I064I008, i64::MAX), i8::MAX);
+        assert_eq!(crate::conn::ceil(&I128I008, i128::MAX), i8::MAX);
     }
 
     #[test]
     fn i_to_i_saturate_low() {
-        assert_eq!(I016I008.ceil(i16::MIN), i8::MIN);
-        assert_eq!(I032I008.ceil(i32::MIN), i8::MIN);
-        assert_eq!(I064I008.ceil(i64::MIN), i8::MIN);
-        assert_eq!(I128I008.ceil(i128::MIN), i8::MIN);
+        assert_eq!(crate::conn::ceil(&I016I008, i16::MIN), i8::MIN);
+        assert_eq!(crate::conn::ceil(&I032I008, i32::MIN), i8::MIN);
+        assert_eq!(crate::conn::ceil(&I064I008, i64::MIN), i8::MIN);
+        assert_eq!(crate::conn::ceil(&I128I008, i128::MIN), i8::MIN);
     }
 
     #[test]
     fn i_to_i_round_trip_finite() {
         for &b in &[i8::MIN, -1, 0, 1, i8::MAX] {
-            assert_eq!(I016I008.ceil(I016I008.upper(b)), b);
-            assert_eq!(I032I008.ceil(I032I008.upper(b)), b);
-            assert_eq!(I064I008.ceil(I064I008.upper(b)), b);
-            assert_eq!(I128I008.ceil(I128I008.upper(b)), b);
+            assert_eq!(
+                crate::conn::ceil(&I016I008, crate::conn::upper(&I016I008, b)),
+                b
+            );
+            assert_eq!(
+                crate::conn::ceil(&I032I008, crate::conn::upper(&I032I008, b)),
+                b
+            );
+            assert_eq!(
+                crate::conn::ceil(&I064I008, crate::conn::upper(&I064I008, b)),
+                b
+            );
+            assert_eq!(
+                crate::conn::ceil(&I128I008, crate::conn::upper(&I128I008, b)),
+                b
+            );
         }
     }
 
     #[test]
     fn i_to_i_inner_fine_max_fixup() {
-        assert_eq!(I016I008.upper(i8::MAX), i16::MAX);
-        assert_eq!(I032I008.upper(i8::MAX), i32::MAX);
-        assert_eq!(I064I008.upper(i8::MAX), i64::MAX);
-        assert_eq!(I128I008.upper(i8::MAX), i128::MAX);
-        assert_eq!(I016I008.upper(126), 126_i16);
-        assert_eq!(I016I008.upper(i8::MIN), i8::MIN as i16);
+        assert_eq!(crate::conn::upper(&I016I008, i8::MAX), i16::MAX);
+        assert_eq!(crate::conn::upper(&I032I008, i8::MAX), i32::MAX);
+        assert_eq!(crate::conn::upper(&I064I008, i8::MAX), i64::MAX);
+        assert_eq!(crate::conn::upper(&I128I008, i8::MAX), i128::MAX);
+        assert_eq!(crate::conn::upper(&I016I008, 126), 126_i16);
+        assert_eq!(crate::conn::upper(&I016I008, i8::MIN), i8::MIN as i16);
     }
 
     #[test]
     fn u_to_i_neg_collapse() {
-        assert_eq!(U008I008.lower(-1), 0_u8);
-        assert_eq!(U008I008.lower(i8::MIN), 0_u8);
-        assert_eq!(U016I008.lower(-1), 0_u16);
-        assert_eq!(U128I008.lower(-50), 0_u128);
+        assert_eq!(crate::conn::lower(&U008I008, -1), 0_u8);
+        assert_eq!(crate::conn::lower(&U008I008, i8::MIN), 0_u8);
+        assert_eq!(crate::conn::lower(&U016I008, -1), 0_u16);
+        assert_eq!(crate::conn::lower(&U128I008, -50), 0_u128);
     }
 
     #[test]
     fn u_to_i_high_saturate() {
-        assert_eq!(U008I008.floor(u8::MAX), i8::MAX);
-        assert_eq!(U016I008.floor(u16::MAX), i8::MAX);
-        assert_eq!(U064I008.floor(u64::MAX), i8::MAX);
-        assert_eq!(U128I008.floor(u128::MAX), i8::MAX);
+        assert_eq!(crate::conn::floor(&U008I008, u8::MAX), i8::MAX);
+        assert_eq!(crate::conn::floor(&U016I008, u16::MAX), i8::MAX);
+        assert_eq!(crate::conn::floor(&U064I008, u64::MAX), i8::MAX);
+        assert_eq!(crate::conn::floor(&U128I008, u128::MAX), i8::MAX);
     }
 
     #[test]
     fn u_to_i_round_trip_finite_positive() {
         for &b in &[0_i8, 1, 50, i8::MAX] {
-            assert_eq!(U008I008.floor(U008I008.lower(b)), b);
-            assert_eq!(U016I008.floor(U016I008.lower(b)), b);
-            assert_eq!(U128I008.floor(U128I008.lower(b)), b);
+            assert_eq!(
+                crate::conn::floor(&U008I008, crate::conn::lower(&U008I008, b)),
+                b
+            );
+            assert_eq!(
+                crate::conn::floor(&U016I008, crate::conn::lower(&U016I008, b)),
+                b
+            );
+            assert_eq!(
+                crate::conn::floor(&U128I008, crate::conn::lower(&U128I008, b)),
+                b
+            );
         }
     }
 
@@ -201,16 +222,22 @@ mod tests {
     fn i008n008_floor_ceil_split_at_zero() {
         // Asymmetric-adjoint at zero: floor lands on the largest
         // NonZero ≤ 0 (-1); ceil lands on the smallest NonZero ≥ 0 (+1).
-        assert_eq!(I008N008.floor(0_i8), NonZeroI8::new(-1).unwrap());
-        assert_eq!(I008N008.ceil(0_i8), NonZeroI8::new(1).unwrap());
+        assert_eq!(
+            crate::conn::floor(&I008N008, 0_i8),
+            NonZeroI8::new(-1).unwrap()
+        );
+        assert_eq!(
+            crate::conn::ceil(&I008N008, 0_i8),
+            NonZeroI8::new(1).unwrap()
+        );
     }
 
     #[test]
     fn i008n008_finite_nonzero_round_trip() {
         for &v in &[i8::MIN, -50, -1, 1, 50, i8::MAX] {
             let nz = NonZeroI8::new(v).unwrap();
-            assert_eq!(I008N008.ceil(v), nz);
-            assert_eq!(I008N008.floor(v), nz);
+            assert_eq!(crate::conn::ceil(&I008N008, v), nz);
+            assert_eq!(crate::conn::floor(&I008N008, v), nz);
         }
     }
 
@@ -218,7 +245,7 @@ mod tests {
     fn i008n008_inner_is_total_embedding() {
         for &v in &[i8::MIN, -1, 1, i8::MAX] {
             let nz = NonZeroI8::new(v).unwrap();
-            assert_eq!(I008N008.upper(nz), v);
+            assert_eq!(crate::conn::upper(&I008N008, nz), v);
         }
     }
 
@@ -242,8 +269,8 @@ mod tests {
 
         #[test]
         fn i008n008_inner_then_ceil_recovers_nonzero(nz in arb_nz_i8()) {
-            prop_assert_eq!(I008N008.ceil(I008N008.upper(nz)), nz);
-            prop_assert_eq!(I008N008.floor(I008N008.upper(nz)), nz);
+            prop_assert_eq!(crate::conn::ceil(&I008N008, crate::conn::upper(&I008N008, nz)), nz);
+            prop_assert_eq!(crate::conn::floor(&I008N008, crate::conn::upper(&I008N008, nz)), nz);
         }
     }
 
@@ -292,7 +319,7 @@ mod tests {
         }
         #[test]
         fn i008_b2_order_preserving(a in any::<i8>(), b in any::<i8>()) {
-            prop_assert_eq!(a.cmp(&b), I008BE01.ceil(a).cmp(&I008BE01.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&I008BE01, a).cmp(&crate::conn::ceil(&I008BE01, b)));
         }
 
         #[test]
@@ -322,7 +349,7 @@ mod tests {
 
         #[test]
         fn i008_l2_order_preserving(a in any::<i8>(), b in any::<i8>()) {
-            prop_assert_eq!(a.cmp(&b), I008LE01.ceil(a).cmp(&I008LE01.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&I008LE01, a).cmp(&crate::conn::ceil(&I008LE01, b)));
         }
     }
 
@@ -342,12 +369,12 @@ mod tests {
     fn i008lx01_boundary_bytes() {
         // Bias-encoded boundaries: MIN→0x00, 0→0x80, MAX→0xFF.
         // Raw byte lex compare matches signed numeric order.
-        assert_eq!(I008LX01.ceil(i8::MIN), LX([0x00]));
-        assert_eq!(I008LX01.ceil(0_i8), LX([0x80]));
-        assert_eq!(I008LX01.ceil(i8::MAX), LX([0xFF]));
-        assert_eq!(I008LX01.upper(LX([0x00])), i8::MIN);
-        assert_eq!(I008LX01.upper(LX([0x80])), 0_i8);
-        assert_eq!(I008LX01.upper(LX([0xFF])), i8::MAX);
+        assert_eq!(crate::conn::ceil(&I008LX01, i8::MIN), LX([0x00]));
+        assert_eq!(crate::conn::ceil(&I008LX01, 0_i8), LX([0x80]));
+        assert_eq!(crate::conn::ceil(&I008LX01, i8::MAX), LX([0xFF]));
+        assert_eq!(crate::conn::upper(&I008LX01, LX([0x00])), i8::MIN);
+        assert_eq!(crate::conn::upper(&I008LX01, LX([0x80])), 0_i8);
+        assert_eq!(crate::conn::upper(&I008LX01, LX([0xFF])), i8::MAX);
     }
 
     proptest! {
@@ -383,8 +410,8 @@ mod tests {
         // point of the bias-encoding Conn.
         #[test]
         fn i008_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i8>(), b in any::<i8>()) {
-            let ka = I008LX01.ceil(a).0;
-            let kb = I008LX01.ceil(b).0;
+            let ka = crate::conn::ceil(&I008LX01, a).0;
+            let kb = crate::conn::ceil(&I008LX01, b).0;
             prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }

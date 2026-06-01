@@ -1,8 +1,7 @@
 //! Galois-connection core: the [`Conn<A, B, K>`] type, the kind
 //! markers [`L`] and [`R`], the [`ConnL`] / [`ConnR`] / [`ConnK`]
-//! capability traits for adjoint connections, and the operations on
-//! a `Conn` (kind-gated accessors and lifters, plus two-sided
-//! rounding helpers on [`ConnK`]).
+//! capability traits for adjoint connections, and the kind-gated
+//! free functions over those capabilities.
 //!
 //! ## Representation
 //!
@@ -36,10 +35,10 @@
 //!
 //! [`Conn<A, B, K>`] holds *exactly two* fn-pointer fields, and the
 //! kind tag `K` (defaulting to [`L`]) determines which adjoint role
-//! each field plays. Kind-specific inherent methods enforce the
-//! discipline at the type level: calling `.floor(...)` on an
-//! `Conn<_, _, L>` is a compile error (the method only exists on
-//! `Conn<_, _, R>`); same for `.ceil(...)` on `R`.
+//! each field plays. Kind-specific free functions enforce the
+//! discipline at the trait-bound level: calling [`floor`] with a
+//! one-sided [`ConnL`] value is a compile error; same for [`ceil`] on a
+//! one-sided [`ConnR`] value.
 //!
 //! An **adjoint triple** `f ⊣ g ⊣ h` is two adjunctions sharing the
 //! middle function `g`: an L-Galois pair `(f, g)` and an R-Galois pair
@@ -141,7 +140,7 @@ impl<A, B, K: Kind> core::fmt::Debug for Conn<A, B, K> {
     }
 }
 
-// ── Constructors and inherent ops on L-Conns ─────────────────────────
+// ── Constructors on L-Conns ──────────────────────────────────────────
 
 impl<A, B> Conn<A, B, L> {
     /// Construct a left-Galois connection `ceil ⊣ inner`.
@@ -166,123 +165,7 @@ impl<A, B> Conn<A, B, L> {
     }
 }
 
-impl<A: Copy, B: Copy> Conn<A, B, L> {
-    /// Apply the lower adjoint (round-up): `a ↦ f(a)`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use connections::conn::ConnL;
-    /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::core::f064::F064F032;
-    ///
-    /// let pi64 = Extend(std::f64::consts::PI);
-    /// let pi32 = Extend(std::f32::consts::PI as f64);
-    /// let pi32_err = pi32 - pi64;
-    ///
-    /// // The f32 ceiling of π is std::f32::consts::PI itself —
-    /// // π's nearest f32 representation rounds up.
-    /// assert_eq!(F064F032.ceil(pi64), Extend(std::f32::consts::PI));
-    /// // Widening the result back to f64 lands at pi32, which sits
-    /// // exactly pi32_err above true π:
-    /// assert_eq!(F064F032.upper(F064F032.ceil(pi64)) - pi64, pi32_err);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn ceil(self, a: A) -> B {
-        (self.f)(a)
-    }
-
-    /// Apply the upper adjoint (embedding): `b ↦ g(b)`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use connections::conn::ConnL;
-    /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::core::f064::F064F032;
-    ///
-    /// let pi64 = Extend(std::f64::consts::PI);
-    /// // f32's nearest representation of π widened losslessly to f64.
-    /// // Lossless ≠ precise: the value is still the f32 approximation.
-    /// let pi32 = Extend(std::f32::consts::PI as f64);
-    /// // f32's rounding error for π — about +8.74e-8 (f32 rounds π up).
-    /// // The same constant carries through every π-widening doctest below.
-    /// let pi32_err = pi32 - pi64;
-    ///
-    /// // upper just widens; for F064F032 that's the f32 → f64 cast.
-    /// assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
-    /// // Equivalently, "f64 π plus f32's rounding error":
-    /// assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)) - pi64, pi32_err);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn upper(self, b: B) -> A {
-        (self.g)(b)
-    }
-
-    /// Lift a unary endofunction over `B` into one over `A` through
-    /// the L-pair: `a ↦ g(h(f(a)))`.
-    #[inline]
-    #[must_use]
-    pub fn upper1<H>(self, h: H, a: A) -> A
-    where
-        H: FnOnce(B) -> B,
-    {
-        (self.g)(h((self.f)(a)))
-    }
-
-    /// Lift a binary function over `B` through the L-pair.
-    #[inline]
-    #[must_use]
-    pub fn upper2<H>(self, h: H, a1: A, a2: A) -> A
-    where
-        H: FnOnce(B, B) -> B,
-    {
-        (self.g)(h((self.f)(a1), (self.f)(a2)))
-    }
-
-    /// Lift a unary endofunction over `A` into one over `B` through
-    /// the L-pair: `b ↦ f(h(g(b)))`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use connections::conn::ConnL;
-    /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::core::f064::F064F032;
-    ///
-    /// // ceil1 / floor1 / truncate1 share this closure shape: `2π − x`
-    /// // in f64-precision lands strictly between two f32 grid points.
-    /// // ceil1 unconditionally narrows up — to std::f32::consts::PI.
-    /// let pi32 = Extend(std::f32::consts::PI);
-    /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
-    /// assert_eq!(
-    ///     F064F032.conn_l().ceil1(probe, pi32),
-    ///     Extend(std::f32::consts::PI),
-    /// );
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn ceil1<H>(self, h: H, b: B) -> B
-    where
-        H: FnOnce(A) -> A,
-    {
-        (self.f)(h((self.g)(b)))
-    }
-
-    /// Lift a binary function over `A` through the L-pair.
-    #[inline]
-    #[must_use]
-    pub fn ceil2<H>(self, h: H, b1: B, b2: B) -> B
-    where
-        H: FnOnce(A, A) -> A,
-    {
-        (self.f)(h((self.g)(b1), (self.g)(b2)))
-    }
-}
-
-// ── Constructors and inherent ops on R-Conns ─────────────────────────
+// ── Constructors on R-Conns ──────────────────────────────────────────
 
 impl<A, B> Conn<A, B, R> {
     /// Construct a right-Galois connection `inner ⊣ floor`.
@@ -305,158 +188,6 @@ impl<A, B> Conn<A, B, R> {
             g: self.f,
             _k: PhantomData,
         }
-    }
-}
-
-impl<A: Copy, B: Copy> Conn<A, B, R> {
-    /// Apply the upper adjoint (round-down): `a ↦ f(a)`.
-    #[inline]
-    #[must_use]
-    pub fn floor(self, a: A) -> B {
-        (self.f)(a)
-    }
-
-    /// Apply the lower adjoint (embedding): `b ↦ g(b)`.
-    #[inline]
-    #[must_use]
-    pub fn lower(self, b: B) -> A {
-        (self.g)(b)
-    }
-
-    /// Lift a unary endofunction over `B` into one over `A` through
-    /// the R-pair.
-    #[inline]
-    #[must_use]
-    pub fn lower1<H>(self, h: H, a: A) -> A
-    where
-        H: FnOnce(B) -> B,
-    {
-        (self.g)(h((self.f)(a)))
-    }
-
-    /// Lift a binary function over `B` through the R-pair.
-    #[inline]
-    #[must_use]
-    pub fn lower2<H>(self, h: H, a1: A, a2: A) -> A
-    where
-        H: FnOnce(B, B) -> B,
-    {
-        (self.g)(h((self.f)(a1), (self.f)(a2)))
-    }
-
-    /// Lift a unary endofunction over `A` into one over `B` through
-    /// the R-pair: `b ↦ f(h(g(b)))`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use connections::conn::ConnR;
-    /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::core::f064::F064F032;
-    ///
-    /// // Same shared probe as ceil1 / truncate1: `2π − x` in f64
-    /// // lands strictly between two f32 grid points. floor1
-    /// // unconditionally narrows down — to one f32 ULP below
-    /// // std::f32::consts::PI.
-    /// let pi32 = Extend(std::f32::consts::PI);
-    /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
-    /// assert_eq!(
-    ///     F064F032.conn_r().floor1(probe, pi32),
-    ///     Extend(3.1415925_f32),
-    /// );
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn floor1<H>(self, h: H, b: B) -> B
-    where
-        H: FnOnce(A) -> A,
-    {
-        (self.f)(h((self.g)(b)))
-    }
-
-    /// Lift a binary function over `A` through the R-pair.
-    #[inline]
-    #[must_use]
-    pub fn floor2<H>(self, h: H, b1: B, b2: B) -> B
-    where
-        H: FnOnce(A, A) -> A,
-    {
-        (self.f)(h((self.g)(b1), (self.g)(b2)))
-    }
-}
-
-// ── Principal-filter / -ideal predicates ────────────────────────────
-
-impl<A: Copy, B: Copy> Conn<A, B, L> {
-    /// Membership in the principal filter generated by `a`:
-    /// `b ∈ filter_l(a) ⟺ ceil(a) ≤ b`.
-    ///
-    /// The principal filter generated by `a ∈ A` is the upward-closed
-    /// set `{ b ∈ B : ceil(a) ≤ b }`. Since `ceil` is monotonic and
-    /// every B-value above `ceil(a)` satisfies the L-Galois law for
-    /// some A-value above `a`, this characterises the
-    /// upward-closure on the B side.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use connections::conn::ConnL;
-    /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::core::f064::F064F032;
-    ///
-    /// let l = F064F032.conn_l();
-    /// let pi64 = Extend(std::f64::consts::PI);
-    /// // The f32 ceiling of pi64 is std::f32::consts::PI; equality
-    /// // witnesses the lower edge of the filter.
-    /// assert!(l.filter_l(pi64, Extend(std::f32::consts::PI)));
-    /// // Anything strictly larger is also in the filter
-    /// // (upward-closed):
-    /// assert!(l.filter_l(pi64, Extend(4.0_f32)));
-    /// // Strictly smaller f32s are not.
-    /// assert!(!l.filter_l(pi64, Extend(3.0_f32)));
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn filter_l(self, a: A, b: B) -> bool
-    where
-        B: PartialOrd,
-    {
-        self.ceil(a) <= b
-    }
-}
-
-impl<A: Copy, B: Copy> Conn<A, B, R> {
-    /// Membership in the principal ideal generated by `a`:
-    /// `b ∈ filter_r(a) ⟺ b ≤ floor(a)`.
-    ///
-    /// The principal ideal generated by `a ∈ A` is the
-    /// downward-closed set `{ b ∈ B : b ≤ floor(a) }` — the dual
-    /// of [`Conn::filter_l`].
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use connections::conn::ConnR;
-    /// use connections::float::ExtendedFloat::Extend;
-    /// use connections::core::f064::F064F032;
-    ///
-    /// let r = F064F032.conn_r();
-    /// let pi64 = Extend(std::f64::consts::PI);
-    /// // The f32 floor of pi64 is 3.1415925; that's the upper edge
-    /// // of the ideal.
-    /// assert!(r.filter_r(pi64, Extend(3.1415925_f32)));
-    /// // Anything smaller is also in the ideal (downward-closed):
-    /// assert!(r.filter_r(pi64, Extend(3.0_f32)));
-    /// // The f32 ceiling (next f32 above) is not.
-    /// assert!(!r.filter_r(pi64, Extend(std::f32::consts::PI)));
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn filter_r(self, a: A, b: B) -> bool
-    where
-        B: PartialOrd,
-    {
-        b <= self.floor(a)
     }
 }
 
@@ -486,14 +217,11 @@ impl<X> Conn<X, X, L> {
 /// Two flavors of implementor:
 /// 1. **ConnK markers** (zero-sized unit structs from [`conn_k!`](crate::conn_k) /
 ///    [`iso!`](crate::iso) / [`compose_k!`](crate::compose_k)) — they provide an L-view alongside
-///    an R-view, gaining `.ceil()` / `.upper()` directly.
+///    an R-view, so they work with [`ceil`] / [`upper`] and the
+///    two-sided [`ConnK`] helpers.
 /// 2. **The value type itself** — a blanket impl on `Conn<A, B, L>`
 ///    (see below) means every L-Conn value is also a `ConnL`, so
 ///    generic bounds `T: ConnL<A = A, B = B>` accept both shapes uniformly.
-///
-/// `conn_l(&self) -> Conn<A, B, L>` is the projection. Default
-/// methods dispatch through it: `ceil` is the lower adjoint
-/// (rounds up), `upper` is the upper adjoint (the embedding).
 ///
 /// Method-shape (rather than `const L: Conn<A, B, L>`) is required so
 /// the blanket impl on `Conn<A, B, L>` can return `*self` — const
@@ -508,27 +236,12 @@ pub trait ConnL {
 
     /// The L-Galois projection: an `L`-kinded [`Conn<Self::A, Self::B>`].
     fn conn_l(&self) -> Conn<Self::A, Self::B, L>;
-
-    /// Apply the lower adjoint (round-up): `a ↦ f(a)`.
-    #[inline]
-    #[must_use]
-    fn ceil(&self, a: Self::A) -> Self::B {
-        self.conn_l().ceil(a)
-    }
-    /// Apply the upper adjoint (embedding): `b ↦ g(b)`.
-    #[inline]
-    #[must_use]
-    fn upper(&self, b: Self::B) -> Self::A {
-        self.conn_l().upper(b)
-    }
 }
 
 /// Capability trait: types implementing this carry an `R`-Galois
 /// connection between `A` and `B`. Counterpart to [`ConnL`].
 ///
-/// `conn_r(&self) -> Conn<A, B, R>` is the projection. Default
-/// methods dispatch through it: `floor` is the upper adjoint
-/// (rounds down), `lower` is the lower adjoint (the embedding).
+/// `conn_r(&self) -> Conn<A, B, R>` is the projection.
 pub trait ConnR {
     /// The connection's source type.
     type A: Copy;
@@ -537,19 +250,6 @@ pub trait ConnR {
 
     /// The R-Galois projection: an `R`-kinded [`Conn<Self::A, Self::B, R>`].
     fn conn_r(&self) -> Conn<Self::A, Self::B, R>;
-
-    /// Apply the upper adjoint (round-down): `a ↦ f(a)`.
-    #[inline]
-    #[must_use]
-    fn floor(&self, a: Self::A) -> Self::B {
-        self.conn_r().floor(a)
-    }
-    /// Apply the lower adjoint (embedding): `b ↦ g(b)`.
-    #[inline]
-    #[must_use]
-    fn lower(&self, b: Self::B) -> Self::A {
-        self.conn_r().lower(b)
-    }
 }
 
 // ── Blanket impls: every Conn value satisfies its kind's trait ────────
@@ -588,7 +288,7 @@ impl<A: Copy, B: Copy> ConnR for Conn<A, B, R> {
 pub trait ConnK: ConnL + ConnR<A = <Self as ConnL>::A, B = <Self as ConnL>::B> {}
 impl<T> ConnK for T where T: ConnL + ConnR<A = <T as ConnL>::A, B = <T as ConnL>::B> {}
 
-// ── Two-sided helpers (bound on ConnK) ────────────────────────────────
+// ── ConnK helpers ────────────────────────────────────────────────────
 
 /// Bracket of `x` under conn `t`: the closed interval `[lo, hi] ⊆ A`
 /// of values sharing `x`'s B-cell.
@@ -634,12 +334,12 @@ impl<T> ConnK for T where T: ConnL + ConnR<A = <T as ConnL>::A, B = <T as ConnL>
 #[must_use]
 pub fn interval<T, A, B>(t: &T, x: A) -> Interval<A>
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnK + ConnL<A = A, B = B>,
     A: Copy + PartialOrd,
     B: Copy,
 {
-    let lo = t.conn_r().lower1(|b| b, x);
-    let hi = t.conn_l().upper1(|b| b, x);
+    let lo = lower(t, floor(t, x));
+    let hi = upper(t, ceil(t, x));
     // Route through `Interval::new` defensively: a contract-broken
     // `PartialOrd` (non-transitive) could in principle satisfy
     // `lo ≤ x ∧ x ≤ hi` while `lo > hi`. The extra `partial_cmp`
@@ -653,8 +353,8 @@ where
 }
 
 /// Truncate `x` toward zero through the triple: returns
-/// `t.conn_r().floor(x)` when `x ≥ 0`, otherwise
-/// `t.conn_l().ceil(x)`.
+/// [`floor(t, x)`](floor) when `x ≥ 0`, otherwise
+/// [`ceil(t, x)`](ceil).
 ///
 /// # Examples
 ///
@@ -672,14 +372,14 @@ where
 #[must_use]
 pub fn truncate<T, A, B>(t: &T, x: A) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnK + ConnL<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy,
 {
     if x >= A::from(0) {
-        t.conn_r().floor(x)
+        floor(t, x)
     } else {
-        t.conn_l().ceil(x)
+        ceil(t, x)
     }
 }
 
@@ -714,12 +414,12 @@ where
 #[must_use]
 pub fn truncate1<T, A, B, H>(t: &T, h: H, x: B) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnK + ConnL<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy,
     H: FnOnce(A) -> A,
 {
-    truncate(t, h(t.conn_l().upper(x)))
+    truncate(t, h(upper(t, x)))
 }
 
 /// Lift a binary function `h: (A, A) → A` through the triple, with
@@ -744,13 +444,12 @@ where
 #[must_use]
 pub fn truncate2<T, A, B, H>(t: &T, h: H, x: B, y: B) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnK + ConnL<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy,
     H: FnOnce(A, A) -> A,
 {
-    let l = t.conn_l();
-    truncate(t, h(l.upper(x), l.upper(y)))
+    truncate(t, h(upper(t, x), upper(t, y)))
 }
 
 /// Round `x` to the nearest representable value across the triple,
@@ -759,7 +458,7 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::{round, ConnL};
+/// use connections::conn::{round, upper};
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::core::f064::F064F032;
 ///
@@ -771,13 +470,13 @@ where
 /// // value `(pi as f32)` would also produce.
 /// assert_eq!(round(&F064F032, pi64), Extend(std::f32::consts::PI));
 /// // Widening the result back to f64 lands pi32_err above true π:
-/// assert_eq!(F064F032.upper(round(&F064F032, pi64)) - pi64, pi32_err);
+/// assert_eq!(upper(&F064F032, round(&F064F032, pi64)) - pi64, pi32_err);
 /// ```
 #[inline]
 #[must_use]
 pub fn round<T, A, B>(t: &T, x: A) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnK + ConnL<A = A, B = B>,
     A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
     B: Copy,
 {
@@ -787,8 +486,8 @@ where
     // or antichain endpoints — fall back to truncate.
     match interval(t, x) {
         Interval::Closed { lo, hi } => match (x - lo).partial_cmp(&(hi - x)) {
-            Some(Ordering::Greater) => t.conn_l().ceil(x),
-            Some(Ordering::Less) => t.conn_r().floor(x),
+            Some(Ordering::Greater) => ceil(t, x),
+            Some(Ordering::Less) => floor(t, x),
             _ => truncate(t, x),
         },
         Interval::Empty => truncate(t, x),
@@ -819,12 +518,12 @@ where
 #[must_use]
 pub fn round1<T, A, B, H>(t: &T, h: H, x: B) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnK + ConnL<A = A, B = B>,
     A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
     B: Copy,
     H: FnOnce(A) -> A,
 {
-    round(t, h(t.conn_l().upper(x)))
+    round(t, h(upper(t, x)))
 }
 
 /// Lift a binary function `h: (A, A) → A` through the triple,
@@ -853,13 +552,12 @@ where
 #[must_use]
 pub fn round2<T, A, B, H>(t: &T, h: H, x: B, y: B) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnK + ConnL<A = A, B = B>,
     A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
     B: Copy,
     H: FnOnce(A, A) -> A,
 {
-    let l = t.conn_l();
-    round(t, h(l.upper(x), l.upper(y)))
+    round(t, h(upper(t, x), upper(t, y)))
 }
 
 /// Birkhoff median over a triple `T: ConnK<(A, A), A>`, using the
@@ -945,12 +643,181 @@ where
 #[must_use]
 pub fn median<T, A>(t: &T, x: A, y: A, z: A) -> A
 where
-    T: ConnL<A = (A, A), B = A> + ConnR<A = (A, A), B = A>,
+    T: ?Sized + ConnK + ConnL<A = (A, A), B = A>,
     A: Copy,
 {
-    let join = |p: A, q: A| t.conn_l().ceil((p, q));
-    let meet = |p: A, q: A| t.conn_r().floor((p, q));
+    let join = |p: A, q: A| ceil(t, (p, q));
+    let meet = |p: A, q: A| floor(t, (p, q));
     meet(meet(join(x, y), join(y, z)), join(z, x))
+}
+
+// ── ConnL helpers ────────────────────────────────────────────────────
+
+/// Apply the upper adjoint (embedding): `b ↦ g(b)`.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::upper;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::core::f064::F064F032;
+///
+/// let pi64 = Extend(std::f64::consts::PI);
+/// // f32's nearest representation of π widened losslessly to f64.
+/// // Lossless ≠ precise: the value is still the f32 approximation.
+/// let pi32 = Extend(std::f32::consts::PI as f64);
+/// // f32's rounding error for π — about +8.74e-8 (f32 rounds π up).
+/// // The same constant carries through every π-widening doctest below.
+/// let pi32_err = pi32 - pi64;
+///
+/// // upper just widens; for F064F032 that's the f32 → f64 cast.
+/// assert_eq!(upper(&F064F032, Extend(std::f32::consts::PI)), pi32);
+/// // Equivalently, "f64 π plus f32's rounding error":
+/// assert_eq!(upper(&F064F032, Extend(std::f32::consts::PI)) - pi64, pi32_err);
+/// ```
+#[inline]
+#[must_use]
+pub fn upper<T, A, B>(t: &T, b: B) -> A
+where
+    T: ?Sized + ConnL<A = A, B = B>,
+{
+    let c = t.conn_l();
+    (c.g)(b)
+}
+
+/// Apply the lower adjoint (round-up): `a ↦ f(a)`.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::{ceil, upper};
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::core::f064::F064F032;
+///
+/// let pi64 = Extend(std::f64::consts::PI);
+/// let pi32 = Extend(std::f32::consts::PI as f64);
+/// let pi32_err = pi32 - pi64;
+///
+/// // The f32 ceiling of π is std::f32::consts::PI itself —
+/// // π's nearest f32 representation rounds up.
+/// assert_eq!(ceil(&F064F032, pi64), Extend(std::f32::consts::PI));
+/// // Widening the result back to f64 lands at pi32, which sits
+/// // exactly pi32_err above true π:
+/// assert_eq!(upper(&F064F032, ceil(&F064F032, pi64)) - pi64, pi32_err);
+/// ```
+#[inline]
+#[must_use]
+pub fn ceil<T, A, B>(t: &T, a: A) -> B
+where
+    T: ?Sized + ConnL<A = A, B = B>,
+{
+    let c = t.conn_l();
+    (c.f)(a)
+}
+
+/// Lift a unary endofunction over `A` into one over `B` through
+/// the L-pair: `b ↦ f(h(g(b)))`.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::ceil1;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::core::f064::F064F032;
+///
+/// // ceil1 / floor1 / truncate1 share this closure shape: `2π − x`
+/// // in f64-precision lands strictly between two f32 grid points.
+/// // ceil1 unconditionally narrows up — to std::f32::consts::PI.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
+/// assert_eq!(ceil1(&F064F032, probe, pi32), Extend(std::f32::consts::PI));
+/// ```
+#[inline]
+#[must_use]
+pub fn ceil1<T, A, B, H>(t: &T, h: H, b: B) -> B
+where
+    T: ?Sized + ConnL<A = A, B = B>,
+    H: FnOnce(A) -> A,
+{
+    let c = t.conn_l();
+    (c.f)(h((c.g)(b)))
+}
+
+/// Lift a binary function over `A` through the L-pair.
+#[inline]
+#[must_use]
+pub fn ceil2<T, A, B, H>(t: &T, h: H, b1: B, b2: B) -> B
+where
+    T: ?Sized + ConnL<A = A, B = B>,
+    H: FnOnce(A, A) -> A,
+{
+    let c = t.conn_l();
+    (c.f)(h((c.g)(b1), (c.g)(b2)))
+}
+
+// ── ConnR helpers ────────────────────────────────────────────────────
+
+/// Apply the lower adjoint (embedding): `b ↦ g(b)`.
+#[inline]
+#[must_use]
+pub fn lower<T, A, B>(t: &T, b: B) -> A
+where
+    T: ?Sized + ConnR<A = A, B = B>,
+{
+    let c = t.conn_r();
+    (c.g)(b)
+}
+
+/// Apply the upper adjoint (round-down): `a ↦ f(a)`.
+#[inline]
+#[must_use]
+pub fn floor<T, A, B>(t: &T, a: A) -> B
+where
+    T: ?Sized + ConnR<A = A, B = B>,
+{
+    let c = t.conn_r();
+    (c.f)(a)
+}
+
+/// Lift a unary endofunction over `A` into one over `B` through
+/// the R-pair: `b ↦ f(h(g(b)))`.
+///
+/// # Examples
+///
+/// ```rust
+/// use connections::conn::floor1;
+/// use connections::float::ExtendedFloat::Extend;
+/// use connections::core::f064::F064F032;
+///
+/// // Same shared probe as ceil1 / truncate1: `2π − x` in f64
+/// // lands strictly between two f32 grid points. floor1
+/// // unconditionally narrows down — to one f32 ULP below
+/// // std::f32::consts::PI.
+/// let pi32 = Extend(std::f32::consts::PI);
+/// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
+/// assert_eq!(floor1(&F064F032, probe, pi32), Extend(3.1415925_f32));
+/// ```
+#[inline]
+#[must_use]
+pub fn floor1<T, A, B, H>(t: &T, h: H, b: B) -> B
+where
+    T: ?Sized + ConnR<A = A, B = B>,
+    H: FnOnce(A) -> A,
+{
+    let c = t.conn_r();
+    (c.f)(h((c.g)(b)))
+}
+
+/// Lift a binary function over `A` through the R-pair.
+#[inline]
+#[must_use]
+pub fn floor2<T, A, B, H>(t: &T, h: H, b1: B, b2: B) -> B
+where
+    T: ?Sized + ConnR<A = A, B = B>,
+    H: FnOnce(A, A) -> A,
+{
+    let c = t.conn_r();
+    (c.f)(h((c.g)(b1), (c.g)(b2)))
 }
 
 // ── Composition macros ───────────────────────────────────────────────
@@ -969,14 +836,14 @@ macro_rules! compose_l {
         )
     };
 
-    (@nest_f $x:expr; $last:expr) => { $last.ceil($x) };
+    (@nest_f $x:expr; $last:expr) => { $crate::conn::ceil(&$last, $x) };
     (@nest_f $x:expr; $first:expr $(, $rest:expr)+) => {
-        $crate::compose_l!(@nest_f $first.ceil($x); $($rest),+)
+        $crate::compose_l!(@nest_f $crate::conn::ceil(&$first, $x); $($rest),+)
     };
 
-    (@nest_g $z:expr; $last:expr) => { $last.upper($z) };
+    (@nest_g $z:expr; $last:expr) => { $crate::conn::upper(&$last, $z) };
     (@nest_g $z:expr; $first:expr $(, $rest:expr)+) => {
-        $first.upper($crate::compose_l!(@nest_g $z; $($rest),+))
+        $crate::conn::upper(&$first, $crate::compose_l!(@nest_g $z; $($rest),+))
     };
 }
 
@@ -990,14 +857,14 @@ macro_rules! compose_r {
         )
     };
 
-    (@nest_f $x:expr; $last:expr) => { $last.floor($x) };
+    (@nest_f $x:expr; $last:expr) => { $crate::conn::floor(&$last, $x) };
     (@nest_f $x:expr; $first:expr $(, $rest:expr)+) => {
-        $crate::compose_r!(@nest_f $first.floor($x); $($rest),+)
+        $crate::compose_r!(@nest_f $crate::conn::floor(&$first, $x); $($rest),+)
     };
 
-    (@nest_g $z:expr; $last:expr) => { $last.lower($z) };
+    (@nest_g $z:expr; $last:expr) => { $crate::conn::lower(&$last, $z) };
     (@nest_g $z:expr; $first:expr $(, $rest:expr)+) => {
-        $first.lower($crate::compose_r!(@nest_g $z; $($rest),+))
+        $crate::conn::lower(&$first, $crate::compose_r!(@nest_g $z; $($rest),+))
     };
 }
 
@@ -1258,10 +1125,10 @@ mod tests {
     fn triple_uses_both_views() {
         // Reach for both views and confirm they round-trip through
         // the shared inner.
-        assert_eq!(TripleIdI32.ceil(7_i32), 7_i32);
-        assert_eq!(TripleIdI32.floor(7_i32), 7_i32);
-        assert_eq!(TripleIdI32.upper(7_i32), 7_i32);
-        assert_eq!(TripleIdI32.lower(7_i32), 7_i32);
+        assert_eq!(crate::conn::ceil(&TripleIdI32, 7_i32), 7_i32);
+        assert_eq!(crate::conn::floor(&TripleIdI32, 7_i32), 7_i32);
+        assert_eq!(crate::conn::upper(&TripleIdI32, 7_i32), 7_i32);
+        assert_eq!(crate::conn::lower(&TripleIdI32, 7_i32), 7_i32);
     }
 
     // ── compose_k! macro instantiation ───────────────────────────────
@@ -1311,28 +1178,31 @@ mod tests {
         // every input (the defining property of a degenerate Galois
         // iso).
         for x in [i32::MIN, -1, 0, 1, 42, i32::MAX] {
-            assert_eq!(IsoI32U32.ceil(x), IsoI32U32.floor(x));
+            assert_eq!(
+                crate::conn::ceil(&IsoI32U32, x),
+                crate::conn::floor(&IsoI32U32, x)
+            );
         }
     }
 
     #[test]
     fn iso_round_trip_both_directions() {
         for x in [i32::MIN, -1, 0, 1, 42, i32::MAX] {
-            let y = IsoI32U32.ceil(x);
-            assert_eq!(IsoI32U32.upper(y), x);
+            let y = crate::conn::ceil(&IsoI32U32, x);
+            assert_eq!(crate::conn::upper(&IsoI32U32, y), x);
         }
         for y in [0_u32, 1, 42, u32::MAX] {
-            let x = IsoI32U32.upper(y);
-            assert_eq!(IsoI32U32.ceil(x), y);
+            let x = crate::conn::upper(&IsoI32U32, y);
+            assert_eq!(crate::conn::ceil(&IsoI32U32, x), y);
         }
     }
 
     #[test]
     fn compose_triple_marker() {
-        // Composed triple's L-view: ceil(x) = TripleAdd1.ceil(TripleIdI32.ceil(x)) = x + 1
-        assert_eq!(ComposedI32.ceil(0_i32), 1_i32);
-        // Composed triple's R-view: floor(x) = TripleAdd1.floor(TripleIdI32.floor(x)) = x + 1
-        assert_eq!(ComposedI32.floor(0_i32), 1_i32);
+        // Composed triple's L-view: ceil(x) = crate::conn::ceil(&TripleAdd1, crate::conn::ceil(&TripleIdI32, x)) = x + 1
+        assert_eq!(crate::conn::ceil(&ComposedI32, 0_i32), 1_i32);
+        // Composed triple's R-view: floor(x) = crate::conn::floor(&TripleAdd1, crate::conn::floor(&TripleIdI32, x)) = x + 1
+        assert_eq!(crate::conn::floor(&ComposedI32, 0_i32), 1_i32);
     }
 
     // ── Variadic compose_l! chain (3 operands, const-context) ────────
@@ -1345,8 +1215,8 @@ mod tests {
         // id ∘ id ∘ id over the L-side stays identity. Proves the
         // variadic `:expr` arm parses with 3 operands and produces a
         // valid `const` expression.
-        assert_eq!(COMPOSED_3WAY.ceil(42_i32), 42_i32);
-        assert_eq!(COMPOSED_3WAY.upper(7_i32), 7_i32);
+        assert_eq!(crate::conn::ceil(&COMPOSED_3WAY, 42_i32), 42_i32);
+        assert_eq!(crate::conn::upper(&COMPOSED_3WAY, 7_i32), 7_i32);
     }
 
     #[test]
@@ -1355,8 +1225,14 @@ mod tests {
         // shapes must produce the same const value.
         const VIA_ALIAS: Conn<i32, i32> = crate::compose!(ID_L, ID_L);
         const VIA_LEFT: Conn<i32, i32> = crate::compose_l!(ID_L, ID_L);
-        assert_eq!(VIA_ALIAS.ceil(42_i32), VIA_LEFT.ceil(42_i32));
-        assert_eq!(VIA_ALIAS.upper(7_i32), VIA_LEFT.upper(7_i32));
+        assert_eq!(
+            crate::conn::ceil(&VIA_ALIAS, 42_i32),
+            crate::conn::ceil(&VIA_LEFT, 42_i32)
+        );
+        assert_eq!(
+            crate::conn::upper(&VIA_ALIAS, 7_i32),
+            crate::conn::upper(&VIA_LEFT, 7_i32)
+        );
     }
 
     #[test]
@@ -1365,8 +1241,14 @@ mod tests {
         // match three operands through `compose_l!` directly.
         const VIA_ALIAS: Conn<i32, i32> = crate::compose!(ID_L, ID_L, ID_L);
         const VIA_LEFT: Conn<i32, i32> = crate::compose_l!(ID_L, ID_L, ID_L);
-        assert_eq!(VIA_ALIAS.ceil(42_i32), VIA_LEFT.ceil(42_i32));
-        assert_eq!(VIA_ALIAS.upper(7_i32), VIA_LEFT.upper(7_i32));
+        assert_eq!(
+            crate::conn::ceil(&VIA_ALIAS, 42_i32),
+            crate::conn::ceil(&VIA_LEFT, 42_i32)
+        );
+        assert_eq!(
+            crate::conn::upper(&VIA_ALIAS, 7_i32),
+            crate::conn::upper(&VIA_LEFT, 7_i32)
+        );
     }
 
     // ── conn_l! / conn_r! macro instantiation ────────────────────────
@@ -1398,10 +1280,16 @@ mod tests {
         // on both adjoint slots for representative inputs.
         const REF: Conn<i64, i32> = Conn::new_l(_i64_to_i32, _i32_to_i64);
         for a in [i64::MIN, -1, 0, 1, 42, i64::MAX] {
-            assert_eq!(CONNLI64I32.ceil(a), REF.ceil(a));
+            assert_eq!(
+                crate::conn::ceil(&CONNLI64I32, a),
+                crate::conn::ceil(&REF, a)
+            );
         }
         for b in [i32::MIN, -1, 0, 1, 42, i32::MAX] {
-            assert_eq!(CONNLI64I32.upper(b), REF.upper(b));
+            assert_eq!(
+                crate::conn::upper(&CONNLI64I32, b),
+                crate::conn::upper(&REF, b)
+            );
         }
     }
 
@@ -1413,10 +1301,16 @@ mod tests {
         // written reference.
         const REF: Conn<i64, i32, R> = Conn::new_r(_i32_to_i64, _i64_to_i32);
         for a in [i64::MIN, -1, 0, 1, 42, i64::MAX] {
-            assert_eq!(CONNRI64I32.floor(a), REF.floor(a));
+            assert_eq!(
+                crate::conn::floor(&CONNRI64I32, a),
+                crate::conn::floor(&REF, a)
+            );
         }
         for b in [i32::MIN, -1, 0, 1, 42, i32::MAX] {
-            assert_eq!(CONNRI64I32.lower(b), REF.lower(b));
+            assert_eq!(
+                crate::conn::lower(&CONNRI64I32, b),
+                crate::conn::lower(&REF, b)
+            );
         }
     }
 
@@ -1427,13 +1321,28 @@ mod tests {
         // The blanket impls let a raw `Conn<_,_,L>` value flow through
         // a `T: ConnL<_,_>` bound. Same on the R side.
         fn use_as_conn_l<T: ConnL<A = i64, B = i32>>(t: &T, a: i64) -> i32 {
-            t.ceil(a)
+            ceil(t, a)
         }
         fn use_as_conn_r<T: ConnR<A = i64, B = i32>>(t: &T, a: i64) -> i32 {
-            t.floor(a)
+            floor(t, a)
         }
         assert_eq!(use_as_conn_l(&CONNLI64I32, 42_i64), 42_i32);
         assert_eq!(use_as_conn_r(&CONNRI64I32, 42_i64), 42_i32);
+    }
+
+    #[test]
+    fn free_helpers_accept_trait_objects() {
+        let l: &dyn ConnL<A = i64, B = i32> = &CONNLI64I32;
+        assert_eq!(ceil(l, 42_i64), 42_i32);
+        assert_eq!(upper(l, 42_i32), 42_i64);
+        assert_eq!(ceil1(l, |a| a + 1, 41_i32), 42_i32);
+        assert_eq!(ceil2(l, |a, b| a + b, 20_i32, 22_i32), 42_i32);
+
+        let r: &dyn ConnR<A = i64, B = i32> = &CONNRI64I32;
+        assert_eq!(floor(r, 42_i64), 42_i32);
+        assert_eq!(lower(r, 42_i32), 42_i64);
+        assert_eq!(floor1(r, |a| a + 1, 41_i32), 42_i32);
+        assert_eq!(floor2(r, |a, b| a + b, 20_i32, 22_i32), 42_i32);
     }
 
     // ── swap_l / swap_r involution proptests ─────────────────────────
@@ -1455,16 +1364,16 @@ mod tests {
             // (swap_r ∘ swap_l)(c) preserves the fn pair on every input.
             let c = ROUND_TRIP_L;
             let c2: Conn<i32, i64> = c.swap_l().swap_r();
-            prop_assert_eq!(c.ceil(a), c2.ceil(a));
-            prop_assert_eq!(c.upper(b), c2.upper(b));
+            prop_assert_eq!(ceil(&c, a), ceil(&c2, a));
+            prop_assert_eq!(upper(&c, b), upper(&c2, b));
         }
 
         #[test]
         fn swap_round_trip_r(a: i32, b: i64) {
             let c = ROUND_TRIP_R;
             let c2: Conn<i32, i64, R> = c.swap_r().swap_l();
-            prop_assert_eq!(c.floor(a), c2.floor(a));
-            prop_assert_eq!(c.lower(b), c2.lower(b));
+            prop_assert_eq!(floor(&c, a), floor(&c2, a));
+            prop_assert_eq!(lower(&c, b), lower(&c2, b));
         }
     }
 }

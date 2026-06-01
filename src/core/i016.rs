@@ -105,66 +105,75 @@ mod tests {
 
     #[test]
     fn i008i016_ceil_at_boundaries() {
-        assert_eq!(I008I016.ceil(Extended::NegInf), i16::MIN);
-        assert_eq!(I008I016.ceil(Extended::PosInf), 128);
-        assert_eq!(I008I016.ceil(Extended::Finite(0)), 0);
-        assert_eq!(I008I016.ceil(Extended::Finite(i8::MIN)), -128);
-        assert_eq!(I008I016.ceil(Extended::Finite(i8::MAX)), 127);
+        assert_eq!(crate::conn::ceil(&I008I016, Extended::NegInf), i16::MIN);
+        assert_eq!(crate::conn::ceil(&I008I016, Extended::PosInf), 128);
+        assert_eq!(crate::conn::ceil(&I008I016, Extended::Finite(0)), 0);
+        assert_eq!(
+            crate::conn::ceil(&I008I016, Extended::Finite(i8::MIN)),
+            -128
+        );
+        assert_eq!(crate::conn::ceil(&I008I016, Extended::Finite(i8::MAX)), 127);
     }
 
     #[test]
     fn i008i016_inner_partitions_target_range() {
-        assert_eq!(I008I016.upper(-129), Extended::NegInf);
-        assert_eq!(I008I016.upper(i16::MIN), Extended::NegInf);
-        assert_eq!(I008I016.upper(128), Extended::PosInf);
-        assert_eq!(I008I016.upper(i16::MAX), Extended::PosInf);
-        assert_eq!(I008I016.upper(-128), Extended::Finite(i8::MIN));
-        assert_eq!(I008I016.upper(0), Extended::Finite(0));
-        assert_eq!(I008I016.upper(127), Extended::Finite(i8::MAX));
+        assert_eq!(crate::conn::upper(&I008I016, -129), Extended::NegInf);
+        assert_eq!(crate::conn::upper(&I008I016, i16::MIN), Extended::NegInf);
+        assert_eq!(crate::conn::upper(&I008I016, 128), Extended::PosInf);
+        assert_eq!(crate::conn::upper(&I008I016, i16::MAX), Extended::PosInf);
+        assert_eq!(
+            crate::conn::upper(&I008I016, -128),
+            Extended::Finite(i8::MIN)
+        );
+        assert_eq!(crate::conn::upper(&I008I016, 0), Extended::Finite(0));
+        assert_eq!(
+            crate::conn::upper(&I008I016, 127),
+            Extended::Finite(i8::MAX)
+        );
     }
 
     #[test]
     fn u008i016_ceil_at_boundaries() {
-        assert_eq!(U008I016.ceil(Extended::NegInf), i16::MIN);
-        assert_eq!(U008I016.ceil(Extended::PosInf), 256);
-        assert_eq!(U008I016.ceil(Extended::Finite(0)), 0);
-        assert_eq!(U008I016.ceil(Extended::Finite(255)), 255);
+        assert_eq!(crate::conn::ceil(&U008I016, Extended::NegInf), i16::MIN);
+        assert_eq!(crate::conn::ceil(&U008I016, Extended::PosInf), 256);
+        assert_eq!(crate::conn::ceil(&U008I016, Extended::Finite(0)), 0);
+        assert_eq!(crate::conn::ceil(&U008I016, Extended::Finite(255)), 255);
     }
 
     #[test]
     fn u008i016_inner_partitions_target_range() {
-        assert_eq!(U008I016.upper(-1), Extended::NegInf);
-        assert_eq!(U008I016.upper(i16::MIN), Extended::NegInf);
-        assert_eq!(U008I016.upper(256), Extended::PosInf);
-        assert_eq!(U008I016.upper(i16::MAX), Extended::PosInf);
-        assert_eq!(U008I016.upper(0), Extended::Finite(0));
-        assert_eq!(U008I016.upper(50), Extended::Finite(50));
-        assert_eq!(U008I016.upper(255), Extended::Finite(255));
+        assert_eq!(crate::conn::upper(&U008I016, -1), Extended::NegInf);
+        assert_eq!(crate::conn::upper(&U008I016, i16::MIN), Extended::NegInf);
+        assert_eq!(crate::conn::upper(&U008I016, 256), Extended::PosInf);
+        assert_eq!(crate::conn::upper(&U008I016, i16::MAX), Extended::PosInf);
+        assert_eq!(crate::conn::upper(&U008I016, 0), Extended::Finite(0));
+        assert_eq!(crate::conn::upper(&U008I016, 50), Extended::Finite(50));
+        assert_eq!(crate::conn::upper(&U008I016, 255), Extended::Finite(255));
     }
 
     #[test]
     fn i_to_i16_saturate() {
-        assert_eq!(I032I016.ceil(i32::MAX), i16::MAX);
-        assert_eq!(I032I016.ceil(i32::MIN), i16::MIN);
-        assert_eq!(I128I016.ceil(i128::MAX), i16::MAX);
-        assert_eq!(I128I016.ceil(i128::MIN), i16::MIN);
+        assert_eq!(crate::conn::ceil(&I032I016, i32::MAX), i16::MAX);
+        assert_eq!(crate::conn::ceil(&I032I016, i32::MIN), i16::MIN);
+        assert_eq!(crate::conn::ceil(&I128I016, i128::MAX), i16::MAX);
+        assert_eq!(crate::conn::ceil(&I128I016, i128::MIN), i16::MIN);
     }
 
     #[test]
     fn i_to_i16_inner_fine_max_fixup() {
-        assert_eq!(I032I016.upper(i16::MAX), i32::MAX);
-        assert_eq!(I064I016.upper(i16::MAX), i64::MAX);
-        assert_eq!(I128I016.upper(i16::MAX), i128::MAX);
-        assert_eq!(I032I016.upper(0), 0_i32);
-        assert_eq!(I032I016.upper(i16::MIN), i16::MIN as i32);
+        assert_eq!(crate::conn::upper(&I032I016, i16::MAX), i32::MAX);
+        assert_eq!(crate::conn::upper(&I064I016, i16::MAX), i64::MAX);
+        assert_eq!(crate::conn::upper(&I128I016, i16::MAX), i128::MAX);
+        assert_eq!(crate::conn::upper(&I032I016, 0), 0_i32);
+        assert_eq!(crate::conn::upper(&I032I016, i16::MIN), i16::MIN as i32);
     }
 
     #[test]
     fn u_to_i16_neg_and_high() {
-        assert_eq!(U016I016.lower(-1), 0_u16);
-        assert_eq!(U016I016.lower(i16::MIN), 0_u16);
-        assert_eq!(U016I016.floor(u16::MAX), i16::MAX);
-        assert_eq!(U128I016.floor(u128::MAX), i16::MAX);
+        assert_eq!(crate::conn::lower(&U016I016, -1), 0_u16);
+        assert_eq!(crate::conn::lower(&U016I016, i16::MIN), 0_u16);
+        assert_eq!(crate::conn::floor(&U016I016, u16::MAX), i16::MAX);
+        assert_eq!(crate::conn::floor(&U128I016, u128::MAX), i16::MAX);
     }
 
     // ── NonZero signed narrowing (N016N008) spot + property ───────
@@ -181,16 +190,25 @@ mod tests {
         let big_pos = NonZeroI16::new(i16::MAX).unwrap();
         let big_neg = NonZeroI16::new(i16::MIN).unwrap();
         let in_range = NonZeroI16::new(42).unwrap();
-        assert_eq!(N016N008.ceil(big_pos), NonZeroI8::new(i8::MAX).unwrap());
-        assert_eq!(N016N008.ceil(big_neg), NonZeroI8::new(i8::MIN).unwrap());
-        assert_eq!(N016N008.ceil(in_range), NonZeroI8::new(42).unwrap());
+        assert_eq!(
+            crate::conn::ceil(&N016N008, big_pos),
+            NonZeroI8::new(i8::MAX).unwrap()
+        );
+        assert_eq!(
+            crate::conn::ceil(&N016N008, big_neg),
+            NonZeroI8::new(i8::MIN).unwrap()
+        );
+        assert_eq!(
+            crate::conn::ceil(&N016N008, in_range),
+            NonZeroI8::new(42).unwrap()
+        );
         // FINE_MAX fixup: inner(NZ(i8::MAX)) = NZ(i16::MAX)
         assert_eq!(
-            N016N008.upper(NonZeroI8::new(i8::MAX).unwrap()),
+            crate::conn::upper(&N016N008, NonZeroI8::new(i8::MAX).unwrap()),
             NonZeroI16::new(i16::MAX).unwrap()
         );
         assert_eq!(
-            N016N008.upper(NonZeroI8::new(i8::MIN).unwrap()),
+            crate::conn::upper(&N016N008, NonZeroI8::new(i8::MIN).unwrap()),
             NonZeroI16::new(i8::MIN as i16).unwrap()
         );
     }
@@ -233,7 +251,7 @@ mod tests {
         }
         #[test]
         fn i16_b2_order_preserving(a in any::<i16>(), b in any::<i16>()) {
-            prop_assert_eq!(a.cmp(&b), I016BE02.ceil(a).cmp(&I016BE02.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&I016BE02, a).cmp(&crate::conn::ceil(&I016BE02, b)));
         }
 
         #[test]
@@ -263,7 +281,7 @@ mod tests {
 
         #[test]
         fn i016_l2_order_preserving(a in any::<i16>(), b in any::<i16>()) {
-            prop_assert_eq!(a.cmp(&b), I016LE02.ceil(a).cmp(&I016LE02.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&I016LE02, a).cmp(&crate::conn::ceil(&I016LE02, b)));
         }
     }
 
@@ -281,12 +299,12 @@ mod tests {
 
     #[test]
     fn i016lx02_boundary_bytes() {
-        assert_eq!(I016LX02.ceil(i16::MIN), LX([0x00, 0x00]));
-        assert_eq!(I016LX02.ceil(0_i16), LX([0x80, 0x00]));
-        assert_eq!(I016LX02.ceil(i16::MAX), LX([0xFF, 0xFF]));
-        assert_eq!(I016LX02.upper(LX([0x00, 0x00])), i16::MIN);
-        assert_eq!(I016LX02.upper(LX([0x80, 0x00])), 0_i16);
-        assert_eq!(I016LX02.upper(LX([0xFF, 0xFF])), i16::MAX);
+        assert_eq!(crate::conn::ceil(&I016LX02, i16::MIN), LX([0x00, 0x00]));
+        assert_eq!(crate::conn::ceil(&I016LX02, 0_i16), LX([0x80, 0x00]));
+        assert_eq!(crate::conn::ceil(&I016LX02, i16::MAX), LX([0xFF, 0xFF]));
+        assert_eq!(crate::conn::upper(&I016LX02, LX([0x00, 0x00])), i16::MIN);
+        assert_eq!(crate::conn::upper(&I016LX02, LX([0x80, 0x00])), 0_i16);
+        assert_eq!(crate::conn::upper(&I016LX02, LX([0xFF, 0xFF])), i16::MAX);
     }
 
     proptest! {
@@ -316,8 +334,8 @@ mod tests {
         // lex compare on the bias-encoded bytes.
         #[test]
         fn i016_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i16>(), b in any::<i16>()) {
-            let ka = I016LX02.ceil(a).0;
-            let kb = I016LX02.ceil(b).0;
+            let ka = crate::conn::ceil(&I016LX02, a).0;
+            let kb = crate::conn::ceil(&I016LX02, b).0;
             prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }

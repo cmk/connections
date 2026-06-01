@@ -106,21 +106,21 @@ crate::conn_l! {
     /// use connections::extended::Extended;
     /// use time::Time;
     ///
-    /// assert_eq!(TIMENANO.ceil(Extended::Finite(Time::MIDNIGHT)), 0);
+    /// assert_eq!(connections::conn::ceil(&TIMENANO, Extended::Finite(Time::MIDNIGHT)), 0);
     /// assert_eq!(
-    ///     TIMENANO.ceil(Extended::Finite(
+    ///     connections::conn::ceil(&TIMENANO, Extended::Finite(
     ///         Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap(),
     ///     )),
     ///     86_399_999_999_999,
     /// );
     /// assert_eq!(
-    ///     TIMENANO.upper(43_200_000_000_000),
+    ///     connections::conn::upper(&TIMENANO, 43_200_000_000_000),
     ///     Extended::Finite(Time::from_hms(12, 0, 0).unwrap()),
     /// );
     ///
     /// // Out-of-range nanoseconds saturate.
-    /// assert_eq!(TIMENANO.upper(-1), Extended::NegInf);
-    /// assert_eq!(TIMENANO.upper(86_400_000_000_000), Extended::PosInf);
+    /// assert_eq!(connections::conn::upper(&TIMENANO, -1), Extended::NegInf);
+    /// assert_eq!(connections::conn::upper(&TIMENANO, 86_400_000_000_000), Extended::PosInf);
     /// ```
     pub TIMENANO : Extended<Time> => i64 {
         ceil:  timenano_ceil,
@@ -147,7 +147,7 @@ crate::conn_l! {
     /// **Behavioral note on rounding:** `ceil(Finite(t)) = whole_sec(t) +
     /// 1` when `t.nanosecond() != 0`, otherwise `whole_sec(t)`. Because
     /// `floor = ceil` under `new_left`, callers reading
-    /// `TIMESECS.ceil(t)` get the **rounded-up** answer, not a truncated
+    /// `connections::conn::ceil(&TIMESECS, t)` get the **rounded-up** answer, not a truncated
     /// one. Callers needing the dual rounding direction can compute it
     /// explicitly: `ceil(t) - (t.nanosecond() != 0) as i64`. (See Plan 27
     /// deferred work for a possible future paired-Conn split.)
@@ -164,13 +164,13 @@ crate::conn_l! {
     ///
     /// // Exact second: ceil recovers the full second count.
     /// let noon = Time::from_hms(12, 0, 0).unwrap();
-    /// assert_eq!(TIMESECS.ceil(Extended::Finite(noon)), 43_200);
+    /// assert_eq!(connections::conn::ceil(&TIMESECS, Extended::Finite(noon)), 43_200);
     ///
     /// // Sub-second: ceil rounds up (floor = ceil under new_left).
     /// let mid_minute = Time::from_hms_nano(12, 0, 0, 1).unwrap();
-    /// assert_eq!(TIMESECS.ceil(Extended::Finite(mid_minute)), 43_201);
+    /// assert_eq!(connections::conn::ceil(&TIMESECS, Extended::Finite(mid_minute)), 43_201);
     ///
-    /// assert_eq!(TIMESECS.upper(43_200), Extended::Finite(noon));
+    /// assert_eq!(connections::conn::upper(&TIMESECS, 43_200), Extended::Finite(noon));
     /// ```
     pub TIMESECS : Extended<Time> => i64 {
         ceil:  timesecs_ceil,
@@ -233,36 +233,51 @@ mod tests {
 
         #[test]
         fn midnight_is_zero() {
-            assert_eq!(TIMENANO.ceil(Extended::Finite(Time::MIDNIGHT)), 0);
-            assert_eq!(TIMENANO.upper(0), Extended::Finite(Time::MIDNIGHT));
+            assert_eq!(
+                crate::conn::ceil(&TIMENANO, Extended::Finite(Time::MIDNIGHT)),
+                0
+            );
+            assert_eq!(
+                crate::conn::upper(&TIMENANO, 0),
+                Extended::Finite(Time::MIDNIGHT)
+            );
         }
 
         #[test]
         fn end_of_day() {
             let last = Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap();
-            assert_eq!(TIMENANO.ceil(Extended::Finite(last)), NS_MAX);
-            assert_eq!(TIMENANO.upper(NS_MAX), Extended::Finite(last));
+            assert_eq!(crate::conn::ceil(&TIMENANO, Extended::Finite(last)), NS_MAX);
+            assert_eq!(
+                crate::conn::upper(&TIMENANO, NS_MAX),
+                Extended::Finite(last)
+            );
         }
 
         #[test]
         fn noon_round_trip() {
             let noon = Time::from_hms(12, 0, 0).unwrap();
-            assert_eq!(TIMENANO.upper(43_200_000_000_000), Extended::Finite(noon));
-            assert_eq!(TIMENANO.ceil(Extended::Finite(noon)), 43_200_000_000_000);
+            assert_eq!(
+                crate::conn::upper(&TIMENANO, 43_200_000_000_000),
+                Extended::Finite(noon)
+            );
+            assert_eq!(
+                crate::conn::ceil(&TIMENANO, Extended::Finite(noon)),
+                43_200_000_000_000
+            );
         }
 
         #[test]
         fn saturation_extremes() {
-            assert_eq!(TIMENANO.upper(-1), Extended::NegInf);
-            assert_eq!(TIMENANO.upper(i64::MIN), Extended::NegInf);
-            assert_eq!(TIMENANO.upper(NS_MAX + 1), Extended::PosInf);
-            assert_eq!(TIMENANO.upper(i64::MAX), Extended::PosInf);
+            assert_eq!(crate::conn::upper(&TIMENANO, -1), Extended::NegInf);
+            assert_eq!(crate::conn::upper(&TIMENANO, i64::MIN), Extended::NegInf);
+            assert_eq!(crate::conn::upper(&TIMENANO, NS_MAX + 1), Extended::PosInf);
+            assert_eq!(crate::conn::upper(&TIMENANO, i64::MAX), Extended::PosInf);
 
-            assert_eq!(TIMENANO.ceil(Extended::NegInf), i64::MIN);
-            assert_eq!(TIMENANO.ceil(Extended::PosInf), NS_MAX + 1);
+            assert_eq!(crate::conn::ceil(&TIMENANO, Extended::NegInf), i64::MIN);
+            assert_eq!(crate::conn::ceil(&TIMENANO, Extended::PosInf), NS_MAX + 1);
             // `new_left` wires `floor = ceil` structurally.
-            assert_eq!(TIMENANO.ceil(Extended::NegInf), i64::MIN);
-            assert_eq!(TIMENANO.ceil(Extended::PosInf), NS_MAX + 1);
+            assert_eq!(crate::conn::ceil(&TIMENANO, Extended::NegInf), i64::MIN);
+            assert_eq!(crate::conn::ceil(&TIMENANO, Extended::PosInf), NS_MAX + 1);
         }
 
         // ── Galois law battery (one-sided L) ────────────────────
@@ -309,15 +324,24 @@ mod tests {
 
         #[test]
         fn midnight_is_zero() {
-            assert_eq!(TIMESECS.ceil(Extended::Finite(Time::MIDNIGHT)), 0);
-            assert_eq!(TIMESECS.upper(0), Extended::Finite(Time::MIDNIGHT));
+            assert_eq!(
+                crate::conn::ceil(&TIMESECS, Extended::Finite(Time::MIDNIGHT)),
+                0
+            );
+            assert_eq!(
+                crate::conn::upper(&TIMESECS, 0),
+                Extended::Finite(Time::MIDNIGHT)
+            );
         }
 
         #[test]
         fn exact_second_round_trip() {
             let noon = Time::from_hms(12, 0, 0).unwrap();
-            assert_eq!(TIMESECS.ceil(Extended::Finite(noon)), 43_200);
-            assert_eq!(TIMESECS.upper(43_200), Extended::Finite(noon));
+            assert_eq!(crate::conn::ceil(&TIMESECS, Extended::Finite(noon)), 43_200);
+            assert_eq!(
+                crate::conn::upper(&TIMESECS, 43_200),
+                Extended::Finite(noon)
+            );
         }
 
         #[test]
@@ -325,8 +349,14 @@ mod tests {
             // Under new_left, ceil rounds up to the next whole
             // second. floor (= ceil structurally) returns the same.
             let one_ns_after_noon = Time::from_hms_nano(12, 0, 0, 1).unwrap();
-            assert_eq!(TIMESECS.ceil(Extended::Finite(one_ns_after_noon)), 43_201);
-            assert_eq!(TIMESECS.ceil(Extended::Finite(one_ns_after_noon)), 43_201);
+            assert_eq!(
+                crate::conn::ceil(&TIMESECS, Extended::Finite(one_ns_after_noon)),
+                43_201
+            );
+            assert_eq!(
+                crate::conn::ceil(&TIMESECS, Extended::Finite(one_ns_after_noon)),
+                43_201
+            );
         }
 
         #[test]
@@ -334,19 +364,19 @@ mod tests {
             // Sub-second past 23:59:59 ceils to 86_400 (the PosInf
             // marker on the rung side); floor = ceil under new_left.
             let last = Time::from_hms_nano(23, 59, 59, 999_999_999).unwrap();
-            assert_eq!(TIMESECS.ceil(Extended::Finite(last)), 86_400);
-            assert_eq!(TIMESECS.ceil(Extended::Finite(last)), 86_400);
+            assert_eq!(crate::conn::ceil(&TIMESECS, Extended::Finite(last)), 86_400);
+            assert_eq!(crate::conn::ceil(&TIMESECS, Extended::Finite(last)), 86_400);
         }
 
         #[test]
         fn saturation_extremes() {
-            assert_eq!(TIMESECS.upper(-1), Extended::NegInf);
-            assert_eq!(TIMESECS.upper(86_400), Extended::PosInf);
-            assert_eq!(TIMESECS.ceil(Extended::NegInf), i64::MIN);
-            assert_eq!(TIMESECS.ceil(Extended::PosInf), 86_400);
+            assert_eq!(crate::conn::upper(&TIMESECS, -1), Extended::NegInf);
+            assert_eq!(crate::conn::upper(&TIMESECS, 86_400), Extended::PosInf);
+            assert_eq!(crate::conn::ceil(&TIMESECS, Extended::NegInf), i64::MIN);
+            assert_eq!(crate::conn::ceil(&TIMESECS, Extended::PosInf), 86_400);
             // `new_left` wires `floor = ceil` structurally.
-            assert_eq!(TIMESECS.ceil(Extended::NegInf), i64::MIN);
-            assert_eq!(TIMESECS.ceil(Extended::PosInf), 86_400);
+            assert_eq!(crate::conn::ceil(&TIMESECS, Extended::NegInf), i64::MIN);
+            assert_eq!(crate::conn::ceil(&TIMESECS, Extended::PosInf), 86_400);
         }
 
         // ── Galois law battery (one-sided L) ────────────────────

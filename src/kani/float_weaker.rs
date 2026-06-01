@@ -43,7 +43,7 @@ fn arb_in_f32_range_ef64() -> ExtendedFloat<f64> {
 #[kani::unwind(4)]
 fn finite_in_finite_out_ceil_in_range() {
     let x = arb_in_f32_range_ef64();
-    let y = F064F032.upper(F064F032.ceil(x));
+    let y = crate::conn::upper(&F064F032, crate::conn::ceil(&F064F032, x));
     if let ExtendedFloat::Extend(yy) = y {
         assert!(yy.is_finite());
     } else {
@@ -56,7 +56,7 @@ fn finite_in_finite_out_ceil_in_range() {
 #[kani::unwind(4)]
 fn finite_in_finite_out_floor_in_range() {
     let x = arb_in_f32_range_ef64();
-    let y = F064F032.lower(F064F032.floor(x));
+    let y = crate::conn::lower(&F064F032, crate::conn::floor(&F064F032, x));
     if let ExtendedFloat::Extend(yy) = y {
         assert!(yy.is_finite());
     } else {

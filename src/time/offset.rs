@@ -33,9 +33,9 @@
 //! use connections::extended::Extended;
 //! use time::OffsetDateTime;
 //!
-//! assert_eq!(ODTMNANO.upper(0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
+//! assert_eq!(connections::conn::upper(&ODTMNANO, 0), Extended::Finite(OffsetDateTime::UNIX_EPOCH));
 //! assert_eq!(
-//!     ODTMNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)),
+//!     connections::conn::ceil(&ODTMNANO, Extended::Finite(OffsetDateTime::UNIX_EPOCH)),
 //!     0,
 //! );
 //! ```
@@ -180,13 +180,13 @@ crate::conn_l! {
     /// use connections::extended::Extended;
     /// use time::OffsetDateTime;
     ///
-    /// assert_eq!(ODTMNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
-    /// assert_eq!(ODTMNANO.upper(1_000_000_000), Extended::Finite(
+    /// assert_eq!(connections::conn::ceil(&ODTMNANO, Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
+    /// assert_eq!(connections::conn::upper(&ODTMNANO, 1_000_000_000), Extended::Finite(
     ///     OffsetDateTime::UNIX_EPOCH + time::Duration::seconds(1),
     /// ));
     ///
     /// // Out-of-range nanoseconds saturate.
-    /// assert_eq!(ODTMNANO.upper(i128::MAX), Extended::PosInf);
+    /// assert_eq!(connections::conn::upper(&ODTMNANO, i128::MAX), Extended::PosInf);
     /// ```
     pub ODTMNANO : Extended<OffsetDateTime> => i128 {
         ceil:  odtmnano_ceil,
@@ -259,7 +259,7 @@ crate::conn_l! {
     /// **Behavioral note on rounding:** `ceil(Finite(odt))` =
     /// `odt.unix_timestamp() + 1` when `odt.nanosecond() != 0`, otherwise
     /// `odt.unix_timestamp()`. Because `floor = ceil` under `new_left`,
-    /// callers reading `ODTMSECS.ceil(odt)` get the **rounded-up**
+    /// callers reading `connections::conn::ceil(&ODTMSECS, odt)` get the **rounded-up**
     /// answer, not the truncated one (`unix_timestamp()` is itself
     /// `floor`-shaped in the `time` crate). Callers needing the
     /// truncating direction can compute `odt.unix_timestamp()` directly.
@@ -276,11 +276,11 @@ crate::conn_l! {
     /// use time::{Duration, OffsetDateTime};
     ///
     /// // Exact second.
-    /// assert_eq!(ODTMSECS.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
+    /// assert_eq!(connections::conn::ceil(&ODTMSECS, Extended::Finite(OffsetDateTime::UNIX_EPOCH)), 0);
     ///
     /// // Sub-second past epoch: ceil rounds up.
     /// let mid = OffsetDateTime::UNIX_EPOCH + Duration::nanoseconds(1);
-    /// assert_eq!(ODTMSECS.ceil(Extended::Finite(mid)), 1);
+    /// assert_eq!(connections::conn::ceil(&ODTMSECS, Extended::Finite(mid)), 1);
     /// ```
     pub ODTMSECS : Extended<OffsetDateTime> => i64 {
         ceil:  odtmsecs_ceil,
@@ -338,11 +338,11 @@ mod odtm_tests {
     #[test]
     fn epoch_is_zero() {
         assert_eq!(
-            ODTMNANO.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)),
+            crate::conn::ceil(&ODTMNANO, Extended::Finite(OffsetDateTime::UNIX_EPOCH)),
             0
         );
         assert_eq!(
-            ODTMNANO.upper(0),
+            crate::conn::upper(&ODTMNANO, 0),
             Extended::Finite(OffsetDateTime::UNIX_EPOCH)
         );
     }
@@ -350,23 +350,29 @@ mod odtm_tests {
     #[test]
     fn one_ns_past_epoch() {
         let mid = OffsetDateTime::UNIX_EPOCH + Duration::nanoseconds(1);
-        assert_eq!(ODTMNANO.ceil(Extended::Finite(mid)), 1);
-        assert_eq!(ODTMNANO.upper(1), Extended::Finite(mid));
+        assert_eq!(crate::conn::ceil(&ODTMNANO, Extended::Finite(mid)), 1);
+        assert_eq!(crate::conn::upper(&ODTMNANO, 1), Extended::Finite(mid));
     }
 
     #[test]
     fn one_ns_before_epoch() {
         let mid = OffsetDateTime::UNIX_EPOCH - Duration::nanoseconds(1);
-        assert_eq!(ODTMNANO.ceil(Extended::Finite(mid)), -1);
-        assert_eq!(ODTMNANO.upper(-1), Extended::Finite(mid));
+        assert_eq!(crate::conn::ceil(&ODTMNANO, Extended::Finite(mid)), -1);
+        assert_eq!(crate::conn::upper(&ODTMNANO, -1), Extended::Finite(mid));
     }
 
     #[test]
     fn y2038() {
         let y2038_ns: i128 = 2_147_483_648_000_000_000;
         let y2038 = OffsetDateTime::from_unix_timestamp_nanos(y2038_ns).unwrap();
-        assert_eq!(ODTMNANO.ceil(Extended::Finite(y2038)), y2038_ns);
-        assert_eq!(ODTMNANO.upper(y2038_ns), Extended::Finite(y2038));
+        assert_eq!(
+            crate::conn::ceil(&ODTMNANO, Extended::Finite(y2038)),
+            y2038_ns
+        );
+        assert_eq!(
+            crate::conn::upper(&ODTMNANO, y2038_ns),
+            Extended::Finite(y2038)
+        );
     }
 
     #[test]
@@ -383,10 +389,22 @@ mod odtm_tests {
         let min_ns = utc_min_ns();
         let max_ns = utc_max_ns();
 
-        assert_eq!(ODTMNANO.ceil(Extended::Finite(min_utc)), min_ns);
-        assert_eq!(ODTMNANO.ceil(Extended::Finite(max_utc)), max_ns);
-        assert_eq!(ODTMNANO.upper(min_ns), Extended::Finite(min_utc));
-        assert_eq!(ODTMNANO.upper(max_ns), Extended::Finite(max_utc));
+        assert_eq!(
+            crate::conn::ceil(&ODTMNANO, Extended::Finite(min_utc)),
+            min_ns
+        );
+        assert_eq!(
+            crate::conn::ceil(&ODTMNANO, Extended::Finite(max_utc)),
+            max_ns
+        );
+        assert_eq!(
+            crate::conn::upper(&ODTMNANO, min_ns),
+            Extended::Finite(min_utc)
+        );
+        assert_eq!(
+            crate::conn::upper(&ODTMNANO, max_ns),
+            Extended::Finite(max_utc)
+        );
     }
 
     #[test]
@@ -394,23 +412,29 @@ mod odtm_tests {
         // odtm_max_instant() has instant past utc_max_ns; ceil bumps
         // it to max_ns + 1 (the PosInf marker on the rung).
         let max_inst = odtm_max_instant();
-        assert_eq!(ODTMNANO.ceil(Extended::Finite(max_inst)), utc_max_ns() + 1);
+        assert_eq!(
+            crate::conn::ceil(&ODTMNANO, Extended::Finite(max_inst)),
+            utc_max_ns() + 1
+        );
 
         let min_inst = odtm_min_instant();
-        assert_eq!(ODTMNANO.ceil(Extended::Finite(min_inst)), utc_min_ns());
+        assert_eq!(
+            crate::conn::ceil(&ODTMNANO, Extended::Finite(min_inst)),
+            utc_min_ns()
+        );
     }
 
     #[test]
     fn odtmnano_saturation_extremes() {
-        assert_eq!(ODTMNANO.upper(i128::MAX), Extended::PosInf);
-        assert_eq!(ODTMNANO.upper(i128::MIN), Extended::NegInf);
+        assert_eq!(crate::conn::upper(&ODTMNANO, i128::MAX), Extended::PosInf);
+        assert_eq!(crate::conn::upper(&ODTMNANO, i128::MIN), Extended::NegInf);
 
         let max_ns = utc_max_ns();
-        assert_eq!(ODTMNANO.ceil(Extended::PosInf), max_ns + 1);
-        assert_eq!(ODTMNANO.ceil(Extended::NegInf), i128::MIN);
+        assert_eq!(crate::conn::ceil(&ODTMNANO, Extended::PosInf), max_ns + 1);
+        assert_eq!(crate::conn::ceil(&ODTMNANO, Extended::NegInf), i128::MIN);
         // `new_left` wires `floor = ceil` structurally.
-        assert_eq!(ODTMNANO.ceil(Extended::PosInf), max_ns + 1);
-        assert_eq!(ODTMNANO.ceil(Extended::NegInf), i128::MIN);
+        assert_eq!(crate::conn::ceil(&ODTMNANO, Extended::PosInf), max_ns + 1);
+        assert_eq!(crate::conn::ceil(&ODTMNANO, Extended::NegInf), i128::MIN);
     }
 
     // ── ODTMSECS spot checks ────────────────────────────────────
@@ -418,11 +442,11 @@ mod odtm_tests {
     #[test]
     fn odtmsecs_epoch() {
         assert_eq!(
-            ODTMSECS.ceil(Extended::Finite(OffsetDateTime::UNIX_EPOCH)),
+            crate::conn::ceil(&ODTMSECS, Extended::Finite(OffsetDateTime::UNIX_EPOCH)),
             0
         );
         assert_eq!(
-            ODTMSECS.upper(0),
+            crate::conn::upper(&ODTMSECS, 0),
             Extended::Finite(OffsetDateTime::UNIX_EPOCH)
         );
     }
@@ -430,7 +454,7 @@ mod odtm_tests {
     #[test]
     fn odtmsecs_subsec_rounds_up() {
         let mid = OffsetDateTime::UNIX_EPOCH + Duration::nanoseconds(1);
-        assert_eq!(ODTMSECS.ceil(Extended::Finite(mid)), 1);
+        assert_eq!(crate::conn::ceil(&ODTMSECS, Extended::Finite(mid)), 1);
     }
 
     #[test]
@@ -438,17 +462,20 @@ mod odtm_tests {
         // 1969-12-31 23:59:59.5 UTC: instant = -0.5 s. ceil rounds
         // up to 0.
         let half_before = OffsetDateTime::UNIX_EPOCH - Duration::milliseconds(500);
-        assert_eq!(ODTMSECS.ceil(Extended::Finite(half_before)), 0);
+        assert_eq!(
+            crate::conn::ceil(&ODTMSECS, Extended::Finite(half_before)),
+            0
+        );
     }
 
     #[test]
     fn odtmsecs_saturation_extremes() {
         let max_s = utc_max_s();
-        assert_eq!(ODTMSECS.ceil(Extended::PosInf), max_s + 1);
-        assert_eq!(ODTMSECS.ceil(Extended::NegInf), i64::MIN);
+        assert_eq!(crate::conn::ceil(&ODTMSECS, Extended::PosInf), max_s + 1);
+        assert_eq!(crate::conn::ceil(&ODTMSECS, Extended::NegInf), i64::MIN);
         // `new_left` wires `floor = ceil` structurally.
-        assert_eq!(ODTMSECS.ceil(Extended::PosInf), max_s + 1);
-        assert_eq!(ODTMSECS.ceil(Extended::NegInf), i64::MIN);
+        assert_eq!(crate::conn::ceil(&ODTMSECS, Extended::PosInf), max_s + 1);
+        assert_eq!(crate::conn::ceil(&ODTMSECS, Extended::NegInf), i64::MIN);
     }
 
     // ── Galois law battery — ODTMNANO (one-sided L) ────────────
