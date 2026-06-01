@@ -49,13 +49,15 @@ fixed = { version = "1", optional = true }
 # assertion that our proptest strategies (arb_extended_offset_dt et al.) trip
 # on. Floating this back to "0.3" is a follow-up after clamping the date /
 # offset generators so normalized UTC dates stay in range.
-time = { version = ">=0.3, <0.3.46", optional = true }
+time = { version = ">=0.3, <0.3.46", optional = true, default-features = false }
 hifitime = { version = "4.3", optional = true, default-features = false }
 proptest = { version = "1", optional = true }
 uhlc = { version = "0.9", optional = true, default-features = false }
 
 [dev-dependencies]
 proptest = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 trybuild = "1"
 
 [features]
@@ -69,10 +71,18 @@ fixed = ["dep:fixed"]
 proptest = ["dep:proptest"]
 
 # Enable civil-calendar and time-span Conns backed by the `time` crate
-# under `connections::time::*`. This is opt-in because the crate's
-# core algebra, numeric, fixed-point, char, addr, and std::time
-# strategy surfaces do not need the external dependency.
-time = ["dep:time"]
+# under `connections::time::*`, plus the upstream time types and
+# RFC3339 serde adapters used by downstream host crates. This is
+# opt-in because the crate's core algebra, numeric, fixed-point, char,
+# addr, and std::time strategy surfaces do not need the external
+# dependency.
+time = [
+    "dep:time",
+    "time/std",
+    "time/serde-well-known",
+    "time/parsing",
+    "time/formatting",
+]
 
 # Enable IEEE binary16 (`f16`) support: `F016`, `F032F016`, `F064F016`,
 # the f16-specific ULP machinery, and the `arb_f16` /
