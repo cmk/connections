@@ -267,7 +267,7 @@ pub trait Coheyting: Join + Meet {
 /// And:
 ///
 /// ```text
-/// convr(x) <= convl(x)
+/// conv_r(x) <= conv_l(x)
 /// ```
 ///
 /// with equality occurring iff the algebra is Boolean.
@@ -275,10 +275,10 @@ pub trait Coheyting: Join + Meet {
 /// Derived identities:
 ///
 /// ```text
-/// neg(x) == convr(not(x)) == not(convl(x))
-/// coneg(x) == not(convr(x)) == convl(not(x))
-/// neg(neg(x)) == convr(convl(x))
-/// coneg(coneg(x)) == convl(convr(x))
+/// neg(x) == conv_r(not(x)) == not(conv_l(x))
+/// coneg(x) == not(conv_r(x)) == conv_l(not(x))
+/// neg(neg(x)) == conv_r(conv_l(x))
+/// coneg(coneg(x)) == conv_l(conv_r(x))
 /// ```
 pub trait Symmetric: Heyting + Coheyting {
     /// Symmetric negation (complement).
@@ -306,20 +306,20 @@ pub trait Symmetric: Heyting + Coheyting {
 /// Left converse operator: `top.coimp(&x.not())`.
 ///
 /// ```text
-/// convl(x.join(y)) == convl(x).join(convl(y))
-/// convl(x.meet(y)) == coneg(coneg(convl(x).meet(convl(y))))
+/// conv_l(x.join(y)) == conv_l(x).join(conv_l(y))
+/// conv_l(x.meet(y)) == coneg(coneg(conv_l(x).meet(conv_l(y))))
 /// ```
-pub fn convl<T: Symmetric + Sized>(x: &T) -> T {
+pub fn conv_l<T: Symmetric + Sized>(x: &T) -> T {
     T::top().coimp(&x.not())
 }
 
 /// Right converse operator: `x.not().imp(&T::bot())`.
 ///
 /// ```text
-/// convr(x.meet(y)) == convr(x).meet(convr(y))
-/// convr(x.join(y)) == neg(neg(convr(x).join(convr(y))))
+/// conv_r(x.meet(y)) == conv_r(x).meet(conv_r(y))
+/// conv_r(x.join(y)) == neg(neg(conv_r(x).join(conv_r(y))))
 /// ```
-pub fn convr<T: Symmetric + Sized>(x: &T) -> T {
+pub fn conv_r<T: Symmetric + Sized>(x: &T) -> T {
     x.not().imp(&T::bot())
 }
 
