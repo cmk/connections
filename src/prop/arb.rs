@@ -775,34 +775,48 @@ pub fn arb_extended_utc_offset() -> impl Strategy<Value = Extended<UtcOffset>> {
     ]
 }
 
-/// Arbitrary `time::OffsetDateTime`. Cartesian product of
-/// `(arb_date, arb_time, arb_utc_offset)` plus the canonical
-/// landmarks: `UNIX_EPOCH`, the type-level extremes, ±1 ns from
-/// epoch, and the Y2038 cutover.
+/// Arbitrary `time::OffsetDateTime` over an order-safe subdomain.
+/// Generated from representable instants first, with all samples held
+/// two days inside the UTC instant range. That keeps construction and
+/// `time`'s offset-rebasing `Ord` implementation from normalizing
+/// either side of a comparison outside the valid UTC year range.
 #[cfg(feature = "time")]
 pub fn arb_offset_dt() -> impl Strategy<Value = OffsetDateTime> {
     let y2038 =
         OffsetDateTime::from_unix_timestamp(2_147_483_648).expect("Y2038 in OffsetDateTime range");
+    let min_ns = OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC)
+        .unix_timestamp_nanos();
+    let max_ns = OffsetDateTime::new_in_offset(
+        Date::MAX,
+        Time::from_hms_nano(23, 59, 59, 999_999_999).expect("end-of-day"),
+        UtcOffset::UTC,
+    )
+    .unix_timestamp_nanos();
+    let order_margin_ns = 2_i128 * 24 * 60 * 60 * 1_000_000_000;
+    let safe_min_ns = min_ns + order_margin_ns;
+    let safe_max_ns = max_ns - order_margin_ns;
     let landmarks = prop_oneof![
         1 => Just(OffsetDateTime::UNIX_EPOCH),
         1 => Just(OffsetDateTime::from_unix_timestamp_nanos(1).expect("epoch + 1ns")),
         1 => Just(OffsetDateTime::from_unix_timestamp_nanos(-1).expect("epoch - 1ns")),
         1 => Just(y2038),
     ];
-    let extremes = prop_oneof![
-        1 => Just(OffsetDateTime::new_in_offset(Date::MIN, Time::MIDNIGHT, UtcOffset::UTC)),
-        1 => Just(OffsetDateTime::new_in_offset(
-            Date::MAX,
-            Time::from_hms_nano(23, 59, 59, 999_999_999).expect("end-of-day"),
-            UtcOffset::UTC,
-        )),
+    let safe_extremes = prop_oneof![
+        1 => Just(OffsetDateTime::from_unix_timestamp_nanos(safe_min_ns).expect("safe min")),
+        1 => Just(OffsetDateTime::from_unix_timestamp_nanos(safe_max_ns).expect("safe max")),
     ];
-    let body = (arb_date(), arb_time(), arb_utc_offset())
-        .prop_map(|(d, t, o)| OffsetDateTime::new_in_offset(d, t, o));
+    let utc_body = (safe_min_ns..=safe_max_ns)
+        .prop_map(|ns| OffsetDateTime::from_unix_timestamp_nanos(ns).expect("safe nanos"));
+    let offset_body = ((safe_min_ns)..=(safe_max_ns), arb_utc_offset()).prop_map(|(ns, offset)| {
+        OffsetDateTime::from_unix_timestamp_nanos(ns)
+            .expect("safe nanos")
+            .to_offset(offset)
+    });
     prop_oneof![
         2 => landmarks,
-        1 => extremes,
-        9 => body,
+        1 => safe_extremes,
+        7 => utc_body,
+        2 => offset_body,
     ]
 }
 
