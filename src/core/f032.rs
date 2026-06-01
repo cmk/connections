@@ -56,11 +56,11 @@ crate::conn_k! {
     /// let pi_f16_floor = Extend(3.140_625_f16);
     /// let pi_f16_ceil  = Extend(3.142_578_125_f16);
     ///
-    /// assert_eq!(F032F016.floor(pi_f32), pi_f16_floor);
-    /// assert_eq!(F032F016.ceil(pi_f32),  pi_f16_ceil);
+    /// assert_eq!(connections::conn::floor(&F032F016, pi_f32), pi_f16_floor);
+    /// assert_eq!(connections::conn::ceil(&F032F016, pi_f32),  pi_f16_ceil);
     /// // Widening lifts each grid point to its f32 image exactly:
-    /// assert_eq!(F032F016.upper(pi_f16_floor), Extend(3.140_625_f32));
-    /// assert_eq!(F032F016.upper(pi_f16_ceil),  Extend(3.142_578_125_f32));
+    /// assert_eq!(connections::conn::upper(&F032F016, pi_f16_floor), Extend(3.140_625_f32));
+    /// assert_eq!(connections::conn::upper(&F032F016, pi_f16_ceil),  Extend(3.142_578_125_f32));
     /// ```
     pub F032F016 : F032 => F016 {
         ceil:  f032f016_ceil,
@@ -118,15 +118,15 @@ mod tests {
     #[test]
     fn nan_ceil_pos_inf() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(f32::NAN)),
+            crate::conn::ceil(&F032U008, ExtendedFloat::Extend(f32::NAN)),
             Extended::PosInf
         );
         assert_eq!(
-            F032I008.ceil(ExtendedFloat::Extend(f32::NAN)),
+            crate::conn::ceil(&F032I008, ExtendedFloat::Extend(f32::NAN)),
             Extended::PosInf
         );
         assert_eq!(
-            F032U064.ceil(ExtendedFloat::Extend(f32::NAN)),
+            crate::conn::ceil(&F032U064, ExtendedFloat::Extend(f32::NAN)),
             Extended::PosInf
         );
     }
@@ -134,11 +134,11 @@ mod tests {
     #[test]
     fn nan_floor_neg_inf() {
         assert_eq!(
-            F032U008.floor(ExtendedFloat::Extend(f32::NAN)),
+            crate::conn::floor(&F032U008, ExtendedFloat::Extend(f32::NAN)),
             Extended::NegInf
         );
         assert_eq!(
-            F032I016.floor(ExtendedFloat::Extend(f32::NAN)),
+            crate::conn::floor(&F032I016, ExtendedFloat::Extend(f32::NAN)),
             Extended::NegInf
         );
     }
@@ -146,11 +146,11 @@ mod tests {
     #[test]
     fn pos_inf_saturates_via_high_branch() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(f32::INFINITY)),
+            crate::conn::ceil(&F032U008, ExtendedFloat::Extend(f32::INFINITY)),
             Extended::PosInf
         );
         assert_eq!(
-            F032I008.floor(ExtendedFloat::Extend(f32::INFINITY)),
+            crate::conn::floor(&F032I008, ExtendedFloat::Extend(f32::INFINITY)),
             Extended::Finite(i8::MAX)
         );
     }
@@ -158,41 +158,59 @@ mod tests {
     #[test]
     fn neg_inf_saturates_via_low_branch() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(f32::NEG_INFINITY)),
+            crate::conn::ceil(&F032U008, ExtendedFloat::Extend(f32::NEG_INFINITY)),
             Extended::Finite(0)
         );
         assert_eq!(
-            F032I008.ceil(ExtendedFloat::Extend(f32::NEG_INFINITY)),
+            crate::conn::ceil(&F032I008, ExtendedFloat::Extend(f32::NEG_INFINITY)),
             Extended::Finite(i8::MIN)
         );
         assert_eq!(
-            F032U008.floor(ExtendedFloat::Extend(f32::NEG_INFINITY)),
+            crate::conn::floor(&F032U008, ExtendedFloat::Extend(f32::NEG_INFINITY)),
             Extended::NegInf
         );
         assert_eq!(
-            F032I008.floor(ExtendedFloat::Extend(f32::NEG_INFINITY)),
+            crate::conn::floor(&F032I008, ExtendedFloat::Extend(f32::NEG_INFINITY)),
             Extended::NegInf
         );
     }
 
     #[test]
     fn bot_top_pass_through() {
-        assert_eq!(F032U008.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F032U008.floor(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F032U008.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F032U008.floor(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F032I064.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F032I064.ceil(ExtendedFloat::Top), Extended::PosInf);
+        assert_eq!(
+            crate::conn::ceil(&F032U008, ExtendedFloat::Bot),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::floor(&F032U008, ExtendedFloat::Bot),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::ceil(&F032U008, ExtendedFloat::Top),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::conn::floor(&F032U008, ExtendedFloat::Top),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::conn::ceil(&F032I064, ExtendedFloat::Bot),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::conn::ceil(&F032I064, ExtendedFloat::Top),
+            Extended::PosInf
+        );
     }
 
     #[test]
     fn saturate_high_unsigned() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(300.0_f32)),
+            crate::conn::ceil(&F032U008, ExtendedFloat::Extend(300.0_f32)),
             Extended::PosInf
         );
         assert_eq!(
-            F032U008.floor(ExtendedFloat::Extend(300.0_f32)),
+            crate::conn::floor(&F032U008, ExtendedFloat::Extend(300.0_f32)),
             Extended::Finite(u8::MAX)
         );
     }
@@ -200,11 +218,11 @@ mod tests {
     #[test]
     fn saturate_low_signed() {
         assert_eq!(
-            F032I008.ceil(ExtendedFloat::Extend(-200.0_f32)),
+            crate::conn::ceil(&F032I008, ExtendedFloat::Extend(-200.0_f32)),
             Extended::Finite(i8::MIN)
         );
         assert_eq!(
-            F032I008.floor(ExtendedFloat::Extend(-200.0_f32)),
+            crate::conn::floor(&F032I008, ExtendedFloat::Extend(-200.0_f32)),
             Extended::NegInf
         );
     }
@@ -212,11 +230,11 @@ mod tests {
     #[test]
     fn saturate_low_unsigned() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(-1.0_f32)),
+            crate::conn::ceil(&F032U008, ExtendedFloat::Extend(-1.0_f32)),
             Extended::Finite(0)
         );
         assert_eq!(
-            F032U008.floor(ExtendedFloat::Extend(-1.0_f32)),
+            crate::conn::floor(&F032U008, ExtendedFloat::Extend(-1.0_f32)),
             Extended::NegInf
         );
     }
@@ -224,15 +242,15 @@ mod tests {
     #[test]
     fn exact_integer_round_trip() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(42.0_f32)),
+            crate::conn::ceil(&F032U008, ExtendedFloat::Extend(42.0_f32)),
             Extended::Finite(42)
         );
         assert_eq!(
-            F032U008.floor(ExtendedFloat::Extend(42.0_f32)),
+            crate::conn::floor(&F032U008, ExtendedFloat::Extend(42.0_f32)),
             Extended::Finite(42)
         );
         assert_eq!(
-            F032I016.ceil(ExtendedFloat::Extend(-1234.0_f32)),
+            crate::conn::ceil(&F032I016, ExtendedFloat::Extend(-1234.0_f32)),
             Extended::Finite(-1234)
         );
     }
@@ -240,11 +258,11 @@ mod tests {
     #[test]
     fn fraction_brackets_integer() {
         assert_eq!(
-            F032I008.ceil(ExtendedFloat::Extend(2.5_f32)),
+            crate::conn::ceil(&F032I008, ExtendedFloat::Extend(2.5_f32)),
             Extended::Finite(3)
         );
         assert_eq!(
-            F032I008.floor(ExtendedFloat::Extend(2.5_f32)),
+            crate::conn::floor(&F032I008, ExtendedFloat::Extend(2.5_f32)),
             Extended::Finite(2)
         );
     }
@@ -252,35 +270,41 @@ mod tests {
     #[test]
     fn inner_round_trip_finite() {
         assert_eq!(
-            F032U008.upper(Extended::Finite(42_u8)),
+            crate::conn::upper(&F032U008, Extended::Finite(42_u8)),
             ExtendedFloat::Extend(42.0_f32)
         );
-        assert_eq!(F032U008.upper(Extended::NegInf), ExtendedFloat::Bot);
-        assert_eq!(F032U008.upper(Extended::PosInf), ExtendedFloat::Top);
+        assert_eq!(
+            crate::conn::upper(&F032U008, Extended::NegInf),
+            ExtendedFloat::Bot
+        );
+        assert_eq!(
+            crate::conn::upper(&F032U008, Extended::PosInf),
+            ExtendedFloat::Top
+        );
     }
 
     #[test]
     fn f032u032_at_plateau_to_posinf() {
         let plateau = ExtendedFloat::Extend(2.0_f32.powi(32));
-        assert_eq!(F032U032.ceil(plateau), Extended::PosInf);
+        assert_eq!(crate::conn::ceil(&F032U032, plateau), Extended::PosInf);
     }
 
     #[test]
     fn f032i032_at_plateau_to_posinf() {
         let plateau = ExtendedFloat::Extend(2.0_f32.powi(31));
-        assert_eq!(F032I032.ceil(plateau), Extended::PosInf);
+        assert_eq!(crate::conn::ceil(&F032I032, plateau), Extended::PosInf);
     }
 
     #[test]
     fn f032u064_at_plateau_to_posinf() {
         let plateau = ExtendedFloat::Extend(2.0_f32.powi(64));
-        assert_eq!(F032U064.ceil(plateau), Extended::PosInf);
+        assert_eq!(crate::conn::ceil(&F032U064, plateau), Extended::PosInf);
     }
 
     #[test]
     fn f032i064_at_plateau_to_posinf() {
         let plateau = ExtendedFloat::Extend(2.0_f32.powi(63));
-        assert_eq!(F032I064.ceil(plateau), Extended::PosInf);
+        assert_eq!(crate::conn::ceil(&F032I064, plateau), Extended::PosInf);
     }
 
     crate::law_battery! { mod laws_u008, conn: F032U008, fine: extended_float_f32(), coarse: arb_extended_u8(), cases: 1024, }

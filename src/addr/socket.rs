@@ -59,15 +59,15 @@ const fn sov6_max() -> SocketAddrV6 {
 /// use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 ///
 /// let v4 = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 80);
-/// assert_eq!(SOVXSOV4.ceil(SocketAddr::V4(v4)), Extended::Finite(v4));
+/// assert_eq!(connections::conn::ceil(&SOVXSOV4, SocketAddr::V4(v4)), Extended::Finite(v4));
 ///
 /// // V6 input saturates above all V4 values.
 /// let v6 = SocketAddrV6::new(Ipv6Addr::LOCALHOST, 80, 0, 0);
-/// assert_eq!(SOVXSOV4.ceil(SocketAddr::V6(v6)),  Extended::PosInf);
+/// assert_eq!(connections::conn::ceil(&SOVXSOV4, SocketAddr::V6(v6)),  Extended::PosInf);
 ///
-/// // SOVXSOV4 is a one-sided ConnL — no `.floor()` method exists.
-/// // `inner` is the surviving lower-side accessor for the L-pair.
-/// let _: SocketAddr = SOVXSOV4.upper(Extended::Finite(v4));
+/// // SOVXSOV4 is a one-sided ConnL — `floor(&SOVXSOV4, ...)` does not
+/// // type-check. `upper` is the surviving L-side accessor.
+/// let _: SocketAddr = connections::conn::upper(&SOVXSOV4, Extended::Finite(v4));
 /// ```
 pub const SOVXSOV4: crate::conn::Conn<SocketAddr, Extended<SocketAddrV4>> = {
     fn ceil(s: SocketAddr) -> Extended<SocketAddrV4> {
@@ -116,15 +116,15 @@ pub const SOVXSOV4: crate::conn::Conn<SocketAddr, Extended<SocketAddrV4>> = {
 /// use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 ///
 /// let v6 = SocketAddrV6::new(Ipv6Addr::LOCALHOST, 80, 0, 0);
-/// assert_eq!(SOVXSOV6.floor(SocketAddr::V6(v6)), Extended::Finite(v6));
+/// assert_eq!(connections::conn::floor(&SOVXSOV6, SocketAddr::V6(v6)), Extended::Finite(v6));
 ///
 /// // V4 input saturates below all V6 values.
 /// let v4 = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 80);
-/// assert_eq!(SOVXSOV6.floor(SocketAddr::V4(v4)), Extended::NegInf);
+/// assert_eq!(connections::conn::floor(&SOVXSOV6, SocketAddr::V4(v4)), Extended::NegInf);
 ///
-/// // SOVXSOV6 is a one-sided ConnR — no `.ceil()` method exists.
-/// // `inner` is the surviving lower-side accessor for the R-pair.
-/// let _: SocketAddr = SOVXSOV6.lower(Extended::Finite(v6));
+/// // SOVXSOV6 is a one-sided ConnR — `ceil(&SOVXSOV6, ...)` does not
+/// // type-check. `lower` is the surviving R-side accessor.
+/// let _: SocketAddr = connections::conn::lower(&SOVXSOV6, Extended::Finite(v6));
 /// ```
 pub const SOVXSOV6: crate::conn::Conn<SocketAddr, Extended<SocketAddrV6>, crate::conn::R> = {
     fn inner(b: Extended<SocketAddrV6>) -> SocketAddr {

@@ -86,14 +86,14 @@ mod tests {
 
     #[test]
     fn u064u128_inner_saturates_at_source_max() {
-        assert_eq!(U064U128.upper(u128::MAX), u64::MAX);
+        assert_eq!(crate::conn::upper(&U064U128, u128::MAX), u64::MAX);
     }
 
     #[test]
     fn i128u128_at_extremes() {
-        assert_eq!(I128U128.ceil(i128::MIN), 0);
-        assert_eq!(I128U128.ceil(i128::MAX), i128::MAX as u128);
-        assert_eq!(I128U128.upper(u128::MAX), i128::MAX);
+        assert_eq!(crate::conn::ceil(&I128U128, i128::MIN), 0);
+        assert_eq!(crate::conn::ceil(&I128U128, i128::MAX), i128::MAX as u128);
+        assert_eq!(crate::conn::upper(&I128U128, u128::MAX), i128::MAX);
     }
 
     // ── NonZero unsigned narrowing (N128N###) spot + property ─────
@@ -164,7 +164,7 @@ mod tests {
         }
         #[test]
         fn u128_be_order_preserving(a in any::<u128>(), b in any::<u128>()) {
-            prop_assert_eq!(a.cmp(&b), U128BE16.ceil(a).cmp(&U128BE16.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&U128BE16, a).cmp(&crate::conn::ceil(&U128BE16, b)));
         }
 
         #[test]
@@ -189,7 +189,7 @@ mod tests {
         }
         #[test]
         fn u128_le_order_preserving(a in any::<u128>(), b in any::<u128>()) {
-            prop_assert_eq!(a.cmp(&b), U128LE16.ceil(a).cmp(&U128LE16.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&U128LE16, a).cmp(&crate::conn::ceil(&U128LE16, b)));
         }
     }
 }

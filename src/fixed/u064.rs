@@ -147,34 +147,40 @@ mod tests {
     #[test]
     fn spot_q63_to_q64() {
         let q63 = FixedU64::<F63>::from_bits(1 << 62);
-        let q64 = Q064Q063.upper(q63);
+        let q64 = crate::conn::upper(&Q064Q063, q63);
         assert_eq!(q64, FixedU64::<F64>::from_bits(1 << 63));
-        assert_eq!(Q064Q063.ceil(q64), q63);
+        assert_eq!(crate::conn::ceil(&Q064Q063, q64), q63);
     }
 
     #[test]
     fn spot_q032q016_on_grid() {
         let q3232 = FixedU64::<F32>::from_bits(6_442_450_944);
-        assert_eq!(Q032Q016.ceil(q3232), FixedU64::<F16>::from_bits(98304));
-        assert_eq!(Q032Q016.upper(FixedU64::<F16>::from_bits(98304)), q3232);
+        assert_eq!(
+            crate::conn::ceil(&Q032Q016, q3232),
+            FixedU64::<F16>::from_bits(98304)
+        );
+        assert_eq!(
+            crate::conn::upper(&Q032Q016, FixedU64::<F16>::from_bits(98304)),
+            q3232
+        );
     }
 
     #[test]
     fn spot_q064q000_degenerate() {
         assert_eq!(
-            Q064Q000.upper(FixedU64::<F0>::from_bits(0)),
+            crate::conn::upper(&Q064Q000, FixedU64::<F0>::from_bits(0)),
             FixedU64::<F64>::from_bits(0),
         );
         assert_eq!(
-            Q064Q000.upper(FixedU64::<F0>::from_bits(1)),
+            crate::conn::upper(&Q064Q000, FixedU64::<F0>::from_bits(1)),
             FixedU64::<F64>::from_bits(u64::MAX),
         );
         assert_eq!(
-            Q064Q000.ceil(FixedU64::<F64>::from_bits(0)),
+            crate::conn::ceil(&Q064Q000, FixedU64::<F64>::from_bits(0)),
             FixedU64::<F0>::from_bits(0),
         );
         assert_eq!(
-            Q064Q000.ceil(FixedU64::<F64>::from_bits(1)),
+            crate::conn::ceil(&Q064Q000, FixedU64::<F64>::from_bits(1)),
             FixedU64::<F0>::from_bits(1),
         );
     }
@@ -182,20 +188,29 @@ mod tests {
     #[test]
     fn spot_boundary_fixups() {
         let fmin = FixedU64::<F32>::from_bits(0);
-        assert_eq!(Q032Q016.ceil(fmin), FixedU64::<F16>::from_bits(0));
+        assert_eq!(
+            crate::conn::ceil(&Q032Q016, fmin),
+            FixedU64::<F16>::from_bits(0)
+        );
     }
 
     #[test]
     fn f064q000_above_max_to_posinf() {
         let above_max = u64::MAX as f64; // = 2^64
         let v = crate::float::ExtendedFloat::Extend(above_max);
-        assert_eq!(F064Q000.ceil(v), crate::extended::Extended::PosInf);
+        assert_eq!(
+            crate::conn::ceil(&F064Q000, v),
+            crate::extended::Extended::PosInf
+        );
     }
 
     #[test]
     fn f064q008_above_max_to_posinf() {
         let above_max = (u64::MAX as f64) / 256.0_f64; // = 2^56
         let v = crate::float::ExtendedFloat::Extend(above_max);
-        assert_eq!(F064Q008.ceil(v), crate::extended::Extended::PosInf);
+        assert_eq!(
+            crate::conn::ceil(&F064Q008, v),
+            crate::extended::Extended::PosInf
+        );
     }
 }

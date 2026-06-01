@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn f016u008_exact() {
         assert_eq!(
-            F016U008.ceil(ExtendedFloat::Extend(42.0_f16)),
+            crate::conn::ceil(&F016U008, ExtendedFloat::Extend(42.0_f16)),
             Extended::Finite(42_u8),
         );
     }
@@ -316,7 +316,7 @@ mod tests {
     #[test]
     fn f016u016_max_finite_f16_in_range() {
         assert_eq!(
-            F016U016.ceil(ExtendedFloat::Extend(f16::MAX)),
+            crate::conn::ceil(&F016U016, ExtendedFloat::Extend(f16::MAX)),
             Extended::Finite(65504_u16),
         );
     }
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn f016i008_saturate() {
         let huge = ExtendedFloat::Extend(1000.0_f16);
-        assert_eq!(F016I008.ceil(huge), Extended::PosInf);
+        assert_eq!(crate::conn::ceil(&F016I008, huge), Extended::PosInf);
     }
 
     crate::law_battery! { mod laws_u008, conn: F016U008, fine: ef16(), coarse: arb_extended_u8(), }

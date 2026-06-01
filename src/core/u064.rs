@@ -91,28 +91,28 @@ mod tests {
 
     #[test]
     fn u032u064_inner_saturates_at_source_max() {
-        assert_eq!(U032U064.upper(u64::MAX), u32::MAX);
+        assert_eq!(crate::conn::upper(&U032U064, u64::MAX), u32::MAX);
     }
 
     #[test]
     fn i064u064_at_extremes() {
-        assert_eq!(I064U064.ceil(i64::MIN), 0);
-        assert_eq!(I064U064.ceil(i64::MAX), i64::MAX as u64);
-        assert_eq!(I064U064.upper(u64::MAX), i64::MAX);
+        assert_eq!(crate::conn::ceil(&I064U064, i64::MIN), 0);
+        assert_eq!(crate::conn::ceil(&I064U064, i64::MAX), i64::MAX as u64);
+        assert_eq!(crate::conn::upper(&I064U064, u64::MAX), i64::MAX);
     }
 
     #[test]
     fn u128u064_saturate_and_fixup() {
-        assert_eq!(U128U064.ceil(u128::MAX), u64::MAX);
-        assert_eq!(U128U064.upper(u64::MAX), u128::MAX);
-        assert_eq!(U128U064.upper(0), 0_u128);
+        assert_eq!(crate::conn::ceil(&U128U064, u128::MAX), u64::MAX);
+        assert_eq!(crate::conn::upper(&U128U064, u64::MAX), u128::MAX);
+        assert_eq!(crate::conn::upper(&U128U064, 0), 0_u128);
     }
 
     #[test]
     fn i128u064_neg_high_fixup() {
-        assert_eq!(I128U064.ceil(i128::MIN), 0);
-        assert_eq!(I128U064.ceil(i128::MAX), u64::MAX);
-        assert_eq!(I128U064.upper(u64::MAX), i128::MAX);
+        assert_eq!(crate::conn::ceil(&I128U064, i128::MIN), 0);
+        assert_eq!(crate::conn::ceil(&I128U064, i128::MAX), u64::MAX);
+        assert_eq!(crate::conn::upper(&I128U064, u64::MAX), i128::MAX);
     }
 
     // ── NonZero unsigned narrowing (N064N###) spot + property ─────
@@ -176,7 +176,7 @@ mod tests {
         }
         #[test]
         fn u64_be_order_preserving(a in any::<u64>(), b in any::<u64>()) {
-            prop_assert_eq!(a.cmp(&b), U064BE08.ceil(a).cmp(&U064BE08.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&U064BE08, a).cmp(&crate::conn::ceil(&U064BE08, b)));
         }
 
         #[test]
@@ -206,7 +206,7 @@ mod tests {
 
         #[test]
         fn u064_le_order_preserving(a in any::<u64>(), b in any::<u64>()) {
-            prop_assert_eq!(a.cmp(&b), U064LE08.ceil(a).cmp(&U064LE08.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&U064LE08, a).cmp(&crate::conn::ceil(&U064LE08, b)));
         }
     }
 }

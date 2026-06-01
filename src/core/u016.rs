@@ -91,22 +91,22 @@ mod tests {
 
     #[test]
     fn u008u016_ceil_widens_losslessly() {
-        assert_eq!(U008U016.ceil(0u8), 0u16);
-        assert_eq!(U008U016.ceil(u8::MAX), u8::MAX as u16);
+        assert_eq!(crate::conn::ceil(&U008U016, 0u8), 0u16);
+        assert_eq!(crate::conn::ceil(&U008U016, u8::MAX), u8::MAX as u16);
     }
 
     #[test]
     fn u008u016_inner_saturates_at_source_max() {
-        assert_eq!(U008U016.upper(u16::MAX), u8::MAX);
-        assert_eq!(U008U016.upper(50), 50);
+        assert_eq!(crate::conn::upper(&U008U016, u16::MAX), u8::MAX);
+        assert_eq!(crate::conn::upper(&U008U016, 50), 50);
     }
 
     #[test]
     fn i016u016_galois_at_mid_positive() {
         for (a, b) in [(50i16, 100u16), (50i16, 49u16), (100i16, 100u16)] {
             assert_eq!(
-                I016U016.ceil(a) <= b,
-                a <= I016U016.upper(b),
+                crate::conn::ceil(&I016U016, a) <= b,
+                a <= crate::conn::upper(&I016U016, b),
                 "I016U016 galois_upper @ ({a}, {b})"
             );
         }
@@ -114,28 +114,28 @@ mod tests {
 
     #[test]
     fn i008u016_inner_saturates() {
-        assert_eq!(I008U016.upper(u16::MAX), i8::MAX);
-        assert_eq!(I008U016.upper(127), 127);
+        assert_eq!(crate::conn::upper(&I008U016, u16::MAX), i8::MAX);
+        assert_eq!(crate::conn::upper(&I008U016, 127), 127);
     }
 
     #[test]
     fn u_to_u16_saturate_and_fixup() {
-        assert_eq!(U032U016.ceil(u32::MAX), u16::MAX);
-        assert_eq!(U128U016.ceil(u128::MAX), u16::MAX);
-        assert_eq!(U032U016.upper(u16::MAX), u32::MAX);
-        assert_eq!(U064U016.upper(u16::MAX), u64::MAX);
-        assert_eq!(U128U016.upper(u16::MAX), u128::MAX);
-        assert_eq!(U032U016.upper(60_000), 60_000_u32);
+        assert_eq!(crate::conn::ceil(&U032U016, u32::MAX), u16::MAX);
+        assert_eq!(crate::conn::ceil(&U128U016, u128::MAX), u16::MAX);
+        assert_eq!(crate::conn::upper(&U032U016, u16::MAX), u32::MAX);
+        assert_eq!(crate::conn::upper(&U064U016, u16::MAX), u64::MAX);
+        assert_eq!(crate::conn::upper(&U128U016, u16::MAX), u128::MAX);
+        assert_eq!(crate::conn::upper(&U032U016, 60_000), 60_000_u32);
     }
 
     #[test]
     fn i_to_u16_neg_high_fixup() {
-        assert_eq!(I032U016.ceil(-1), 0);
-        assert_eq!(I032U016.ceil(i32::MIN), 0);
-        assert_eq!(I032U016.ceil(i32::MAX), u16::MAX);
-        assert_eq!(I128U016.ceil(i128::MAX), u16::MAX);
-        assert_eq!(I032U016.upper(u16::MAX), i32::MAX);
-        assert_eq!(I128U016.upper(u16::MAX), i128::MAX);
+        assert_eq!(crate::conn::ceil(&I032U016, -1), 0);
+        assert_eq!(crate::conn::ceil(&I032U016, i32::MIN), 0);
+        assert_eq!(crate::conn::ceil(&I032U016, i32::MAX), u16::MAX);
+        assert_eq!(crate::conn::ceil(&I128U016, i128::MAX), u16::MAX);
+        assert_eq!(crate::conn::upper(&I032U016, u16::MAX), i32::MAX);
+        assert_eq!(crate::conn::upper(&I128U016, u16::MAX), i128::MAX);
     }
 
     // ── NonZero unsigned narrowing (N016N008) spot + property ─────
@@ -152,12 +152,21 @@ mod tests {
         let big = NonZeroU16::new(u16::MAX).unwrap();
         let just_above = NonZeroU16::new(u8::MAX as u16 + 1).unwrap();
         let in_range = NonZeroU16::new(42).unwrap();
-        assert_eq!(N016N008.ceil(big), NonZeroU8::new(u8::MAX).unwrap());
-        assert_eq!(N016N008.ceil(just_above), NonZeroU8::new(u8::MAX).unwrap());
-        assert_eq!(N016N008.ceil(in_range), NonZeroU8::new(42).unwrap());
+        assert_eq!(
+            crate::conn::ceil(&N016N008, big),
+            NonZeroU8::new(u8::MAX).unwrap()
+        );
+        assert_eq!(
+            crate::conn::ceil(&N016N008, just_above),
+            NonZeroU8::new(u8::MAX).unwrap()
+        );
+        assert_eq!(
+            crate::conn::ceil(&N016N008, in_range),
+            NonZeroU8::new(42).unwrap()
+        );
         // FINE_MAX fixup: inner(NZ(u8::MAX)) = NZ(u16::MAX)
         assert_eq!(
-            N016N008.upper(NonZeroU8::new(u8::MAX).unwrap()),
+            crate::conn::upper(&N016N008, NonZeroU8::new(u8::MAX).unwrap()),
             NonZeroU16::new(u16::MAX).unwrap()
         );
     }
@@ -200,7 +209,7 @@ mod tests {
         }
         #[test]
         fn u16_be_order_preserving(a in any::<u16>(), b in any::<u16>()) {
-            prop_assert_eq!(a.cmp(&b), U016BE02.ceil(a).cmp(&U016BE02.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&U016BE02, a).cmp(&crate::conn::ceil(&U016BE02, b)));
         }
 
         #[test]
@@ -230,7 +239,7 @@ mod tests {
 
         #[test]
         fn u016_le_order_preserving(a in any::<u16>(), b in any::<u16>()) {
-            prop_assert_eq!(a.cmp(&b), U016LE02.ceil(a).cmp(&U016LE02.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&U016LE02, a).cmp(&crate::conn::ceil(&U016LE02, b)));
         }
     }
 }

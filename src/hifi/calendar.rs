@@ -80,8 +80,8 @@ crate::conn_l! {
     /// `Extended::PosInf` (u8 ≥ 13).
     ///
     /// **Diverges from `MonthName::from(u8)`'s default-on-error
-    /// semantics:** `MONTU008.upper(0)` returns `NegInf`, not
-    /// `Finite(January)`. `MONTU008.upper(13)` returns `PosInf`, not
+    /// semantics:** `connections::conn::upper(&MONTU008, 0)` returns `NegInf`, not
+    /// `Finite(January)`. `connections::conn::upper(&MONTU008, 13)` returns `PosInf`, not
     /// `Finite(January)`. Callers wanting hifitime's defaulting
     /// behavior call `MonthName::from(u8)` directly.
     ///
@@ -92,15 +92,15 @@ crate::conn_l! {
     /// use connections::extended::Extended;
     /// use hifitime::MonthName;
     ///
-    /// assert_eq!(MONTU008.ceil(Extended::Finite(MonthName::January)), 1);
-    /// assert_eq!(MONTU008.ceil(Extended::Finite(MonthName::December)), 12);
-    /// assert_eq!(MONTU008.upper(6), Extended::Finite(MonthName::June));
+    /// assert_eq!(connections::conn::ceil(&MONTU008, Extended::Finite(MonthName::January)), 1);
+    /// assert_eq!(connections::conn::ceil(&MONTU008, Extended::Finite(MonthName::December)), 12);
+    /// assert_eq!(connections::conn::upper(&MONTU008, 6), Extended::Finite(MonthName::June));
     ///
     /// // Out-of-range u8 values saturate.
-    /// assert_eq!(MONTU008.upper(0), Extended::NegInf);
-    /// assert_eq!(MONTU008.upper(13), Extended::PosInf);
-    /// assert_eq!(MONTU008.ceil(Extended::NegInf), 0);
-    /// assert_eq!(MONTU008.ceil(Extended::PosInf), 13);
+    /// assert_eq!(connections::conn::upper(&MONTU008, 0), Extended::NegInf);
+    /// assert_eq!(connections::conn::upper(&MONTU008, 13), Extended::PosInf);
+    /// assert_eq!(connections::conn::ceil(&MONTU008, Extended::NegInf), 0);
+    /// assert_eq!(connections::conn::ceil(&MONTU008, Extended::PosInf), 13);
     /// ```
     pub MONTU008 : Extended<MonthName> => u8 {
         ceil:  montu008_ceil,
@@ -163,14 +163,14 @@ crate::conn_l! {
     /// use hifitime::MonthName;
     ///
     /// let one = NonZeroU8::new(1).unwrap();
-    /// assert_eq!(MONTN008.ceil(Extended::Finite(MonthName::January)), one);
+    /// assert_eq!(connections::conn::ceil(&MONTN008, Extended::Finite(MonthName::January)), one);
     ///
     /// let twelve = NonZeroU8::new(12).unwrap();
-    /// assert_eq!(MONTN008.ceil(Extended::Finite(MonthName::December)), twelve);
+    /// assert_eq!(connections::conn::ceil(&MONTN008, Extended::Finite(MonthName::December)), twelve);
     ///
     /// // NonZeroU8 > 12 saturates.
     /// let thirteen = NonZeroU8::new(13).unwrap();
-    /// assert_eq!(MONTN008.upper(thirteen), Extended::PosInf);
+    /// assert_eq!(connections::conn::upper(&MONTN008, thirteen), Extended::PosInf);
     /// ```
     pub MONTN008 : Extended<MonthName> => NonZeroU8 {
         ceil:  montn008_ceil,
@@ -219,7 +219,7 @@ crate::conn_l! {
     /// via `rem_euclid(7)`.
     ///
     /// **Diverges from `Weekday::from(u8)`'s wrapping semantics:**
-    /// `WKDYU008.upper(7)` returns `PosInf`, not `Finite(Monday)`.
+    /// `connections::conn::upper(&WKDYU008, 7)` returns `PosInf`, not `Finite(Monday)`.
     /// The wrap is mathematically meaningful for circular date math
     /// but breaks Galois-L's monotonicity, so this Conn intentionally
     /// rejects out-of-range integers. Callers wanting wrapping use
@@ -235,14 +235,14 @@ crate::conn_l! {
     /// use connections::extended::Extended;
     /// use hifitime::Weekday;
     ///
-    /// assert_eq!(WKDYU008.ceil(Extended::Finite(Weekday::Monday)), 0);
-    /// assert_eq!(WKDYU008.ceil(Extended::Finite(Weekday::Sunday)), 6);
-    /// assert_eq!(WKDYU008.upper(3), Extended::Finite(Weekday::Thursday));
+    /// assert_eq!(connections::conn::ceil(&WKDYU008, Extended::Finite(Weekday::Monday)), 0);
+    /// assert_eq!(connections::conn::ceil(&WKDYU008, Extended::Finite(Weekday::Sunday)), 6);
+    /// assert_eq!(connections::conn::upper(&WKDYU008, 3), Extended::Finite(Weekday::Thursday));
     ///
     /// // u8 ≥ 7 saturates (NOT a wrap to Monday).
-    /// assert_eq!(WKDYU008.upper(7), Extended::PosInf);
-    /// assert_eq!(WKDYU008.upper(255), Extended::PosInf);
-    /// assert_eq!(WKDYU008.ceil(Extended::PosInf), 7);
+    /// assert_eq!(connections::conn::upper(&WKDYU008, 7), Extended::PosInf);
+    /// assert_eq!(connections::conn::upper(&WKDYU008, 255), Extended::PosInf);
+    /// assert_eq!(connections::conn::ceil(&WKDYU008, Extended::PosInf), 7);
     /// ```
     pub WKDYU008 : Extended<Weekday> => u8 {
         ceil:  wkdyu008_ceil,
@@ -298,34 +298,46 @@ mod tests {
 
     #[test]
     fn montu008_january_is_one() {
-        assert_eq!(MONTU008.ceil(Extended::Finite(MonthName::January)), 1);
-        assert_eq!(MONTU008.upper(1), Extended::Finite(MonthName::January));
+        assert_eq!(
+            crate::conn::ceil(&MONTU008, Extended::Finite(MonthName::January)),
+            1
+        );
+        assert_eq!(
+            crate::conn::upper(&MONTU008, 1),
+            Extended::Finite(MonthName::January)
+        );
     }
 
     #[test]
     fn montu008_december_is_twelve() {
-        assert_eq!(MONTU008.ceil(Extended::Finite(MonthName::December)), 12);
-        assert_eq!(MONTU008.upper(12), Extended::Finite(MonthName::December));
+        assert_eq!(
+            crate::conn::ceil(&MONTU008, Extended::Finite(MonthName::December)),
+            12
+        );
+        assert_eq!(
+            crate::conn::upper(&MONTU008, 12),
+            Extended::Finite(MonthName::December)
+        );
     }
 
     #[test]
     fn montu008_zero_saturates_neg_inf() {
         // u8=0 < smallest valid month — saturates to NegInf, NOT
         // defaulting to January via MonthName::from(0).
-        assert_eq!(MONTU008.upper(0), Extended::NegInf);
+        assert_eq!(crate::conn::upper(&MONTU008, 0), Extended::NegInf);
     }
 
     #[test]
     fn montu008_thirteen_saturates_pos_inf() {
         // u8=13 > largest valid month — saturates to PosInf, NOT
         // defaulting to January via MonthName::from(13).
-        assert_eq!(MONTU008.upper(13), Extended::PosInf);
+        assert_eq!(crate::conn::upper(&MONTU008, 13), Extended::PosInf);
     }
 
     #[test]
     fn montu008_extended_extremes() {
-        assert_eq!(MONTU008.ceil(Extended::NegInf), 0);
-        assert_eq!(MONTU008.ceil(Extended::PosInf), 13);
+        assert_eq!(crate::conn::ceil(&MONTU008, Extended::NegInf), 0);
+        assert_eq!(crate::conn::ceil(&MONTU008, Extended::PosInf), 13);
     }
 
     #[test]
@@ -346,34 +358,40 @@ mod tests {
         ];
         for (i, &m) in months.iter().enumerate() {
             let canon = (i + 1) as u8;
-            assert_eq!(MONTU008.ceil(Extended::Finite(m)), canon);
-            assert_eq!(MONTU008.upper(canon), Extended::Finite(m));
+            assert_eq!(crate::conn::ceil(&MONTU008, Extended::Finite(m)), canon);
+            assert_eq!(crate::conn::upper(&MONTU008, canon), Extended::Finite(m));
         }
     }
 
     #[test]
     fn montn008_january_is_nonzero_one() {
         let one = NonZeroU8::new(1).unwrap();
-        assert_eq!(MONTN008.ceil(Extended::Finite(MonthName::January)), one);
+        assert_eq!(
+            crate::conn::ceil(&MONTN008, Extended::Finite(MonthName::January)),
+            one
+        );
     }
 
     #[test]
     fn montn008_december_is_nonzero_twelve() {
         let twelve = NonZeroU8::new(12).unwrap();
-        assert_eq!(MONTN008.ceil(Extended::Finite(MonthName::December)), twelve);
+        assert_eq!(
+            crate::conn::ceil(&MONTN008, Extended::Finite(MonthName::December)),
+            twelve
+        );
     }
 
     #[test]
     fn montn008_thirteen_saturates_pos_inf() {
         let thirteen = NonZeroU8::new(13).unwrap();
-        assert_eq!(MONTN008.upper(thirteen), Extended::PosInf);
+        assert_eq!(crate::conn::upper(&MONTN008, thirteen), Extended::PosInf);
     }
 
     #[test]
     fn montn008_neg_inf_collapses_to_one() {
         // NonZeroU8 has no sub-1 sentinel; NegInf collapses to 1.
         let one = NonZeroU8::new(1).unwrap();
-        assert_eq!(MONTN008.ceil(Extended::NegInf), one);
+        assert_eq!(crate::conn::ceil(&MONTN008, Extended::NegInf), one);
     }
 
     #[test]
@@ -384,32 +402,47 @@ mod tests {
         // (`inner(1) → NegInf`) would silently break the round-trip
         // round-trip while still satisfying monotonicity.
         let one = NonZeroU8::new(1).unwrap();
-        assert_eq!(MONTN008.upper(one), Extended::Finite(MonthName::January),);
+        assert_eq!(
+            crate::conn::upper(&MONTN008, one),
+            Extended::Finite(MonthName::January),
+        );
     }
 
     #[test]
     fn wkdyu008_monday_is_zero() {
-        assert_eq!(WKDYU008.ceil(Extended::Finite(Weekday::Monday)), 0);
-        assert_eq!(WKDYU008.upper(0), Extended::Finite(Weekday::Monday));
+        assert_eq!(
+            crate::conn::ceil(&WKDYU008, Extended::Finite(Weekday::Monday)),
+            0
+        );
+        assert_eq!(
+            crate::conn::upper(&WKDYU008, 0),
+            Extended::Finite(Weekday::Monday)
+        );
     }
 
     #[test]
     fn wkdyu008_sunday_is_six() {
-        assert_eq!(WKDYU008.ceil(Extended::Finite(Weekday::Sunday)), 6);
-        assert_eq!(WKDYU008.upper(6), Extended::Finite(Weekday::Sunday));
+        assert_eq!(
+            crate::conn::ceil(&WKDYU008, Extended::Finite(Weekday::Sunday)),
+            6
+        );
+        assert_eq!(
+            crate::conn::upper(&WKDYU008, 6),
+            Extended::Finite(Weekday::Sunday)
+        );
     }
 
     #[test]
     fn wkdyu008_seven_saturates_pos_inf() {
         // u8=7 — hifitime wraps to Monday via rem_euclid; we saturate
         // to PosInf to preserve Galois-L monotonicity.
-        assert_eq!(WKDYU008.upper(7), Extended::PosInf);
+        assert_eq!(crate::conn::upper(&WKDYU008, 7), Extended::PosInf);
     }
 
     #[test]
     fn wkdyu008_neg_inf_collapses_to_zero() {
         // u8 has no sub-0 sentinel; NegInf collapses to 0 (Monday's slot).
-        assert_eq!(WKDYU008.ceil(Extended::NegInf), 0);
+        assert_eq!(crate::conn::ceil(&WKDYU008, Extended::NegInf), 0);
     }
 
     #[test]
@@ -425,8 +458,8 @@ mod tests {
         ];
         for (i, &w) in weekdays.iter().enumerate() {
             let canon = i as u8;
-            assert_eq!(WKDYU008.ceil(Extended::Finite(w)), canon);
-            assert_eq!(WKDYU008.upper(canon), Extended::Finite(w));
+            assert_eq!(crate::conn::ceil(&WKDYU008, Extended::Finite(w)), canon);
+            assert_eq!(crate::conn::upper(&WKDYU008, canon), Extended::Finite(w));
         }
     }
 

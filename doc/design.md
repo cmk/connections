@@ -490,9 +490,9 @@ finite values with elevated frequency.
 ## Cast: L/R as a naming axis, not a type axis
 
 The Haskell library exposes operations on a connection through two
-mirror APIs: `ceiling`/`upper`/`upper1`/`upper2` (L-side, takes
-`Cast 'L a b`) and `floor`/`lower`/`lower1`/`lower2` (R-side, takes
-`Cast 'R a b`). The phantom `Side` index `'L` / `'R` prevents
+mirror APIs: `ceiling`/`upper` (L-side, takes `Cast 'L a b`) and
+`floor`/`lower` (R-side, takes `Cast 'R a b`). The phantom `Side`
+index `'L` / `'R` prevents
 accessing the wrong arm at compile time even though both sides of a
 connection share one runtime representation.
 

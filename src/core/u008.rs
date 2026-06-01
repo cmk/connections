@@ -52,11 +52,10 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ConnL, ConnR};
     /// use connections::core::u008::U008BE01;
     ///
-    /// assert_eq!(U008BE01.ceil(0x42_u8), [0x42]);
-    /// assert_eq!(U008BE01.upper([0x42]), 0x42_u8);
+    /// assert_eq!(connections::conn::ceil(&U008BE01, 0x42_u8), [0x42]);
+    /// assert_eq!(connections::conn::upper(&U008BE01, [0x42]), 0x42_u8);
     /// ```
     pub U008BE01 : u8 => [u8; 1] {
         forward: u8_to_be01,
@@ -102,61 +101,61 @@ mod tests {
 
     #[test]
     fn i008u008_ceil_clips_negatives_to_zero() {
-        assert_eq!(I008U008.ceil(-5), 0);
-        assert_eq!(I008U008.ceil(i8::MIN), 0);
+        assert_eq!(crate::conn::ceil(&I008U008, -5), 0);
+        assert_eq!(crate::conn::ceil(&I008U008, i8::MIN), 0);
     }
 
     #[test]
     fn i008u008_ceil_passes_non_negative() {
-        assert_eq!(I008U008.ceil(0), 0);
-        assert_eq!(I008U008.ceil(127), 127);
+        assert_eq!(crate::conn::ceil(&I008U008, 0), 0);
+        assert_eq!(crate::conn::ceil(&I008U008, 127), 127);
     }
 
     #[test]
     fn i008u008_inner_saturates_at_source_max() {
-        assert_eq!(I008U008.upper(u8::MAX), i8::MAX);
-        assert_eq!(I008U008.upper(127), 127);
-        assert_eq!(I008U008.upper(50), 50);
+        assert_eq!(crate::conn::upper(&I008U008, u8::MAX), i8::MAX);
+        assert_eq!(crate::conn::upper(&I008U008, 127), 127);
+        assert_eq!(crate::conn::upper(&I008U008, 50), 50);
     }
 
     #[test]
     fn u_to_u8_saturate() {
-        assert_eq!(U016U008.ceil(u16::MAX), u8::MAX);
-        assert_eq!(U032U008.ceil(u32::MAX), u8::MAX);
-        assert_eq!(U064U008.ceil(u64::MAX), u8::MAX);
-        assert_eq!(U128U008.ceil(u128::MAX), u8::MAX);
+        assert_eq!(crate::conn::ceil(&U016U008, u16::MAX), u8::MAX);
+        assert_eq!(crate::conn::ceil(&U032U008, u32::MAX), u8::MAX);
+        assert_eq!(crate::conn::ceil(&U064U008, u64::MAX), u8::MAX);
+        assert_eq!(crate::conn::ceil(&U128U008, u128::MAX), u8::MAX);
     }
 
     #[test]
     fn u_to_u8_inner_fine_max_fixup() {
-        assert_eq!(U016U008.upper(u8::MAX), u16::MAX);
-        assert_eq!(U032U008.upper(u8::MAX), u32::MAX);
-        assert_eq!(U064U008.upper(u8::MAX), u64::MAX);
-        assert_eq!(U128U008.upper(u8::MAX), u128::MAX);
-        assert_eq!(U016U008.upper(0), 0_u16);
-        assert_eq!(U016U008.upper(254), 254_u16);
+        assert_eq!(crate::conn::upper(&U016U008, u8::MAX), u16::MAX);
+        assert_eq!(crate::conn::upper(&U032U008, u8::MAX), u32::MAX);
+        assert_eq!(crate::conn::upper(&U064U008, u8::MAX), u64::MAX);
+        assert_eq!(crate::conn::upper(&U128U008, u8::MAX), u128::MAX);
+        assert_eq!(crate::conn::upper(&U016U008, 0), 0_u16);
+        assert_eq!(crate::conn::upper(&U016U008, 254), 254_u16);
     }
 
     #[test]
     fn i_to_u8_neg_clip() {
-        assert_eq!(I016U008.ceil(-1), 0);
-        assert_eq!(I016U008.ceil(i16::MIN), 0);
-        assert_eq!(I128U008.ceil(i128::MIN), 0);
+        assert_eq!(crate::conn::ceil(&I016U008, -1), 0);
+        assert_eq!(crate::conn::ceil(&I016U008, i16::MIN), 0);
+        assert_eq!(crate::conn::ceil(&I128U008, i128::MIN), 0);
     }
 
     #[test]
     fn i_to_u8_high_saturate() {
-        assert_eq!(I016U008.ceil(i16::MAX), u8::MAX);
-        assert_eq!(I032U008.ceil(i32::MAX), u8::MAX);
-        assert_eq!(I128U008.ceil(i128::MAX), u8::MAX);
+        assert_eq!(crate::conn::ceil(&I016U008, i16::MAX), u8::MAX);
+        assert_eq!(crate::conn::ceil(&I032U008, i32::MAX), u8::MAX);
+        assert_eq!(crate::conn::ceil(&I128U008, i128::MAX), u8::MAX);
     }
 
     #[test]
     fn i_to_u8_inner_fine_max_fixup() {
-        assert_eq!(I016U008.upper(u8::MAX), i16::MAX);
-        assert_eq!(I128U008.upper(u8::MAX), i128::MAX);
-        assert_eq!(I016U008.upper(0), 0_i16);
-        assert_eq!(I016U008.upper(100), 100_i16);
+        assert_eq!(crate::conn::upper(&I016U008, u8::MAX), i16::MAX);
+        assert_eq!(crate::conn::upper(&I128U008, u8::MAX), i128::MAX);
+        assert_eq!(crate::conn::upper(&I016U008, 0), 0_i16);
+        assert_eq!(crate::conn::upper(&I016U008, 100), 100_i16);
     }
 
     // ── §3 u8 ↔ NonZeroU8 spot checks ──────────────────────────────
@@ -164,14 +163,14 @@ mod tests {
     #[test]
     fn u008n008_zero_saturates_to_one() {
         let one = NonZeroU8::new(1).unwrap();
-        assert_eq!(U008N008.ceil(0_u8), one);
+        assert_eq!(crate::conn::ceil(&U008N008, 0_u8), one);
     }
 
     #[test]
     fn u008n008_nonzero_round_trip() {
         for &v in &[1, 50, u8::MAX] {
             let nz = NonZeroU8::new(v).unwrap();
-            assert_eq!(U008N008.ceil(v), nz);
+            assert_eq!(crate::conn::ceil(&U008N008, v), nz);
         }
     }
 
@@ -179,7 +178,7 @@ mod tests {
     fn u008n008_inner_is_total_embedding() {
         for &v in &[1, 50, u8::MAX] {
             let nz = NonZeroU8::new(v).unwrap();
-            assert_eq!(U008N008.upper(nz), v);
+            assert_eq!(crate::conn::upper(&U008N008, nz), v);
         }
     }
 
@@ -195,7 +194,7 @@ mod tests {
 
         #[test]
         fn u008n008_inner_then_ceil_recovers_nonzero(nz in arb_nz_u8()) {
-            prop_assert_eq!(U008N008.ceil(U008N008.upper(nz)), nz);
+            prop_assert_eq!(crate::conn::ceil(&U008N008, crate::conn::upper(&U008N008, nz)), nz);
         }
     }
 
@@ -205,21 +204,36 @@ mod tests {
     fn n008n016_widens_losslessly_at_boundary() {
         let one = NonZeroU8::new(1).unwrap();
         let max = NonZeroU8::new(u8::MAX).unwrap();
-        assert_eq!(N008N016.ceil(one), NonZeroU16::new(1).unwrap());
-        assert_eq!(N008N016.ceil(max), NonZeroU16::new(u8::MAX as u16).unwrap());
+        assert_eq!(
+            crate::conn::ceil(&N008N016, one),
+            NonZeroU16::new(1).unwrap()
+        );
+        assert_eq!(
+            crate::conn::ceil(&N008N016, max),
+            NonZeroU16::new(u8::MAX as u16).unwrap()
+        );
     }
 
     #[test]
     fn n008n016_inner_saturates_above_source_max() {
         // Any NonZeroU16 above u8::MAX saturates to NonZeroU8::MAX.
         let big = NonZeroU16::new(u16::MAX).unwrap();
-        assert_eq!(N008N016.upper(big), NonZeroU8::new(u8::MAX).unwrap());
+        assert_eq!(
+            crate::conn::upper(&N008N016, big),
+            NonZeroU8::new(u8::MAX).unwrap()
+        );
         // Just-above-cap saturates too.
         let just_above = NonZeroU16::new(u8::MAX as u16 + 1).unwrap();
-        assert_eq!(N008N016.upper(just_above), NonZeroU8::new(u8::MAX).unwrap());
+        assert_eq!(
+            crate::conn::upper(&N008N016, just_above),
+            NonZeroU8::new(u8::MAX).unwrap()
+        );
         // In-range survives.
         let in_range = NonZeroU16::new(42).unwrap();
-        assert_eq!(N008N016.upper(in_range), NonZeroU8::new(42).unwrap());
+        assert_eq!(
+            crate::conn::upper(&N008N016, in_range),
+            NonZeroU8::new(42).unwrap()
+        );
     }
 
     fn arb_nz_u16() -> impl Strategy<Value = NonZeroU16> {
@@ -242,7 +256,7 @@ mod tests {
         }
         #[test]
         fn n008n016_round_trip_below_cap(n in arb_nz_u8()) {
-            prop_assert_eq!(N008N016.upper(N008N016.ceil(n)), n);
+            prop_assert_eq!(crate::conn::upper(&N008N016, crate::conn::ceil(&N008N016, n)), n);
         }
         #[test]
         fn n008n032_galois_l(a in arb_nz_u8(), b in arb_nz_u32()) {
@@ -301,7 +315,7 @@ mod tests {
 
         #[test]
         fn u008_be_order_preserving(a in any::<u8>(), b in any::<u8>()) {
-            prop_assert_eq!(a.cmp(&b), U008BE01.ceil(a).cmp(&U008BE01.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&U008BE01, a).cmp(&crate::conn::ceil(&U008BE01, b)));
         }
 
         #[test]
@@ -331,7 +345,7 @@ mod tests {
 
         #[test]
         fn u008_le_order_preserving(a in any::<u8>(), b in any::<u8>()) {
-            prop_assert_eq!(a.cmp(&b), U008LE01.ceil(a).cmp(&U008LE01.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), crate::conn::ceil(&U008LE01, a).cmp(&crate::conn::ceil(&U008LE01, b)));
         }
     }
 }

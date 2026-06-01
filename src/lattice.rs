@@ -382,11 +382,11 @@ pub trait Boolean: Symmetric {}
 /// // `Ordering` impls `Join + Meet` (3-element chain Less < Equal < Greater).
 /// // LATTBOOL returns a one-sided ConnL — only the L-side adjoint laws hold.
 /// let c = LATTBOOL::<Ordering>();
-/// assert_eq!(c.ceil(Ordering::Less),     false); // bot → false
-/// assert_eq!(c.ceil(Ordering::Equal),    true);  // not-bot → true
-/// assert_eq!(c.ceil(Ordering::Greater),  true);
-/// assert_eq!(c.upper(false),                Ordering::Less);
-/// assert_eq!(c.upper(true),                 Ordering::Greater);
+/// assert_eq!(connections::conn::ceil(&c, Ordering::Less),     false); // bot → false
+/// assert_eq!(connections::conn::ceil(&c, Ordering::Equal),    true);  // not-bot → true
+/// assert_eq!(connections::conn::ceil(&c, Ordering::Greater),  true);
+/// assert_eq!(connections::conn::upper(&c, false),                Ordering::Less);
+/// assert_eq!(connections::conn::upper(&c, true),                 Ordering::Greater);
 /// ```
 #[allow(non_snake_case)]
 pub fn LATTBOOL<A>() -> crate::conn::Conn<A, bool>
@@ -556,11 +556,11 @@ mod tests {
     #[test]
     fn lattbool_ordering_spot() {
         let c = LATTBOOL::<Ordering>();
-        assert!(!c.ceil(Ordering::Less));
-        assert!(c.ceil(Ordering::Equal));
-        assert!(c.ceil(Ordering::Greater));
-        assert_eq!(c.upper(false), Ordering::Less);
-        assert_eq!(c.upper(true), Ordering::Greater);
+        assert!(!crate::conn::ceil(&c, Ordering::Less));
+        assert!(crate::conn::ceil(&c, Ordering::Equal));
+        assert!(crate::conn::ceil(&c, Ordering::Greater));
+        assert_eq!(crate::conn::upper(&c, false), Ordering::Less);
+        assert_eq!(crate::conn::upper(&c, true), Ordering::Greater);
     }
 
     proptest! {

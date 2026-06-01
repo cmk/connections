@@ -1,19 +1,39 @@
-error[E0599]: no method named `ceil` found for struct `Conn<i32, i32, R>` in the current scope
+error[E0277]: the trait bound `Conn<i32, i32, R>: ConnL` is not satisfied
   --> tests/compile_fail/compose_l_with_r.rs:13:29
    |
 13 |     let _: Conn<i32, i32> = compose_l!(L_CONN, R_CONN);
-   |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `Conn<i32, i32, R>`
+   |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                             |
+   |                             the trait `ConnL` is not implemented for `Conn<i32, i32, R>`
+   |                             required by a bound introduced by this call
    |
-   = note: the method was found for
-           - `Conn<A, B>`
+   = help: the trait `ConnL` is implemented for `Conn<A, B>`
+note: required by a bound in `connections::conn::ceil`
+  --> src/conn.rs
+   |
+   | pub fn ceil<T, A, B>(t: &T, a: A) -> B
+   |        ---- required by a bound in this function
+   | where
+   |     T: ?Sized + ConnL<A = A, B = B>,
+   |                 ^^^^^^^^^^^^^^^^^^^ required by this bound in `ceil`
    = note: this error originates in the macro `$crate::compose_l` which comes from the expansion of the macro `compose_l` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0599]: no method named `upper` found for struct `Conn<i32, i32, R>` in the current scope
+error[E0277]: the trait bound `Conn<i32, i32, R>: ConnL` is not satisfied
   --> tests/compile_fail/compose_l_with_r.rs:13:29
    |
 13 |     let _: Conn<i32, i32> = compose_l!(L_CONN, R_CONN);
-   |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `Conn<i32, i32, R>`
+   |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                             |
+   |                             the trait `ConnL` is not implemented for `Conn<i32, i32, R>`
+   |                             required by a bound introduced by this call
    |
-   = note: the method was found for
-           - `Conn<A, B>`
+   = help: the trait `ConnL` is implemented for `Conn<A, B>`
+note: required by a bound in `upper`
+  --> src/conn.rs
+   |
+   | pub fn upper<T, A, B>(t: &T, b: B) -> A
+   |        ----- required by a bound in this function
+   | where
+   |     T: ?Sized + ConnL<A = A, B = B>,
+   |                 ^^^^^^^^^^^^^^^^^^^ required by this bound in `upper`
    = note: this error originates in the macro `$crate::compose_l` which comes from the expansion of the macro `compose_l` (in Nightly builds, run with -Z macro-backtrace for more info)

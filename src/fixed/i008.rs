@@ -24,12 +24,12 @@
 //!
 //! // 1.5 in Q3.4 (raw bits 24) ceils up to integer 2 in Q7.0.
 //! let q34 = FixedI8::<U4>::from_bits(24);
-//! assert_eq!(Q004Q000.ceil(q34), FixedI8::<U0>::from_bits(2));
+//! assert_eq!(connections::conn::ceil(&Q004Q000, q34), FixedI8::<U0>::from_bits(2));
 //!
 //! // `inner` widens 1 in Q7.0 back to its Q3.4 representation
 //! // (raw bits 16):
 //! assert_eq!(
-//!     Q004Q000.upper(FixedI8::<U0>::from_bits(1)),
+//!     connections::conn::upper(&Q004Q000, FixedI8::<U0>::from_bits(1)),
 //!     FixedI8::<U4>::from_bits(16),
 //! );
 //! ```
@@ -229,13 +229,19 @@ mod tests {
     fn q000i008_round_trips_both_ways() {
         for &v in &[i8::MIN, -1, 0, 1, 42, i8::MAX] {
             let q = FixedI8::<U0>::from_bits(v);
-            assert_eq!(Q000I008.ceil(q), v);
-            assert_eq!(Q000I008.floor(q), v);
-            assert_eq!(Q000I008.upper(v), q);
-            assert_eq!(Q000I008.lower(v), q);
+            assert_eq!(crate::conn::ceil(&Q000I008, q), v);
+            assert_eq!(crate::conn::floor(&Q000I008, q), v);
+            assert_eq!(crate::conn::upper(&Q000I008, v), q);
+            assert_eq!(crate::conn::lower(&Q000I008, v), q);
             // Iso: ceil ∘ inner = identity, inner ∘ ceil = identity.
-            assert_eq!(Q000I008.ceil(Q000I008.upper(v)), v);
-            assert_eq!(Q000I008.upper(Q000I008.ceil(q)), q);
+            assert_eq!(
+                crate::conn::ceil(&Q000I008, crate::conn::upper(&Q000I008, v)),
+                v
+            );
+            assert_eq!(
+                crate::conn::upper(&Q000I008, crate::conn::ceil(&Q000I008, q)),
+                q
+            );
         }
     }
 
@@ -256,19 +262,19 @@ mod tests {
         #[test]
         fn q000i008_round_trip_both_directions(v in any::<i8>()) {
             let q = FixedI8::<U0>::from_bits(v);
-            prop_assert_eq!(Q000I008.upper(Q000I008.ceil(q)), q);
-            prop_assert_eq!(Q000I008.ceil(Q000I008.upper(v)), v);
-            prop_assert_eq!(Q000I008.lower(Q000I008.floor(q)), q);
-            prop_assert_eq!(Q000I008.floor(Q000I008.lower(v)), v);
+            prop_assert_eq!(crate::conn::upper(&Q000I008, crate::conn::ceil(&Q000I008, q)), q);
+            prop_assert_eq!(crate::conn::ceil(&Q000I008, crate::conn::upper(&Q000I008, v)), v);
+            prop_assert_eq!(crate::conn::lower(&Q000I008, crate::conn::floor(&Q000I008, q)), q);
+            prop_assert_eq!(crate::conn::floor(&Q000I008, crate::conn::lower(&Q000I008, v)), v);
         }
 
         #[test]
         fn q007i008_round_trip_both_directions(v in any::<i8>()) {
             let q = FixedI8::<U7>::from_bits(v);
-            prop_assert_eq!(Q007I008.upper(Q007I008.ceil(q)), q);
-            prop_assert_eq!(Q007I008.ceil(Q007I008.upper(v)), v);
-            prop_assert_eq!(Q007I008.lower(Q007I008.floor(q)), q);
-            prop_assert_eq!(Q007I008.floor(Q007I008.lower(v)), v);
+            prop_assert_eq!(crate::conn::upper(&Q007I008, crate::conn::ceil(&Q007I008, q)), q);
+            prop_assert_eq!(crate::conn::ceil(&Q007I008, crate::conn::upper(&Q007I008, v)), v);
+            prop_assert_eq!(crate::conn::lower(&Q007I008, crate::conn::floor(&Q007I008, q)), q);
+            prop_assert_eq!(crate::conn::floor(&Q007I008, crate::conn::lower(&Q007I008, v)), v);
         }
     }
 
@@ -278,9 +284,12 @@ mod tests {
     fn spot_q004q000_on_grid() {
         // 1.5 in Q4.4 (bits 24) — Q8.0 ceil rounds up to 2.
         let q44 = FixedI8::<U4>::from_bits(24);
-        assert_eq!(Q004Q000.ceil(q44), FixedI8::<U0>::from_bits(2));
         assert_eq!(
-            Q004Q000.upper(FixedI8::<U0>::from_bits(1)),
+            crate::conn::ceil(&Q004Q000, q44),
+            FixedI8::<U0>::from_bits(2)
+        );
+        assert_eq!(
+            crate::conn::upper(&Q004Q000, FixedI8::<U0>::from_bits(1)),
             FixedI8::<U4>::from_bits(16)
         );
     }
@@ -288,7 +297,10 @@ mod tests {
     #[test]
     fn spot_q004q000_negative() {
         let q44 = FixedI8::<U4>::from_bits(-24);
-        assert_eq!(Q004Q000.ceil(q44), FixedI8::<U0>::from_bits(-1));
+        assert_eq!(
+            crate::conn::ceil(&Q004Q000, q44),
+            FixedI8::<U0>::from_bits(-1)
+        );
     }
 
     #[test]
@@ -296,15 +308,15 @@ mod tests {
         // SHIFT = 8, RATIO = 256. Only Coarse(0) round-trips; |bits| ≥ 1
         // saturates inner.
         assert_eq!(
-            Q008Q000.upper(FixedI8::<U0>::from_bits(0)),
+            crate::conn::upper(&Q008Q000, FixedI8::<U0>::from_bits(0)),
             FixedI8::<U8>::from_bits(0),
         );
         assert_eq!(
-            Q008Q000.upper(FixedI8::<U0>::from_bits(1)),
+            crate::conn::upper(&Q008Q000, FixedI8::<U0>::from_bits(1)),
             FixedI8::<U8>::from_bits(i8::MAX),
         );
         assert_eq!(
-            Q008Q000.upper(FixedI8::<U0>::from_bits(-1)),
+            crate::conn::upper(&Q008Q000, FixedI8::<U0>::from_bits(-1)),
             FixedI8::<U8>::from_bits(i8::MIN),
         );
     }
@@ -316,7 +328,10 @@ mod tests {
         // fixup that previously asserted `Coarse::MAX` was removed
         // along with the broken `floor_le_ceil` it created.)
         let fmin = FixedI8::<U4>::from_bits(i8::MIN);
-        assert_eq!(Q004Q000.ceil(fmin), FixedI8::<U0>::from_bits(i8::MIN));
+        assert_eq!(
+            crate::conn::ceil(&Q004Q000, fmin),
+            FixedI8::<U0>::from_bits(i8::MIN)
+        );
     }
 
     // 21 conns × 5 properties = 105 generated proptests, via the

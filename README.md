@@ -24,9 +24,9 @@ This crate is a Rust-native port of the Haskell library [`connections`](https://
 
 # Quick start
 
-Most users only need `.ceil`, `.floor`, and the embedding (`.upper` for
-an L-side or triple Conn, `.lower` for an R-side Conn). The rest of
-this doc explains how those names get earned.
+Most users only need the free functions `ceil`, `floor`, and the
+embedding (`upper` for an L-side or triple Conn, `lower` for an R-side
+Conn). The rest of this doc explains how those names get earned.
 
 ```rust
 use connections::prelude::*;
@@ -34,10 +34,10 @@ use connections::core::B2;
 use connections::core::i016::I016BE02;
 
 let bytes = B2([0x01, 0x02]);
-assert_eq!(I016BE02.ceil(258_i16), bytes);
-assert_eq!(I016BE02.floor(258_i16), bytes);
-assert_eq!(I016BE02.upper(bytes), 258_i16);
-assert_eq!(I016BE02.lower(bytes), 258_i16);
+assert_eq!(ceil(&I016BE02, 258_i16), bytes);
+assert_eq!(floor(&I016BE02, 258_i16), bytes);
+assert_eq!(upper(&I016BE02, bytes), 258_i16);
+assert_eq!(lower(&I016BE02, bytes), 258_i16);
 ```
 
 See [EXAMPLES.md](https://github.com/cmk/connections/blob/main/EXAMPLES.md)
@@ -98,9 +98,9 @@ non-crossing curves between rows 2 and 1, the geometric signature of
 adjointness.
 
 Connections are useful for **lawful conversions** between types: every
-operation derived from a `Conn` (rounding, saturation, midpoint,
-median, ...) carries a property-tested invariant, so chains of conversions
-and round-trips behave predictably according to simple inequalities.
+operation derived from a `Conn` (rounding, saturation, median, ...)
+carries a property-tested invariant, so chains of conversions and
+round-trips behave predictably according to simple inequalities.
 
 ## L & R kind connections
 
@@ -119,8 +119,9 @@ functions `(f, g)` whose adjoint role depends on the kind tag. An
 L-kind Conn satisfies `f(a) ≤ b ⟺ a ≤ g(b)`; an R-kind Conn
 satisfies `g(b) ≤ a ⟺ b ≤ f(a)`.
 
-The kind `K = {L, R}` determines the API. `L`/`ConnL` exposes `.ceil()`
-and `.upper()`, while `R`/`ConnR` exposes `.floor()` and `.lower()`.
+The kind `K = {L, R}` determines which free functions accept a value:
+`L`/`ConnL` works with `ceil` and `upper`, while `R`/`ConnR` works with
+`floor` and `lower`.
 
 The crate keeps two distinct naming axes on purpose:
 
@@ -132,8 +133,9 @@ The crate keeps two distinct naming axes on purpose:
 - **Direction names** — `ceil` (rounds up) and `floor` (rounds down) —
   match downstream intuition. "Give me a ceiling cast" doesn't require
   the caller to know which side of an adjunction they're on. However
-  calling `.floor()` on an L-kind connection, or `ceil` on an R-kind
-  connection results in a compiler error.
+  calling `floor(&l_conn, ...)` on an L-kind connection, or
+  `ceil(&r_conn, ...)` on an R-kind connection results in a compiler
+  error.
 
 > **Note.** One-sided connections ship as `pub const NAME: Conn<A, B, K>`
 > items; the two-sided (triple) form is a `pub struct NAME` marker
@@ -155,10 +157,11 @@ two capability traits, hence the super-trait that ties them together:
 
 - **`ConnL`** — capability trait with associated types `type A: Copy;
   type B: Copy;` and a `conn_l()` projection to the L-view
-  `Conn<A, B, L>`. Default methods expose `.ceil()` and `.upper()`.
+  `Conn<A, B, L>`. The free functions `upper`, `ceil`, `ceil1`,
+  and `ceil2` bind on this trait.
 - **`ConnR`** — symmetric capability trait whose `conn_r()` projects
-  to the R-view `Conn<A, B, R>`. Default methods expose `.floor()`
-  and `.lower()`.
+  to the R-view `Conn<A, B, R>`. The free functions `lower`, `floor`,
+  `floor1`, and `floor2` bind on this trait.
 - **`ConnK`** — super-trait `ConnL + ConnR` over the same `(A, B)`
   pair; the two-sided helpers (`round`, `truncate`, …) bind on
   `ConnK` and reach through both views.
@@ -444,20 +447,23 @@ full tree runs in well under two minutes.
 
 ## API
 
-- L-side methods on `Conn<_, _, L>` (and on any `ConnL` implementor
-  via default-method dispatch): `ceil`, `upper`, plus `ceil1`/`2`,
-  `upper1`/`2` lifters.
-- R-side methods on `Conn<_, _, R>` (and on any `ConnR` implementor):
-  `floor`, `lower`, plus `floor1`/`2`, `lower1`/`2` lifters.
-- Two-sided helpers (re-exported at the crate root): `interval`,
-  `midpoint`, `round`/`round1`/`round2`,
+The canonical helper namespace is `connections::conn`. The
+`connections::prelude` module is an opt-in glob convenience for callers
+who want those helpers as bare names; helper functions are not
+re-exported at the crate root.
+
+- L-side helpers on any `ConnL` implementor: `upper`, `ceil`,
+  `ceil1`, and `ceil2`.
+- R-side helpers on any `ConnR` implementor: `lower`, `floor`,
+  `floor1`, and `floor2`.
+- Two-sided helpers: `interval`, `round`/`round1`/`round2`,
   `truncate`/`truncate1`/`truncate2`, `median`. All bind on
   `T: ConnK` (super-trait of `ConnL + ConnR` over the same `(A, B)`),
   so they're callable only on triple markers — not on one-sided Conns.
 
-Kind discipline is structural: calling `.floor(...)` on an L-kind
-Conn is a compile error (the method only exists on `Conn<_, _, R>`),
-and likewise `.ceil(...)` on R. Two-sided helpers similarly reject
+Kind discipline is structural: calling `floor(&l_conn, ...)` on an
+L-kind Conn is a compile error (the function requires `ConnR`), and
+likewise `ceil(&r_conn, ...)` on R. Two-sided helpers similarly reject
 one-sided operands at compile time because a one-sided `Conn` doesn't
 implement `ConnK`.
 

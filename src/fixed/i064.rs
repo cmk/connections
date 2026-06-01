@@ -155,21 +155,24 @@ mod tests {
     fn spot_q032q016_on_grid() {
         let bits_3232: i64 = 3 << 31;
         let q3232 = FixedI64::<U32>::from_bits(bits_3232);
-        assert_eq!(Q032Q016.ceil(q3232), FixedI64::<U16>::from_bits(3 << 15));
+        assert_eq!(
+            crate::conn::ceil(&Q032Q016, q3232),
+            FixedI64::<U16>::from_bits(3 << 15)
+        );
     }
 
     #[test]
     fn spot_q064q000_degenerate() {
         assert_eq!(
-            Q064Q000.upper(FixedI64::<U0>::from_bits(0)),
+            crate::conn::upper(&Q064Q000, FixedI64::<U0>::from_bits(0)),
             FixedI64::<U64>::from_bits(0),
         );
         assert_eq!(
-            Q064Q000.upper(FixedI64::<U0>::from_bits(1)),
+            crate::conn::upper(&Q064Q000, FixedI64::<U0>::from_bits(1)),
             FixedI64::<U64>::from_bits(i64::MAX),
         );
         assert_eq!(
-            Q064Q000.upper(FixedI64::<U0>::from_bits(-1)),
+            crate::conn::upper(&Q064Q000, FixedI64::<U0>::from_bits(-1)),
             FixedI64::<U64>::from_bits(i64::MIN),
         );
     }
@@ -177,7 +180,10 @@ mod tests {
     #[test]
     fn spot_boundary_fixups() {
         let fmin = FixedI64::<U32>::from_bits(i64::MIN);
-        assert_eq!(Q032Q016.ceil(fmin), FixedI64::<U16>::from_bits(i64::MIN));
+        assert_eq!(
+            crate::conn::ceil(&Q032Q016, fmin),
+            FixedI64::<U16>::from_bits(i64::MIN)
+        );
     }
 
     macro_rules! props_for_pair {
@@ -223,13 +229,19 @@ mod tests {
     fn f064q000_above_max_to_posinf() {
         let above_max = (i64::MAX as f64) * 2.0_f64.powi(0); // = 2^63
         let v = crate::float::ExtendedFloat::Extend(above_max);
-        assert_eq!(F064Q000.ceil(v), crate::extended::Extended::PosInf);
+        assert_eq!(
+            crate::conn::ceil(&F064Q000, v),
+            crate::extended::Extended::PosInf
+        );
     }
 
     #[test]
     fn f064q008_above_max_to_posinf() {
         let above_max = (i64::MAX as f64) / 256.0_f64; // = 2^55
         let v = crate::float::ExtendedFloat::Extend(above_max);
-        assert_eq!(F064Q008.ceil(v), crate::extended::Extended::PosInf);
+        assert_eq!(
+            crate::conn::ceil(&F064Q008, v),
+            crate::extended::Extended::PosInf
+        );
     }
 }

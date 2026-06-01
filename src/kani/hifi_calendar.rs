@@ -129,7 +129,7 @@ prove_l!(wkdyu008, WKDYU008, arb_ext_weekday, arb_u8);
 fn montu008_zero_is_neg_inf() {
     // u8=0 must NOT silently default to January (MonthName::from(0)
     // returns January) — it must saturate to NegInf.
-    let r = MONTU008.upper(0);
+    let r = crate::conn::upper(&MONTU008, 0);
     assert!(matches!(r, Extended::NegInf));
 }
 
@@ -138,7 +138,7 @@ fn montu008_at_least_thirteen_is_pos_inf() {
     // Every u8 ≥ 13 must saturate to PosInf, NOT default to January.
     let n: u8 = kani::any();
     kani::assume(n >= 13);
-    let r = MONTU008.upper(n);
+    let r = crate::conn::upper(&MONTU008, n);
     assert!(matches!(r, Extended::PosInf));
 }
 
@@ -147,7 +147,7 @@ fn wkdyu008_at_least_seven_is_pos_inf() {
     // Every u8 ≥ 7 must saturate to PosInf, NOT wrap to Monday.
     let n: u8 = kani::any();
     kani::assume(n >= 7);
-    let r = WKDYU008.upper(n);
+    let r = crate::conn::upper(&WKDYU008, n);
     assert!(matches!(r, Extended::PosInf));
 }
 
@@ -157,6 +157,6 @@ fn montn008_at_least_thirteen_is_pos_inf() {
     let n: u8 = kani::any();
     kani::assume(n >= 13);
     let nz = NonZeroU8::new(n).unwrap();
-    let r = MONTN008.upper(nz);
+    let r = crate::conn::upper(&MONTN008, nz);
     assert!(matches!(r, Extended::PosInf));
 }

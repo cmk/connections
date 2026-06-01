@@ -115,9 +115,9 @@
 //! use time::Duration;
 //!
 //! let dur = Duration::seconds(5) + Duration::nanoseconds(1);
-//! assert_eq!(TDURSECS.ceil(dur),  Extended::Finite(6));   // round up
-//! assert_eq!(TDURSECS.floor(dur), Extended::Finite(5));   // round down
-//! assert_eq!(TDURSECS.upper(Extended::Finite(42)), Duration::seconds(42));
+//! assert_eq!(connections::conn::ceil(&TDURSECS, dur),  Extended::Finite(6));   // round up
+//! assert_eq!(connections::conn::floor(&TDURSECS, dur), Extended::Finite(5));   // round down
+//! assert_eq!(connections::conn::upper(&TDURSECS, Extended::Finite(42)), Duration::seconds(42));
 //! ```
 //!
 //! And the unsigned counterpoint via [`SDURU064`]:
@@ -129,7 +129,7 @@
 //! use std::time::Duration as StdDuration;
 //!
 //! let dur = StdDuration::from_secs(5) + StdDuration::from_nanos(1);
-//! assert_eq!(SDURU064.ceil(Extended::Finite(dur)),  Extended::Finite(6));
+//! assert_eq!(connections::conn::ceil(&SDURU064, Extended::Finite(dur)),  Extended::Finite(6));
 //! ```
 
 pub mod clock;

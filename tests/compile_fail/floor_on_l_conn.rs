@@ -1,11 +1,11 @@
-//! Calling `.floor(...)` on an L-kind Conn should fail to type-check:
-//! `floor` is an inherent method only on `Conn<_, _, R>`, so the
-//! method lookup on `Conn<i32, i32, L>` finds nothing.
+//! Calling `floor(&l_conn, ...)` on an L-kind Conn should fail to
+//! type-check: `floor` requires `ConnR`, and `Conn<i32, i32, L>`
+//! only implements `ConnL`.
 
 use connections::conn::Conn;
 
 const L_CONN: Conn<i32, i32> = Conn::new_l(|x| x, |x| x);
 
 fn main() {
-    let _ = L_CONN.floor(0_i32);
+    let _ = connections::conn::floor(&L_CONN, 0_i32);
 }
