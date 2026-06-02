@@ -92,8 +92,8 @@ hifi = ["dep:hifitime"]
 # Enable HLC bridge Conns under `connections::uhlc::*` backed by the
 # `uhlc` crate. Pulled with `default-features = false` to skip
 # `uhlc`'s default `["std", "serde"]` (which would drag in
-# `humantime`, `lazy_static`, `log`, `rand/std`) — the iso /
-# right-Galois Conns shipped here only need the bare types.
+# `humantime`, `lazy_static`, `log`, `rand/std`) — the iso Conns
+# shipped here only need the bare types.
 uhlc = ["dep:uhlc"]
 
 # Re-export the crate's internal codegen macros under
