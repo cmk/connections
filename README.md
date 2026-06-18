@@ -10,6 +10,10 @@ Read the docs [here](https://cmk.github.io/connections/).
 Galois connections as first-class Rust values. Use them to cast lawfully
 between numeric types, and compose ladders of conversions whose round-trip
 behavior is determined by simple inequalities rather than left to chance.
+Every operation derived from a `Conn` (rounding, saturation, median, ...)
+carries a property-tested invariant, so chains of conversions and round-
+trips behave predictably according to simple inequalities.
+
 The connection laws are not just sampled by proptest — every Galois law
 on every integer / Q-format / NonZero / iso connection is
 **SMT-proven** over the full bit-width domain via
@@ -97,11 +101,36 @@ adjacent `↰ ↳` glyphs depict the *lens* `f(2) ↔ g(1)` — two
 non-crossing curves between rows 2 and 1, the geometric signature of
 adjointness.
 
-Connections are useful for **lawful conversions** between types: every
-operation derived from a `Conn` (rounding, saturation, midpoint,
-median, ...) carries a property-tested invariant, so chains of conversions
-and round-trips behave predictably according to simple inequalities.
+# When to use connections
 
+Galois connections are the right shape for *static, lawful* numeric
+conversions: `f64 → f32`, `Duration → seconds`, `f32 → u32 → IpAddr`,
+where each link in the chain is specifiable at compile. Use the
+`compose!` and related macros to define the connection you need
+statically at the use site. The discipline of pushing runtime 
+parameters and policy choices close to the static Conn call site
+tends to make conversion code clearer: the policy and the static cast
+are both visible inthe same body. A boundary helper that names what it
+does and visibly composes lawful Conns is a feature, not a workaround.
+
+Connections are **not** a good fit when:
+
+1. **The conversion validates input.** FFI clamps, sentinel-checking
+   wrappers, and "domain restriction" guards belong as named helpers.
+   They're not adjunctions — they're partial functions that happen to
+   delegate to a Conn after a precondition check. Naming the precondition
+   in the helper signature is more useful than forcing it into a Conn.
+
+2. **The conversion needs a domain policy.** "Round to nearest sample,
+   ties toward zero, with a clamp at the audio max" is one specific
+   policy among several lawful ones; a Conn picks one. If your callers
+   need to inject the policy, expose the underlying ceil/floor/upper
+   primitives and let them assemble the policy at the call site.
+
+3. **The conversion takes a runtime parameter.** Keep the helper
+   as a normal named function whose body *visibly composes* the lawful
+   Conns it depends on.
+   
 ## L & R kind connections
 
 The basic type in this library is:
@@ -258,35 +287,6 @@ returns whichever side the source-zero rule selects — a value with no
 in-band signal that anything is wrong. **A connection that fails the
 sandwich inequality isn't an academic foul; the two-sided helpers
 actively misbehave on it.**
-
-# When to use connections
-
-Galois connections are the right shape for *static, lawful* numeric
-conversions: `f64 → f32`, `Duration → seconds`, `f32 → u32 → IpAddr`,
-where each link in the chain is specifiable at compile. Connections
-are **not** a good fit when:
-
-1. **The conversion validates input.** FFI clamps, sentinel-checking
-   wrappers, and "domain restriction" guards belong as named helpers.
-   They're not adjunctions — they're partial functions that happen to
-   delegate to a Conn after a precondition check. Naming the precondition
-   in the helper signature is more useful than forcing it into a Conn.
-
-2. **The conversion needs a domain policy.** "Round to nearest sample,
-   ties toward zero, with a clamp at the audio max" is one specific
-   policy among several lawful ones; a Conn picks one. If your callers
-   need to inject the policy, expose the underlying ceil/floor/upper
-   primitives and let them assemble the policy at the call site.
-
-3. **The conversion takes a runtime parameter.** Keep the helper
-   as a normal named function whose body *visibly composes* the lawful
-   Conns it depends on.
-   
-   The discipline of pushing runtime parameters and policy choices *close
-   to the static Conn call site* tends to make conversion code clearer,
-   not more verbose: the policy and the static cast are both visible in
-   the same body. A boundary helper that names what it does and visibly
-   composes lawful Conns is a feature, not a workaround.
 
 # Installation
 
@@ -450,7 +450,7 @@ full tree runs in well under two minutes.
 - R-side methods on `Conn<_, _, R>` (and on any `ConnR` implementor):
   `floor`, `lower`, plus `floor1`/`2`, `lower1`/`2` lifters.
 - Two-sided helpers (re-exported at the crate root): `interval`,
-  `midpoint`, `round`/`round1`/`round2`,
+  `round`/`round1`/`round2`,
   `truncate`/`truncate1`/`truncate2`, `median`. All bind on
   `T: ConnK` (super-trait of `ConnL + ConnR` over the same `(A, B)`),
   so they're callable only on triple markers — not on one-sided Conns.
