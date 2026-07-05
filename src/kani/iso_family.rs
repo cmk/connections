@@ -25,7 +25,7 @@ macro_rules! prove_iso {
                 let bits: $P = kani::any();
                 let a = <$FX>::from_bits(bits);
                 let b: $P = kani::any();
-                assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
+                assert!(conn_laws::galois_l(&$CONN.view_l(), a, b));
             }
 
             #[kani::proof]
@@ -33,7 +33,7 @@ macro_rules! prove_iso {
                 let bits: $P = kani::any();
                 let a = <$FX>::from_bits(bits);
                 let b: $P = kani::any();
-                assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
+                assert!(conn_laws::galois_r(&$CONN.view_r(), a, b));
             }
 
             // Both directions of the iso are exact.
@@ -41,20 +41,20 @@ macro_rules! prove_iso {
             fn iso_roundtrip_l() {
                 let bits: $P = kani::any();
                 let a = <$FX>::from_bits(bits);
-                assert!(conn_laws::iso_roundtrip_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::iso_roundtrip_l(&$CONN.view_l(), a));
             }
 
             #[kani::proof]
             fn roundtrip_ceil() {
                 let b: $P = kani::any();
-                assert!(conn_laws::roundtrip_ceil(&$CONN.conn_l(), b));
+                assert!(conn_laws::roundtrip_ceil(&$CONN.view_l(), b));
             }
 
             #[kani::proof]
             fn idempotent_l() {
                 let bits: $P = kani::any();
                 let a = <$FX>::from_bits(bits);
-                assert!(conn_laws::idempotent_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::idempotent_l(&$CONN.view_l(), a));
             }
         }
     };

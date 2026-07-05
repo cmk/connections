@@ -599,20 +599,50 @@ macro_rules! nz_int_ext {
             }
         }
 
+        impl $NAME {
+            /// The L-view. `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            pub(crate) const fn view_l(self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::L> {
+                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner)
+            }
+            /// The R-view. `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            pub(crate) const fn view_r(self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::R> {
+                $crate::conn::Conn::new_r($NAME::_inner, $NAME::_floor)
+            }
+            /// The swapped L-view. `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            pub const fn swap_l(self) -> $crate::conn::Conn<$NZ, $A, $crate::conn::R> {
+                self.view_l().swap_l()
+            }
+            /// The swapped R-view. `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            pub const fn swap_r(self) -> $crate::conn::Conn<$NZ, $A, $crate::conn::L> {
+                self.view_r().swap_r()
+            }
+        }
         impl $crate::conn::ConnL for $NAME {
             type A = $A;
             type B = $NZ;
             #[inline]
-            fn conn_l(&self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::L> {
-                $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner)
+            fn swap_l(&self) -> $crate::conn::Conn<$NZ, $A, $crate::conn::R> {
+                self.view_l().swap_l()
             }
         }
         impl $crate::conn::ConnR for $NAME {
             type A = $A;
             type B = $NZ;
             #[inline]
-            fn conn_r(&self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::R> {
-                $crate::conn::Conn::new_r($NAME::_inner, $NAME::_floor)
+            fn swap_r(&self) -> $crate::conn::Conn<$NZ, $A, $crate::conn::L> {
+                self.view_r().swap_r()
             }
         }
     };

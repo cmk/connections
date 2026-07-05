@@ -150,19 +150,19 @@ mod tests {
     proptest! {
         #[test]
         fn n128n008_galois_l(a in arb_nz_i128(), b in arb_nz_i8()) {
-            prop_assert!(conn_laws::galois_l(&N128N008.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N128N008, a, b));
         }
         #[test]
         fn n128n016_galois_l(a in arb_nz_i128(), b in arb_nz_i16()) {
-            prop_assert!(conn_laws::galois_l(&N128N016.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N128N016, a, b));
         }
         #[test]
         fn n128n032_galois_l(a in arb_nz_i128(), b in arb_nz_i32()) {
-            prop_assert!(conn_laws::galois_l(&N128N032.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N128N032, a, b));
         }
         #[test]
         fn n128n064_galois_l(a in arb_nz_i128(), b in arb_nz_i64()) {
-            prop_assert!(conn_laws::galois_l(&N128N064.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N128N064, a, b));
         }
     }
 
@@ -177,19 +177,19 @@ mod tests {
     proptest! {
         #[test]
         fn i128_b2_iso_roundtrip_l(a in prop_oneof![Just(i128::MIN), Just(0i128), Just(i128::MAX), any::<i128>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I128BE16.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I128BE16.view_l(), a));
         }
         #[test]
         fn i128_b2_roundtrip_ceil(b in arb_byte16()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I128BE16.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I128BE16.view_l(), b));
         }
         #[test]
         fn i128_b2_galois_l(a in any::<i128>(), b in arb_byte16()) {
-            prop_assert!(conn_laws::galois_l(&I128BE16.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I128BE16.view_l(), a, b));
         }
         #[test]
         fn i128_b2_galois_r(a in any::<i128>(), b in arb_byte16()) {
-            prop_assert!(conn_laws::galois_r(&I128BE16.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I128BE16.view_r(), a, b));
         }
         #[test]
         fn i128_b2_floor_le_ceil(a in any::<i128>()) {
@@ -197,24 +197,24 @@ mod tests {
         }
         #[test]
         fn i128_b2_order_preserving(a in any::<i128>(), b in any::<i128>()) {
-            prop_assert_eq!(a.cmp(&b), I128BE16.ceil(a).cmp(&I128BE16.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), I128BE16.view_l().ceil(a).cmp(&I128BE16.view_l().ceil(b)));
         }
 
         #[test]
         fn i128_l2_iso_roundtrip_l(a in prop_oneof![Just(i128::MIN), Just(0i128), Just(i128::MAX), any::<i128>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I128LE16.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I128LE16.view_l(), a));
         }
         #[test]
         fn i128_l2_roundtrip_ceil(b in arb_lebyte16()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I128LE16.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I128LE16.view_l(), b));
         }
         #[test]
         fn i128_l2_galois_l(a in any::<i128>(), b in arb_lebyte16()) {
-            prop_assert!(conn_laws::galois_l(&I128LE16.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I128LE16.view_l(), a, b));
         }
         #[test]
         fn i128_l2_galois_r(a in any::<i128>(), b in arb_lebyte16()) {
-            prop_assert!(conn_laws::galois_r(&I128LE16.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I128LE16.view_r(), a, b));
         }
         #[test]
         fn i128_l2_floor_le_ceil(a in any::<i128>()) {
@@ -222,7 +222,7 @@ mod tests {
         }
         #[test]
         fn i128_l2_order_preserving(a in any::<i128>(), b in any::<i128>()) {
-            prop_assert_eq!(a.cmp(&b), I128LE16.ceil(a).cmp(&I128LE16.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), I128LE16.view_l().ceil(a).cmp(&I128LE16.view_l().ceil(b)));
         }
     }
 
@@ -250,12 +250,12 @@ mod tests {
             a[0] = 0x80;
             a
         };
-        assert_eq!(I128LX16.ceil(i128::MIN), LX([0x00; 16]));
-        assert_eq!(I128LX16.ceil(0_i128), LX(mid));
-        assert_eq!(I128LX16.ceil(i128::MAX), LX([0xFF; 16]));
-        assert_eq!(I128LX16.upper(LX([0x00; 16])), i128::MIN);
-        assert_eq!(I128LX16.upper(LX(mid)), 0_i128);
-        assert_eq!(I128LX16.upper(LX([0xFF; 16])), i128::MAX);
+        assert_eq!(I128LX16.view_l().ceil(i128::MIN), LX([0x00; 16]));
+        assert_eq!(I128LX16.view_l().ceil(0_i128), LX(mid));
+        assert_eq!(I128LX16.view_l().ceil(i128::MAX), LX([0xFF; 16]));
+        assert_eq!(I128LX16.view_l().upper(LX([0x00; 16])), i128::MIN);
+        assert_eq!(I128LX16.view_l().upper(LX(mid)), 0_i128);
+        assert_eq!(I128LX16.view_l().upper(LX([0xFF; 16])), i128::MAX);
     }
 
     proptest! {
@@ -263,19 +263,19 @@ mod tests {
         fn i128_lx_iso_roundtrip_l(
             a in prop_oneof![Just(i128::MIN), Just(0i128), Just(i128::MAX), any::<i128>()]
         ) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I128LX16.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I128LX16.view_l(), a));
         }
         #[test]
         fn i128_lx_roundtrip_ceil(b in arb_lxbyte16()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I128LX16.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I128LX16.view_l(), b));
         }
         #[test]
         fn i128_lx_galois_l(a in any::<i128>(), b in arb_lxbyte16()) {
-            prop_assert!(conn_laws::galois_l(&I128LX16.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I128LX16.view_l(), a, b));
         }
         #[test]
         fn i128_lx_galois_r(a in any::<i128>(), b in arb_lxbyte16()) {
-            prop_assert!(conn_laws::galois_r(&I128LX16.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I128LX16.view_r(), a, b));
         }
         #[test]
         fn i128_lx_floor_le_ceil(a in any::<i128>()) {
@@ -283,8 +283,8 @@ mod tests {
         }
         #[test]
         fn i128_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i128>(), b in any::<i128>()) {
-            let ka = I128LX16.ceil(a).0;
-            let kb = I128LX16.ceil(b).0;
+            let ka = I128LX16.view_l().ceil(a).0;
+            let kb = I128LX16.view_l().ceil(b).0;
             prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }

@@ -17,7 +17,6 @@
 //! The Conn rounds that value up to the next integer in Q7.0:
 //!
 //! ```rust
-//! use connections::conn::ConnL;  // brings .ceil/.upper in via default methods
 //! use connections::fixed::i008::Q004Q000;
 //! use fixed::FixedI8;
 //! use fixed::types::extra::{U0, U4};
@@ -229,13 +228,13 @@ mod tests {
     fn q000i008_round_trips_both_ways() {
         for &v in &[i8::MIN, -1, 0, 1, 42, i8::MAX] {
             let q = FixedI8::<U0>::from_bits(v);
-            assert_eq!(Q000I008.ceil(q), v);
-            assert_eq!(Q000I008.floor(q), v);
-            assert_eq!(Q000I008.upper(v), q);
-            assert_eq!(Q000I008.lower(v), q);
+            assert_eq!(Q000I008.view_l().ceil(q), v);
+            assert_eq!(Q000I008.view_r().floor(q), v);
+            assert_eq!(Q000I008.view_l().upper(v), q);
+            assert_eq!(Q000I008.view_r().lower(v), q);
             // Iso: ceil ∘ inner = identity, inner ∘ ceil = identity.
-            assert_eq!(Q000I008.ceil(Q000I008.upper(v)), v);
-            assert_eq!(Q000I008.upper(Q000I008.ceil(q)), q);
+            assert_eq!(Q000I008.view_l().ceil(Q000I008.view_l().upper(v)), v);
+            assert_eq!(Q000I008.view_l().upper(Q000I008.view_l().ceil(q)), q);
         }
     }
 
@@ -244,31 +243,31 @@ mod tests {
         #[test]
         fn q000i008_galois_l(a_bits in any::<i8>(), b in any::<i8>()) {
             let a = FixedI8::<U0>::from_bits(a_bits);
-            prop_assert!(conn_laws::galois_l(&Q000I008.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&Q000I008.view_l(), a, b));
         }
 
         #[test]
         fn q000i008_galois_r(a_bits in any::<i8>(), b in any::<i8>()) {
             let a = FixedI8::<U0>::from_bits(a_bits);
-            prop_assert!(conn_laws::galois_r(&Q000I008.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&Q000I008.view_r(), a, b));
         }
 
         #[test]
         fn q000i008_round_trip_both_directions(v in any::<i8>()) {
             let q = FixedI8::<U0>::from_bits(v);
-            prop_assert_eq!(Q000I008.upper(Q000I008.ceil(q)), q);
-            prop_assert_eq!(Q000I008.ceil(Q000I008.upper(v)), v);
-            prop_assert_eq!(Q000I008.lower(Q000I008.floor(q)), q);
-            prop_assert_eq!(Q000I008.floor(Q000I008.lower(v)), v);
+            prop_assert_eq!(Q000I008.view_l().upper(Q000I008.view_l().ceil(q)), q);
+            prop_assert_eq!(Q000I008.view_l().ceil(Q000I008.view_l().upper(v)), v);
+            prop_assert_eq!(Q000I008.view_r().lower(Q000I008.view_r().floor(q)), q);
+            prop_assert_eq!(Q000I008.view_r().floor(Q000I008.view_r().lower(v)), v);
         }
 
         #[test]
         fn q007i008_round_trip_both_directions(v in any::<i8>()) {
             let q = FixedI8::<U7>::from_bits(v);
-            prop_assert_eq!(Q007I008.upper(Q007I008.ceil(q)), q);
-            prop_assert_eq!(Q007I008.ceil(Q007I008.upper(v)), v);
-            prop_assert_eq!(Q007I008.lower(Q007I008.floor(q)), q);
-            prop_assert_eq!(Q007I008.floor(Q007I008.lower(v)), v);
+            prop_assert_eq!(Q007I008.view_l().upper(Q007I008.view_l().ceil(q)), q);
+            prop_assert_eq!(Q007I008.view_l().ceil(Q007I008.view_l().upper(v)), v);
+            prop_assert_eq!(Q007I008.view_r().lower(Q007I008.view_r().floor(q)), q);
+            prop_assert_eq!(Q007I008.view_r().floor(Q007I008.view_r().lower(v)), v);
         }
     }
 

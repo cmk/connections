@@ -33,7 +33,6 @@ crate::conn_l! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::ConnL;
     /// use connections::core::bool::BOOLBE01;
     ///
     /// assert_eq!(BOOLBE01.ceil(false), [0]);
@@ -69,7 +68,6 @@ crate::conn_l! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::ConnL;
     /// use connections::core::{LE, bool::BOOLLE01};
     ///
     /// assert_eq!(BOOLLE01.ceil(false), LE([0]));

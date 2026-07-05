@@ -8,7 +8,7 @@
 //! Per CLAUDE.md § Conn placement, semantic specificity wins before
 //! source-side placement: `char` is more domain-loaded than bare `u32`,
 //! so this is the natural module for u32↔char. To compose into `u8 → char`
-//! from downstream code, chain `compose_l!(U008U032.conn_l(), U032CHAR.conn_l())`.
+//! from downstream code, chain `compose_l!(U008U032.view_l(), U032CHAR.view_l())`.
 
 use crate::extended::Extended;
 
@@ -61,7 +61,6 @@ crate::conn_l! {
     ///
     /// ```rust
     /// use connections::core::char::U032CHAR;
-    /// use connections::conn::ConnL;
     /// use connections::extended::Extended;
     ///
     /// // Valid codepoints pass through.

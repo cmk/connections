@@ -238,8 +238,8 @@ prove_l!(timesecs, TIMESECS, arb_ext_time, arb_i64);
 
 prove_lr!(
     tdursecs,
-    TDURSECS.conn_l(),
-    TDURSECS.conn_r(),
+    TDURSECS.view_l(),
+    TDURSECS.view_r(),
     arb_duration,
     arb_ext_i64
 );

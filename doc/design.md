@@ -118,51 +118,61 @@ case.
 
 The [Haskell library](https://github.com/cmk/connections/) uses a phantom
 `Side` kind index on `Cast k a b` to present a single runtime representation
-as either a left connection (`CastL`), a right connection (`CastR`), or 
-in [certain cases](https://ncatlab.org/nlab/show/adjoint+string) a full 
-triple (`Cast`). Rust lacks the type-level machinery to replicate this directly
-(no data kinds, no pattern synonyms, no rank-2 polymorphism).
+as either a left connection (`CastL`), a right connection (`CastR`), or
+in [certain cases](https://ncatlab.org/nlab/show/adjoint+string) a full
+triple (`Cast`). Rust lacks rank-2 value polymorphism over the index, so
+this library splits the encoding in two:
 
-Instead, this library uses **one connection type that always carries the full
-triple**:
+**One-sided connections are values.** `Conn<A, B, K>` holds exactly two
+`fn`-pointer fields, and the kind tag `K ∈ {L, R}` (defaulting to `L`)
+fixes which adjoint role each field plays:
 
 ```rust
-pub struct Conn<A, B> {
-    ceil: fn(A) -> B,   // f: lower adjoint (ceiling, rounds up)
-    inner: fn(B) -> A,  // g: shared middle adjoint (embedding)
-    floor: fn(A) -> B,  // h: upper adjoint (floor, rounds down)
+pub struct Conn<A, B, K: Kind = L> {
+    f: fn(A) -> B,
+    g: fn(B) -> A,
 }
 ```
 
-When a connection is only one-sided (e.g. only `f ⊣ g` is known, with no
-meaningful `h`), `floor` is set equal to `ceil`. This is the same internal
-representation the Haskell library uses for `CastL` — both slots hold the
-same function.
+Kind-gated inherent methods enforce the side discipline at compile time:
+`.floor(...)` on a `Conn<_, _, L>` is a compile error, as is `.ceil(...)`
+on the R side. Constructors (`new_l` / `new_r`), the polarity swaps
+(`swap_l` / `swap_r` — the same pair read over `(B, A)` at the other
+kind), and `identity()` (kind-generic) are all `const fn`, so chains of
+conns are `const`-composable.
 
-### Why one type
+**Adjoint triples are zero-sized markers.** A triple `f ⊣ g ⊣ h` is two
+adjunctions sharing the middle `g`; no struct stores three fns. The
+declaration macros (`conn_k!` / `iso!` / `compose_k!` / `lift_k!` /
+`nz_int_ext!`) emit a unit struct plus:
 
-- **Composition is uniform.** Composing two `Conn` values composes all three
-  components independently. If both inputs are full triples, the result is a
-  full triple. If either is one-sided (floor == ceil), the result is naturally
-  one-sided by the same mechanism. No type-level bookkeeping needed.
+- crate-local `const fn view_l()` / `view_r()` — the direct one-sided
+  views `(f, g)` and `(g, h)`. These never cross a crate boundary.
+- public `const fn swap_l()` / `swap_r()` — the swapped views over
+  `(B, A)`. These are the marker's public projections, and what `const`
+  composition uses: `compose!(U032BE04.swap_r(), U032U064)`.
+- impls of the capability traits `ConnL` / `ConnR`, each carrying
+  exactly one method — the swap — for generic bounds. `ConnK` is the
+  super-trait alias `ConnL + ConnR` (with `(A, B)` equality); the
+  two-sided operations (`round`, `truncate`, `interval`, `median` and
+  their lifters) bind on it. `Conn` values do not implement the traits:
+  a value is already its own view, and its swap is inherent. One name,
+  disjoint receivers, no duplicated accessors.
 
-- **Functions that need the full triple** (`round`, `truncate`, `midpoint`,
-  `interval`, `median`) accept `Conn<A, B>` directly — no rank-2 type
-  required. When called on a one-sided connection, `round` degrades to
-  `truncate`, which is semantically correct.
-
-- **Simpler API surface.** One type, one set of combinators. Users don't need
-  to understand `Side` to use the library.
+The public spelling of a marker's direct view is the double swap
+`M.swap_l().swap_r()`, lawful by the swap involution
+(`prop::conn::swap_involutive_l/_r`, exact fn-pointer identities); a
+lawful triple's two views share `g` (`prop::conn::shared_middle`).
+Both laws run in `law_battery!` against every shipped marker.
 
 ### Trade-off
 
-The Haskell version uses the `Side` index to prevent accessing `floor` on a
-`CastL` at compile time. This library does not enforce that — calling `floor`
-on a one-sided connection silently returns the same result as `ceil`. This is
-safe (the result is a valid monotone function that satisfies the adjointness
-law) but it does not distinguish "this connection supports rounding" from
-"this connection only supports ceiling" at the type level. If this becomes a
-source of confusion, a future version could introduce marker types.
+The kind split enforces the Haskell `Side` discipline that an earlier
+version of this library deliberately dropped (calling `floor` on a
+one-sided connection used to silently alias `ceil`). The price is that
+triples need the marker encoding above rather than being plain values;
+the swap-only trait surface and the crate-local views are what keep
+that encoding from leaking duplicate accessors into the API.
 
 ## Composition
 
@@ -185,15 +195,7 @@ equal — the one-sided property is preserved.
 
 ### Why not a runtime `Conn::then`?
 
-`Conn`'s fields are bare `fn` pointers:
-
-```rust
-pub struct Conn<A, B> {
-    pub(crate) ceil:  fn(A) -> B,
-    pub(crate) inner: fn(B) -> A,
-    pub(crate) floor: fn(A) -> B,
-}
-```
+`Conn`'s fields are bare `fn` pointers (`f`, `g` — see *Core type*).
 
 A `fn` pointer is a single code address — there is no slot to stash
 captured state. A runtime `then` method would have to construct

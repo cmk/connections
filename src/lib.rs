@@ -109,7 +109,6 @@
 //! worked-example thread in their per-fn doctests:
 //!
 //! ```rust
-//! use connections::conn::ConnL;
 //! use connections::float::ExtendedFloat::Extend;
 //! use connections::core::f064::F064F032;
 //!
@@ -120,7 +119,7 @@
 //! // Lossless ≠ precise: the value is still the f32 approximation.
 //! assert_ne!(pi64, pi32);
 //! // upper just widens; for F064F032 that's the f32 → f64 cast.
-//! assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
+//! assert_eq!(F064F032.swap_l().swap_r().upper(Extend(std::f32::consts::PI)), pi32);
 //! ```
 //!
 //! - [`interval`](crate::conn::interval) — bracket of `x` as an
@@ -225,8 +224,8 @@ pub mod uhlc;
 /// crate-root glob's collision surface (`std::iter::Iterator::round`
 /// once it lands, `num_traits::ToPrimitive`, etc.). One-sided ops
 /// (`ceil` / `upper` / `floor` / `lower` and their `1` / `2` lifters)
-/// are inherent methods on `Conn<_, _, L>` / `Conn<_, _, R>` reached
-/// through the capability traits also re-exported here.
+/// are kind-gated inherent methods on `Conn<_, _, L>` / `Conn<_, _, R>`;
+/// the capability traits re-exported here carry the polarity swaps.
 ///
 /// # Examples
 ///
@@ -235,8 +234,8 @@ pub mod uhlc;
 /// use connections::core::f064::F064F032;
 /// use connections::float::ExtendedFloat::Extend;
 ///
-/// // `ConnL::ceil` arrives via the prelude.
-/// let pi32 = F064F032.ceil(Extend(std::f64::consts::PI));
+/// // The two-sided helpers and capability traits arrive via the prelude.
+/// let pi32 = F064F032.swap_l().swap_r().ceil(Extend(std::f64::consts::PI));
 /// assert_eq!(pi32, Extend(std::f32::consts::PI));
 /// ```
 pub mod prelude {

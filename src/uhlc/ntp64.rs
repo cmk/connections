@@ -23,7 +23,6 @@ crate::iso! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::conn::{ConnL, ConnR};
     use crate::prop::conn as conn_laws;
     use proptest::prelude::*;
 
@@ -35,21 +34,21 @@ mod tests {
         #[test]
         fn iso_roundtrip_l(n in any::<u64>()) {
             let t = NTP64(n);
-            prop_assert!(conn_laws::iso_roundtrip_l(&NDURU064.conn_l(), t));
+            prop_assert!(conn_laws::iso_roundtrip_l(&NDURU064.view_l(), t));
         }
         #[test]
         fn roundtrip_ceil(n in any::<u64>()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&NDURU064.conn_l(), n));
+            prop_assert!(conn_laws::roundtrip_ceil(&NDURU064.view_l(), n));
         }
         #[test]
         fn galois_l(n in any::<u64>(), m in any::<u64>()) {
             let t = NTP64(n);
-            prop_assert!(conn_laws::galois_l(&NDURU064.conn_l(), t, m));
+            prop_assert!(conn_laws::galois_l(&NDURU064.view_l(), t, m));
         }
         #[test]
         fn galois_r(n in any::<u64>(), m in any::<u64>()) {
             let t = NTP64(n);
-            prop_assert!(conn_laws::galois_r(&NDURU064.conn_r(), t, m));
+            prop_assert!(conn_laws::galois_r(&NDURU064.view_r(), t, m));
         }
         #[test]
         fn floor_le_ceil(n in any::<u64>()) {
@@ -61,9 +60,9 @@ mod tests {
     #[test]
     fn boundary_values() {
         // The two corners of the u64 range round-trip losslessly.
-        assert_eq!(NDURU064.ceil(NTP64(0)), 0);
-        assert_eq!(NDURU064.upper(0), NTP64(0));
-        assert_eq!(NDURU064.ceil(NTP64(u64::MAX)), u64::MAX);
-        assert_eq!(NDURU064.upper(u64::MAX), NTP64(u64::MAX));
+        assert_eq!(NDURU064.view_l().ceil(NTP64(0)), 0);
+        assert_eq!(NDURU064.view_l().upper(0), NTP64(0));
+        assert_eq!(NDURU064.view_l().ceil(NTP64(u64::MAX)), u64::MAX);
+        assert_eq!(NDURU064.view_l().upper(u64::MAX), NTP64(u64::MAX));
     }
 }

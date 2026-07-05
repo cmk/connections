@@ -22,7 +22,6 @@
 //! ## Example
 //!
 //! ```rust
-//! use connections::conn::ConnR;
 //! use connections::core::u032::U032I032;
 //!
 //! // u32 PID into i32 — saturates instead of wrapping for large values.

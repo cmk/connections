@@ -21,20 +21,20 @@ mod ndur_u064 {
     fn galois_l() {
         let t = NTP64(kani::any());
         let n: u64 = kani::any();
-        assert!(conn_laws::galois_l(&NDURU064.conn_l(), t, n));
+        assert!(conn_laws::galois_l(&NDURU064.view_l(), t, n));
     }
 
     #[kani::proof]
     fn galois_r() {
         let t = NTP64(kani::any());
         let n: u64 = kani::any();
-        assert!(conn_laws::galois_r(&NDURU064.conn_r(), t, n));
+        assert!(conn_laws::galois_r(&NDURU064.view_r(), t, n));
     }
 
     #[kani::proof]
     fn iso_roundtrip_l() {
         let t = NTP64(kani::any());
-        assert!(conn_laws::iso_roundtrip_l(&NDURU064.conn_l(), t));
+        assert!(conn_laws::iso_roundtrip_l(&NDURU064.view_l(), t));
     }
 
     #[kani::proof]
@@ -51,26 +51,26 @@ mod hlid_lx16 {
     fn galois_l() {
         let a = arb_opt_id_symbolic();
         let bytes: [u8; 16] = kani::any();
-        assert!(conn_laws::galois_l(&HLIDLX16.conn_l(), a, LX(bytes)));
+        assert!(conn_laws::galois_l(&HLIDLX16.view_l(), a, LX(bytes)));
     }
 
     #[kani::proof]
     fn galois_r() {
         let a = arb_opt_id_symbolic();
         let bytes: [u8; 16] = kani::any();
-        assert!(conn_laws::galois_r(&HLIDLX16.conn_r(), a, LX(bytes)));
+        assert!(conn_laws::galois_r(&HLIDLX16.view_r(), a, LX(bytes)));
     }
 
     #[kani::proof]
     fn iso_roundtrip_l() {
         let a = arb_opt_id_symbolic();
-        assert!(conn_laws::iso_roundtrip_l(&HLIDLX16.conn_l(), a));
+        assert!(conn_laws::iso_roundtrip_l(&HLIDLX16.view_l(), a));
     }
 
     #[kani::proof]
     fn roundtrip_ceil() {
         let bytes: [u8; 16] = kani::any();
-        assert!(conn_laws::roundtrip_ceil(&HLIDLX16.conn_l(), LX(bytes)));
+        assert!(conn_laws::roundtrip_ceil(&HLIDLX16.view_l(), LX(bytes)));
     }
 
     #[kani::proof]

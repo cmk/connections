@@ -39,38 +39,38 @@ macro_rules! prove_nz_signed {
             fn galois_l() {
                 let a: $A = kani::any();
                 let b = arb_nz!($NZ, $A);
-                assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
+                assert!(conn_laws::galois_l(&$CONN.view_l(), a, b));
             }
 
             #[kani::proof]
             fn galois_r() {
                 let a: $A = kani::any();
                 let b = arb_nz!($NZ, $A);
-                assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
+                assert!(conn_laws::galois_r(&$CONN.view_r(), a, b));
             }
 
             #[kani::proof]
             fn closure_l() {
                 let a: $A = kani::any();
-                assert!(conn_laws::closure_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::closure_l(&$CONN.view_l(), a));
             }
 
             #[kani::proof]
             fn closure_r() {
                 let a: $A = kani::any();
-                assert!(conn_laws::closure_r(&$CONN.conn_r(), a));
+                assert!(conn_laws::closure_r(&$CONN.view_r(), a));
             }
 
             #[kani::proof]
             fn idempotent_l() {
                 let a: $A = kani::any();
-                assert!(conn_laws::idempotent_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::idempotent_l(&$CONN.view_l(), a));
             }
 
             #[kani::proof]
             fn idempotent_r() {
                 let b = arb_nz!($NZ, $A);
-                assert!(conn_laws::idempotent_r(&$CONN.conn_r(), b));
+                assert!(conn_laws::idempotent_r(&$CONN.view_r(), b));
             }
 
             // The nz_int_ext! closures call <NZ>::new(_).unwrap() on a
@@ -79,13 +79,13 @@ macro_rules! prove_nz_signed {
             #[kani::proof]
             fn ceil_never_panics() {
                 let a: $A = kani::any();
-                let _ = $CONN.conn_l().ceil(a);
+                let _ = $CONN.view_l().ceil(a);
             }
 
             #[kani::proof]
             fn floor_never_panics() {
                 let a: $A = kani::any();
-                let _ = $CONN.conn_r().floor(a);
+                let _ = $CONN.view_r().floor(a);
             }
         }
     };
@@ -103,25 +103,25 @@ macro_rules! prove_nz_unsigned {
             fn galois_l() {
                 let a: $A = kani::any();
                 let b = arb_nz!($NZ, $A);
-                assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
+                assert!(conn_laws::galois_l(&$CONN.view_l(), a, b));
             }
 
             #[kani::proof]
             fn closure_l() {
                 let a: $A = kani::any();
-                assert!(conn_laws::closure_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::closure_l(&$CONN.view_l(), a));
             }
 
             #[kani::proof]
             fn idempotent_l() {
                 let a: $A = kani::any();
-                assert!(conn_laws::idempotent_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::idempotent_l(&$CONN.view_l(), a));
             }
 
             #[kani::proof]
             fn ceil_never_panics() {
                 let a: $A = kani::any();
-                let _ = $CONN.conn_l().ceil(a);
+                let _ = $CONN.view_l().ceil(a);
             }
         }
     };

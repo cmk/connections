@@ -49,19 +49,28 @@
 //! super-trait `ConnL + ConnR`). The "third function" — the adjoint
 //! that distinguishes a triple from a one-sided Conn — lives as a
 //! free function in module scope, referenced from the marker's
-//! trait-impl bodies; no struct in the crate stores three fns.
+//! projections; no struct in the crate stores three fns.
 //!
-//! The trait names match the value-type spellings on purpose: the
-//! blanket impl `impl ConnL for Conn<A, B, L>` makes every L-side
-//! value satisfy [`ConnL`], same on the R side. So a generic bound
-//! `T: ConnL<A = A, B = B>` accepts both triple markers and raw `Conn<A,B,L>`
-//! values uniformly. The value type is spelled `Conn<A, B>` in
-//! L-default position and `Conn<A, B, R>` on the R side.
+//! Each capability trait carries exactly one method: the polarity
+//! **swap**. `ConnL::swap_l` reads the marker's L-pair over the
+//! reversed `(B, A)` as an R-Galois value; `ConnR::swap_r` is the
+//! dual. `Conn` *values* do not implement the traits — a value already
+//! is its own view, and its swap is the inherent `const fn`
+//! ([`Conn::swap_l`] / [`Conn::swap_r`]). One name, disjoint
+//! receivers, no duplication. Markers also expose the swaps as
+//! inherent `const fn`s (emitted by [`conn_k!`](crate::conn_k) and
+//! friends), which is what `const` composition uses:
+//! `compose!(U032BE04.swap_r(), ...)`. The direct views exist
+//! crate-internally as `view_l` / `view_r`; the public spelling of a
+//! direct view is the law-guaranteed double swap
+//! `view_l(t)` (see `prop::conn::swap_involutive_l`).
 //!
 //! Two-sided operations ([`round`], [`truncate`], [`interval`],
 //! [`median`], plus the `1` / `2` lifters) bind on [`ConnK`]
 //! (`= ConnL + ConnR`), so they are callable only on triple markers,
-//! not on one-sided Conns.
+//! not on one-sided Conns. One-sided accessors (`ceil` / `upper` /
+//! `floor` / `lower` and their lifters) are kind-gated inherent
+//! methods on the value type.
 
 use core::cmp::Ordering;
 use core::marker::PhantomData;
@@ -172,7 +181,6 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::ConnL;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -182,10 +190,10 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     ///
     /// // The f32 ceiling of π is std::f32::consts::PI itself —
     /// // π's nearest f32 representation rounds up.
-    /// assert_eq!(F064F032.ceil(pi64), Extend(std::f32::consts::PI));
+    /// assert_eq!(F064F032.swap_l().swap_r().ceil(pi64), Extend(std::f32::consts::PI));
     /// // Widening the result back to f64 lands at pi32, which sits
     /// // exactly pi32_err above true π:
-    /// assert_eq!(F064F032.upper(F064F032.ceil(pi64)) - pi64, pi32_err);
+    /// assert_eq!(F064F032.swap_l().swap_r().upper(F064F032.swap_l().swap_r().ceil(pi64)) - pi64, pi32_err);
     /// ```
     #[inline]
     #[must_use]
@@ -198,7 +206,6 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::ConnL;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -211,9 +218,9 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// let pi32_err = pi32 - pi64;
     ///
     /// // upper just widens; for F064F032 that's the f32 → f64 cast.
-    /// assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
+    /// assert_eq!(F064F032.swap_l().swap_r().upper(Extend(std::f32::consts::PI)), pi32);
     /// // Equivalently, "f64 π plus f32's rounding error":
-    /// assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)) - pi64, pi32_err);
+    /// assert_eq!(F064F032.swap_l().swap_r().upper(Extend(std::f32::consts::PI)) - pi64, pi32_err);
     /// ```
     #[inline]
     #[must_use]
@@ -248,7 +255,6 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::ConnL;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -258,7 +264,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// let pi32 = Extend(std::f32::consts::PI);
     /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
     /// assert_eq!(
-    ///     F064F032.conn_l().ceil1(probe, pi32),
+    ///     F064F032.swap_l().swap_r().ceil1(probe, pi32),
     ///     Extend(std::f32::consts::PI),
     /// );
     /// ```
@@ -350,7 +356,6 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::ConnR;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -361,7 +366,7 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     /// let pi32 = Extend(std::f32::consts::PI);
     /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
     /// assert_eq!(
-    ///     F064F032.conn_r().floor1(probe, pi32),
+    ///     F064F032.swap_r().swap_l().floor1(probe, pi32),
     ///     Extend(3.1415925_f32),
     /// );
     /// ```
@@ -400,11 +405,10 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::ConnL;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
-    /// let l = F064F032.conn_l();
+    /// let l = F064F032.swap_l().swap_r();
     /// let pi64 = Extend(std::f64::consts::PI);
     /// // The f32 ceiling of pi64 is std::f32::consts::PI; equality
     /// // witnesses the lower edge of the filter.
@@ -436,11 +440,10 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::ConnR;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
-    /// let r = F064F032.conn_r();
+    /// let r = F064F032.swap_r().swap_l();
     /// let pi64 = Extend(std::f64::consts::PI);
     /// // The f32 floor of pi64 is 3.1415925; that's the upper edge
     /// // of the ideal.
@@ -462,10 +465,11 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
 
 // ── Identity ─────────────────────────────────────────────────────────
 
-impl<X> Conn<X, X, L> {
-    /// The identity connection: `f = g = id`. L-kinded by default
-    /// (every identity connection trivially satisfies both Galois
-    /// laws; pick L by convention).
+impl<X, K: Kind> Conn<X, X, K> {
+    /// The identity connection: `f = g = id`. Kind-generic — the same
+    /// body satisfies both Galois laws, so the identity exists directly
+    /// at either polarity (`Conn::<X, X, R>::identity()` needs no swap
+    /// workaround). `Conn<X, X>` infers `K = L` by the type default.
     pub const fn identity() -> Self {
         const fn id_<X>(x: X) -> X {
             x
@@ -480,95 +484,48 @@ impl<X> Conn<X, X, L> {
 
 // ── ConnL / ConnR / ConnK capability traits ──────────────────────────
 
-/// Capability trait: types implementing this carry an `L`-Galois
-/// connection between `A` and `B`.
+/// Capability trait: types carrying an `L`-Galois connection between
+/// `A` and `B`, exposed through its polarity swap.
 ///
-/// Two flavors of implementor:
-/// 1. **ConnK markers** (zero-sized unit structs from [`conn_k!`](crate::conn_k) /
-///    [`iso!`](crate::iso) / [`compose_k!`](crate::compose_k)) — they provide an L-view alongside
-///    an R-view, gaining `.ceil()` / `.upper()` directly.
-/// 2. **The value type itself** — a blanket impl on `Conn<A, B, L>`
-///    (see below) means every L-Conn value is also a `ConnL`, so
-///    generic bounds `T: ConnL<A = A, B = B>` accept both shapes uniformly.
+/// Implementors are the adjoint-triple markers (zero-sized unit
+/// structs from [`conn_k!`](crate::conn_k) / [`iso!`](crate::iso) /
+/// [`compose_k!`](crate::compose_k)). The single method is the
+/// categorical content: the marker's L-pair `(f, g)` read over the
+/// swapped pair `(B, A)`, where it satisfies the R-Galois law. The
+/// direct L-view is the law-guaranteed round trip
+/// `view_l(t)`; markers also expose it as the inherent
+/// `const fn view_l()`, which is the form to use in `const` position
+/// (trait methods are not const-callable).
 ///
-/// `conn_l(&self) -> Conn<A, B, L>` is the projection. Default
-/// methods dispatch through it: `ceil` is the lower adjoint
-/// (rounds up), `upper` is the upper adjoint (the embedding).
+/// `Conn` *values* do not implement this trait — a value already is
+/// its own view, and its swap is the inherent `const fn`
+/// [`Conn::swap_l`]. One name, disjoint receivers, no duplication.
 ///
-/// Method-shape (rather than `const L: Conn<A, B, L>`) is required so
-/// the blanket impl on `Conn<A, B, L>` can return `*self` — const
-/// slots in trait impls cannot read instance state. For zero-sized
-/// triple markers, the impl body inlines to two fn-pointer
-/// constants, the same machine code a const slot would have produced.
+/// Laws (`prop::conn`): the swaps are involutive up to fn-pointer
+/// identity — `view_l(t) == t.view_l()` on markers, and
+/// `c.swap_l().swap_r() == c` on values.
 pub trait ConnL {
     /// The connection's source type.
     type A: Copy;
     /// The connection's target type.
     type B: Copy;
 
-    /// The L-Galois projection: an `L`-kinded [`Conn<Self::A, Self::B>`].
-    fn conn_l(&self) -> Conn<Self::A, Self::B, L>;
-
-    /// Apply the lower adjoint (round-up): `a ↦ f(a)`.
-    #[inline]
-    #[must_use]
-    fn ceil(&self, a: Self::A) -> Self::B {
-        self.conn_l().ceil(a)
-    }
-    /// Apply the upper adjoint (embedding): `b ↦ g(b)`.
-    #[inline]
-    #[must_use]
-    fn upper(&self, b: Self::B) -> Self::A {
-        self.conn_l().upper(b)
-    }
+    /// The swapped L-view: the same pair over `(B, A)` in R polarity.
+    fn swap_l(&self) -> Conn<Self::B, Self::A, R>;
 }
 
-/// Capability trait: types implementing this carry an `R`-Galois
-/// connection between `A` and `B`. Counterpart to [`ConnL`].
-///
-/// `conn_r(&self) -> Conn<A, B, R>` is the projection. Default
-/// methods dispatch through it: `floor` is the upper adjoint
-/// (rounds down), `lower` is the lower adjoint (the embedding).
+/// Capability trait: types carrying an `R`-Galois connection between
+/// `A` and `B`, exposed through its polarity swap. Counterpart to
+/// [`ConnL`]; the direct R-view is `view_r(t)`, or the
+/// marker's inherent `const fn r()` in `const` position.
 pub trait ConnR {
     /// The connection's source type.
     type A: Copy;
     /// The connection's target type.
     type B: Copy;
 
-    /// The R-Galois projection: an `R`-kinded [`Conn<Self::A, Self::B, R>`].
-    fn conn_r(&self) -> Conn<Self::A, Self::B, R>;
-
-    /// Apply the upper adjoint (round-down): `a ↦ f(a)`.
-    #[inline]
-    #[must_use]
-    fn floor(&self, a: Self::A) -> Self::B {
-        self.conn_r().floor(a)
-    }
-    /// Apply the lower adjoint (embedding): `b ↦ g(b)`.
-    #[inline]
-    #[must_use]
-    fn lower(&self, b: Self::B) -> Self::A {
-        self.conn_r().lower(b)
-    }
-}
-
-// ── Blanket impls: every Conn value satisfies its kind's trait ────────
-
-impl<A: Copy, B: Copy> ConnL for Conn<A, B, L> {
-    type A = A;
-    type B = B;
-    #[inline]
-    fn conn_l(&self) -> Conn<A, B, L> {
-        *self
-    }
-}
-impl<A: Copy, B: Copy> ConnR for Conn<A, B, R> {
-    type A = A;
-    type B = B;
-    #[inline]
-    fn conn_r(&self) -> Conn<A, B, R> {
-        *self
-    }
+    /// The swapped R-view: the same pair over `(B, A)` in L polarity.
+    fn swap_r(&self) -> Conn<Self::B, Self::A, L>;
 }
 
 /// Convenience super-trait: a type is a [`ConnK`] iff it implements
@@ -589,6 +546,26 @@ pub trait ConnK: ConnL + ConnR<A = <Self as ConnL>::A, B = <Self as ConnL>::B> {
 impl<T> ConnK for T where T: ConnL + ConnR<A = <T as ConnL>::A, B = <T as ConnL>::B> {}
 
 // ── Two-sided helpers (bound on ConnK) ────────────────────────────────
+
+/// Direct L-view of a triple bound, derived through the public swaps.
+/// Fn-pointer-identical to the marker's inherent `view_l` by the
+/// swap-involution law (`prop::conn::swap_involutive_l`) — one concept,
+/// one name, two forms: `view_l(t)` on a generic bound, `M.view_l()` on
+/// a concrete marker.
+pub(crate) fn view_l<T, A: Copy, B: Copy>(t: &T) -> Conn<A, B, L>
+where
+    T: ?Sized + ConnL<A = A, B = B>,
+{
+    t.swap_l().swap_r()
+}
+
+/// Direct R-view of a triple bound; dual of [`view_l`].
+pub(crate) fn view_r<T, A: Copy, B: Copy>(t: &T) -> Conn<A, B, R>
+where
+    T: ?Sized + ConnR<A = A, B = B>,
+{
+    t.swap_r().swap_l()
+}
 
 /// Bracket of `x` under conn `t`: the closed interval `[lo, hi] ⊆ A`
 /// of values sharing `x`'s B-cell.
@@ -638,8 +615,8 @@ where
     A: Copy + PartialOrd,
     B: Copy,
 {
-    let lo = t.conn_r().lower1(|b| b, x);
-    let hi = t.conn_l().upper1(|b| b, x);
+    let lo = view_r(t).lower1(|b| b, x);
+    let hi = view_l(t).upper1(|b| b, x);
     // Route through `Interval::new` defensively: a contract-broken
     // `PartialOrd` (non-transitive) could in principle satisfy
     // `lo ≤ x ∧ x ≤ hi` while `lo > hi`. The extra `partial_cmp`
@@ -653,8 +630,8 @@ where
 }
 
 /// Truncate `x` toward zero through the triple: returns
-/// `t.conn_r().floor(x)` when `x ≥ 0`, otherwise
-/// `t.conn_l().ceil(x)`.
+/// `view_r(t).floor(x)` when `x ≥ 0`, otherwise
+/// `view_l(t).ceil(x)`.
 ///
 /// # Examples
 ///
@@ -677,9 +654,9 @@ where
     B: Copy,
 {
     if x >= A::from(0) {
-        t.conn_r().floor(x)
+        view_r(t).floor(x)
     } else {
-        t.conn_l().ceil(x)
+        view_l(t).ceil(x)
     }
 }
 
@@ -719,7 +696,7 @@ where
     B: Copy,
     H: FnOnce(A) -> A,
 {
-    truncate(t, h(t.conn_l().upper(x)))
+    truncate(t, h(view_l(t).upper(x)))
 }
 
 /// Lift a binary function `h: (A, A) → A` through the triple, with
@@ -749,7 +726,7 @@ where
     B: Copy,
     H: FnOnce(A, A) -> A,
 {
-    let l = t.conn_l();
+    let l = view_l(t);
     truncate(t, h(l.upper(x), l.upper(y)))
 }
 
@@ -759,7 +736,7 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::{round, ConnL};
+/// use connections::conn::round;
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::core::f064::F064F032;
 ///
@@ -771,7 +748,7 @@ where
 /// // value `(pi as f32)` would also produce.
 /// assert_eq!(round(&F064F032, pi64), Extend(std::f32::consts::PI));
 /// // Widening the result back to f64 lands pi32_err above true π:
-/// assert_eq!(F064F032.upper(round(&F064F032, pi64)) - pi64, pi32_err);
+/// assert_eq!(F064F032.swap_l().swap_r().upper(round(&F064F032, pi64)) - pi64, pi32_err);
 /// ```
 #[inline]
 #[must_use]
@@ -787,8 +764,8 @@ where
     // or antichain endpoints — fall back to truncate.
     match interval(t, x) {
         Interval::Closed { lo, hi } => match (x - lo).partial_cmp(&(hi - x)) {
-            Some(Ordering::Greater) => t.conn_l().ceil(x),
-            Some(Ordering::Less) => t.conn_r().floor(x),
+            Some(Ordering::Greater) => view_l(t).ceil(x),
+            Some(Ordering::Less) => view_r(t).floor(x),
             _ => truncate(t, x),
         },
         Interval::Empty => truncate(t, x),
@@ -824,7 +801,7 @@ where
     B: Copy,
     H: FnOnce(A) -> A,
 {
-    round(t, h(t.conn_l().upper(x)))
+    round(t, h(view_l(t).upper(x)))
 }
 
 /// Lift a binary function `h: (A, A) → A` through the triple,
@@ -858,7 +835,7 @@ where
     B: Copy,
     H: FnOnce(A, A) -> A,
 {
-    let l = t.conn_l();
+    let l = view_l(t);
     round(t, h(l.upper(x), l.upper(y)))
 }
 
@@ -948,8 +925,8 @@ where
     T: ConnL<A = (A, A), B = A> + ConnR<A = (A, A), B = A>,
     A: Copy,
 {
-    let join = |p: A, q: A| t.conn_l().ceil((p, q));
-    let meet = |p: A, q: A| t.conn_r().floor((p, q));
+    let join = |p: A, q: A| view_l(t).ceil((p, q));
+    let meet = |p: A, q: A| view_r(t).floor((p, q));
     meet(meet(join(x, y), join(y, z)), join(z, x))
 }
 
@@ -1039,26 +1016,56 @@ macro_rules! compose_k {
         $(#[$meta])*
         #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
         $vis struct $name;
+        impl $name {
+            /// The composed L-view. `const`-projectable: the closure
+            /// coercion happens in a `const` item, the supported
+            /// composition position.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            pub(crate) const fn view_l(self) -> $crate::conn::Conn<$A, $C, $crate::conn::L> {
+                const COMPOSED: $crate::conn::Conn<$A, $C, $crate::conn::L> =
+                    $crate::compose_l!($t1.swap_l().swap_r(), $t2.swap_l().swap_r());
+                COMPOSED
+            }
+            /// The composed R-view. `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            pub(crate) const fn view_r(self) -> $crate::conn::Conn<$A, $C, $crate::conn::R> {
+                const COMPOSED: $crate::conn::Conn<$A, $C, $crate::conn::R> =
+                    $crate::compose_r!($t1.swap_r().swap_l(), $t2.swap_r().swap_l());
+                COMPOSED
+            }
+            /// The swapped composed L-view. `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            $vis const fn swap_l(self) -> $crate::conn::Conn<$C, $A, $crate::conn::R> {
+                self.view_l().swap_l()
+            }
+            /// The swapped composed R-view. `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            $vis const fn swap_r(self) -> $crate::conn::Conn<$C, $A, $crate::conn::L> {
+                self.view_r().swap_r()
+            }
+        }
         impl $crate::conn::ConnL for $name {
             type A = $A;
             type B = $C;
             #[inline]
-            fn conn_l(&self) -> $crate::conn::Conn<$A, $C, $crate::conn::L> {
-                $crate::compose_l!(
-                    <$t1 as $crate::conn::ConnL>::conn_l(&$t1),
-                    <$t2 as $crate::conn::ConnL>::conn_l(&$t2),
-                )
+            fn swap_l(&self) -> $crate::conn::Conn<$C, $A, $crate::conn::R> {
+                self.view_l().swap_l()
             }
         }
         impl $crate::conn::ConnR for $name {
             type A = $A;
             type B = $C;
             #[inline]
-            fn conn_r(&self) -> $crate::conn::Conn<$A, $C, $crate::conn::R> {
-                $crate::compose_r!(
-                    <$t1 as $crate::conn::ConnR>::conn_r(&$t1),
-                    <$t2 as $crate::conn::ConnR>::conn_r(&$t2),
-                )
+            fn swap_r(&self) -> $crate::conn::Conn<$C, $A, $crate::conn::L> {
+                self.view_r().swap_r()
             }
         }
     };
@@ -1089,20 +1096,53 @@ macro_rules! conn_k {
         $(#[$meta])*
         #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
         $vis struct $name;
+        impl $name {
+            /// The L-view `(ceil, inner)`. `const`-projectable, so the
+            /// marker composes in `const` position.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            pub(crate) const fn view_l(self) -> $crate::conn::Conn<$A, $B, $crate::conn::L> {
+                $crate::conn::Conn::new_l($ceil, $inner)
+            }
+            /// The R-view `(inner, floor)`. `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            pub(crate) const fn view_r(self) -> $crate::conn::Conn<$A, $B, $crate::conn::R> {
+                $crate::conn::Conn::new_r($inner, $floor)
+            }
+            /// The swapped L-view over the reversed pair.
+            /// `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            $vis const fn swap_l(self) -> $crate::conn::Conn<$B, $A, $crate::conn::R> {
+                self.view_l().swap_l()
+            }
+            /// The swapped R-view over the reversed pair.
+            /// `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            $vis const fn swap_r(self) -> $crate::conn::Conn<$B, $A, $crate::conn::L> {
+                self.view_r().swap_r()
+            }
+        }
         impl $crate::conn::ConnL for $name {
             type A = $A;
             type B = $B;
             #[inline]
-            fn conn_l(&self) -> $crate::conn::Conn<$A, $B, $crate::conn::L> {
-                $crate::conn::Conn::new_l($ceil, $inner)
+            fn swap_l(&self) -> $crate::conn::Conn<$B, $A, $crate::conn::R> {
+                self.view_l().swap_l()
             }
         }
         impl $crate::conn::ConnR for $name {
             type A = $A;
             type B = $B;
             #[inline]
-            fn conn_r(&self) -> $crate::conn::Conn<$A, $B, $crate::conn::R> {
-                $crate::conn::Conn::new_r($inner, $floor)
+            fn swap_r(&self) -> $crate::conn::Conn<$B, $A, $crate::conn::L> {
+                self.view_r().swap_r()
             }
         }
     };
@@ -1258,10 +1298,10 @@ mod tests {
     fn triple_uses_both_views() {
         // Reach for both views and confirm they round-trip through
         // the shared inner.
-        assert_eq!(TripleIdI32.ceil(7_i32), 7_i32);
-        assert_eq!(TripleIdI32.floor(7_i32), 7_i32);
-        assert_eq!(TripleIdI32.upper(7_i32), 7_i32);
-        assert_eq!(TripleIdI32.lower(7_i32), 7_i32);
+        assert_eq!(TripleIdI32.view_l().ceil(7_i32), 7_i32);
+        assert_eq!(TripleIdI32.view_r().floor(7_i32), 7_i32);
+        assert_eq!(TripleIdI32.view_l().upper(7_i32), 7_i32);
+        assert_eq!(TripleIdI32.view_r().lower(7_i32), 7_i32);
     }
 
     // ── compose_k! macro instantiation ───────────────────────────────
@@ -1311,28 +1351,28 @@ mod tests {
         // every input (the defining property of a degenerate Galois
         // iso).
         for x in [i32::MIN, -1, 0, 1, 42, i32::MAX] {
-            assert_eq!(IsoI32U32.ceil(x), IsoI32U32.floor(x));
+            assert_eq!(IsoI32U32.view_l().ceil(x), IsoI32U32.view_r().floor(x));
         }
     }
 
     #[test]
     fn iso_round_trip_both_directions() {
         for x in [i32::MIN, -1, 0, 1, 42, i32::MAX] {
-            let y = IsoI32U32.ceil(x);
-            assert_eq!(IsoI32U32.upper(y), x);
+            let y = IsoI32U32.view_l().ceil(x);
+            assert_eq!(IsoI32U32.view_l().upper(y), x);
         }
         for y in [0_u32, 1, 42, u32::MAX] {
-            let x = IsoI32U32.upper(y);
-            assert_eq!(IsoI32U32.ceil(x), y);
+            let x = IsoI32U32.view_l().upper(y);
+            assert_eq!(IsoI32U32.view_l().ceil(x), y);
         }
     }
 
     #[test]
     fn compose_triple_marker() {
         // Composed triple's L-view: ceil(x) = TripleAdd1.ceil(TripleIdI32.ceil(x)) = x + 1
-        assert_eq!(ComposedI32.ceil(0_i32), 1_i32);
+        assert_eq!(ComposedI32.view_l().ceil(0_i32), 1_i32);
         // Composed triple's R-view: floor(x) = TripleAdd1.floor(TripleIdI32.floor(x)) = x + 1
-        assert_eq!(ComposedI32.floor(0_i32), 1_i32);
+        assert_eq!(ComposedI32.view_r().floor(0_i32), 1_i32);
     }
 
     // ── Variadic compose_l! chain (3 operands, const-context) ────────
@@ -1420,20 +1460,31 @@ mod tests {
         }
     }
 
-    // ── Blanket-impl smoke test: a Conn value satisfies its trait ────
+    // ── Trait smoke test: markers dispatch generically via swap ──────
 
     #[test]
-    fn conn_value_impls_trait() {
-        // The blanket impls let a raw `Conn<_,_,L>` value flow through
-        // a `T: ConnL<_,_>` bound. Same on the R side.
+    fn marker_traits_dispatch_via_swap() {
+        // The traits carry exactly the swap; a generic consumer derives
+        // the direct views through the law-guaranteed double swap.
+        conn_k! {
+            SmokeI64I32 : i64 => i32 {
+                ceil:  _i64_to_i32,
+                inner: _i32_to_i64,
+                floor: _i64_to_i32,
+            }
+        }
         fn use_as_conn_l<T: ConnL<A = i64, B = i32>>(t: &T, a: i64) -> i32 {
-            t.ceil(a)
+            view_l(t).ceil(a)
         }
         fn use_as_conn_r<T: ConnR<A = i64, B = i32>>(t: &T, a: i64) -> i32 {
-            t.floor(a)
+            view_r(t).floor(a)
         }
-        assert_eq!(use_as_conn_l(&CONNLI64I32, 42_i64), 42_i32);
-        assert_eq!(use_as_conn_r(&CONNRI64I32, 42_i64), 42_i32);
+        assert_eq!(use_as_conn_l(&SmokeI64I32, 42_i64), 42_i32);
+        assert_eq!(use_as_conn_r(&SmokeI64I32, 42_i64), 42_i32);
+        // One concept, one name, two forms: the generic free fn and the
+        // marker's inherent projection agree exactly (fn-pointer identity).
+        assert_eq!(view_l(&SmokeI64I32), SmokeI64I32.view_l());
+        assert_eq!(view_r(&SmokeI64I32), SmokeI64I32.view_r());
     }
 
     // ── swap_l / swap_r involution proptests ─────────────────────────

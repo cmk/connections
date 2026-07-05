@@ -177,8 +177,8 @@ prove_l!(etainano, ETAINANO, arb_ext_epoch, arb_i128);
 
 prove_iso!(
     etaihdur,
-    ETAIHDUR.conn_l(),
-    ETAIHDUR.conn_r(),
+    ETAIHDUR.view_l(),
+    ETAIHDUR.view_r(),
     arb_epoch,
     arb_hd
 );

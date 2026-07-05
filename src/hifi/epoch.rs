@@ -164,13 +164,12 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::hifi::ETAIHDUR;
-    /// use connections::conn::{ConnL, ConnR};
     /// use hifitime::{Duration as HDuration, Epoch};
     ///
     /// // J1900 TAI — the storage zero.
     /// let j1900 = Epoch::from_tai_duration(HDuration::ZERO);
-    /// assert_eq!(ETAIHDUR.ceil(j1900), HDuration::ZERO);
-    /// assert_eq!(ETAIHDUR.upper(HDuration::ZERO), j1900);
+    /// assert_eq!(ETAIHDUR.swap_l().swap_r().ceil(j1900), HDuration::ZERO);
+    /// assert_eq!(ETAIHDUR.swap_l().swap_r().upper(HDuration::ZERO), j1900);
     /// ```
     pub ETAIHDUR : Epoch => HD {
         forward: etaihdur_forward,
@@ -427,12 +426,11 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::hifi::EUTCHDUR;
-    /// use connections::conn::{ConnL, ConnR};
     /// use hifitime::{Duration as HDuration, Epoch};
     ///
     /// // J1900 TAI = J1900 UTC (no leap seconds before 1972).
     /// let j1900 = Epoch::from_tai_duration(HDuration::ZERO);
-    /// assert_eq!(EUTCHDUR.ceil(j1900), HDuration::ZERO);
+    /// assert_eq!(EUTCHDUR.swap_l().swap_r().ceil(j1900), HDuration::ZERO);
     /// ```
     pub EUTCHDUR : Epoch => HD {
         forward: eutchdur_forward,
@@ -781,11 +779,10 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::hifi::EGPSHDUR;
-    /// use connections::conn::{ConnL, ConnR};
     /// use hifitime::{Duration as HDuration, GPST_REF_EPOCH};
     ///
     /// // GPST reference is the GPST-scale zero.
-    /// assert_eq!(EGPSHDUR.ceil(GPST_REF_EPOCH), HDuration::ZERO);
+    /// assert_eq!(EGPSHDUR.swap_l().swap_r().ceil(GPST_REF_EPOCH), HDuration::ZERO);
     /// ```
     pub EGPSHDUR : Epoch => HD {
         forward: egpshdur_forward,
@@ -975,10 +972,9 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::hifi::EQZSHDUR;
-    /// use connections::conn::{ConnL, ConnR};
     /// use hifitime::{Duration as HDuration, QZSST_REF_EPOCH};
     ///
-    /// assert_eq!(EQZSHDUR.ceil(QZSST_REF_EPOCH), HDuration::ZERO);
+    /// assert_eq!(EQZSHDUR.swap_l().swap_r().ceil(QZSST_REF_EPOCH), HDuration::ZERO);
     /// ```
     pub EQZSHDUR : Epoch => HD {
         forward: eqzshdur_forward,
@@ -1127,9 +1123,8 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::hifi::EGSTHDUR;
-    /// use connections::conn::{ConnL, ConnR};
     /// use hifitime::{Duration as HDuration, GST_REF_EPOCH};
-    /// assert_eq!(EGSTHDUR.ceil(GST_REF_EPOCH), HDuration::ZERO);
+    /// assert_eq!(EGSTHDUR.swap_l().swap_r().ceil(GST_REF_EPOCH), HDuration::ZERO);
     /// ```
     pub EGSTHDUR : Epoch => HD {
         forward: egsthdur_forward,
@@ -1286,9 +1281,8 @@ crate::iso! {
     ///
     /// ```rust
     /// use connections::hifi::EBDTHDUR;
-    /// use connections::conn::{ConnL, ConnR};
     /// use hifitime::{Duration as HDuration, BDT_REF_EPOCH};
-    /// assert_eq!(EBDTHDUR.ceil(BDT_REF_EPOCH), HDuration::ZERO);
+    /// assert_eq!(EBDTHDUR.swap_l().swap_r().ceil(BDT_REF_EPOCH), HDuration::ZERO);
     /// ```
     pub EBDTHDUR : Epoch => HD {
         forward: ebdthdur_forward,
@@ -1864,10 +1858,10 @@ mod tests {
     #[test]
     fn etaihdur_j1900_zero() {
         let j1900 = Epoch::from_tai_duration(HD::ZERO);
-        assert_eq!(ETAIHDUR.ceil(j1900), HD::ZERO);
-        assert_eq!(ETAIHDUR.floor(j1900), HD::ZERO);
-        assert_eq!(ETAIHDUR.upper(HD::ZERO), j1900);
-        assert_eq!(ETAIHDUR.lower(HD::ZERO), j1900);
+        assert_eq!(ETAIHDUR.view_l().ceil(j1900), HD::ZERO);
+        assert_eq!(ETAIHDUR.view_r().floor(j1900), HD::ZERO);
+        assert_eq!(ETAIHDUR.view_l().upper(HD::ZERO), j1900);
+        assert_eq!(ETAIHDUR.view_r().lower(HD::ZERO), j1900);
     }
 
     #[test]
@@ -1875,8 +1869,11 @@ mod tests {
         // UNIX_REF_EPOCH's underlying TAI duration is the well-known
         // ~70-year offset; the Conn projects through it bijectively.
         let unix_dur = UNIX_REF_EPOCH.to_tai_duration();
-        assert_eq!(ETAIHDUR.ceil(UNIX_REF_EPOCH), unix_dur);
-        assert_eq!(ETAIHDUR.upper(unix_dur), Epoch::from_tai_duration(unix_dur),);
+        assert_eq!(ETAIHDUR.view_l().ceil(UNIX_REF_EPOCH), unix_dur);
+        assert_eq!(
+            ETAIHDUR.view_l().upper(unix_dur),
+            Epoch::from_tai_duration(unix_dur),
+        );
     }
 
     // ── ETAINANO spot checks ────────────────────────────────────
@@ -1918,9 +1915,9 @@ mod tests {
         // J1900 in any scale ↔ HD::ZERO (no leap seconds before 1972,
         // so UTC == TAI here).
         let j1900 = Epoch::from_tai_duration(HD::ZERO);
-        assert_eq!(EUTCHDUR.ceil(j1900), HD::ZERO);
-        assert_eq!(EUTCHDUR.floor(j1900), HD::ZERO);
-        let round_trip = EUTCHDUR.upper(HD::ZERO);
+        assert_eq!(EUTCHDUR.view_l().ceil(j1900), HD::ZERO);
+        assert_eq!(EUTCHDUR.view_r().floor(j1900), HD::ZERO);
+        let round_trip = EUTCHDUR.view_l().upper(HD::ZERO);
         // round_trip is a UTC-scale Epoch at the same instant as j1900.
         assert_eq!(round_trip, j1900);
     }
@@ -1930,7 +1927,7 @@ mod tests {
         // `forward(UNIX_REF_EPOCH)` is the UNIX epoch's UTC duration
         // since J1900 (~70 yr minus pre-1972 leap-second adjustments).
         let unix_utc = UNIX_REF_EPOCH.to_utc_duration();
-        assert_eq!(EUTCHDUR.ceil(UNIX_REF_EPOCH), unix_utc);
+        assert_eq!(EUTCHDUR.view_l().ceil(UNIX_REF_EPOCH), unix_utc);
     }
 
     // ── EUNXNANO spot checks ────────────────────────────────────
@@ -2214,8 +2211,8 @@ mod tests {
 
     #[test]
     fn egpshdur_ref_zero() {
-        assert_eq!(EGPSHDUR.ceil(GPST_REF_EPOCH), HD::ZERO);
-        assert_eq!(EGPSHDUR.upper(HD::ZERO), GPST_REF_EPOCH);
+        assert_eq!(EGPSHDUR.view_l().ceil(GPST_REF_EPOCH), HD::ZERO);
+        assert_eq!(EGPSHDUR.view_l().upper(HD::ZERO), GPST_REF_EPOCH);
     }
 
     #[test]
@@ -2256,7 +2253,7 @@ mod tests {
 
     #[test]
     fn eqzshdur_ref_zero() {
-        assert_eq!(EQZSHDUR.ceil(QZSST_REF_EPOCH), HD::ZERO);
+        assert_eq!(EQZSHDUR.view_l().ceil(QZSST_REF_EPOCH), HD::ZERO);
     }
 
     #[test]
@@ -2286,7 +2283,7 @@ mod tests {
 
     #[test]
     fn egsthdur_ref_zero() {
-        assert_eq!(EGSTHDUR.ceil(GST_REF_EPOCH), HD::ZERO);
+        assert_eq!(EGSTHDUR.view_l().ceil(GST_REF_EPOCH), HD::ZERO);
     }
 
     #[test]
@@ -2312,7 +2309,7 @@ mod tests {
 
     #[test]
     fn ebdthdur_ref_zero() {
-        assert_eq!(EBDTHDUR.ceil(BDT_REF_EPOCH), HD::ZERO);
+        assert_eq!(EBDTHDUR.view_l().ceil(BDT_REF_EPOCH), HD::ZERO);
     }
 
     #[test]
@@ -2348,7 +2345,7 @@ mod tests {
         // assertion remains independent of the constant the Conn
         // itself transitively depends on.
         let e = Epoch::from_tai_seconds(3_000_000_000.0); // ~rough 1995 TAI
-        let gpst_secs = EGPSHDUR.ceil(e).to_seconds();
+        let gpst_secs = EGPSHDUR.view_l().ceil(e).to_seconds();
         let expected = e.to_tai_seconds() - 2_524_953_619.0;
         assert!((gpst_secs - expected).abs() < 1e-6);
     }
@@ -2503,7 +2500,7 @@ mod tests {
         }
         #[test]
         fn egpshdur_eq_eqzshdur(e in arb_hifi_epoch()) {
-            prop_assert_eq!(EGPSHDUR.ceil(e), EQZSHDUR.ceil(e));
+            prop_assert_eq!(EGPSHDUR.view_l().ceil(e), EQZSHDUR.view_l().ceil(e));
         }
     }
 

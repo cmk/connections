@@ -117,19 +117,19 @@ mod tests {
     proptest! {
         #[test]
         fn n128n008_galois_l(a in arb_nz_u128(), b in arb_nz_u8()) {
-            prop_assert!(conn_laws::galois_l(&N128N008.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N128N008, a, b));
         }
         #[test]
         fn n128n016_galois_l(a in arb_nz_u128(), b in arb_nz_u16()) {
-            prop_assert!(conn_laws::galois_l(&N128N016.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N128N016, a, b));
         }
         #[test]
         fn n128n032_galois_l(a in arb_nz_u128(), b in arb_nz_u32()) {
-            prop_assert!(conn_laws::galois_l(&N128N032.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N128N032, a, b));
         }
         #[test]
         fn n128n064_galois_l(a in arb_nz_u128(), b in arb_nz_u64()) {
-            prop_assert!(conn_laws::galois_l(&N128N064.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N128N064, a, b));
         }
     }
 
@@ -144,19 +144,19 @@ mod tests {
     proptest! {
         #[test]
         fn u128_be_iso_roundtrip_l(a in prop_oneof![Just(0u128), Just(u128::MAX), any::<u128>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&U128BE16.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&U128BE16.view_l(), a));
         }
         #[test]
         fn u128_be_roundtrip_ceil(b in arb_byte16()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&U128BE16.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&U128BE16.view_l(), b));
         }
         #[test]
         fn u128_be_galois_l(a in any::<u128>(), b in arb_byte16()) {
-            prop_assert!(conn_laws::galois_l(&U128BE16.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&U128BE16.view_l(), a, b));
         }
         #[test]
         fn u128_be_galois_r(a in any::<u128>(), b in arb_byte16()) {
-            prop_assert!(conn_laws::galois_r(&U128BE16.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&U128BE16.view_r(), a, b));
         }
         #[test]
         fn u128_be_floor_le_ceil(a in any::<u128>()) {
@@ -164,24 +164,24 @@ mod tests {
         }
         #[test]
         fn u128_be_order_preserving(a in any::<u128>(), b in any::<u128>()) {
-            prop_assert_eq!(a.cmp(&b), U128BE16.ceil(a).cmp(&U128BE16.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), U128BE16.view_l().ceil(a).cmp(&U128BE16.view_l().ceil(b)));
         }
 
         #[test]
         fn u128_le_iso_roundtrip_l(a in prop_oneof![Just(0u128), Just(u128::MAX), any::<u128>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&U128LE16.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&U128LE16.view_l(), a));
         }
         #[test]
         fn u128_le_roundtrip_ceil(b in arb_lebyte16()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&U128LE16.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&U128LE16.view_l(), b));
         }
         #[test]
         fn u128_le_galois_l(a in any::<u128>(), b in arb_lebyte16()) {
-            prop_assert!(conn_laws::galois_l(&U128LE16.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&U128LE16.view_l(), a, b));
         }
         #[test]
         fn u128_le_galois_r(a in any::<u128>(), b in arb_lebyte16()) {
-            prop_assert!(conn_laws::galois_r(&U128LE16.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&U128LE16.view_r(), a, b));
         }
         #[test]
         fn u128_le_floor_le_ceil(a in any::<u128>()) {
@@ -189,7 +189,7 @@ mod tests {
         }
         #[test]
         fn u128_le_order_preserving(a in any::<u128>(), b in any::<u128>()) {
-            prop_assert_eq!(a.cmp(&b), U128LE16.ceil(a).cmp(&U128LE16.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), U128LE16.view_l().ceil(a).cmp(&U128LE16.view_l().ceil(b)));
         }
     }
 }

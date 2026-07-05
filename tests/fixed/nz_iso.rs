@@ -20,7 +20,6 @@ use ::core::num::{
     NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroU16, NonZeroU32, NonZeroU64,
     NonZeroU128,
 };
-use connections::conn::{ConnL, ConnR};
 use connections::prop::conn as conn_laws;
 use connections::{core, fixed};
 use proptest::prelude::*;
@@ -40,16 +39,16 @@ macro_rules! signed_nz_props {
             proptest! {
                 #[test]
                 fn galois_l(a in any::<$A>(), b in arb_nz()) {
-                    prop_assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
+                    prop_assert!(conn_laws::galois_l(&$CONN.swap_l().swap_r(), a, b));
                 }
                 #[test]
                 fn galois_r(a in any::<$A>(), b in arb_nz()) {
-                    prop_assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
+                    prop_assert!(conn_laws::galois_r(&$CONN.swap_r().swap_l(), a, b));
                 }
                 #[test]
                 fn inner_then_ceil_recovers(nz in arb_nz()) {
-                    prop_assert_eq!($CONN.ceil($CONN.upper(nz)), nz);
-                    prop_assert_eq!($CONN.floor($CONN.upper(nz)), nz);
+                    prop_assert_eq!($CONN.swap_l().swap_r().ceil($CONN.swap_l().swap_r().upper(nz)), nz);
+                    prop_assert_eq!($CONN.swap_r().swap_l().floor($CONN.swap_l().swap_r().upper(nz)), nz);
                 }
             }
         }
@@ -76,11 +75,11 @@ macro_rules! unsigned_nz_props {
             proptest! {
                 #[test]
                 fn galois_l(a in any::<$A>(), b in arb_nz()) {
-                    prop_assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
+                    prop_assert!(conn_laws::galois_l(&$CONN.swap_l().swap_r(), a, b));
                 }
                 #[test]
                 fn inner_then_ceil_recovers(nz in arb_nz()) {
-                    prop_assert_eq!($CONN.ceil($CONN.upper(nz)), nz);
+                    prop_assert_eq!($CONN.swap_l().swap_r().ceil($CONN.swap_l().swap_r().upper(nz)), nz);
                 }
             }
         }
@@ -103,20 +102,20 @@ macro_rules! iso_props {
                 #[test]
                 fn galois_l(a_bits in any::<$A>(), b in any::<$A>()) {
                     let a = $FIXED::<$FRAC>::from_bits(a_bits);
-                    prop_assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
+                    prop_assert!(conn_laws::galois_l(&$CONN.swap_l().swap_r(), a, b));
                 }
                 #[test]
                 fn galois_r(a_bits in any::<$A>(), b in any::<$A>()) {
                     let a = $FIXED::<$FRAC>::from_bits(a_bits);
-                    prop_assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
+                    prop_assert!(conn_laws::galois_r(&$CONN.swap_r().swap_l(), a, b));
                 }
                 #[test]
                 fn round_trip_both_directions(v in any::<$A>()) {
                     let q = $FIXED::<$FRAC>::from_bits(v);
-                    prop_assert_eq!($CONN.upper($CONN.ceil(q)), q);
-                    prop_assert_eq!($CONN.ceil($CONN.upper(v)), v);
-                    prop_assert_eq!($CONN.lower($CONN.floor(q)), q);
-                    prop_assert_eq!($CONN.floor($CONN.lower(v)), v);
+                    prop_assert_eq!($CONN.swap_l().swap_r().upper($CONN.swap_l().swap_r().ceil(q)), q);
+                    prop_assert_eq!($CONN.swap_l().swap_r().ceil($CONN.swap_l().swap_r().upper(v)), v);
+                    prop_assert_eq!($CONN.swap_r().swap_l().lower($CONN.swap_r().swap_l().floor(q)), q);
+                    prop_assert_eq!($CONN.swap_r().swap_l().floor($CONN.swap_r().swap_l().lower(v)), v);
                 }
             }
         }

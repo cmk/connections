@@ -188,21 +188,20 @@ crate::conn_k! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ConnL, ConnR};
     /// use connections::time::TDURSECS;
     /// use connections::extended::Extended;
     /// use time::Duration;
     ///
     /// let half = Duration::seconds(5) + Duration::nanoseconds(1);
-    /// assert_eq!(TDURSECS.ceil(half),  Extended::Finite(6));
-    /// assert_eq!(TDURSECS.floor(half), Extended::Finite(5));
+    /// assert_eq!(TDURSECS.swap_l().swap_r().ceil(half),  Extended::Finite(6));
+    /// assert_eq!(TDURSECS.swap_r().swap_l().floor(half), Extended::Finite(5));
     ///
     /// // Negative sub-second: ceil rounds toward zero, floor away.
     /// let neg = Duration::seconds(-5) - Duration::nanoseconds(1);
-    /// assert_eq!(TDURSECS.ceil(neg),  Extended::Finite(-5));
-    /// assert_eq!(TDURSECS.floor(neg), Extended::Finite(-6));
+    /// assert_eq!(TDURSECS.swap_l().swap_r().ceil(neg),  Extended::Finite(-5));
+    /// assert_eq!(TDURSECS.swap_r().swap_l().floor(neg), Extended::Finite(-6));
     ///
-    /// assert_eq!(TDURSECS.upper(Extended::Finite(42)), Duration::seconds(42));
+    /// assert_eq!(TDURSECS.swap_l().swap_r().upper(Extended::Finite(42)), Duration::seconds(42));
     /// ```
     pub TDURSECS : Duration => Extended<i64> {
         ceil:  tdursecs_ceil,
@@ -214,7 +213,6 @@ crate::conn_k! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::conn::{ConnL, ConnR};
     use crate::prop::arb::{arb_duration, arb_extended_i64};
     use crate::prop::{conn as conn_laws, lattice as lattice_laws};
     use proptest::prelude::*;
@@ -258,38 +256,38 @@ mod tests {
 
     #[test]
     fn zero_is_zero() {
-        assert_eq!(TDURSECS.ceil(Duration::ZERO), Extended::Finite(0));
-        assert_eq!(TDURSECS.floor(Duration::ZERO), Extended::Finite(0));
-        assert_eq!(TDURSECS.upper(Extended::Finite(0)), Duration::ZERO);
+        assert_eq!(TDURSECS.view_l().ceil(Duration::ZERO), Extended::Finite(0));
+        assert_eq!(TDURSECS.view_r().floor(Duration::ZERO), Extended::Finite(0));
+        assert_eq!(TDURSECS.view_l().upper(Extended::Finite(0)), Duration::ZERO);
     }
 
     #[test]
     fn positive_subsec_rounds_up() {
         let d = Duration::seconds(5) + Duration::nanoseconds(1);
-        assert_eq!(TDURSECS.ceil(d), Extended::Finite(6));
-        assert_eq!(TDURSECS.floor(d), Extended::Finite(5));
+        assert_eq!(TDURSECS.view_l().ceil(d), Extended::Finite(6));
+        assert_eq!(TDURSECS.view_r().floor(d), Extended::Finite(5));
     }
 
     #[test]
     fn negative_subsec_rounds_toward_zero() {
         // -5.000_000_001 s → ceil = -5, floor = -6
         let d = Duration::seconds(-5) - Duration::nanoseconds(1);
-        assert_eq!(TDURSECS.ceil(d), Extended::Finite(-5));
-        assert_eq!(TDURSECS.floor(d), Extended::Finite(-6));
+        assert_eq!(TDURSECS.view_l().ceil(d), Extended::Finite(-5));
+        assert_eq!(TDURSECS.view_r().floor(d), Extended::Finite(-6));
     }
 
     #[test]
     fn extreme_durations() {
-        assert_eq!(TDURSECS.ceil(Duration::MAX), Extended::PosInf);
-        assert_eq!(TDURSECS.floor(Duration::MAX), Extended::PosInf);
-        assert_eq!(TDURSECS.ceil(Duration::MIN), Extended::NegInf);
-        assert_eq!(TDURSECS.floor(Duration::MIN), Extended::NegInf);
+        assert_eq!(TDURSECS.view_l().ceil(Duration::MAX), Extended::PosInf);
+        assert_eq!(TDURSECS.view_r().floor(Duration::MAX), Extended::PosInf);
+        assert_eq!(TDURSECS.view_l().ceil(Duration::MIN), Extended::NegInf);
+        assert_eq!(TDURSECS.view_r().floor(Duration::MIN), Extended::NegInf);
     }
 
     #[test]
     fn inner_saturates_extended() {
-        assert_eq!(TDURSECS.upper(Extended::NegInf), Duration::MIN);
-        assert_eq!(TDURSECS.upper(Extended::PosInf), Duration::MAX);
+        assert_eq!(TDURSECS.view_l().upper(Extended::NegInf), Duration::MIN);
+        assert_eq!(TDURSECS.view_l().upper(Extended::PosInf), Duration::MAX);
     }
 
     // ── TDURSECS Galois law battery ─────────────────────────────
@@ -323,12 +321,12 @@ mod tests {
         // identity.
         #[test]
         fn roundtrip_ceil(s in any::<i64>()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&TDURSECS.conn_l(), Extended::Finite(s)));
+            prop_assert!(conn_laws::roundtrip_ceil(&TDURSECS.view_l(), Extended::Finite(s)));
         }
 
         #[test]
         fn roundtrip_floor(s in any::<i64>()) {
-            prop_assert!(conn_laws::roundtrip_floor(&TDURSECS.conn_r(), Extended::Finite(s)));
+            prop_assert!(conn_laws::roundtrip_floor(&TDURSECS.view_r(), Extended::Finite(s)));
         }
     }
 }
@@ -612,7 +610,6 @@ crate::conn_l! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::ConnL;
     /// use connections::time::SDURU064;
     /// use connections::extended::Extended;
     /// use std::time::Duration as StdDuration;

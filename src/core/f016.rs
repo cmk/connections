@@ -270,12 +270,12 @@ mod tests {
 
         #[test]
         fn f032_galois_l(a in ef32(), b in ef16()) {
-            prop_assert!(conn_laws::galois_l(&F032F016.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&F032F016.view_l(), a, b));
         }
 
         #[test]
         fn f032_galois_r(a in ef32(), b in ef16()) {
-            prop_assert!(conn_laws::galois_r(&F032F016.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&F032F016.view_r(), a, b));
         }
 
         #[test]
@@ -285,12 +285,12 @@ mod tests {
 
         #[test]
         fn f064_galois_l(a in ef64(), b in ef16()) {
-            prop_assert!(conn_laws::galois_l(&F064F016.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&F064F016.view_l(), a, b));
         }
 
         #[test]
         fn f064_galois_r(a in ef64(), b in ef16()) {
-            prop_assert!(conn_laws::galois_r(&F064F016.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&F064F016.view_r(), a, b));
         }
 
         #[test]

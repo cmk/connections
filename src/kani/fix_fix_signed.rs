@@ -39,7 +39,7 @@ macro_rules! prove_fix_fix {
                 let cbits: $BITS = kani::any();
                 let a = <$FX_FINE>::from_bits(fbits);
                 let b = <$FX_COARSE>::from_bits(cbits);
-                assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
+                assert!(conn_laws::galois_l(&$CONN.view_l(), a, b));
             }
 
             // `prop::conn::monotone_l` returns `true` vacuously for
@@ -52,28 +52,28 @@ macro_rules! prove_fix_fix {
                 let b2: $BITS = kani::any();
                 let a1 = <$FX_FINE>::from_bits(b1);
                 let a2 = <$FX_FINE>::from_bits(b2);
-                assert!(conn_laws::monotone_l(&$CONN.conn_l(), a1, a2));
+                assert!(conn_laws::monotone_l(&$CONN.view_l(), a1, a2));
             }
 
             #[kani::proof]
             fn closure_l() {
                 let bits: $BITS = kani::any();
                 let a = <$FX_FINE>::from_bits(bits);
-                assert!(conn_laws::closure_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::closure_l(&$CONN.view_l(), a));
             }
 
             #[kani::proof]
             fn kernel_l() {
                 let bits: $BITS = kani::any();
                 let b = <$FX_COARSE>::from_bits(bits);
-                assert!(conn_laws::kernel_l(&$CONN.conn_l(), b));
+                assert!(conn_laws::kernel_l(&$CONN.view_l(), b));
             }
 
             #[kani::proof]
             fn idempotent_l() {
                 let bits: $BITS = kani::any();
                 let a = <$FX_FINE>::from_bits(bits);
-                assert!(conn_laws::idempotent_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::idempotent_l(&$CONN.view_l(), a));
             }
         }
     };

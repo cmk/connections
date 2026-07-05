@@ -13,26 +13,26 @@ macro_rules! prove_iso_le {
             fn galois_l() {
                 let a: $T = kani::any();
                 let b = LE(kani::any::<[u8; 2]>());
-                assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
+                assert!(conn_laws::galois_l(&$CONN.view_l(), a, b));
             }
 
             #[kani::proof]
             fn galois_r() {
                 let a: $T = kani::any();
                 let b = LE(kani::any::<[u8; 2]>());
-                assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
+                assert!(conn_laws::galois_r(&$CONN.view_r(), a, b));
             }
 
             #[kani::proof]
             fn iso_roundtrip_l() {
                 let a: $T = kani::any();
-                assert!(conn_laws::iso_roundtrip_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::iso_roundtrip_l(&$CONN.view_l(), a));
             }
 
             #[kani::proof]
             fn roundtrip_ceil() {
                 let b = LE(kani::any::<[u8; 2]>());
-                assert!(conn_laws::roundtrip_ceil(&$CONN.conn_l(), b));
+                assert!(conn_laws::roundtrip_ceil(&$CONN.view_l(), b));
             }
 
             #[kani::proof]
@@ -60,26 +60,26 @@ macro_rules! prove_iso_l2 {
             fn galois_l() {
                 let a: $T = kani::any();
                 let b = L2(kani::any::<[u8; 2]>());
-                assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
+                assert!(conn_laws::galois_l(&$CONN.view_l(), a, b));
             }
 
             #[kani::proof]
             fn galois_r() {
                 let a: $T = kani::any();
                 let b = L2(kani::any::<[u8; 2]>());
-                assert!(conn_laws::galois_r(&$CONN.conn_r(), a, b));
+                assert!(conn_laws::galois_r(&$CONN.view_r(), a, b));
             }
 
             #[kani::proof]
             fn iso_roundtrip_l() {
                 let a: $T = kani::any();
-                assert!(conn_laws::iso_roundtrip_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::iso_roundtrip_l(&$CONN.view_l(), a));
             }
 
             #[kani::proof]
             fn roundtrip_ceil() {
                 let b = L2(kani::any::<[u8; 2]>());
-                assert!(conn_laws::roundtrip_ceil(&$CONN.conn_l(), b));
+                assert!(conn_laws::roundtrip_ceil(&$CONN.view_l(), b));
             }
 
             #[kani::proof]

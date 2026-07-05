@@ -139,11 +139,11 @@ mod tests {
     proptest! {
         #[test]
         fn n032n008_galois_l(a in arb_nz_u32(), b in arb_nz_u8()) {
-            prop_assert!(conn_laws::galois_l(&N032N008.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N032N008, a, b));
         }
         #[test]
         fn n032n016_galois_l(a in arb_nz_u32(), b in arb_nz_u16()) {
-            prop_assert!(conn_laws::galois_l(&N032N016.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N032N016, a, b));
         }
     }
 
@@ -158,19 +158,19 @@ mod tests {
     proptest! {
         #[test]
         fn u32_be_iso_roundtrip_l(a in prop_oneof![Just(0u32), Just(u32::MAX), any::<u32>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&U032BE04.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&U032BE04.view_l(), a));
         }
         #[test]
         fn u32_be_roundtrip_ceil(b in arb_byte4()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&U032BE04.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&U032BE04.view_l(), b));
         }
         #[test]
         fn u32_be_galois_l(a in any::<u32>(), b in arb_byte4()) {
-            prop_assert!(conn_laws::galois_l(&U032BE04.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&U032BE04.view_l(), a, b));
         }
         #[test]
         fn u32_be_galois_r(a in any::<u32>(), b in arb_byte4()) {
-            prop_assert!(conn_laws::galois_r(&U032BE04.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&U032BE04.view_r(), a, b));
         }
         #[test]
         fn u32_be_floor_le_ceil(a in any::<u32>()) {
@@ -178,27 +178,27 @@ mod tests {
         }
         #[test]
         fn u32_be_order_preserving(a in any::<u32>(), b in any::<u32>()) {
-            prop_assert_eq!(a.cmp(&b), U032BE04.ceil(a).cmp(&U032BE04.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), U032BE04.view_l().ceil(a).cmp(&U032BE04.view_l().ceil(b)));
         }
 
         #[test]
         fn u032_le_iso_roundtrip_l(a in prop_oneof![Just(0u32), Just(u32::MAX), any::<u32>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&U032LE04.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&U032LE04.view_l(), a));
         }
 
         #[test]
         fn u032_le_roundtrip_ceil(b in arb_lebyte4()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&U032LE04.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&U032LE04.view_l(), b));
         }
 
         #[test]
         fn u032_le_galois_l(a in any::<u32>(), b in arb_lebyte4()) {
-            prop_assert!(conn_laws::galois_l(&U032LE04.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&U032LE04.view_l(), a, b));
         }
 
         #[test]
         fn u032_le_galois_r(a in any::<u32>(), b in arb_lebyte4()) {
-            prop_assert!(conn_laws::galois_r(&U032LE04.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&U032LE04.view_r(), a, b));
         }
 
         #[test]
@@ -208,7 +208,7 @@ mod tests {
 
         #[test]
         fn u032_le_order_preserving(a in any::<u32>(), b in any::<u32>()) {
-            prop_assert_eq!(a.cmp(&b), U032LE04.ceil(a).cmp(&U032LE04.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), U032LE04.view_l().ceil(a).cmp(&U032LE04.view_l().ceil(b)));
         }
     }
 }
