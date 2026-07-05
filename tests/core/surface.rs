@@ -48,7 +48,10 @@ fn prelude_glob_brings_traits() {
     use connections::prelude::*;
 
     // `ConnL::ceil` arrives via the prelude.
-    let pi32 = F064F032.ceil(Extend(std::f64::consts::PI));
+    let pi32 = F064F032
+        .swap_l()
+        .swap_r()
+        .ceil(Extend(std::f64::consts::PI));
     assert_eq!(pi32, Extend(std::f32::consts::PI));
 
     // The bare two-sided helper `round` also arrives via the prelude.

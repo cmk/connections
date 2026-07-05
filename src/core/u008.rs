@@ -52,11 +52,10 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ConnL, ConnR};
     /// use connections::core::u008::U008BE01;
     ///
-    /// assert_eq!(U008BE01.ceil(0x42_u8), [0x42]);
-    /// assert_eq!(U008BE01.upper([0x42]), 0x42_u8);
+    /// assert_eq!(U008BE01.swap_l().swap_r().ceil(0x42_u8), [0x42]);
+    /// assert_eq!(U008BE01.swap_l().swap_r().upper([0x42]), 0x42_u8);
     /// ```
     pub U008BE01 : u8 => [u8; 1] {
         forward: u8_to_be01,
@@ -190,7 +189,7 @@ mod tests {
     proptest! {
         #[test]
         fn u008n008_galois_l(a in any::<u8>(), b in arb_nz_u8()) {
-            prop_assert!(conn_laws::galois_l(&U008N008.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&U008N008, a, b));
         }
 
         #[test]
@@ -238,7 +237,7 @@ mod tests {
     proptest! {
         #[test]
         fn n008n016_galois_l(a in arb_nz_u8(), b in arb_nz_u16()) {
-            prop_assert!(conn_laws::galois_l(&N008N016.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N008N016, a, b));
         }
         #[test]
         fn n008n016_round_trip_below_cap(n in arb_nz_u8()) {
@@ -246,15 +245,15 @@ mod tests {
         }
         #[test]
         fn n008n032_galois_l(a in arb_nz_u8(), b in arb_nz_u32()) {
-            prop_assert!(conn_laws::galois_l(&N008N032.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N008N032, a, b));
         }
         #[test]
         fn n008n064_galois_l(a in arb_nz_u8(), b in arb_nz_u64()) {
-            prop_assert!(conn_laws::galois_l(&N008N064.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N008N064, a, b));
         }
         #[test]
         fn n008n128_galois_l(a in arb_nz_u8(), b in arb_nz_u128()) {
-            prop_assert!(conn_laws::galois_l(&N008N128.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N008N128, a, b));
         }
     }
 
@@ -276,22 +275,22 @@ mod tests {
     proptest! {
         #[test]
         fn u008_be_iso_roundtrip_l(a in prop_oneof![Just(0u8), Just(u8::MAX), any::<u8>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&U008BE01.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&U008BE01.view_l(), a));
         }
 
         #[test]
         fn u008_be_roundtrip_ceil(b in arb_byte1()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&U008BE01.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&U008BE01.view_l(), b));
         }
 
         #[test]
         fn u008_be_galois_l(a in any::<u8>(), b in arb_byte1()) {
-            prop_assert!(conn_laws::galois_l(&U008BE01.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&U008BE01.view_l(), a, b));
         }
 
         #[test]
         fn u008_be_galois_r(a in any::<u8>(), b in arb_byte1()) {
-            prop_assert!(conn_laws::galois_r(&U008BE01.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&U008BE01.view_r(), a, b));
         }
 
         #[test]
@@ -301,27 +300,27 @@ mod tests {
 
         #[test]
         fn u008_be_order_preserving(a in any::<u8>(), b in any::<u8>()) {
-            prop_assert_eq!(a.cmp(&b), U008BE01.ceil(a).cmp(&U008BE01.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), U008BE01.view_l().ceil(a).cmp(&U008BE01.view_l().ceil(b)));
         }
 
         #[test]
         fn u008_le_iso_roundtrip_l(a in prop_oneof![Just(0u8), Just(u8::MAX), any::<u8>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&U008LE01.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&U008LE01.view_l(), a));
         }
 
         #[test]
         fn u008_le_roundtrip_ceil(b in arb_lebyte1()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&U008LE01.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&U008LE01.view_l(), b));
         }
 
         #[test]
         fn u008_le_galois_l(a in any::<u8>(), b in arb_lebyte1()) {
-            prop_assert!(conn_laws::galois_l(&U008LE01.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&U008LE01.view_l(), a, b));
         }
 
         #[test]
         fn u008_le_galois_r(a in any::<u8>(), b in arb_lebyte1()) {
-            prop_assert!(conn_laws::galois_r(&U008LE01.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&U008LE01.view_r(), a, b));
         }
 
         #[test]
@@ -331,7 +330,7 @@ mod tests {
 
         #[test]
         fn u008_le_order_preserving(a in any::<u8>(), b in any::<u8>()) {
-            prop_assert_eq!(a.cmp(&b), U008LE01.ceil(a).cmp(&U008LE01.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), U008LE01.view_l().ceil(a).cmp(&U008LE01.view_l().ceil(b)));
         }
     }
 }

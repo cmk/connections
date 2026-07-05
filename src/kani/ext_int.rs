@@ -35,7 +35,7 @@ macro_rules! prove_ext_int {
             fn galois_l() {
                 let a: Extended<$A> = arb_ext!($A);
                 let b: $B = kani::any();
-                assert!(conn_laws::galois_l(&$CONN.conn_l(), a, b));
+                assert!(conn_laws::galois_l(&$CONN.view_l(), a, b));
             }
 
             // `prop::conn::monotone_l` returns `true` vacuously for
@@ -44,25 +44,25 @@ macro_rules! prove_ext_int {
             fn monotone_l() {
                 let a1: Extended<$A> = arb_ext!($A);
                 let a2: Extended<$A> = arb_ext!($A);
-                assert!(conn_laws::monotone_l(&$CONN.conn_l(), a1, a2));
+                assert!(conn_laws::monotone_l(&$CONN.view_l(), a1, a2));
             }
 
             #[kani::proof]
             fn closure_l() {
                 let a: Extended<$A> = arb_ext!($A);
-                assert!(conn_laws::closure_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::closure_l(&$CONN.view_l(), a));
             }
 
             #[kani::proof]
             fn kernel_l() {
                 let b: $B = kani::any();
-                assert!(conn_laws::kernel_l(&$CONN.conn_l(), b));
+                assert!(conn_laws::kernel_l(&$CONN.view_l(), b));
             }
 
             #[kani::proof]
             fn idempotent_l() {
                 let a: Extended<$A> = arb_ext!($A);
-                assert!(conn_laws::idempotent_l(&$CONN.conn_l(), a));
+                assert!(conn_laws::idempotent_l(&$CONN.view_l(), a));
             }
         }
     };

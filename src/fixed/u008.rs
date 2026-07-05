@@ -168,12 +168,12 @@ mod tests {
     fn q000u008_round_trips_both_ways() {
         for &v in &[0_u8, 1, 42, u8::MAX] {
             let q = FixedU8::<F0>::from_bits(v);
-            assert_eq!(Q000U008.ceil(q), v);
-            assert_eq!(Q000U008.floor(q), v);
-            assert_eq!(Q000U008.upper(v), q);
-            assert_eq!(Q000U008.lower(v), q);
-            assert_eq!(Q000U008.ceil(Q000U008.upper(v)), v);
-            assert_eq!(Q000U008.upper(Q000U008.ceil(q)), q);
+            assert_eq!(Q000U008.view_l().ceil(q), v);
+            assert_eq!(Q000U008.view_r().floor(q), v);
+            assert_eq!(Q000U008.view_l().upper(v), q);
+            assert_eq!(Q000U008.view_r().lower(v), q);
+            assert_eq!(Q000U008.view_l().ceil(Q000U008.view_l().upper(v)), v);
+            assert_eq!(Q000U008.view_l().upper(Q000U008.view_l().ceil(q)), q);
         }
     }
 
@@ -181,22 +181,22 @@ mod tests {
         #[test]
         fn q000u008_galois_l(a_bits in any::<u8>(), b in any::<u8>()) {
             let a = FixedU8::<F0>::from_bits(a_bits);
-            prop_assert!(conn_laws::galois_l(&Q000U008.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&Q000U008.view_l(), a, b));
         }
 
         #[test]
         fn q000u008_galois_r(a_bits in any::<u8>(), b in any::<u8>()) {
             let a = FixedU8::<F0>::from_bits(a_bits);
-            prop_assert!(conn_laws::galois_r(&Q000U008.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&Q000U008.view_r(), a, b));
         }
 
         #[test]
         fn q000u008_round_trip_both_directions(v in any::<u8>()) {
             let q = FixedU8::<F0>::from_bits(v);
-            prop_assert_eq!(Q000U008.upper(Q000U008.ceil(q)), q);
-            prop_assert_eq!(Q000U008.ceil(Q000U008.upper(v)), v);
-            prop_assert_eq!(Q000U008.lower(Q000U008.floor(q)), q);
-            prop_assert_eq!(Q000U008.floor(Q000U008.lower(v)), v);
+            prop_assert_eq!(Q000U008.view_l().upper(Q000U008.view_l().ceil(q)), q);
+            prop_assert_eq!(Q000U008.view_l().ceil(Q000U008.view_l().upper(v)), v);
+            prop_assert_eq!(Q000U008.view_r().lower(Q000U008.view_r().floor(q)), q);
+            prop_assert_eq!(Q000U008.view_r().floor(Q000U008.view_r().lower(v)), v);
         }
     }
 

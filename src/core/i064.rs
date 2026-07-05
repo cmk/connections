@@ -154,15 +154,15 @@ mod tests {
     proptest! {
         #[test]
         fn n064n008_galois_l(a in arb_nz_i64(), b in arb_nz_i8()) {
-            prop_assert!(conn_laws::galois_l(&N064N008.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N064N008, a, b));
         }
         #[test]
         fn n064n016_galois_l(a in arb_nz_i64(), b in arb_nz_i16()) {
-            prop_assert!(conn_laws::galois_l(&N064N016.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N064N016, a, b));
         }
         #[test]
         fn n064n032_galois_l(a in arb_nz_i64(), b in arb_nz_i32()) {
-            prop_assert!(conn_laws::galois_l(&N064N032.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N064N032, a, b));
         }
     }
 
@@ -177,19 +177,19 @@ mod tests {
     proptest! {
         #[test]
         fn i64_b2_iso_roundtrip_l(a in prop_oneof![Just(i64::MIN), Just(0i64), Just(i64::MAX), any::<i64>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I064BE08.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I064BE08.view_l(), a));
         }
         #[test]
         fn i64_b2_roundtrip_ceil(b in arb_byte8()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I064BE08.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I064BE08.view_l(), b));
         }
         #[test]
         fn i64_b2_galois_l(a in any::<i64>(), b in arb_byte8()) {
-            prop_assert!(conn_laws::galois_l(&I064BE08.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I064BE08.view_l(), a, b));
         }
         #[test]
         fn i64_b2_galois_r(a in any::<i64>(), b in arb_byte8()) {
-            prop_assert!(conn_laws::galois_r(&I064BE08.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I064BE08.view_r(), a, b));
         }
         #[test]
         fn i64_b2_floor_le_ceil(a in any::<i64>()) {
@@ -197,27 +197,27 @@ mod tests {
         }
         #[test]
         fn i64_b2_order_preserving(a in any::<i64>(), b in any::<i64>()) {
-            prop_assert_eq!(a.cmp(&b), I064BE08.ceil(a).cmp(&I064BE08.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), I064BE08.view_l().ceil(a).cmp(&I064BE08.view_l().ceil(b)));
         }
 
         #[test]
         fn i064_l2_iso_roundtrip_l(a in prop_oneof![Just(i64::MIN), Just(0i64), Just(i64::MAX), any::<i64>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I064LE08.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I064LE08.view_l(), a));
         }
 
         #[test]
         fn i064_l2_roundtrip_ceil(b in arb_lebyte8()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I064LE08.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I064LE08.view_l(), b));
         }
 
         #[test]
         fn i064_l2_galois_l(a in any::<i64>(), b in arb_lebyte8()) {
-            prop_assert!(conn_laws::galois_l(&I064LE08.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I064LE08.view_l(), a, b));
         }
 
         #[test]
         fn i064_l2_galois_r(a in any::<i64>(), b in arb_lebyte8()) {
-            prop_assert!(conn_laws::galois_r(&I064LE08.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I064LE08.view_r(), a, b));
         }
 
         #[test]
@@ -227,7 +227,7 @@ mod tests {
 
         #[test]
         fn i064_l2_order_preserving(a in any::<i64>(), b in any::<i64>()) {
-            prop_assert_eq!(a.cmp(&b), I064LE08.ceil(a).cmp(&I064LE08.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), I064LE08.view_l().ceil(a).cmp(&I064LE08.view_l().ceil(b)));
         }
     }
 
@@ -245,12 +245,18 @@ mod tests {
 
     #[test]
     fn i064lx08_boundary_bytes() {
-        assert_eq!(I064LX08.ceil(i64::MIN), LX([0x00; 8]));
-        assert_eq!(I064LX08.ceil(0_i64), LX([0x80, 0, 0, 0, 0, 0, 0, 0]));
-        assert_eq!(I064LX08.ceil(i64::MAX), LX([0xFF; 8]));
-        assert_eq!(I064LX08.upper(LX([0x00; 8])), i64::MIN);
-        assert_eq!(I064LX08.upper(LX([0x80, 0, 0, 0, 0, 0, 0, 0])), 0_i64);
-        assert_eq!(I064LX08.upper(LX([0xFF; 8])), i64::MAX);
+        assert_eq!(I064LX08.view_l().ceil(i64::MIN), LX([0x00; 8]));
+        assert_eq!(
+            I064LX08.view_l().ceil(0_i64),
+            LX([0x80, 0, 0, 0, 0, 0, 0, 0])
+        );
+        assert_eq!(I064LX08.view_l().ceil(i64::MAX), LX([0xFF; 8]));
+        assert_eq!(I064LX08.view_l().upper(LX([0x00; 8])), i64::MIN);
+        assert_eq!(
+            I064LX08.view_l().upper(LX([0x80, 0, 0, 0, 0, 0, 0, 0])),
+            0_i64
+        );
+        assert_eq!(I064LX08.view_l().upper(LX([0xFF; 8])), i64::MAX);
     }
 
     proptest! {
@@ -258,19 +264,19 @@ mod tests {
         fn i064_lx_iso_roundtrip_l(
             a in prop_oneof![Just(i64::MIN), Just(0i64), Just(i64::MAX), any::<i64>()]
         ) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I064LX08.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I064LX08.view_l(), a));
         }
         #[test]
         fn i064_lx_roundtrip_ceil(b in arb_lxbyte8()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I064LX08.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I064LX08.view_l(), b));
         }
         #[test]
         fn i064_lx_galois_l(a in any::<i64>(), b in arb_lxbyte8()) {
-            prop_assert!(conn_laws::galois_l(&I064LX08.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I064LX08.view_l(), a, b));
         }
         #[test]
         fn i064_lx_galois_r(a in any::<i64>(), b in arb_lxbyte8()) {
-            prop_assert!(conn_laws::galois_r(&I064LX08.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I064LX08.view_r(), a, b));
         }
         #[test]
         fn i064_lx_floor_le_ceil(a in any::<i64>()) {
@@ -278,8 +284,8 @@ mod tests {
         }
         #[test]
         fn i064_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i64>(), b in any::<i64>()) {
-            let ka = I064LX08.ceil(a).0;
-            let kb = I064LX08.ceil(b).0;
+            let ka = I064LX08.view_l().ceil(a).0;
+            let kb = I064LX08.view_l().ceil(b).0;
             prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }

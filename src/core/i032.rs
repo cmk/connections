@@ -156,11 +156,11 @@ mod tests {
     proptest! {
         #[test]
         fn n032n008_galois_l(a in arb_nz_i32(), b in arb_nz_i8()) {
-            prop_assert!(conn_laws::galois_l(&N032N008.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N032N008, a, b));
         }
         #[test]
         fn n032n016_galois_l(a in arb_nz_i32(), b in arb_nz_i16()) {
-            prop_assert!(conn_laws::galois_l(&N032N016.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N032N016, a, b));
         }
     }
 
@@ -175,19 +175,19 @@ mod tests {
     proptest! {
         #[test]
         fn i32_b2_iso_roundtrip_l(a in prop_oneof![Just(i32::MIN), Just(0i32), Just(i32::MAX), any::<i32>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I032BE04.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I032BE04.view_l(), a));
         }
         #[test]
         fn i32_b2_roundtrip_ceil(b in arb_byte4()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I032BE04.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I032BE04.view_l(), b));
         }
         #[test]
         fn i32_b2_galois_l(a in any::<i32>(), b in arb_byte4()) {
-            prop_assert!(conn_laws::galois_l(&I032BE04.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I032BE04.view_l(), a, b));
         }
         #[test]
         fn i32_b2_galois_r(a in any::<i32>(), b in arb_byte4()) {
-            prop_assert!(conn_laws::galois_r(&I032BE04.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I032BE04.view_r(), a, b));
         }
         #[test]
         fn i32_b2_floor_le_ceil(a in any::<i32>()) {
@@ -195,27 +195,27 @@ mod tests {
         }
         #[test]
         fn i32_b2_order_preserving(a in any::<i32>(), b in any::<i32>()) {
-            prop_assert_eq!(a.cmp(&b), I032BE04.ceil(a).cmp(&I032BE04.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), I032BE04.view_l().ceil(a).cmp(&I032BE04.view_l().ceil(b)));
         }
 
         #[test]
         fn i032_l2_iso_roundtrip_l(a in prop_oneof![Just(i32::MIN), Just(0i32), Just(i32::MAX), any::<i32>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I032LE04.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I032LE04.view_l(), a));
         }
 
         #[test]
         fn i032_l2_roundtrip_ceil(b in arb_lebyte4()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I032LE04.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I032LE04.view_l(), b));
         }
 
         #[test]
         fn i032_l2_galois_l(a in any::<i32>(), b in arb_lebyte4()) {
-            prop_assert!(conn_laws::galois_l(&I032LE04.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I032LE04.view_l(), a, b));
         }
 
         #[test]
         fn i032_l2_galois_r(a in any::<i32>(), b in arb_lebyte4()) {
-            prop_assert!(conn_laws::galois_r(&I032LE04.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I032LE04.view_r(), a, b));
         }
 
         #[test]
@@ -225,7 +225,7 @@ mod tests {
 
         #[test]
         fn i032_l2_order_preserving(a in any::<i32>(), b in any::<i32>()) {
-            prop_assert_eq!(a.cmp(&b), I032LE04.ceil(a).cmp(&I032LE04.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), I032LE04.view_l().ceil(a).cmp(&I032LE04.view_l().ceil(b)));
         }
     }
 
@@ -243,12 +243,24 @@ mod tests {
 
     #[test]
     fn i032lx04_boundary_bytes() {
-        assert_eq!(I032LX04.ceil(i32::MIN), LX([0x00, 0x00, 0x00, 0x00]));
-        assert_eq!(I032LX04.ceil(0_i32), LX([0x80, 0x00, 0x00, 0x00]));
-        assert_eq!(I032LX04.ceil(i32::MAX), LX([0xFF, 0xFF, 0xFF, 0xFF]));
-        assert_eq!(I032LX04.upper(LX([0x00, 0x00, 0x00, 0x00])), i32::MIN);
-        assert_eq!(I032LX04.upper(LX([0x80, 0x00, 0x00, 0x00])), 0_i32);
-        assert_eq!(I032LX04.upper(LX([0xFF, 0xFF, 0xFF, 0xFF])), i32::MAX);
+        assert_eq!(
+            I032LX04.view_l().ceil(i32::MIN),
+            LX([0x00, 0x00, 0x00, 0x00])
+        );
+        assert_eq!(I032LX04.view_l().ceil(0_i32), LX([0x80, 0x00, 0x00, 0x00]));
+        assert_eq!(
+            I032LX04.view_l().ceil(i32::MAX),
+            LX([0xFF, 0xFF, 0xFF, 0xFF])
+        );
+        assert_eq!(
+            I032LX04.view_l().upper(LX([0x00, 0x00, 0x00, 0x00])),
+            i32::MIN
+        );
+        assert_eq!(I032LX04.view_l().upper(LX([0x80, 0x00, 0x00, 0x00])), 0_i32);
+        assert_eq!(
+            I032LX04.view_l().upper(LX([0xFF, 0xFF, 0xFF, 0xFF])),
+            i32::MAX
+        );
     }
 
     proptest! {
@@ -256,19 +268,19 @@ mod tests {
         fn i032_lx_iso_roundtrip_l(
             a in prop_oneof![Just(i32::MIN), Just(0i32), Just(i32::MAX), any::<i32>()]
         ) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I032LX04.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I032LX04.view_l(), a));
         }
         #[test]
         fn i032_lx_roundtrip_ceil(b in arb_lxbyte4()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I032LX04.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I032LX04.view_l(), b));
         }
         #[test]
         fn i032_lx_galois_l(a in any::<i32>(), b in arb_lxbyte4()) {
-            prop_assert!(conn_laws::galois_l(&I032LX04.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I032LX04.view_l(), a, b));
         }
         #[test]
         fn i032_lx_galois_r(a in any::<i32>(), b in arb_lxbyte4()) {
-            prop_assert!(conn_laws::galois_r(&I032LX04.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I032LX04.view_r(), a, b));
         }
         #[test]
         fn i032_lx_floor_le_ceil(a in any::<i32>()) {
@@ -276,8 +288,8 @@ mod tests {
         }
         #[test]
         fn i032_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i32>(), b in any::<i32>()) {
-            let ka = I032LX04.ceil(a).0;
-            let kb = I032LX04.ceil(b).0;
+            let ka = I032LX04.view_l().ceil(a).0;
+            let kb = I032LX04.view_l().ceil(b).0;
             prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }

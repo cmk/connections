@@ -16,7 +16,6 @@ use connections::macros as _curated_namespace;
 
 // `iso!` — a tiny `MyId(u64) <-> u64` bijection.
 mod iso_smoke {
-    use connections::conn::ConnL;
 
     const fn fwd(x: u64) -> u64 {
         x
@@ -35,15 +34,13 @@ mod iso_smoke {
     #[test]
     fn iso_round_trip() {
         for v in [0_u64, 1, 42, u64::MAX] {
-            assert_eq!(IDU064.ceil(IDU064.upper(v)), v);
+            assert_eq!(IDU064.view_l().ceil(IDU064.view_l().upper(v)), v);
         }
     }
 }
 
 // `conn_k!` — same shape as iso! but with explicit ceil/inner/floor.
 mod triple_smoke {
-    use connections::conn::{ConnL, ConnR};
-
     const fn ceil_(x: i32) -> i32 {
         x
     }
@@ -64,8 +61,8 @@ mod triple_smoke {
 
     #[test]
     fn triple_both_views() {
-        assert_eq!(IDI032.ceil(7), 7);
-        assert_eq!(IDI032.conn_r().floor(7), 7);
+        assert_eq!(IDI032.view_l().ceil(7), 7);
+        assert_eq!(IDI032.swap_r().swap_l().floor(7), 7);
     }
 }
 
@@ -127,17 +124,15 @@ mod narrow_macro_smoke {
 
 // `nz_int_ext!` and `nz_uint_ext!` — NonZero adjoints.
 mod nz_smoke {
-    use connections::conn::{ConnL, ConnR};
     use core::num::{NonZeroI8, NonZeroU8};
-
     connections::nz_int_ext!(SmokeNzI8, i8, NonZeroI8);
     connections::nz_uint_ext!(SMOKE_NZ_U8, u8, NonZeroU8);
 
     #[test]
     fn nz_int_at_zero() {
         // floor and ceil split zero between -1 and +1.
-        assert_eq!(SmokeNzI8.floor(0_i8), NonZeroI8::new(-1).unwrap());
-        assert_eq!(SmokeNzI8.ceil(0_i8), NonZeroI8::new(1).unwrap());
+        assert_eq!(SmokeNzI8.view_r().floor(0_i8), NonZeroI8::new(-1).unwrap());
+        assert_eq!(SmokeNzI8.view_l().ceil(0_i8), NonZeroI8::new(1).unwrap());
     }
 
     #[test]

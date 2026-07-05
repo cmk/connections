@@ -39,9 +39,11 @@
 //! - `lift_k!(NAME : A => B = parent)` emits a unit-struct **marker**
 //!   that impls `ConnL`+`ConnR` (i.e. `ConnK`). Such a marker flows
 //!   into all three forms — [`compose_l!`](crate::compose_l) /
-//!   [`compose_r!`](crate::compose_r) at runtime via `.conn_l()` /
-//!   `.conn_r()`, and [`compose_k!`](crate::compose_k) directly as a
-//!   path operand.
+//!   [`compose_r!`](crate::compose_r) via its views (`view_l` /
+//!   `view_r`, crate-local to wherever the marker is declared; from
+//!   another crate, spell the view as the double swap
+//!   `M.swap_l().swap_r()`), and [`compose_k!`](crate::compose_k)
+//!   directly as a path operand.
 //! - The output of [`compose_k!`](crate::compose_k) is itself a `ConnK`
 //!   marker, so chains can nest arbitrarily — `lift_k!` over the result
 //!   of a `compose_k!`, or vice versa.
@@ -50,7 +52,7 @@
 //!
 //! ```ignore
 //! use connections::compose_l;
-//! use connections::conn::{Conn, ConnL, L};
+//! use connections::conn::{Conn, L};
 //! use connections::extended::Extended;
 //! use connections::lift_l;
 //!
@@ -72,7 +74,7 @@
 //!
 //! ```ignore
 //! use connections::compose_k;
-//! use connections::conn::{Conn, ConnL, ConnR, L};
+//! use connections::conn::{Conn, L};
 //! use connections::extended::Extended;
 //! use connections::fixed::i016::Q000I016;
 //! use connections::{compose_l, lift_k};
@@ -90,27 +92,21 @@
 //!            = EXTQ, EXTQ_IDENTITY);
 //!
 //! // Stand-in identity bridge to make the doctest self-contained.
-//! // In real code the second leg would be another lift_k! / iso! /
-//! // conn_k! marker covering the bridged segment.
-//! pub struct EXTQ_IDENTITY;
-//! impl ConnL for EXTQ_IDENTITY {
-//!     type A = Extended<FixedI16<U0>>;
-//!     type B = Extended<FixedI16<U0>>;
-//!     fn conn_l(&self) -> Conn<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>, L> {
-//!         Conn::identity()
-//!     }
-//! }
-//! impl ConnR for EXTQ_IDENTITY {
-//!     type A = Extended<FixedI16<U0>>;
-//!     type B = Extended<FixedI16<U0>>;
-//!     fn conn_r(&self) -> Conn<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>, connections::conn::R> {
-//!         Conn::<Extended<FixedI16<U0>>, Extended<FixedI16<U0>>, L>::identity().swap_l()
+//! // Declared through conn_k! — compose_k! operands need the
+//! // macro-emitted crate-local views, so markers are declared with
+//! // the declaration macros, never hand-rolled trait impls.
+//! const fn ext_id(x: Extended<FixedI16<U0>>) -> Extended<FixedI16<U0>> { x }
+//! connections::conn_k! {
+//!     EXTQ_IDENTITY : Extended<FixedI16<U0>> => Extended<FixedI16<U0>> {
+//!         ceil:  ext_id,
+//!         inner: ext_id,
+//!         floor: ext_id,
 //!     }
 //! }
 //!
 //! // The composed marker can flow back into compose_l! as either
-//! // operand at runtime via `.conn_l()`.
-//! let final_chain = compose_l!(CHAIN_K.conn_l(), EXTQ_IDENTITY.conn_l());
+//! // operand at runtime via `.view_l()`.
+//! let final_chain = compose_l!(CHAIN_K.view_l(), EXTQ_IDENTITY.view_l());
 //! let q = FixedI16::<U0>::from_bits(7);
 //! assert_eq!(final_chain.ceil(Extended::Finite(7_i16)), Extended::Finite(q));
 //! ```
@@ -253,7 +249,7 @@ impl<T: Ord> Ord for Extended<T> {
 /// # Examples
 ///
 /// ```ignore
-/// use connections::conn::{Conn, ConnL, L};
+/// use connections::conn::{Conn, L};
 /// use connections::extended::Extended;
 /// use connections::lift_l;
 ///
@@ -266,19 +262,19 @@ impl<T: Ord> Ord for Extended<T> {
 /// ```
 #[macro_export]
 macro_rules! lift_l {
-    ($parent:path) => {
+    ($parent:expr) => {
         $crate::conn::Conn::new_l(
             |a| match a {
                 $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
                 $crate::extended::Extended::Finite(x) => {
-                    $crate::extended::Extended::Finite($crate::conn::ConnL::ceil(&$parent, x))
+                    $crate::extended::Extended::Finite(($parent).ceil(x))
                 }
                 $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
             },
             |b| match b {
                 $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
                 $crate::extended::Extended::Finite(y) => {
-                    $crate::extended::Extended::Finite($crate::conn::ConnL::upper(&$parent, y))
+                    $crate::extended::Extended::Finite(($parent).upper(y))
                 }
                 $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
             },
@@ -299,11 +295,11 @@ macro_rules! lift_l {
 /// # Examples
 ///
 /// ```ignore
-/// use connections::conn::{Conn, ConnR, L, R};
+/// use connections::conn::{Conn, L, R};
 /// use connections::extended::Extended;
 /// use connections::lift_r;
 ///
-/// const ID_R: Conn<i64, i64, R> = Conn::<i64, i64, L>::identity().swap_l();
+/// const ID_R: Conn<i64, i64, R> = Conn::identity();
 /// const LIFTED: Conn<Extended<i64>, Extended<i64>, R> = lift_r!(ID_R);
 ///
 /// assert_eq!(LIFTED.floor(Extended::NegInf), Extended::NegInf);
@@ -312,19 +308,19 @@ macro_rules! lift_l {
 /// ```
 #[macro_export]
 macro_rules! lift_r {
-    ($parent:path) => {
+    ($parent:expr) => {
         $crate::conn::Conn::new_r(
             |b| match b {
                 $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
                 $crate::extended::Extended::Finite(y) => {
-                    $crate::extended::Extended::Finite($crate::conn::ConnR::lower(&$parent, y))
+                    $crate::extended::Extended::Finite(($parent).lower(y))
                 }
                 $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
             },
             |a| match a {
                 $crate::extended::Extended::NegInf => $crate::extended::Extended::NegInf,
                 $crate::extended::Extended::Finite(x) => {
-                    $crate::extended::Extended::Finite($crate::conn::ConnR::floor(&$parent, x))
+                    $crate::extended::Extended::Finite(($parent).floor(x))
                 }
                 $crate::extended::Extended::PosInf => $crate::extended::Extended::PosInf,
             },
@@ -346,7 +342,6 @@ macro_rules! lift_r {
 /// # Examples
 ///
 /// ```ignore
-/// use connections::conn::{ConnL, ConnR};
 /// use connections::extended::Extended;
 /// use connections::fixed::i016::Q000I016;
 /// use connections::lift_k;
@@ -371,32 +366,97 @@ macro_rules! lift_k {
     ($name:ident : $A:ty => $B:ty = $parent:path $(,)?) => {
         #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
         pub struct $name;
-        impl $crate::conn::ConnL for $name {
-            type A = $crate::extended::Extended<$A>;
-            type B = $crate::extended::Extended<$B>;
+        impl $name {
+            /// The lifted L-view. `const`-projectable: the closure
+            /// coercion happens in a `const` item.
+            #[allow(dead_code)]
             #[inline]
-            fn conn_l(
-                &self,
+            #[must_use]
+            pub(crate) const fn view_l(
+                self,
             ) -> $crate::conn::Conn<
                 $crate::extended::Extended<$A>,
                 $crate::extended::Extended<$B>,
                 $crate::conn::L,
             > {
-                $crate::lift_l!($parent)
+                const LIFTED: $crate::conn::Conn<
+                    $crate::extended::Extended<$A>,
+                    $crate::extended::Extended<$B>,
+                    $crate::conn::L,
+                > = $crate::lift_l!($parent.swap_l().swap_r());
+                LIFTED
+            }
+            /// The lifted R-view. `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            pub(crate) const fn view_r(
+                self,
+            ) -> $crate::conn::Conn<
+                $crate::extended::Extended<$A>,
+                $crate::extended::Extended<$B>,
+                $crate::conn::R,
+            > {
+                const LIFTED: $crate::conn::Conn<
+                    $crate::extended::Extended<$A>,
+                    $crate::extended::Extended<$B>,
+                    $crate::conn::R,
+                > = $crate::lift_r!($parent.swap_r().swap_l());
+                LIFTED
+            }
+            /// The swapped lifted L-view. `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            pub const fn swap_l(
+                self,
+            ) -> $crate::conn::Conn<
+                $crate::extended::Extended<$B>,
+                $crate::extended::Extended<$A>,
+                $crate::conn::R,
+            > {
+                self.view_l().swap_l()
+            }
+            /// The swapped lifted R-view. `const`-projectable.
+            #[allow(dead_code)]
+            #[inline]
+            #[must_use]
+            pub const fn swap_r(
+                self,
+            ) -> $crate::conn::Conn<
+                $crate::extended::Extended<$B>,
+                $crate::extended::Extended<$A>,
+                $crate::conn::L,
+            > {
+                self.view_r().swap_r()
+            }
+        }
+        impl $crate::conn::ConnL for $name {
+            type A = $crate::extended::Extended<$A>;
+            type B = $crate::extended::Extended<$B>;
+            #[inline]
+            fn swap_l(
+                &self,
+            ) -> $crate::conn::Conn<
+                $crate::extended::Extended<$B>,
+                $crate::extended::Extended<$A>,
+                $crate::conn::R,
+            > {
+                self.view_l().swap_l()
             }
         }
         impl $crate::conn::ConnR for $name {
             type A = $crate::extended::Extended<$A>;
             type B = $crate::extended::Extended<$B>;
             #[inline]
-            fn conn_r(
+            fn swap_r(
                 &self,
             ) -> $crate::conn::Conn<
-                $crate::extended::Extended<$A>,
                 $crate::extended::Extended<$B>,
-                $crate::conn::R,
+                $crate::extended::Extended<$A>,
+                $crate::conn::L,
             > {
-                $crate::lift_r!($parent)
+                self.view_r().swap_r()
             }
         }
     };
@@ -544,7 +604,7 @@ mod tests {
 #[cfg(all(test, feature = "fixed"))]
 mod lift_tests {
     use super::*;
-    use crate::conn::{Conn, ConnL as _, ConnR as _, L, R};
+    use crate::conn::{Conn, L, R};
     use crate::fixed::i016::Q000I016;
     use ::fixed::FixedI16;
     use ::fixed::types::extra::U0;
@@ -592,7 +652,7 @@ mod lift_tests {
 
     #[test]
     fn lift_r_identity_synthetic_arms() {
-        const ID_R: Conn<i64, i64, R> = Conn::<i64, i64, L>::identity().swap_l();
+        const ID_R: Conn<i64, i64, R> = Conn::identity();
         const LIFTED: Conn<Extended<i64>, Extended<i64>, R> = lift_r!(ID_R);
         assert_eq!(LIFTED.floor(Extended::NegInf), Extended::NegInf);
         assert_eq!(LIFTED.floor(Extended::PosInf), Extended::PosInf);
@@ -617,12 +677,30 @@ mod lift_tests {
     fn lift_k_q000i016_synthetic_arms() {
         // Both views agree on the synthetic arms (and on identity at
         // Finite values, since Q000I016 is an iso).
-        assert_eq!(EXTQ000I016.ceil(Extended::NegInf), Extended::NegInf);
-        assert_eq!(EXTQ000I016.ceil(Extended::PosInf), Extended::PosInf);
-        assert_eq!(EXTQ000I016.floor(Extended::NegInf), Extended::NegInf);
-        assert_eq!(EXTQ000I016.floor(Extended::PosInf), Extended::PosInf);
-        assert_eq!(EXTQ000I016.upper(Extended::NegInf), Extended::NegInf);
-        assert_eq!(EXTQ000I016.lower(Extended::PosInf), Extended::PosInf);
+        assert_eq!(
+            EXTQ000I016.view_l().ceil(Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            EXTQ000I016.view_l().ceil(Extended::PosInf),
+            Extended::PosInf
+        );
+        assert_eq!(
+            EXTQ000I016.view_r().floor(Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            EXTQ000I016.view_r().floor(Extended::PosInf),
+            Extended::PosInf
+        );
+        assert_eq!(
+            EXTQ000I016.view_l().upper(Extended::NegInf),
+            Extended::NegInf
+        );
+        assert_eq!(
+            EXTQ000I016.view_r().lower(Extended::PosInf),
+            Extended::PosInf
+        );
     }
 
     #[test]
@@ -630,19 +708,19 @@ mod lift_tests {
         let q = FixedI16::<U0>::from_bits(42);
         // Parent's ceil/upper agree on Finite values:
         assert_eq!(
-            EXTQ000I016.ceil(Extended::Finite(q)),
+            EXTQ000I016.view_l().ceil(Extended::Finite(q)),
             Extended::Finite(42_i16)
         );
         assert_eq!(
-            EXTQ000I016.upper(Extended::Finite(42_i16)),
+            EXTQ000I016.view_l().upper(Extended::Finite(42_i16)),
             Extended::Finite(q)
         );
         assert_eq!(
-            EXTQ000I016.floor(Extended::Finite(q)),
+            EXTQ000I016.view_r().floor(Extended::Finite(q)),
             Extended::Finite(42_i16)
         );
         assert_eq!(
-            EXTQ000I016.lower(Extended::Finite(42_i16)),
+            EXTQ000I016.view_r().lower(Extended::Finite(42_i16)),
             Extended::Finite(q)
         );
     }
@@ -699,7 +777,7 @@ mod lift_tests {
     // - **Runtime** (`lift_k!` marker composing with an identity-
     //   shaped Conn value). Proves a marker emitted by `lift_k!`
     //   integrates into the runtime `compose_l!` form via
-    //   `marker.conn_l()`.
+    //   `marker.view_l()`.
 
     #[test]
     fn lift_l_compose_chain_const_smoke() {
@@ -716,7 +794,7 @@ mod lift_tests {
 
     #[test]
     fn lift_k_compose_chain_runtime_smoke() {
-        // EXTQ000I016 is a `lift_k!` marker. Its `.conn_l()` returns a
+        // EXTQ000I016 is a `lift_k!` marker. Its `.view_l()` returns a
         // `Conn<Extended<FixedI16<U0>>, Extended<i16>, L>` at runtime —
         // sufficient for the runtime form of `compose_l!`. The chain
         // proves a `lift_k!`-emitted marker integrates with the
@@ -727,16 +805,16 @@ mod lift_tests {
         // operand expression must compile to a non-capturing closure
         // body (so the macro-synthesised closures coerce to
         // `fn(_) -> _`). Method-call expressions like
-        // `EXTQ000I016.conn_l()` qualify because `EXTQ000I016` is a
+        // `EXTQ000I016.view_l()` qualify because `EXTQ000I016` is a
         // unit-struct path with static dispatch — the closure body
-        // re-evaluates `.conn_l()` on every invocation but captures
+        // re-evaluates `.view_l()` on every invocation but captures
         // nothing from local scope. A function-scope `const` like
         // `ID_EXT_I16` qualifies for the same reason. A `let`-bound
         // local `Conn` value would NOT qualify — it would force a
         // capture and fail fn-pointer coercion.
         const ID_EXT_I16: Conn<Extended<i16>, Extended<i16>, L> = Conn::identity();
         let chain: Conn<Extended<FixedI16<U0>>, Extended<i16>, L> =
-            crate::compose_l!(EXTQ000I016.conn_l(), ID_EXT_I16);
+            crate::compose_l!(EXTQ000I016.view_l(), ID_EXT_I16);
         let q = FixedI16::<U0>::from_bits(99);
         assert_eq!(chain.ceil(Extended::Finite(q)), Extended::Finite(99_i16));
         assert_eq!(chain.ceil(Extended::NegInf), Extended::NegInf);

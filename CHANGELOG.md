@@ -12,6 +12,38 @@ cumulative in-development state.
 
 ## [Unreleased]
 
+### Changed (swap-only capability traits)
+
+- **`ConnL` / `ConnR` redefined**: each trait now carries exactly one
+  method — the polarity swap (`swap_l(&self) -> Conn<B, A, R>`,
+  `swap_r(&self) -> Conn<B, A, L>`). The `conn_l()` / `conn_r()`
+  projections and the duplicate default accessors (`ceil` / `upper` /
+  `floor` / `lower`) are gone; accessors live solely as kind-gated
+  inherent methods on `Conn`. The blanket impls on `Conn` values are
+  removed — a value is its own view and swaps inherently, so one name
+  covers disjoint receivers with no duplication.
+- **Marker macros emit `const` projections**: `conn_k!` / `iso!` /
+  `compose_k!` / `lift_k!` / `nz_int_ext!` markers now expose public
+  inherent `const fn swap_l()` / `swap_r()` — usable in `const`
+  composition, e.g. `compose!(U032BE04.swap_r(), U032U064)` — plus
+  crate-local `const fn view_l()` / `view_r()` direct views that never
+  cross a crate boundary. The public spelling of a direct view is the
+  double swap `M.swap_l().swap_r()`.
+- **`Conn::identity()` is kind-generic**: `Conn::<X, X, R>::identity()`
+  exists directly; the `.swap_l()` workaround is gone.
+- **`lift_l!` / `lift_r!` accept `:expr` parents** and dispatch through
+  inherent accessors; marker parents are passed as views
+  (`lift_k!` handles this internally).
+
+### Added (swap-only capability traits)
+
+- **`prop::conn::swap_involutive_l` / `swap_involutive_r`** — the swap
+  round trips are exact fn-pointer identities.
+- **`prop::conn::shared_middle`** — a lawful triple's L- and R-views
+  agree on the middle adjoint, checked behaviorally.
+- Both wired into `law_battery!`'s shared arm, so every marker battery
+  exercises them.
+
 ### Added (Plan 33 — `order_reflecting` predicate + audit cleanup)
 
 - **`prop::conn::order_reflecting`** — new triple-bound predicate

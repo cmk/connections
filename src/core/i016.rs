@@ -198,7 +198,7 @@ mod tests {
     proptest! {
         #[test]
         fn n016n008_galois_l(a in arb_nz_i16(), b in arb_nz_i8()) {
-            prop_assert!(conn_laws::galois_l(&N016N008.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&N016N008, a, b));
         }
     }
 
@@ -213,19 +213,19 @@ mod tests {
     proptest! {
         #[test]
         fn i16_b2_iso_roundtrip_l(a in prop_oneof![Just(i16::MIN), Just(0i16), Just(i16::MAX), any::<i16>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I016BE02.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I016BE02.view_l(), a));
         }
         #[test]
         fn i16_b2_roundtrip_ceil(b in arb_byte2()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I016BE02.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I016BE02.view_l(), b));
         }
         #[test]
         fn i16_b2_galois_l(a in any::<i16>(), b in arb_byte2()) {
-            prop_assert!(conn_laws::galois_l(&I016BE02.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I016BE02.view_l(), a, b));
         }
         #[test]
         fn i16_b2_galois_r(a in any::<i16>(), b in arb_byte2()) {
-            prop_assert!(conn_laws::galois_r(&I016BE02.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I016BE02.view_r(), a, b));
         }
         #[test]
         fn i16_b2_floor_le_ceil(a in any::<i16>()) {
@@ -233,27 +233,27 @@ mod tests {
         }
         #[test]
         fn i16_b2_order_preserving(a in any::<i16>(), b in any::<i16>()) {
-            prop_assert_eq!(a.cmp(&b), I016BE02.ceil(a).cmp(&I016BE02.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), I016BE02.view_l().ceil(a).cmp(&I016BE02.view_l().ceil(b)));
         }
 
         #[test]
         fn i016_l2_iso_roundtrip_l(a in prop_oneof![Just(i16::MIN), Just(0i16), Just(i16::MAX), any::<i16>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I016LE02.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I016LE02.view_l(), a));
         }
 
         #[test]
         fn i016_l2_roundtrip_ceil(b in arb_lebyte2()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I016LE02.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I016LE02.view_l(), b));
         }
 
         #[test]
         fn i016_l2_galois_l(a in any::<i16>(), b in arb_lebyte2()) {
-            prop_assert!(conn_laws::galois_l(&I016LE02.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I016LE02.view_l(), a, b));
         }
 
         #[test]
         fn i016_l2_galois_r(a in any::<i16>(), b in arb_lebyte2()) {
-            prop_assert!(conn_laws::galois_r(&I016LE02.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I016LE02.view_r(), a, b));
         }
 
         #[test]
@@ -263,7 +263,7 @@ mod tests {
 
         #[test]
         fn i016_l2_order_preserving(a in any::<i16>(), b in any::<i16>()) {
-            prop_assert_eq!(a.cmp(&b), I016LE02.ceil(a).cmp(&I016LE02.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), I016LE02.view_l().ceil(a).cmp(&I016LE02.view_l().ceil(b)));
         }
     }
 
@@ -281,12 +281,12 @@ mod tests {
 
     #[test]
     fn i016lx02_boundary_bytes() {
-        assert_eq!(I016LX02.ceil(i16::MIN), LX([0x00, 0x00]));
-        assert_eq!(I016LX02.ceil(0_i16), LX([0x80, 0x00]));
-        assert_eq!(I016LX02.ceil(i16::MAX), LX([0xFF, 0xFF]));
-        assert_eq!(I016LX02.upper(LX([0x00, 0x00])), i16::MIN);
-        assert_eq!(I016LX02.upper(LX([0x80, 0x00])), 0_i16);
-        assert_eq!(I016LX02.upper(LX([0xFF, 0xFF])), i16::MAX);
+        assert_eq!(I016LX02.view_l().ceil(i16::MIN), LX([0x00, 0x00]));
+        assert_eq!(I016LX02.view_l().ceil(0_i16), LX([0x80, 0x00]));
+        assert_eq!(I016LX02.view_l().ceil(i16::MAX), LX([0xFF, 0xFF]));
+        assert_eq!(I016LX02.view_l().upper(LX([0x00, 0x00])), i16::MIN);
+        assert_eq!(I016LX02.view_l().upper(LX([0x80, 0x00])), 0_i16);
+        assert_eq!(I016LX02.view_l().upper(LX([0xFF, 0xFF])), i16::MAX);
     }
 
     proptest! {
@@ -294,19 +294,19 @@ mod tests {
         fn i016_lx_iso_roundtrip_l(
             a in prop_oneof![Just(i16::MIN), Just(0i16), Just(i16::MAX), any::<i16>()]
         ) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I016LX02.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I016LX02.view_l(), a));
         }
         #[test]
         fn i016_lx_roundtrip_ceil(b in arb_lxbyte2()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I016LX02.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I016LX02.view_l(), b));
         }
         #[test]
         fn i016_lx_galois_l(a in any::<i16>(), b in arb_lxbyte2()) {
-            prop_assert!(conn_laws::galois_l(&I016LX02.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I016LX02.view_l(), a, b));
         }
         #[test]
         fn i016_lx_galois_r(a in any::<i16>(), b in arb_lxbyte2()) {
-            prop_assert!(conn_laws::galois_r(&I016LX02.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I016LX02.view_r(), a, b));
         }
         #[test]
         fn i016_lx_floor_le_ceil(a in any::<i16>()) {
@@ -316,8 +316,8 @@ mod tests {
         // lex compare on the bias-encoded bytes.
         #[test]
         fn i016_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i16>(), b in any::<i16>()) {
-            let ka = I016LX02.ceil(a).0;
-            let kb = I016LX02.ceil(b).0;
+            let ka = I016LX02.view_l().ceil(a).0;
+            let kb = I016LX02.view_l().ceil(b).0;
             prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }

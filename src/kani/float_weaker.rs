@@ -69,7 +69,7 @@ fn finite_in_finite_out_floor_in_range() {
 #[kani::unwind(4)]
 fn closure_l_finite() {
     let x = arb_finite_ef64();
-    assert!(conn_laws::closure_l(&F064F032.conn_l(), x));
+    assert!(conn_laws::closure_l(&F064F032.view_l(), x));
 }
 
 /// Closure law (right): `inner(floor(x)) ≤ x` for finite, non-NaN `x`.
@@ -77,7 +77,7 @@ fn closure_l_finite() {
 #[kani::unwind(4)]
 fn closure_r_finite() {
     let x = arb_finite_ef64();
-    assert!(conn_laws::closure_r(&F064F032.conn_r(), x));
+    assert!(conn_laws::closure_r(&F064F032.view_r(), x));
 }
 
 /// Idempotence at the lifted level: `(inner ∘ ceil)² == (inner ∘
@@ -89,7 +89,7 @@ fn closure_r_finite() {
 #[kani::unwind(4)]
 fn idempotent_l_finite() {
     let x = arb_finite_ef64();
-    assert!(conn_laws::idempotent_l(&F064F032.conn_l(), x));
+    assert!(conn_laws::idempotent_l(&F064F032.view_l(), x));
 }
 
 /// Sandwich: `floor(x) ≤ ceil(x)` for finite, non-NaN `x`.
@@ -118,5 +118,5 @@ fn order_reflecting_finite() {
 #[kani::unwind(4)]
 fn roundtrip_ceil_finite() {
     let b = arb_finite_ef32();
-    assert!(conn_laws::roundtrip_ceil(&F064F032.conn_l(), b));
+    assert!(conn_laws::roundtrip_ceil(&F064F032.view_l(), b));
 }

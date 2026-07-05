@@ -107,7 +107,6 @@ float_ext_int_l!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::conn::{ConnL, ConnR};
     use crate::extended::Extended;
     use crate::float::ExtendedFloat;
     use crate::prop::arb::{
@@ -118,11 +117,11 @@ mod tests {
     #[test]
     fn nan_ceil_pos_inf() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(f32::NAN)),
+            F032U008.view_l().ceil(ExtendedFloat::Extend(f32::NAN)),
             Extended::PosInf
         );
         assert_eq!(
-            F032I008.ceil(ExtendedFloat::Extend(f32::NAN)),
+            F032I008.view_l().ceil(ExtendedFloat::Extend(f32::NAN)),
             Extended::PosInf
         );
         assert_eq!(
@@ -134,11 +133,11 @@ mod tests {
     #[test]
     fn nan_floor_neg_inf() {
         assert_eq!(
-            F032U008.floor(ExtendedFloat::Extend(f32::NAN)),
+            F032U008.view_r().floor(ExtendedFloat::Extend(f32::NAN)),
             Extended::NegInf
         );
         assert_eq!(
-            F032I016.floor(ExtendedFloat::Extend(f32::NAN)),
+            F032I016.view_r().floor(ExtendedFloat::Extend(f32::NAN)),
             Extended::NegInf
         );
     }
@@ -146,11 +145,13 @@ mod tests {
     #[test]
     fn pos_inf_saturates_via_high_branch() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(f32::INFINITY)),
+            F032U008.view_l().ceil(ExtendedFloat::Extend(f32::INFINITY)),
             Extended::PosInf
         );
         assert_eq!(
-            F032I008.floor(ExtendedFloat::Extend(f32::INFINITY)),
+            F032I008
+                .view_r()
+                .floor(ExtendedFloat::Extend(f32::INFINITY)),
             Extended::Finite(i8::MAX)
         );
     }
@@ -158,29 +159,43 @@ mod tests {
     #[test]
     fn neg_inf_saturates_via_low_branch() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(f32::NEG_INFINITY)),
+            F032U008
+                .view_l()
+                .ceil(ExtendedFloat::Extend(f32::NEG_INFINITY)),
             Extended::Finite(0)
         );
         assert_eq!(
-            F032I008.ceil(ExtendedFloat::Extend(f32::NEG_INFINITY)),
+            F032I008
+                .view_l()
+                .ceil(ExtendedFloat::Extend(f32::NEG_INFINITY)),
             Extended::Finite(i8::MIN)
         );
         assert_eq!(
-            F032U008.floor(ExtendedFloat::Extend(f32::NEG_INFINITY)),
+            F032U008
+                .view_r()
+                .floor(ExtendedFloat::Extend(f32::NEG_INFINITY)),
             Extended::NegInf
         );
         assert_eq!(
-            F032I008.floor(ExtendedFloat::Extend(f32::NEG_INFINITY)),
+            F032I008
+                .view_r()
+                .floor(ExtendedFloat::Extend(f32::NEG_INFINITY)),
             Extended::NegInf
         );
     }
 
     #[test]
     fn bot_top_pass_through() {
-        assert_eq!(F032U008.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F032U008.floor(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F032U008.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F032U008.floor(ExtendedFloat::Top), Extended::PosInf);
+        assert_eq!(F032U008.view_l().ceil(ExtendedFloat::Bot), Extended::NegInf);
+        assert_eq!(
+            F032U008.view_r().floor(ExtendedFloat::Bot),
+            Extended::NegInf
+        );
+        assert_eq!(F032U008.view_l().ceil(ExtendedFloat::Top), Extended::PosInf);
+        assert_eq!(
+            F032U008.view_r().floor(ExtendedFloat::Top),
+            Extended::PosInf
+        );
         assert_eq!(F032I064.ceil(ExtendedFloat::Bot), Extended::NegInf);
         assert_eq!(F032I064.ceil(ExtendedFloat::Top), Extended::PosInf);
     }
@@ -188,11 +203,11 @@ mod tests {
     #[test]
     fn saturate_high_unsigned() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(300.0_f32)),
+            F032U008.view_l().ceil(ExtendedFloat::Extend(300.0_f32)),
             Extended::PosInf
         );
         assert_eq!(
-            F032U008.floor(ExtendedFloat::Extend(300.0_f32)),
+            F032U008.view_r().floor(ExtendedFloat::Extend(300.0_f32)),
             Extended::Finite(u8::MAX)
         );
     }
@@ -200,11 +215,11 @@ mod tests {
     #[test]
     fn saturate_low_signed() {
         assert_eq!(
-            F032I008.ceil(ExtendedFloat::Extend(-200.0_f32)),
+            F032I008.view_l().ceil(ExtendedFloat::Extend(-200.0_f32)),
             Extended::Finite(i8::MIN)
         );
         assert_eq!(
-            F032I008.floor(ExtendedFloat::Extend(-200.0_f32)),
+            F032I008.view_r().floor(ExtendedFloat::Extend(-200.0_f32)),
             Extended::NegInf
         );
     }
@@ -212,11 +227,11 @@ mod tests {
     #[test]
     fn saturate_low_unsigned() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(-1.0_f32)),
+            F032U008.view_l().ceil(ExtendedFloat::Extend(-1.0_f32)),
             Extended::Finite(0)
         );
         assert_eq!(
-            F032U008.floor(ExtendedFloat::Extend(-1.0_f32)),
+            F032U008.view_r().floor(ExtendedFloat::Extend(-1.0_f32)),
             Extended::NegInf
         );
     }
@@ -224,15 +239,15 @@ mod tests {
     #[test]
     fn exact_integer_round_trip() {
         assert_eq!(
-            F032U008.ceil(ExtendedFloat::Extend(42.0_f32)),
+            F032U008.view_l().ceil(ExtendedFloat::Extend(42.0_f32)),
             Extended::Finite(42)
         );
         assert_eq!(
-            F032U008.floor(ExtendedFloat::Extend(42.0_f32)),
+            F032U008.view_r().floor(ExtendedFloat::Extend(42.0_f32)),
             Extended::Finite(42)
         );
         assert_eq!(
-            F032I016.ceil(ExtendedFloat::Extend(-1234.0_f32)),
+            F032I016.view_l().ceil(ExtendedFloat::Extend(-1234.0_f32)),
             Extended::Finite(-1234)
         );
     }
@@ -240,11 +255,11 @@ mod tests {
     #[test]
     fn fraction_brackets_integer() {
         assert_eq!(
-            F032I008.ceil(ExtendedFloat::Extend(2.5_f32)),
+            F032I008.view_l().ceil(ExtendedFloat::Extend(2.5_f32)),
             Extended::Finite(3)
         );
         assert_eq!(
-            F032I008.floor(ExtendedFloat::Extend(2.5_f32)),
+            F032I008.view_r().floor(ExtendedFloat::Extend(2.5_f32)),
             Extended::Finite(2)
         );
     }
@@ -252,11 +267,17 @@ mod tests {
     #[test]
     fn inner_round_trip_finite() {
         assert_eq!(
-            F032U008.upper(Extended::Finite(42_u8)),
+            F032U008.view_l().upper(Extended::Finite(42_u8)),
             ExtendedFloat::Extend(42.0_f32)
         );
-        assert_eq!(F032U008.upper(Extended::NegInf), ExtendedFloat::Bot);
-        assert_eq!(F032U008.upper(Extended::PosInf), ExtendedFloat::Top);
+        assert_eq!(
+            F032U008.view_l().upper(Extended::NegInf),
+            ExtendedFloat::Bot
+        );
+        assert_eq!(
+            F032U008.view_l().upper(Extended::PosInf),
+            ExtendedFloat::Top
+        );
     }
 
     #[test]

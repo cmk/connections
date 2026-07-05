@@ -16,14 +16,13 @@
 //! ## Example
 //!
 //! ```rust
-//! use connections::conn::{ConnL, ConnR};  // brings .ceil/.floor in via default methods
 //! use connections::core::f064::F064F032;
 //! use connections::float::F064;
 //!
 //! // f64 → f32 narrowing rounds in two directions.
 //! let pi64 = F064::Extend(std::f64::consts::PI);
-//! let lo = F064F032.floor(pi64);   // largest f32 ≤ π
-//! let hi = F064F032.ceil(pi64);    // smallest f32 ≥ π
+//! let lo = F064F032.swap_r().swap_l().floor(pi64);   // largest f32 ≤ π
+//! let hi = F064F032.swap_l().swap_r().ceil(pi64);    // smallest f32 ≥ π
 //! assert!(lo != hi);               // π is not exactly representable in f32
 //! ```
 //!

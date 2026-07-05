@@ -44,14 +44,13 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ConnL, ConnR};
     /// use connections::core::B2;
     /// use connections::core::i008::I008BE01;
     ///
-    /// assert_eq!(I008BE01.ceil(i8::MIN), B2([0x80]));
-    /// assert_eq!(I008BE01.ceil(0_i8),    B2([0x00]));
-    /// assert_eq!(I008BE01.ceil(i8::MAX), B2([0x7F]));
-    /// assert_eq!(I008BE01.upper(B2([0x80])), i8::MIN);
+    /// assert_eq!(I008BE01.swap_l().swap_r().ceil(i8::MIN), B2([0x80]));
+    /// assert_eq!(I008BE01.swap_l().swap_r().ceil(0_i8),    B2([0x00]));
+    /// assert_eq!(I008BE01.swap_l().swap_r().ceil(i8::MAX), B2([0x7F]));
+    /// assert_eq!(I008BE01.swap_l().swap_r().upper(B2([0x80])), i8::MIN);
     /// ```
     pub I008BE01 : i8 => B2<1> {
         forward: i8_to_be01,
@@ -98,16 +97,15 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ConnL, ConnR};
     /// use connections::core::LX;
     /// use connections::core::i008::I008LX01;
     ///
-    /// assert_eq!(I008LX01.ceil(i8::MIN), LX([0x00]));
-    /// assert_eq!(I008LX01.ceil(0_i8),    LX([0x80]));
-    /// assert_eq!(I008LX01.ceil(i8::MAX), LX([0xFF]));
+    /// assert_eq!(I008LX01.swap_l().swap_r().ceil(i8::MIN), LX([0x00]));
+    /// assert_eq!(I008LX01.swap_l().swap_r().ceil(0_i8),    LX([0x80]));
+    /// assert_eq!(I008LX01.swap_l().swap_r().ceil(i8::MAX), LX([0xFF]));
     /// // Raw byte lex compare matches signed numeric compare.
-    /// assert!(I008LX01.ceil(i8::MIN) < I008LX01.ceil(0));
-    /// assert!(I008LX01.ceil(0)       < I008LX01.ceil(i8::MAX));
+    /// assert!(I008LX01.swap_l().swap_r().ceil(i8::MIN) < I008LX01.swap_l().swap_r().ceil(0));
+    /// assert!(I008LX01.swap_l().swap_r().ceil(0)       < I008LX01.swap_l().swap_r().ceil(i8::MAX));
     /// ```
     pub I008LX01 : i8 => LX<1> {
         forward: i8_to_lx01,
@@ -201,16 +199,16 @@ mod tests {
     fn i008n008_floor_ceil_split_at_zero() {
         // Asymmetric-adjoint at zero: floor lands on the largest
         // NonZero ≤ 0 (-1); ceil lands on the smallest NonZero ≥ 0 (+1).
-        assert_eq!(I008N008.floor(0_i8), NonZeroI8::new(-1).unwrap());
-        assert_eq!(I008N008.ceil(0_i8), NonZeroI8::new(1).unwrap());
+        assert_eq!(I008N008.view_r().floor(0_i8), NonZeroI8::new(-1).unwrap());
+        assert_eq!(I008N008.view_l().ceil(0_i8), NonZeroI8::new(1).unwrap());
     }
 
     #[test]
     fn i008n008_finite_nonzero_round_trip() {
         for &v in &[i8::MIN, -50, -1, 1, 50, i8::MAX] {
             let nz = NonZeroI8::new(v).unwrap();
-            assert_eq!(I008N008.ceil(v), nz);
-            assert_eq!(I008N008.floor(v), nz);
+            assert_eq!(I008N008.view_l().ceil(v), nz);
+            assert_eq!(I008N008.view_r().floor(v), nz);
         }
     }
 
@@ -218,7 +216,7 @@ mod tests {
     fn i008n008_inner_is_total_embedding() {
         for &v in &[i8::MIN, -1, 1, i8::MAX] {
             let nz = NonZeroI8::new(v).unwrap();
-            assert_eq!(I008N008.upper(nz), v);
+            assert_eq!(I008N008.view_l().upper(nz), v);
         }
     }
 
@@ -232,18 +230,18 @@ mod tests {
         // target's puncture between -1 and +1.
         #[test]
         fn i008n008_galois_l(a in any::<i8>(), b in arb_nz_i8()) {
-            prop_assert!(conn_laws::galois_l(&I008N008.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I008N008.view_l(), a, b));
         }
 
         #[test]
         fn i008n008_galois_r(a in any::<i8>(), b in arb_nz_i8()) {
-            prop_assert!(conn_laws::galois_r(&I008N008.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I008N008.view_r(), a, b));
         }
 
         #[test]
         fn i008n008_inner_then_ceil_recovers_nonzero(nz in arb_nz_i8()) {
-            prop_assert_eq!(I008N008.ceil(I008N008.upper(nz)), nz);
-            prop_assert_eq!(I008N008.floor(I008N008.upper(nz)), nz);
+            prop_assert_eq!(I008N008.view_l().ceil(I008N008.view_l().upper(nz)), nz);
+            prop_assert_eq!(I008N008.view_r().floor(I008N008.view_l().upper(nz)), nz);
         }
     }
 
@@ -272,19 +270,19 @@ mod tests {
     proptest! {
         #[test]
         fn i008_b2_iso_roundtrip_l(a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I008BE01.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I008BE01.view_l(), a));
         }
         #[test]
         fn i008_b2_roundtrip_ceil(b in arb_byte1()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I008BE01.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I008BE01.view_l(), b));
         }
         #[test]
         fn i008_b2_galois_l(a in any::<i8>(), b in arb_byte1()) {
-            prop_assert!(conn_laws::galois_l(&I008BE01.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I008BE01.view_l(), a, b));
         }
         #[test]
         fn i008_b2_galois_r(a in any::<i8>(), b in arb_byte1()) {
-            prop_assert!(conn_laws::galois_r(&I008BE01.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I008BE01.view_r(), a, b));
         }
         #[test]
         fn i008_b2_floor_le_ceil(a in any::<i8>()) {
@@ -292,27 +290,27 @@ mod tests {
         }
         #[test]
         fn i008_b2_order_preserving(a in any::<i8>(), b in any::<i8>()) {
-            prop_assert_eq!(a.cmp(&b), I008BE01.ceil(a).cmp(&I008BE01.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), I008BE01.view_l().ceil(a).cmp(&I008BE01.view_l().ceil(b)));
         }
 
         #[test]
         fn i008_l2_iso_roundtrip_l(a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I008LE01.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I008LE01.view_l(), a));
         }
 
         #[test]
         fn i008_l2_roundtrip_ceil(b in arb_lebyte1()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I008LE01.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I008LE01.view_l(), b));
         }
 
         #[test]
         fn i008_l2_galois_l(a in any::<i8>(), b in arb_lebyte1()) {
-            prop_assert!(conn_laws::galois_l(&I008LE01.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I008LE01.view_l(), a, b));
         }
 
         #[test]
         fn i008_l2_galois_r(a in any::<i8>(), b in arb_lebyte1()) {
-            prop_assert!(conn_laws::galois_r(&I008LE01.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I008LE01.view_r(), a, b));
         }
 
         #[test]
@@ -322,7 +320,7 @@ mod tests {
 
         #[test]
         fn i008_l2_order_preserving(a in any::<i8>(), b in any::<i8>()) {
-            prop_assert_eq!(a.cmp(&b), I008LE01.ceil(a).cmp(&I008LE01.ceil(b)));
+            prop_assert_eq!(a.cmp(&b), I008LE01.view_l().ceil(a).cmp(&I008LE01.view_l().ceil(b)));
         }
     }
 
@@ -342,12 +340,12 @@ mod tests {
     fn i008lx01_boundary_bytes() {
         // Bias-encoded boundaries: MIN→0x00, 0→0x80, MAX→0xFF.
         // Raw byte lex compare matches signed numeric order.
-        assert_eq!(I008LX01.ceil(i8::MIN), LX([0x00]));
-        assert_eq!(I008LX01.ceil(0_i8), LX([0x80]));
-        assert_eq!(I008LX01.ceil(i8::MAX), LX([0xFF]));
-        assert_eq!(I008LX01.upper(LX([0x00])), i8::MIN);
-        assert_eq!(I008LX01.upper(LX([0x80])), 0_i8);
-        assert_eq!(I008LX01.upper(LX([0xFF])), i8::MAX);
+        assert_eq!(I008LX01.view_l().ceil(i8::MIN), LX([0x00]));
+        assert_eq!(I008LX01.view_l().ceil(0_i8), LX([0x80]));
+        assert_eq!(I008LX01.view_l().ceil(i8::MAX), LX([0xFF]));
+        assert_eq!(I008LX01.view_l().upper(LX([0x00])), i8::MIN);
+        assert_eq!(I008LX01.view_l().upper(LX([0x80])), 0_i8);
+        assert_eq!(I008LX01.view_l().upper(LX([0xFF])), i8::MAX);
     }
 
     proptest! {
@@ -355,22 +353,22 @@ mod tests {
         fn i008_lx_iso_roundtrip_l(
             a in prop_oneof![Just(i8::MIN), Just(0i8), Just(i8::MAX), any::<i8>()]
         ) {
-            prop_assert!(conn_laws::iso_roundtrip_l(&I008LX01.conn_l(), a));
+            prop_assert!(conn_laws::iso_roundtrip_l(&I008LX01.view_l(), a));
         }
 
         #[test]
         fn i008_lx_roundtrip_ceil(b in arb_lxbyte1()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&I008LX01.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&I008LX01.view_l(), b));
         }
 
         #[test]
         fn i008_lx_galois_l(a in any::<i8>(), b in arb_lxbyte1()) {
-            prop_assert!(conn_laws::galois_l(&I008LX01.conn_l(), a, b));
+            prop_assert!(conn_laws::galois_l(&I008LX01.view_l(), a, b));
         }
 
         #[test]
         fn i008_lx_galois_r(a in any::<i8>(), b in arb_lxbyte1()) {
-            prop_assert!(conn_laws::galois_r(&I008LX01.conn_r(), a, b));
+            prop_assert!(conn_laws::galois_r(&I008LX01.view_r(), a, b));
         }
 
         #[test]
@@ -383,8 +381,8 @@ mod tests {
         // point of the bias-encoding Conn.
         #[test]
         fn i008_lx_signed_cmp_matches_raw_byte_cmp(a in any::<i8>(), b in any::<i8>()) {
-            let ka = I008LX01.ceil(a).0;
-            let kb = I008LX01.ceil(b).0;
+            let ka = I008LX01.view_l().ceil(a).0;
+            let kb = I008LX01.view_l().ceil(b).0;
             prop_assert_eq!(a.cmp(&b), ka.cmp(&kb));
         }
     }

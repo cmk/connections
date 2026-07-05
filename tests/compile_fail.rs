@@ -18,6 +18,16 @@ fn kind_discipline() {
     t.compile_fail("tests/compile_fail/ceiling_on_r_conn.rs");
     t.compile_fail("tests/compile_fail/galois_l_on_r_conn.rs");
     t.compile_fail("tests/compile_fail/galois_r_on_l_conn.rs");
+    // The E0277 snapshot for `round` enumerates every type implementing
+    // `ConnL`, so its wording depends on which feature-gated marker
+    // families are compiled in. Pinned against CI's feature set; other
+    // combinations skip it rather than chase an unstable list.
+    #[cfg(all(
+        feature = "fixed",
+        feature = "time",
+        feature = "hifi",
+        feature = "uhlc"
+    ))]
     t.compile_fail("tests/compile_fail/round_on_l_conn.rs");
     t.compile_fail("tests/compile_fail/compose_l_with_r.rs");
 }

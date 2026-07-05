@@ -54,12 +54,11 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ConnL, ConnR};
     /// use connections::addr::U032IPV4;
     /// use std::net::Ipv4Addr;
     ///
-    /// assert_eq!(U032IPV4.ceil(0xC0A80101_u32), Ipv4Addr::new(192, 168, 1, 1));
-    /// assert_eq!(U032IPV4.upper(Ipv4Addr::new(192, 168, 1, 1)), 0xC0A80101_u32);
+    /// assert_eq!(U032IPV4.swap_l().swap_r().ceil(0xC0A80101_u32), Ipv4Addr::new(192, 168, 1, 1));
+    /// assert_eq!(U032IPV4.swap_l().swap_r().upper(Ipv4Addr::new(192, 168, 1, 1)), 0xC0A80101_u32);
     /// ```
     pub U032IPV4 : u32 => Ipv4Addr {
         forward: u32_to_v4,
@@ -83,12 +82,11 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ConnL, ConnR};
     /// use connections::addr::U128IPV6;
     /// use std::net::Ipv6Addr;
     ///
-    /// assert_eq!(U128IPV6.ceil(1_u128), Ipv6Addr::LOCALHOST);
-    /// assert_eq!(U128IPV6.upper(Ipv6Addr::LOCALHOST), 1_u128);
+    /// assert_eq!(U128IPV6.swap_l().swap_r().ceil(1_u128), Ipv6Addr::LOCALHOST);
+    /// assert_eq!(U128IPV6.swap_l().swap_r().upper(Ipv6Addr::LOCALHOST), 1_u128);
     /// ```
     pub U128IPV6 : u128 => Ipv6Addr {
         forward: u128_to_v6,
@@ -179,7 +177,6 @@ crate::conn_k! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ConnL, ConnR};
     /// use connections::addr::ip::IPV6IPV4;
     /// use connections::extended::Extended;
     /// use std::net::{Ipv4Addr, Ipv6Addr};
@@ -187,18 +184,18 @@ crate::conn_k! {
     /// // V4-mapped Ipv6 round-trips through the bridge.
     /// let v4_in_v6: Ipv6Addr = "::ffff:7f00:1".parse().unwrap();
     /// assert_eq!(
-    ///     IPV6IPV4.ceil(v4_in_v6),
+    ///     IPV6IPV4.swap_l().swap_r().ceil(v4_in_v6),
     ///     Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))
     /// );
     /// assert_eq!(
-    ///     IPV6IPV4.upper(Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))),
+    ///     IPV6IPV4.swap_l().swap_r().upper(Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))),
     ///     v4_in_v6
     /// );
     ///
     /// // `::1` (loopback) sits below the v4-mapped block — ceil and
     /// // floor diverge.
-    /// assert_eq!(IPV6IPV4.ceil(Ipv6Addr::LOCALHOST),  Extended::Finite(Ipv4Addr::UNSPECIFIED));
-    /// assert_eq!(IPV6IPV4.floor(Ipv6Addr::LOCALHOST), Extended::NegInf);
+    /// assert_eq!(IPV6IPV4.swap_l().swap_r().ceil(Ipv6Addr::LOCALHOST),  Extended::Finite(Ipv4Addr::UNSPECIFIED));
+    /// assert_eq!(IPV6IPV4.swap_r().swap_l().floor(Ipv6Addr::LOCALHOST), Extended::NegInf);
     /// ```
     pub IPV6IPV4 : Ipv6Addr => Extended<Ipv4Addr> {
         ceil:  ipv6ipv4_ceil,
@@ -344,31 +341,40 @@ mod tests {
 
     #[test]
     fn u032ipv4_loopback() {
-        assert_eq!(U032IPV4.ceil(0x7F000001_u32), Ipv4Addr::new(127, 0, 0, 1));
-        assert_eq!(U032IPV4.upper(Ipv4Addr::new(127, 0, 0, 1)), 0x7F000001_u32);
+        assert_eq!(
+            U032IPV4.view_l().ceil(0x7F000001_u32),
+            Ipv4Addr::new(127, 0, 0, 1)
+        );
+        assert_eq!(
+            U032IPV4.view_l().upper(Ipv4Addr::new(127, 0, 0, 1)),
+            0x7F000001_u32
+        );
     }
 
     #[test]
     fn u032ipv4_extremes() {
-        assert_eq!(U032IPV4.ceil(0_u32), Ipv4Addr::UNSPECIFIED);
-        assert_eq!(U032IPV4.ceil(u32::MAX), Ipv4Addr::BROADCAST);
-        assert_eq!(U032IPV4.upper(Ipv4Addr::UNSPECIFIED), 0_u32);
-        assert_eq!(U032IPV4.upper(Ipv4Addr::BROADCAST), u32::MAX);
+        assert_eq!(U032IPV4.view_l().ceil(0_u32), Ipv4Addr::UNSPECIFIED);
+        assert_eq!(U032IPV4.view_l().ceil(u32::MAX), Ipv4Addr::BROADCAST);
+        assert_eq!(U032IPV4.view_l().upper(Ipv4Addr::UNSPECIFIED), 0_u32);
+        assert_eq!(U032IPV4.view_l().upper(Ipv4Addr::BROADCAST), u32::MAX);
     }
 
     // ── U128IPV6 spot checks ────────────────────────────────────
 
     #[test]
     fn u128ipv6_localhost() {
-        assert_eq!(U128IPV6.ceil(1_u128), Ipv6Addr::LOCALHOST);
-        assert_eq!(U128IPV6.upper(Ipv6Addr::LOCALHOST), 1_u128);
+        assert_eq!(U128IPV6.view_l().ceil(1_u128), Ipv6Addr::LOCALHOST);
+        assert_eq!(U128IPV6.view_l().upper(Ipv6Addr::LOCALHOST), 1_u128);
     }
 
     #[test]
     fn u128ipv6_extremes() {
-        assert_eq!(U128IPV6.ceil(0_u128), Ipv6Addr::UNSPECIFIED);
-        assert_eq!(U128IPV6.upper(Ipv6Addr::UNSPECIFIED), 0_u128);
-        assert_eq!(U128IPV6.ceil(u128::MAX), Ipv6Addr::from_bits(u128::MAX));
+        assert_eq!(U128IPV6.view_l().ceil(0_u128), Ipv6Addr::UNSPECIFIED);
+        assert_eq!(U128IPV6.view_l().upper(Ipv6Addr::UNSPECIFIED), 0_u128);
+        assert_eq!(
+            U128IPV6.view_l().ceil(u128::MAX),
+            Ipv6Addr::from_bits(u128::MAX)
+        );
     }
 
     // ── Galois law batteries ────────────────────────────────────
@@ -408,19 +414,31 @@ mod tests {
     fn ipv6ipv4_v4mapped_round_trip() {
         let v4 = Ipv4Addr::new(127, 0, 0, 1);
         let v6: Ipv6Addr = "::ffff:7f00:1".parse().unwrap();
-        assert_eq!(IPV6IPV4.ceil(v6), Extended::Finite(v4));
-        assert_eq!(IPV6IPV4.floor(v6), Extended::Finite(v4));
-        assert_eq!(IPV6IPV4.upper(Extended::Finite(v4)), v6);
+        assert_eq!(IPV6IPV4.view_l().ceil(v6), Extended::Finite(v4));
+        assert_eq!(IPV6IPV4.view_r().floor(v6), Extended::Finite(v4));
+        assert_eq!(IPV6IPV4.view_l().upper(Extended::Finite(v4)), v6);
     }
 
     #[test]
     fn ipv6ipv4_v4mapped_extremes() {
         let lo = Ipv6Addr::from_bits(V4MAPPED_LO);
         let hi = Ipv6Addr::from_bits(V4MAPPED_HI);
-        assert_eq!(IPV6IPV4.ceil(lo), Extended::Finite(Ipv4Addr::UNSPECIFIED));
-        assert_eq!(IPV6IPV4.floor(lo), Extended::Finite(Ipv4Addr::UNSPECIFIED));
-        assert_eq!(IPV6IPV4.ceil(hi), Extended::Finite(Ipv4Addr::BROADCAST));
-        assert_eq!(IPV6IPV4.floor(hi), Extended::Finite(Ipv4Addr::BROADCAST));
+        assert_eq!(
+            IPV6IPV4.view_l().ceil(lo),
+            Extended::Finite(Ipv4Addr::UNSPECIFIED)
+        );
+        assert_eq!(
+            IPV6IPV4.view_r().floor(lo),
+            Extended::Finite(Ipv4Addr::UNSPECIFIED)
+        );
+        assert_eq!(
+            IPV6IPV4.view_l().ceil(hi),
+            Extended::Finite(Ipv4Addr::BROADCAST)
+        );
+        assert_eq!(
+            IPV6IPV4.view_r().floor(hi),
+            Extended::Finite(Ipv4Addr::BROADCAST)
+        );
     }
 
     #[test]
@@ -428,27 +446,30 @@ mod tests {
         // Loopback `::1` sits below the v4-mapped block.
         // ceil rounds *up* into the block; floor saturates to NegInf.
         assert_eq!(
-            IPV6IPV4.ceil(Ipv6Addr::LOCALHOST),
+            IPV6IPV4.view_l().ceil(Ipv6Addr::LOCALHOST),
             Extended::Finite(Ipv4Addr::UNSPECIFIED)
         );
-        assert_eq!(IPV6IPV4.floor(Ipv6Addr::LOCALHOST), Extended::NegInf);
+        assert_eq!(
+            IPV6IPV4.view_r().floor(Ipv6Addr::LOCALHOST),
+            Extended::NegInf
+        );
 
         // `::ffff:0:0 - 1` is the largest v6 below the block.
         let just_below = Ipv6Addr::from_bits(V4MAPPED_LO - 1);
         assert_eq!(
-            IPV6IPV4.ceil(just_below),
+            IPV6IPV4.view_l().ceil(just_below),
             Extended::Finite(Ipv4Addr::UNSPECIFIED)
         );
-        assert_eq!(IPV6IPV4.floor(just_below), Extended::NegInf);
+        assert_eq!(IPV6IPV4.view_r().floor(just_below), Extended::NegInf);
     }
 
     #[test]
     fn ipv6ipv4_above_block_asymmetric() {
         // `::ffff:ffff:ffff + 1` is the smallest v6 above the block.
         let just_above = Ipv6Addr::from_bits(V4MAPPED_HI + 1);
-        assert_eq!(IPV6IPV4.ceil(just_above), Extended::PosInf);
+        assert_eq!(IPV6IPV4.view_l().ceil(just_above), Extended::PosInf);
         assert_eq!(
-            IPV6IPV4.floor(just_above),
+            IPV6IPV4.view_r().floor(just_above),
             Extended::Finite(Ipv4Addr::BROADCAST)
         );
     }
@@ -457,19 +478,28 @@ mod tests {
     fn ipv6ipv4_ipv6_extremes_synced() {
         // At `::` and `Ipv6Addr::MAX`, ceil and floor agree (Galois
         // pins them to NegInf/PosInf respectively).
-        assert_eq!(IPV6IPV4.ceil(Ipv6Addr::UNSPECIFIED), Extended::NegInf);
-        assert_eq!(IPV6IPV4.floor(Ipv6Addr::UNSPECIFIED), Extended::NegInf);
+        assert_eq!(
+            IPV6IPV4.view_l().ceil(Ipv6Addr::UNSPECIFIED),
+            Extended::NegInf
+        );
+        assert_eq!(
+            IPV6IPV4.view_r().floor(Ipv6Addr::UNSPECIFIED),
+            Extended::NegInf
+        );
 
         let max = Ipv6Addr::from_bits(u128::MAX);
-        assert_eq!(IPV6IPV4.ceil(max), Extended::PosInf);
-        assert_eq!(IPV6IPV4.floor(max), Extended::PosInf);
+        assert_eq!(IPV6IPV4.view_l().ceil(max), Extended::PosInf);
+        assert_eq!(IPV6IPV4.view_r().floor(max), Extended::PosInf);
     }
 
     #[test]
     fn ipv6ipv4_synthetic_inner() {
-        assert_eq!(IPV6IPV4.upper(Extended::NegInf), Ipv6Addr::UNSPECIFIED);
         assert_eq!(
-            IPV6IPV4.upper(Extended::PosInf),
+            IPV6IPV4.view_l().upper(Extended::NegInf),
+            Ipv6Addr::UNSPECIFIED
+        );
+        assert_eq!(
+            IPV6IPV4.view_l().upper(Extended::PosInf),
             Ipv6Addr::from_bits(u128::MAX)
         );
     }
@@ -487,9 +517,9 @@ mod tests {
         // V4-mapped block round-trips bijectively.
         #[test]
         fn ipv6ipv4_v4_round_trip(v4 in arb_ipv4()) {
-            let v6 = IPV6IPV4.upper(Extended::Finite(v4));
-            prop_assert_eq!(IPV6IPV4.ceil(v6), Extended::Finite(v4));
-            prop_assert_eq!(IPV6IPV4.floor(v6), Extended::Finite(v4));
+            let v6 = IPV6IPV4.view_l().upper(Extended::Finite(v4));
+            prop_assert_eq!(IPV6IPV4.view_l().ceil(v6), Extended::Finite(v4));
+            prop_assert_eq!(IPV6IPV4.view_r().floor(v6), Extended::Finite(v4));
         }
 
         #[test]

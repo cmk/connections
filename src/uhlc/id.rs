@@ -41,7 +41,6 @@ crate::iso! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::conn::{ConnL, ConnR};
     use crate::prop::conn as conn_laws;
     use core::num::NonZeroU128;
     use proptest::prelude::*;
@@ -71,21 +70,21 @@ mod tests {
         #[test]
         fn iso_roundtrip_l(a in arb_opt_nz_u128()) {
             let id = a.map(ID::from);
-            prop_assert!(conn_laws::iso_roundtrip_l(&HLIDLX16.conn_l(), id));
+            prop_assert!(conn_laws::iso_roundtrip_l(&HLIDLX16.view_l(), id));
         }
         #[test]
         fn roundtrip_ceil(b in arb_lx16()) {
-            prop_assert!(conn_laws::roundtrip_ceil(&HLIDLX16.conn_l(), b));
+            prop_assert!(conn_laws::roundtrip_ceil(&HLIDLX16.view_l(), b));
         }
         #[test]
         fn galois_l(a in arb_opt_nz_u128(), b in arb_lx16()) {
             let id = a.map(ID::from);
-            prop_assert!(conn_laws::galois_l(&HLIDLX16.conn_l(), id, b));
+            prop_assert!(conn_laws::galois_l(&HLIDLX16.view_l(), id, b));
         }
         #[test]
         fn galois_r(a in arb_opt_nz_u128(), b in arb_lx16()) {
             let id = a.map(ID::from);
-            prop_assert!(conn_laws::galois_r(&HLIDLX16.conn_r(), id, b));
+            prop_assert!(conn_laws::galois_r(&HLIDLX16.view_r(), id, b));
         }
         #[test]
         fn floor_le_ceil(a in arb_opt_nz_u128()) {
@@ -101,8 +100,8 @@ mod tests {
     #[test]
     fn puncture_is_none() {
         let z = LX([0u8; 16]);
-        assert!(HLIDLX16.lower(z).is_none());
-        assert_eq!(HLIDLX16.floor(None), z);
+        assert!(HLIDLX16.view_r().lower(z).is_none());
+        assert_eq!(HLIDLX16.view_r().floor(None), z);
     }
 
     #[test]
@@ -110,9 +109,9 @@ mod tests {
         let mut bytes = [0u8; 16];
         bytes[7] = 42;
         let lx = LX(bytes);
-        let id = HLIDLX16.lower(lx).unwrap();
+        let id = HLIDLX16.view_r().lower(lx).unwrap();
 
         assert_eq!(id.to_le_bytes(), bytes);
-        assert_eq!(HLIDLX16.floor(Some(id)).0, bytes);
+        assert_eq!(HLIDLX16.view_r().floor(Some(id)).0, bytes);
     }
 }

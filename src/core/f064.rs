@@ -106,7 +106,6 @@ crate::conn_k! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::{ConnL, ConnR};
     /// use connections::core::f064::F064F032;
     /// use connections::float::ExtendedFloat::Extend;
     ///
@@ -116,16 +115,16 @@ crate::conn_k! {
     /// let pi_f32_floor = Extend(3.141_592_502_593_994_f64);
     /// let pi_f32_ceil  = Extend(std::f32::consts::PI as f64);
     ///
-    /// assert_eq!(F064F032.floor(pi_f64), Extend(3.141_592_502_593_994_f64 as f32));
-    /// assert_eq!(F064F032.ceil(pi_f64),  Extend(std::f32::consts::PI));
+    /// assert_eq!(F064F032.swap_r().swap_l().floor(pi_f64), Extend(3.141_592_502_593_994_f64 as f32));
+    /// assert_eq!(F064F032.swap_l().swap_r().ceil(pi_f64),  Extend(std::f32::consts::PI));
     /// // Widening lifts each f32 grid point to its exact f64 image.
-    /// assert_eq!(F064F032.upper(F064F032.floor(pi_f64)), pi_f32_floor);
-    /// assert_eq!(F064F032.upper(F064F032.ceil(pi_f64)),  pi_f32_ceil);
+    /// assert_eq!(F064F032.swap_l().swap_r().upper(F064F032.swap_r().swap_l().floor(pi_f64)), pi_f32_floor);
+    /// assert_eq!(F064F032.swap_l().swap_r().upper(F064F032.swap_l().swap_r().ceil(pi_f64)),  pi_f32_ceil);
     ///
     /// // Sentinel pass-through.
     /// use connections::float::ExtendedFloat;
-    /// assert_eq!(F064F032.ceil(ExtendedFloat::Bot),  ExtendedFloat::Bot);
-    /// assert_eq!(F064F032.floor(ExtendedFloat::Top), ExtendedFloat::Top);
+    /// assert_eq!(F064F032.swap_l().swap_r().ceil(ExtendedFloat::Bot),  ExtendedFloat::Bot);
+    /// assert_eq!(F064F032.swap_r().swap_l().floor(ExtendedFloat::Top), ExtendedFloat::Top);
     /// ```
     pub F064F032 : F064 => F032 {
         ceil:  f064f032_ceil,
@@ -264,7 +263,7 @@ mod tests {
     #[test]
     fn ceil_exact_value() {
         assert_eq!(
-            F064F032.ceil(ExtendedFloat::Extend(0.5_f64)),
+            F064F032.view_l().ceil(ExtendedFloat::Extend(0.5_f64)),
             ExtendedFloat::Extend(0.5_f32)
         );
     }
@@ -272,14 +271,14 @@ mod tests {
     #[test]
     fn floor_exact_value() {
         assert_eq!(
-            F064F032.floor(ExtendedFloat::Extend(0.5_f64)),
+            F064F032.view_r().floor(ExtendedFloat::Extend(0.5_f64)),
             ExtendedFloat::Extend(0.5_f32)
         );
     }
 
     #[test]
     fn ceil_nan() {
-        match F064F032.ceil(ExtendedFloat::Extend(f64::NAN)) {
+        match F064F032.view_l().ceil(ExtendedFloat::Extend(f64::NAN)) {
             ExtendedFloat::Extend(v) => assert!(v.is_nan()),
             _ => panic!("expected Extend(NaN)"),
         }
@@ -287,7 +286,7 @@ mod tests {
 
     #[test]
     fn floor_nan() {
-        match F064F032.floor(ExtendedFloat::Extend(f64::NAN)) {
+        match F064F032.view_r().floor(ExtendedFloat::Extend(f64::NAN)) {
             ExtendedFloat::Extend(v) => assert!(v.is_nan()),
             _ => panic!("expected Extend(NaN)"),
         }
@@ -295,7 +294,7 @@ mod tests {
 
     #[test]
     fn inner_nan() {
-        match F064F032.upper(ExtendedFloat::Extend(f32::NAN)) {
+        match F064F032.view_l().upper(ExtendedFloat::Extend(f32::NAN)) {
             ExtendedFloat::Extend(v) => assert!(v.is_nan()),
             _ => panic!("expected Extend(NaN)"),
         }
@@ -304,17 +303,35 @@ mod tests {
     #[test]
     fn ceil_ge_floor() {
         let x = ExtendedFloat::Extend(std::f64::consts::PI);
-        assert!(F064F032.floor(x) <= F064F032.ceil(x));
+        assert!(F064F032.view_r().floor(x) <= F064F032.view_l().ceil(x));
     }
 
     #[test]
     fn bot_top_pass_through() {
-        assert_eq!(F064F032.ceil(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F064F032.floor(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F064F032.ceil(ExtendedFloat::Top), ExtendedFloat::Top);
-        assert_eq!(F064F032.floor(ExtendedFloat::Top), ExtendedFloat::Top);
-        assert_eq!(F064F032.upper(ExtendedFloat::Bot), ExtendedFloat::Bot);
-        assert_eq!(F064F032.upper(ExtendedFloat::Top), ExtendedFloat::Top);
+        assert_eq!(
+            F064F032.view_l().ceil(ExtendedFloat::Bot),
+            ExtendedFloat::Bot
+        );
+        assert_eq!(
+            F064F032.view_r().floor(ExtendedFloat::Bot),
+            ExtendedFloat::Bot
+        );
+        assert_eq!(
+            F064F032.view_l().ceil(ExtendedFloat::Top),
+            ExtendedFloat::Top
+        );
+        assert_eq!(
+            F064F032.view_r().floor(ExtendedFloat::Top),
+            ExtendedFloat::Top
+        );
+        assert_eq!(
+            F064F032.view_l().upper(ExtendedFloat::Bot),
+            ExtendedFloat::Bot
+        );
+        assert_eq!(
+            F064F032.view_l().upper(ExtendedFloat::Top),
+            ExtendedFloat::Top
+        );
     }
 
     crate::law_battery! { mod laws, conn: F064F032, fine: ef64(), coarse: ef32(), subset: numeric_only, }
@@ -360,11 +377,11 @@ mod tests {
     #[test]
     fn f064i032_exact_int() {
         assert_eq!(
-            F064I032.ceil(ExtendedFloat::Extend(2.5_f64)),
+            F064I032.view_l().ceil(ExtendedFloat::Extend(2.5_f64)),
             Extended::Finite(3_i32)
         );
         assert_eq!(
-            F064I032.floor(ExtendedFloat::Extend(2.5_f64)),
+            F064I032.view_r().floor(ExtendedFloat::Extend(2.5_f64)),
             Extended::Finite(2_i32)
         );
     }
@@ -408,8 +425,8 @@ mod tests {
     #[test]
     fn f064u008_composed_matches_direct_path() {
         let v = ExtendedFloat::Extend(42.7_f64);
-        assert_eq!(F064U008.ceil(v), Extended::Finite(43));
-        assert_eq!(F064U008.floor(v), Extended::Finite(42));
+        assert_eq!(F064U008.view_l().ceil(v), Extended::Finite(43));
+        assert_eq!(F064U008.view_r().floor(v), Extended::Finite(42));
     }
 
     crate::law_battery! { mod laws_u032, conn: F064U032, fine: extended_float_f64(), coarse: arb_extended_u32(), cases: 1024, }
