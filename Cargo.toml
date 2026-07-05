@@ -126,3 +126,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 # lint to expect it.
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(kani)"] }
+
+# The proptest-heavy test binaries are the crate's biggest compile
+# units; full debuginfo is what pushes their rustc/link peak past the
+# GHA runner's ~7 GB budget (exit-143 kills — see ci.yml's `--jobs 2`
+# note, which is no longer sufficient headroom on its own). Line
+# tables keep file:line in panic backtraces while shedding most of
+# the debuginfo memory.
+[profile.test]
+debug = "line-tables-only"
