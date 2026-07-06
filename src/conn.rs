@@ -491,22 +491,31 @@ impl<X, K: Kind> Conn<X, X, K> {
 // ── ConnL / ConnR / ConnK capability traits ──────────────────────────
 
 /// Capability trait: types carrying an `L`-Galois connection between
-/// `A` and `B`, exposed through its polarity swap.
+/// `A` and `B`, exposed through its polarity swap and a uniform
+/// accessor API.
 ///
 /// Implementors are the adjoint-triple markers (zero-sized unit
 /// structs from [`conn_k!`](crate::conn_k) / [`iso!`](crate::iso) /
-/// [`compose_k!`](crate::compose_k)). The single method is the
-/// categorical content: the marker's L-pair `(f, g)` read over the
-/// swapped pair `(B, A)`, where it satisfies the R-Galois law. The
-/// direct L-view is the law-guaranteed round trip `view_l(t)`. The
-/// free `view_l` fn is not `const`; in `const` position spell the
-/// view as the public double swap `t.swap_l().swap_r()` (the marker's
-/// inherent `const fn view_l()` is crate-private, so downstream cannot
-/// call it).
+/// [`compose_k!`](crate::compose_k)) *and* one-sided `Conn<A, B, L>`
+/// values (through the blanket impl below). The one required method,
+/// [`swap_l`](ConnL::swap_l), is the categorical content: the marker's
+/// L-pair `(f, g)` read over the swapped pair `(B, A)`, where it
+/// satisfies the R-Galois law. Everything else —
+/// [`view_l`](ConnL::view_l), [`ceil`](ConnL::ceil),
+/// [`upper`](ConnL::upper), and the `*1`/`*2` lifters — is a provided
+/// method routed through the L-view, so a marker answers `M.ceil(a)`
+/// directly with no projection step.
 ///
-/// `Conn` *values* do not implement this trait — a value already is
-/// its own view, and its swap is the inherent `const fn`
-/// [`Conn::swap_l`]. One name, disjoint receivers, no duplication.
+/// The provided methods are **not** `const` (trait methods can't be on
+/// stable Rust). In `const` position spell the view as the public
+/// double swap `t.swap_l().swap_r()`, or call a marker's inherent
+/// `const fn view_l()` / a value's inherent `const fn ceil()` — those
+/// stay `const` and shadow the trait defaults on concrete receivers.
+///
+/// `Conn` *values* also implement this trait, but a value receiver
+/// resolves `.ceil(a)` / `.swap_l()` to the inherent `const fn`
+/// ([`Conn::swap_l`]) rather than the trait default — inherent methods
+/// win method resolution — so const composition is unaffected.
 ///
 /// Laws (`prop::conn`): the swaps are involutive up to fn-pointer
 /// identity — `view_l(t) == t.view_l()` on markers, and
@@ -518,14 +527,84 @@ pub trait ConnL {
     type B: Copy;
 
     /// The swapped L-view: the same pair over `(B, A)` in R polarity.
+    /// The single required method; every other method defaults through
+    /// it.
     fn swap_l(&self) -> Conn<Self::B, Self::A, R>;
+
+    /// The direct L-view as a `Conn<A, B, L>` value. Fn-pointer-identical
+    /// to a marker's inherent `const fn view_l()` by the swap-involution
+    /// law (`prop::conn::swap_involutive_l`).
+    #[inline]
+    #[must_use]
+    fn view_l(&self) -> Conn<Self::A, Self::B, L> {
+        self.swap_l().swap_r()
+    }
+
+    /// Apply the lower adjoint (round-up) through the L-view: `a ↦ f(a)`.
+    #[inline]
+    #[must_use]
+    fn ceil(&self, a: Self::A) -> Self::B {
+        self.view_l().ceil(a)
+    }
+
+    /// Apply the upper adjoint (embedding) through the L-view: `b ↦ g(b)`.
+    #[inline]
+    #[must_use]
+    fn upper(&self, b: Self::B) -> Self::A {
+        self.view_l().upper(b)
+    }
+
+    /// Lift a unary endofunction over `B` through the L-pair:
+    /// `a ↦ g(h(f(a)))`.
+    #[inline]
+    #[must_use]
+    fn upper1<H>(&self, h: H, a: Self::A) -> Self::A
+    where
+        H: FnOnce(Self::B) -> Self::B,
+    {
+        self.view_l().upper1(h, a)
+    }
+
+    /// Lift a binary function over `B` through the L-pair.
+    #[inline]
+    #[must_use]
+    fn upper2<H>(&self, h: H, a1: Self::A, a2: Self::A) -> Self::A
+    where
+        H: FnOnce(Self::B, Self::B) -> Self::B,
+    {
+        self.view_l().upper2(h, a1, a2)
+    }
+
+    /// Lift a unary endofunction over `A` through the L-pair:
+    /// `b ↦ f(h(g(b)))`.
+    #[inline]
+    #[must_use]
+    fn ceil1<H>(&self, h: H, b: Self::B) -> Self::B
+    where
+        H: FnOnce(Self::A) -> Self::A,
+    {
+        self.view_l().ceil1(h, b)
+    }
+
+    /// Lift a binary function over `A` through the L-pair.
+    #[inline]
+    #[must_use]
+    fn ceil2<H>(&self, h: H, b1: Self::B, b2: Self::B) -> Self::B
+    where
+        H: FnOnce(Self::A, Self::A) -> Self::A,
+    {
+        self.view_l().ceil2(h, b1, b2)
+    }
 }
 
 /// Capability trait: types carrying an `R`-Galois connection between
-/// `A` and `B`, exposed through its polarity swap. Counterpart to
-/// [`ConnL`]; the direct R-view is `view_r(t)`. In `const` position,
-/// spell it as the public double swap `t.swap_r().swap_l()` (the
-/// marker's inherent `const fn view_r()` is crate-private).
+/// `A` and `B`, exposed through its polarity swap and a uniform
+/// accessor API. Counterpart to [`ConnL`]; the direct R-view is
+/// [`view_r`](ConnR::view_r), and [`floor`](ConnR::floor) /
+/// [`lower`](ConnR::lower) / the `*1`/`*2` lifters route through it, so
+/// a marker answers `M.floor(a)` directly. In `const` position spell
+/// the view as the public double swap `t.swap_r().swap_l()`, or call a
+/// marker's inherent `const fn view_r()`.
 pub trait ConnR {
     /// The connection's source type.
     type A: Copy;
@@ -533,7 +612,73 @@ pub trait ConnR {
     type B: Copy;
 
     /// The swapped R-view: the same pair over `(B, A)` in L polarity.
+    /// The single required method; every other method defaults through
+    /// it.
     fn swap_r(&self) -> Conn<Self::B, Self::A, L>;
+
+    /// The direct R-view as a `Conn<A, B, R>` value. Fn-pointer-identical
+    /// to a marker's inherent `const fn view_r()` by the swap-involution
+    /// law (`prop::conn::swap_involutive_r`).
+    #[inline]
+    #[must_use]
+    fn view_r(&self) -> Conn<Self::A, Self::B, R> {
+        self.swap_r().swap_l()
+    }
+
+    /// Apply the upper adjoint (round-down) through the R-view: `a ↦ f(a)`.
+    #[inline]
+    #[must_use]
+    fn floor(&self, a: Self::A) -> Self::B {
+        self.view_r().floor(a)
+    }
+
+    /// Apply the lower adjoint (embedding) through the R-view: `b ↦ g(b)`.
+    #[inline]
+    #[must_use]
+    fn lower(&self, b: Self::B) -> Self::A {
+        self.view_r().lower(b)
+    }
+
+    /// Lift a unary endofunction over `B` through the R-pair.
+    #[inline]
+    #[must_use]
+    fn lower1<H>(&self, h: H, a: Self::A) -> Self::A
+    where
+        H: FnOnce(Self::B) -> Self::B,
+    {
+        self.view_r().lower1(h, a)
+    }
+
+    /// Lift a binary function over `B` through the R-pair.
+    #[inline]
+    #[must_use]
+    fn lower2<H>(&self, h: H, a1: Self::A, a2: Self::A) -> Self::A
+    where
+        H: FnOnce(Self::B, Self::B) -> Self::B,
+    {
+        self.view_r().lower2(h, a1, a2)
+    }
+
+    /// Lift a unary endofunction over `A` through the R-pair:
+    /// `b ↦ f(h(g(b)))`.
+    #[inline]
+    #[must_use]
+    fn floor1<H>(&self, h: H, b: Self::B) -> Self::B
+    where
+        H: FnOnce(Self::A) -> Self::A,
+    {
+        self.view_r().floor1(h, b)
+    }
+
+    /// Lift a binary function over `A` through the R-pair.
+    #[inline]
+    #[must_use]
+    fn floor2<H>(&self, h: H, b1: Self::B, b2: Self::B) -> Self::B
+    where
+        H: FnOnce(Self::A, Self::A) -> Self::A,
+    {
+        self.view_r().floor2(h, b1, b2)
+    }
 }
 
 /// Convenience super-trait: a type is a [`ConnK`] iff it implements
@@ -550,30 +695,155 @@ pub trait ConnR {
 /// `(i32, u32)` and still satisfy `ConnL + ConnR` separately. The
 /// equality bound forbids that and is the type-level statement of
 /// the functional dependency `T → (A, B)`.
-pub trait ConnK: ConnL + ConnR<A = <Self as ConnL>::A, B = <Self as ConnL>::B> {}
+pub trait ConnK: ConnL + ConnR<A = <Self as ConnL>::A, B = <Self as ConnL>::B> {
+    /// Bracket of `x`: the closed interval `[lo, hi] ⊆ A` whose members
+    /// share `x`'s B-cell. Method form of the free [`interval`] fn; see
+    /// it for the `Empty`/`Closed` contract.
+    #[inline]
+    #[must_use]
+    fn interval(&self, x: <Self as ConnL>::A) -> Interval<<Self as ConnL>::A>
+    where
+        <Self as ConnL>::A: PartialOrd,
+    {
+        interval(self, x)
+    }
+
+    /// Truncate `x` toward zero through the triple. Method form of
+    /// [`truncate`].
+    #[inline]
+    #[must_use]
+    fn truncate(&self, x: <Self as ConnL>::A) -> <Self as ConnL>::B
+    where
+        <Self as ConnL>::A: PartialOrd + From<u8>,
+    {
+        truncate(self, x)
+    }
+
+    /// Lift a unary `h: A → A`, truncated toward zero. Method form of
+    /// [`truncate1`].
+    #[inline]
+    #[must_use]
+    fn truncate1<H>(&self, h: H, x: <Self as ConnL>::B) -> <Self as ConnL>::B
+    where
+        <Self as ConnL>::A: PartialOrd + From<u8>,
+        H: FnOnce(<Self as ConnL>::A) -> <Self as ConnL>::A,
+    {
+        truncate1(self, h, x)
+    }
+
+    /// Lift a binary `h: (A, A) → A`, truncated toward zero. Method form
+    /// of [`truncate2`].
+    #[inline]
+    #[must_use]
+    fn truncate2<H>(&self, h: H, x: <Self as ConnL>::B, y: <Self as ConnL>::B) -> <Self as ConnL>::B
+    where
+        <Self as ConnL>::A: PartialOrd + From<u8>,
+        H: FnOnce(<Self as ConnL>::A, <Self as ConnL>::A) -> <Self as ConnL>::A,
+    {
+        truncate2(self, h, x, y)
+    }
+
+    /// Round `x` to nearest, ties toward zero. Method form of [`round`].
+    #[inline]
+    #[must_use]
+    fn round(&self, x: <Self as ConnL>::A) -> <Self as ConnL>::B
+    where
+        <Self as ConnL>::A: PartialOrd + Sub<Output = <Self as ConnL>::A> + From<u8>,
+    {
+        round(self, x)
+    }
+
+    /// Lift a unary `h: A → A`, rounded to nearest. Method form of
+    /// [`round1`].
+    #[inline]
+    #[must_use]
+    fn round1<H>(&self, h: H, x: <Self as ConnL>::B) -> <Self as ConnL>::B
+    where
+        <Self as ConnL>::A: PartialOrd + Sub<Output = <Self as ConnL>::A> + From<u8>,
+        H: FnOnce(<Self as ConnL>::A) -> <Self as ConnL>::A,
+    {
+        round1(self, h, x)
+    }
+
+    /// Lift a binary `h: (A, A) → A`, rounded to nearest. Method form of
+    /// [`round2`].
+    #[inline]
+    #[must_use]
+    fn round2<H>(&self, h: H, x: <Self as ConnL>::B, y: <Self as ConnL>::B) -> <Self as ConnL>::B
+    where
+        <Self as ConnL>::A: PartialOrd + Sub<Output = <Self as ConnL>::A> + From<u8>,
+        H: FnOnce(<Self as ConnL>::A, <Self as ConnL>::A) -> <Self as ConnL>::A,
+    {
+        round2(self, h, x, y)
+    }
+
+    /// Birkhoff median over a diagonal triple `A = (B, B)`. Method form
+    /// of the free [`median`] fn; only callable on the diagonal markers
+    /// (`N5Float`-shaped) it already required.
+    #[inline]
+    #[must_use]
+    fn median(
+        &self,
+        x: <Self as ConnL>::B,
+        y: <Self as ConnL>::B,
+        z: <Self as ConnL>::B,
+    ) -> <Self as ConnL>::B
+    where
+        Self: ConnL<A = (<Self as ConnL>::B, <Self as ConnL>::B)>,
+    {
+        median(self, x, y, z)
+    }
+}
 impl<T> ConnK for T where T: ConnL + ConnR<A = <T as ConnL>::A, B = <T as ConnL>::B> {}
+
+// One-sided `Conn` values join the capability traits so the same
+// method surface works on values and markers alike. A value is only
+// *one* of `ConnL` / `ConnR` (never both), so it never becomes `ConnK`
+// — the two-sided helpers stay triple-only, which is correct. Value
+// receivers still resolve `.ceil` / `.swap_l` to the inherent `const
+// fn` (inherent wins method resolution), so const composition is
+// untouched.
+impl<A: Copy, B: Copy> ConnL for Conn<A, B, L> {
+    type A = A;
+    type B = B;
+    #[inline]
+    fn swap_l(&self) -> Conn<B, A, R> {
+        Conn::swap_l(*self)
+    }
+}
+impl<A: Copy, B: Copy> ConnR for Conn<A, B, R> {
+    type A = A;
+    type B = B;
+    #[inline]
+    fn swap_r(&self) -> Conn<B, A, L> {
+        Conn::swap_r(*self)
+    }
+}
 
 // ── Two-sided helpers (bound on ConnK) ────────────────────────────────
 
 /// Direct L-view of a triple bound, derived through the public swaps.
-/// Fn-pointer-identical to the marker's inherent `view_l` by the
-/// swap-involution law (`prop::conn::swap_involutive_l`) — one concept,
-/// one name, two forms: the public `view_l(t)` on a generic bound, and
-/// the crate-private inherent `M.view_l()` used in-crate on a concrete
-/// marker.
+/// Now a thin forwarder to the [`ConnL::view_l`] method; retained for
+/// source back-compat and for the `&Conn`-receiver call sites (law
+/// predicates). Fn-pointer-identical to a marker's inherent `const fn
+/// view_l()` by the swap-involution law
+/// (`prop::conn::swap_involutive_l`) — same view, three spellings: the
+/// free `view_l(t)`, the `t.view_l()` method, and the marker's public
+/// inherent `const fn view_l()` (the `const` form).
 pub fn view_l<T, A: Copy, B: Copy>(t: &T) -> Conn<A, B, L>
 where
     T: ?Sized + ConnL<A = A, B = B>,
 {
-    t.swap_l().swap_r()
+    t.view_l()
 }
 
-/// Direct R-view of a triple bound; dual of [`view_l`].
+/// Direct R-view of a triple bound; dual of [`view_l`]. Forwards to the
+/// [`ConnR::view_r`] method.
 pub fn view_r<T, A: Copy, B: Copy>(t: &T) -> Conn<A, B, R>
 where
     T: ?Sized + ConnR<A = A, B = B>,
 {
-    t.swap_r().swap_l()
+    t.view_r()
 }
 
 /// Bracket of `x` under conn `t`: the closed interval `[lo, hi] ⊆ A`
@@ -620,7 +890,7 @@ where
 #[must_use]
 pub fn interval<T, A, B>(t: &T, x: A) -> Interval<A>
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd,
     B: Copy,
 {
@@ -658,7 +928,7 @@ where
 #[must_use]
 pub fn truncate<T, A, B>(t: &T, x: A) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy,
 {
@@ -700,7 +970,7 @@ where
 #[must_use]
 pub fn truncate1<T, A, B, H>(t: &T, h: H, x: B) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy,
     H: FnOnce(A) -> A,
@@ -730,7 +1000,7 @@ where
 #[must_use]
 pub fn truncate2<T, A, B, H>(t: &T, h: H, x: B, y: B) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + From<u8>,
     B: Copy,
     H: FnOnce(A, A) -> A,
@@ -764,7 +1034,7 @@ where
 #[must_use]
 pub fn round<T, A, B>(t: &T, x: A) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
     B: Copy,
 {
@@ -806,7 +1076,7 @@ where
 #[must_use]
 pub fn round1<T, A, B, H>(t: &T, h: H, x: B) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
     B: Copy,
     H: FnOnce(A) -> A,
@@ -840,7 +1110,7 @@ where
 #[must_use]
 pub fn round2<T, A, B, H>(t: &T, h: H, x: B, y: B) -> B
 where
-    T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
+    T: ?Sized + ConnL<A = A, B = B> + ConnR<A = A, B = B>,
     A: Copy + PartialOrd + Sub<Output = A> + From<u8>,
     B: Copy,
     H: FnOnce(A, A) -> A,
@@ -849,8 +1119,9 @@ where
     round(t, h(l.upper(x), l.upper(y)))
 }
 
-/// Birkhoff median over a triple `T: ConnK<(A, A), A>`, using the
-/// triple's L-view ceil as join and R-view floor as meet.
+/// Birkhoff median over a diagonal triple `T: ConnK` with `A = (B, B)`,
+/// using the triple's L-view ceil as join and R-view floor as meet.
+/// Also available as the [`ConnK::median`] method (`t.median(x, y, z)`).
 ///
 /// # Examples
 ///
@@ -932,7 +1203,7 @@ where
 #[must_use]
 pub fn median<T, A>(t: &T, x: A, y: A, z: A) -> A
 where
-    T: ConnL<A = (A, A), B = A> + ConnR<A = (A, A), B = A>,
+    T: ?Sized + ConnL<A = (A, A), B = A> + ConnR<A = (A, A), B = A>,
     A: Copy,
 {
     let join = |p: A, q: A| view_l(t).ceil((p, q));
@@ -1041,7 +1312,7 @@ macro_rules! compose_k {
             #[allow(dead_code)]
             #[inline]
             #[must_use]
-            pub(crate) const fn view_l(self) -> $crate::conn::Conn<$A, $C, $crate::conn::L> {
+            $vis const fn view_l(self) -> $crate::conn::Conn<$A, $C, $crate::conn::L> {
                 const COMPOSED: $crate::conn::Conn<$A, $C, $crate::conn::L> =
                     $crate::compose_l!($t1.swap_l().swap_r(), $t2.swap_l().swap_r());
                 COMPOSED
@@ -1050,7 +1321,7 @@ macro_rules! compose_k {
             #[allow(dead_code)]
             #[inline]
             #[must_use]
-            pub(crate) const fn view_r(self) -> $crate::conn::Conn<$A, $C, $crate::conn::R> {
+            $vis const fn view_r(self) -> $crate::conn::Conn<$A, $C, $crate::conn::R> {
                 const COMPOSED: $crate::conn::Conn<$A, $C, $crate::conn::R> =
                     $crate::compose_r!($t1.swap_r().swap_l(), $t2.swap_r().swap_l());
                 COMPOSED
@@ -1075,7 +1346,10 @@ macro_rules! compose_k {
             type B = $C;
             #[inline]
             fn swap_l(&self) -> $crate::conn::Conn<$C, $A, $crate::conn::R> {
-                self.view_l().swap_l()
+                // Path call binds the inherent `const fn swap_l` (inherent
+                // wins over the trait default), avoiding infinite recursion
+                // through the `&self`-receiver trait `view_l`.
+                $name::swap_l(*self)
             }
         }
         impl $crate::conn::ConnR for $name {
@@ -1083,7 +1357,7 @@ macro_rules! compose_k {
             type B = $C;
             #[inline]
             fn swap_r(&self) -> $crate::conn::Conn<$C, $A, $crate::conn::L> {
-                self.view_r().swap_r()
+                $name::swap_r(*self)
             }
         }
     };
@@ -1129,14 +1403,14 @@ macro_rules! conn_k {
             #[allow(dead_code)]
             #[inline]
             #[must_use]
-            pub(crate) const fn view_l(self) -> $crate::conn::Conn<$A, $B, $crate::conn::L> {
+            $vis const fn view_l(self) -> $crate::conn::Conn<$A, $B, $crate::conn::L> {
                 $crate::conn::Conn::new_l($ceil, $inner)
             }
             /// The R-view `(inner, floor)`. `const`-projectable.
             #[allow(dead_code)]
             #[inline]
             #[must_use]
-            pub(crate) const fn view_r(self) -> $crate::conn::Conn<$A, $B, $crate::conn::R> {
+            $vis const fn view_r(self) -> $crate::conn::Conn<$A, $B, $crate::conn::R> {
                 $crate::conn::Conn::new_r($inner, $floor)
             }
             /// The swapped L-view over the reversed pair.
@@ -1161,7 +1435,9 @@ macro_rules! conn_k {
             type B = $B;
             #[inline]
             fn swap_l(&self) -> $crate::conn::Conn<$B, $A, $crate::conn::R> {
-                self.view_l().swap_l()
+                // Inherent `const fn swap_l` (path call), not the trait
+                // `view_l` default — see the compose_k! note above.
+                $name::swap_l(*self)
             }
         }
         impl $crate::conn::ConnR for $name {
@@ -1169,7 +1445,7 @@ macro_rules! conn_k {
             type B = $B;
             #[inline]
             fn swap_r(&self) -> $crate::conn::Conn<$B, $A, $crate::conn::L> {
-                self.view_r().swap_r()
+                $name::swap_r(*self)
             }
         }
     };
