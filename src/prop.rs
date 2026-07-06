@@ -19,22 +19,24 @@
 //! ## Downstream usage
 //!
 //! ```rust,no_run
+//! use connections::conn::view_l;
 //! use connections::core::f064::F064F032;
 //! use connections::float::ExtendedFloat;
 //! use connections::prop::conn;
 //!
 //! // Spot check: F064F032 satisfies the Galois adjoint law over a
 //! // representative pair. F064F032 is now a triple-marker unit
-//! // struct; its L-view is the public double swap.
+//! // struct; `view_l(&F064F032)` is its L-view.
 //! let a = ExtendedFloat::Extend(1.5_f64);
 //! let b = ExtendedFloat::Extend(1.5_f32);
-//! assert!(conn::galois_l(&F064F032.swap_l().swap_r(), a, b));
+//! assert!(conn::galois_l(&view_l(&F064F032), a, b));
 //! ```
 //!
 //! With the `proptest` feature enabled, downstream proptest blocks
 //! can drive the predicates over arbitrary inputs:
 //!
 //! ```text
+//! use connections::conn::view_l;
 //! use connections::prop::{arb, conn};
 //! use connections::core::f064::F064F032;
 //! use connections::float::ExtendedFloat;
@@ -47,7 +49,7 @@
 //!         b in arb::arb_f32(),
 //!     ) {
 //!         prop_assert!(conn::galois_l(
-//!             &F064F032.swap_l().swap_r(),
+//!             &view_l(&F064F032),
 //!             ExtendedFloat::Extend(a),
 //!             ExtendedFloat::Extend(b),
 //!         ));

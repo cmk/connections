@@ -60,10 +60,10 @@
 //! receivers, no duplication. Markers also expose the swaps as
 //! inherent `const fn`s (emitted by [`conn_k!`](crate::conn_k) and
 //! friends), which is what `const` composition uses:
-//! `compose!(U032BE04.swap_r(), ...)`. The direct views exist
-//! crate-internally as `view_l` / `view_r`; the public spelling of a
-//! direct view is the law-guaranteed double swap
-//! `view_l(t)` (see `prop::conn::swap_involutive_l`).
+//! `compose!(U032BE04.swap_r(), ...)`. The direct views are the public
+//! [`view_l`] / [`view_r`] free functions — each the marker's swap
+//! methods composed into a round trip, law-guaranteed equal to the
+//! raw double swap (see `prop::conn::swap_involutive_l`).
 //!
 //! Two-sided operations ([`round`], [`truncate`], [`interval`],
 //! [`median`], plus the `1` / `2` lifters) bind on [`ConnK`]
@@ -181,6 +181,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::view_l;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -190,10 +191,10 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     ///
     /// // The f32 ceiling of π is std::f32::consts::PI itself —
     /// // π's nearest f32 representation rounds up.
-    /// assert_eq!(F064F032.swap_l().swap_r().ceil(pi64), Extend(std::f32::consts::PI));
+    /// assert_eq!(view_l(&F064F032).ceil(pi64), Extend(std::f32::consts::PI));
     /// // Widening the result back to f64 lands at pi32, which sits
     /// // exactly pi32_err above true π:
-    /// assert_eq!(F064F032.swap_l().swap_r().upper(F064F032.swap_l().swap_r().ceil(pi64)) - pi64, pi32_err);
+    /// assert_eq!(view_l(&F064F032).upper(view_l(&F064F032).ceil(pi64)) - pi64, pi32_err);
     /// ```
     #[inline]
     #[must_use]
@@ -206,6 +207,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::view_l;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -218,9 +220,9 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// let pi32_err = pi32 - pi64;
     ///
     /// // upper just widens; for F064F032 that's the f32 → f64 cast.
-    /// assert_eq!(F064F032.swap_l().swap_r().upper(Extend(std::f32::consts::PI)), pi32);
+    /// assert_eq!(view_l(&F064F032).upper(Extend(std::f32::consts::PI)), pi32);
     /// // Equivalently, "f64 π plus f32's rounding error":
-    /// assert_eq!(F064F032.swap_l().swap_r().upper(Extend(std::f32::consts::PI)) - pi64, pi32_err);
+    /// assert_eq!(view_l(&F064F032).upper(Extend(std::f32::consts::PI)) - pi64, pi32_err);
     /// ```
     #[inline]
     #[must_use]
@@ -255,6 +257,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::view_l;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -264,7 +267,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// let pi32 = Extend(std::f32::consts::PI);
     /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
     /// assert_eq!(
-    ///     F064F032.swap_l().swap_r().ceil1(probe, pi32),
+    ///     view_l(&F064F032).ceil1(probe, pi32),
     ///     Extend(std::f32::consts::PI),
     /// );
     /// ```
@@ -356,6 +359,7 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::view_r;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -366,7 +370,7 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     /// let pi32 = Extend(std::f32::consts::PI);
     /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
     /// assert_eq!(
-    ///     F064F032.swap_r().swap_l().floor1(probe, pi32),
+    ///     view_r(&F064F032).floor1(probe, pi32),
     ///     Extend(3.1415925_f32),
     /// );
     /// ```
@@ -405,10 +409,11 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::view_l;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
-    /// let l = F064F032.swap_l().swap_r();
+    /// let l = view_l(&F064F032);
     /// let pi64 = Extend(std::f64::consts::PI);
     /// // The f32 ceiling of pi64 is std::f32::consts::PI; equality
     /// // witnesses the lower edge of the filter.
@@ -440,10 +445,11 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::view_r;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
-    /// let r = F064F032.swap_r().swap_l();
+    /// let r = view_r(&F064F032);
     /// let pi64 = Extend(std::f64::consts::PI);
     /// // The f32 floor of pi64 is 3.1415925; that's the upper edge
     /// // of the ideal.
@@ -492,10 +498,11 @@ impl<X, K: Kind> Conn<X, X, K> {
 /// [`compose_k!`](crate::compose_k)). The single method is the
 /// categorical content: the marker's L-pair `(f, g)` read over the
 /// swapped pair `(B, A)`, where it satisfies the R-Galois law. The
-/// direct L-view is the law-guaranteed round trip
-/// `view_l(t)`; markers also expose it as the inherent
-/// `const fn view_l()`, which is the form to use in `const` position
-/// (trait methods are not const-callable).
+/// direct L-view is the law-guaranteed round trip `view_l(t)`. The
+/// free `view_l` fn is not `const`; in `const` position spell the
+/// view as the public double swap `t.swap_l().swap_r()` (the marker's
+/// inherent `const fn view_l()` is crate-private, so downstream cannot
+/// call it).
 ///
 /// `Conn` *values* do not implement this trait — a value already is
 /// its own view, and its swap is the inherent `const fn`
@@ -516,8 +523,9 @@ pub trait ConnL {
 
 /// Capability trait: types carrying an `R`-Galois connection between
 /// `A` and `B`, exposed through its polarity swap. Counterpart to
-/// [`ConnL`]; the direct R-view is `view_r(t)`, or the
-/// marker's inherent `const fn r()` in `const` position.
+/// [`ConnL`]; the direct R-view is `view_r(t)`. In `const` position,
+/// spell it as the public double swap `t.swap_r().swap_l()` (the
+/// marker's inherent `const fn view_r()` is crate-private).
 pub trait ConnR {
     /// The connection's source type.
     type A: Copy;
@@ -550,9 +558,10 @@ impl<T> ConnK for T where T: ConnL + ConnR<A = <T as ConnL>::A, B = <T as ConnL>
 /// Direct L-view of a triple bound, derived through the public swaps.
 /// Fn-pointer-identical to the marker's inherent `view_l` by the
 /// swap-involution law (`prop::conn::swap_involutive_l`) — one concept,
-/// one name, two forms: `view_l(t)` on a generic bound, `M.view_l()` on
-/// a concrete marker.
-pub(crate) fn view_l<T, A: Copy, B: Copy>(t: &T) -> Conn<A, B, L>
+/// one name, two forms: the public `view_l(t)` on a generic bound, and
+/// the crate-private inherent `M.view_l()` used in-crate on a concrete
+/// marker.
+pub fn view_l<T, A: Copy, B: Copy>(t: &T) -> Conn<A, B, L>
 where
     T: ?Sized + ConnL<A = A, B = B>,
 {
@@ -560,7 +569,7 @@ where
 }
 
 /// Direct R-view of a triple bound; dual of [`view_l`].
-pub(crate) fn view_r<T, A: Copy, B: Copy>(t: &T) -> Conn<A, B, R>
+pub fn view_r<T, A: Copy, B: Copy>(t: &T) -> Conn<A, B, R>
 where
     T: ?Sized + ConnR<A = A, B = B>,
 {
@@ -736,6 +745,7 @@ where
 /// # Examples
 ///
 /// ```rust
+/// use connections::conn::view_l;
 /// use connections::conn::round;
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::core::f064::F064F032;
@@ -748,7 +758,7 @@ where
 /// // value `(pi as f32)` would also produce.
 /// assert_eq!(round(&F064F032, pi64), Extend(std::f32::consts::PI));
 /// // Widening the result back to f64 lands pi32_err above true π:
-/// assert_eq!(F064F032.swap_l().swap_r().upper(round(&F064F032, pi64)) - pi64, pi32_err);
+/// assert_eq!(view_l(&F064F032).upper(round(&F064F032, pi64)) - pi64, pi32_err);
 /// ```
 #[inline]
 #[must_use]
@@ -1503,7 +1513,8 @@ mod tests {
     #[test]
     fn marker_traits_dispatch_via_swap() {
         // The traits carry exactly the swap; a generic consumer derives
-        // the direct views through the law-guaranteed double swap.
+        // the direct views via `view_l` / `view_r` (the law-guaranteed
+        // double swap).
         conn_k! {
             SmokeI64I32 : i64 => i32 {
                 ceil:  _i64_to_i32,

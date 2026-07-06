@@ -106,6 +106,7 @@ crate::conn_k! {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::{view_l, view_r};
     /// use connections::core::f064::F064F032;
     /// use connections::float::ExtendedFloat::Extend;
     ///
@@ -115,16 +116,16 @@ crate::conn_k! {
     /// let pi_f32_floor = Extend(3.141_592_502_593_994_f64);
     /// let pi_f32_ceil  = Extend(std::f32::consts::PI as f64);
     ///
-    /// assert_eq!(F064F032.swap_r().swap_l().floor(pi_f64), Extend(3.141_592_502_593_994_f64 as f32));
-    /// assert_eq!(F064F032.swap_l().swap_r().ceil(pi_f64),  Extend(std::f32::consts::PI));
+    /// assert_eq!(view_r(&F064F032).floor(pi_f64), Extend(3.141_592_502_593_994_f64 as f32));
+    /// assert_eq!(view_l(&F064F032).ceil(pi_f64),  Extend(std::f32::consts::PI));
     /// // Widening lifts each f32 grid point to its exact f64 image.
-    /// assert_eq!(F064F032.swap_l().swap_r().upper(F064F032.swap_r().swap_l().floor(pi_f64)), pi_f32_floor);
-    /// assert_eq!(F064F032.swap_l().swap_r().upper(F064F032.swap_l().swap_r().ceil(pi_f64)),  pi_f32_ceil);
+    /// assert_eq!(view_l(&F064F032).upper(view_r(&F064F032).floor(pi_f64)), pi_f32_floor);
+    /// assert_eq!(view_l(&F064F032).upper(view_l(&F064F032).ceil(pi_f64)),  pi_f32_ceil);
     ///
     /// // Sentinel pass-through.
     /// use connections::float::ExtendedFloat;
-    /// assert_eq!(F064F032.swap_l().swap_r().ceil(ExtendedFloat::Bot),  ExtendedFloat::Bot);
-    /// assert_eq!(F064F032.swap_r().swap_l().floor(ExtendedFloat::Top), ExtendedFloat::Top);
+    /// assert_eq!(view_l(&F064F032).ceil(ExtendedFloat::Bot),  ExtendedFloat::Bot);
+    /// assert_eq!(view_r(&F064F032).floor(ExtendedFloat::Top), ExtendedFloat::Top);
     /// ```
     pub F064F032 : F064 => F032 {
         ceil:  f064f032_ceil,

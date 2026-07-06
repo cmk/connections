@@ -251,8 +251,8 @@ where
 }
 
 /// Swap involution on L-values: `c.swap_l().swap_r() == c`, exact by
-/// fn-pointer identity ([`Conn`]'s `PartialEq`). The law that makes the
-/// double swap a lawful spelling of "the direct view".
+/// fn-pointer identity ([`Conn`]'s `PartialEq`). The law that makes
+/// `view_l` a lawful spelling of "the direct view".
 pub fn swap_involutive_l<A: Copy, B: Copy>(c: &Conn<A, B, L>) -> bool {
     c.swap_l().swap_r() == *c
 }

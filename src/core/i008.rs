@@ -44,13 +44,14 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::view_l;
     /// use connections::core::B2;
     /// use connections::core::i008::I008BE01;
     ///
-    /// assert_eq!(I008BE01.swap_l().swap_r().ceil(i8::MIN), B2([0x80]));
-    /// assert_eq!(I008BE01.swap_l().swap_r().ceil(0_i8),    B2([0x00]));
-    /// assert_eq!(I008BE01.swap_l().swap_r().ceil(i8::MAX), B2([0x7F]));
-    /// assert_eq!(I008BE01.swap_l().swap_r().upper(B2([0x80])), i8::MIN);
+    /// assert_eq!(view_l(&I008BE01).ceil(i8::MIN), B2([0x80]));
+    /// assert_eq!(view_l(&I008BE01).ceil(0_i8),    B2([0x00]));
+    /// assert_eq!(view_l(&I008BE01).ceil(i8::MAX), B2([0x7F]));
+    /// assert_eq!(view_l(&I008BE01).upper(B2([0x80])), i8::MIN);
     /// ```
     pub I008BE01 : i8 => B2<1> {
         forward: i8_to_be01,
@@ -97,15 +98,16 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::view_l;
     /// use connections::core::LX;
     /// use connections::core::i008::I008LX01;
     ///
-    /// assert_eq!(I008LX01.swap_l().swap_r().ceil(i8::MIN), LX([0x00]));
-    /// assert_eq!(I008LX01.swap_l().swap_r().ceil(0_i8),    LX([0x80]));
-    /// assert_eq!(I008LX01.swap_l().swap_r().ceil(i8::MAX), LX([0xFF]));
+    /// assert_eq!(view_l(&I008LX01).ceil(i8::MIN), LX([0x00]));
+    /// assert_eq!(view_l(&I008LX01).ceil(0_i8),    LX([0x80]));
+    /// assert_eq!(view_l(&I008LX01).ceil(i8::MAX), LX([0xFF]));
     /// // Raw byte lex compare matches signed numeric compare.
-    /// assert!(I008LX01.swap_l().swap_r().ceil(i8::MIN) < I008LX01.swap_l().swap_r().ceil(0));
-    /// assert!(I008LX01.swap_l().swap_r().ceil(0)       < I008LX01.swap_l().swap_r().ceil(i8::MAX));
+    /// assert!(view_l(&I008LX01).ceil(i8::MIN) < view_l(&I008LX01).ceil(0));
+    /// assert!(view_l(&I008LX01).ceil(0)       < view_l(&I008LX01).ceil(i8::MAX));
     /// ```
     pub I008LX01 : i8 => LX<1> {
         forward: i8_to_lx01,
