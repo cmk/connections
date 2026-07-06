@@ -103,7 +103,7 @@ A small change to Example 1 — supplying both the upper and lower
 adjoints on the L side — packs the whole chain into a single value:
 
 ```rust
-use connections::conn::{ConnL, ConnR};
+use connections::conn::{view_l, view_r};
 use connections::conn_k;
 use std::cmp::Ordering;
 
@@ -120,10 +120,10 @@ fn floor(o: Ordering) -> bool {
 // Adjoint triples are unit-struct markers implementing ConnL + ConnR.
 conn_k! { pub ORDRBOOL : Ordering => bool { ceil: ceil, inner: inner, floor: floor } }
 
-// `ceil` reads the L-pair (ceil ⊣ inner); `floor` reads the R-pair
+// `view_l` reads the L-pair (ceil ⊣ inner); `view_r` reads the R-pair
 // (inner ⊣ floor). They differ on `Equal`, where the bracket is open:
-assert_eq!(ORDRBOOL.ceil(Ordering::Equal),  true);
-assert_eq!(ORDRBOOL.floor(Ordering::Equal), false);
+assert_eq!(view_l(&ORDRBOOL).ceil(Ordering::Equal),  true);
+assert_eq!(view_r(&ORDRBOOL).floor(Ordering::Equal), false);
 ```
 
 Each cell is now a triple: `ceil(x) ⋈ y` / `x ⋈ inner(y)` /
@@ -137,11 +137,11 @@ verify the `g ⊣ h` pair (with the appropriate reversal):
 | `Greater`        | `>`/`>`/`>` | `=`/`=`/`=` |
 
 This is the shape an adjoint-triple **marker** carries: three free
-fns wired through `ConnL` and `ConnR` impls, with `MARKER.conn_l()` /
-`MARKER.conn_r()` projecting to the L-view and R-view `Conn`s respectively.
-The default-method dispatch on `ConnL` / `ConnR` lets you call
-`.ceil()` / `.floor()` on the marker directly when both traits are
-in scope.
+fns wired through `ConnL` and `ConnR` impls, with `view_l(&MARKER)` /
+`view_r(&MARKER)` projecting to the L-view and R-view `Conn`s respectively.
+Those views are ordinary `Conn` values, so `.ceil()` / `.floor()` are the
+inherent accessors on `Conn`; the marker itself carries only the
+`swap_l` / `swap_r` capability methods from `ConnL` / `ConnR`.
 
 (`conn_k!` only ships a *true* adjoint triple — many natural cast
 families don't admit one. See [*Why one-sided?*](#why-one-sided) above
@@ -211,25 +211,20 @@ assert_eq!(U032I032.lower(i32::MAX), i32::MAX as u32);
 `Conn` API — accessors and lifters operating on any `Conn`:
 
 ```rust
-use connections::conn::{ConnL, ConnR};
 use connections::core::u008::U008I016;
 use connections::extended::Extended;
 
-// The blanket `impl ConnL for Conn<A, B, L>` means `marker.ceil(x)`
-// (the trait method via default-method dispatch) and
-// `marker.conn_l().ceil(x)` (explicit projection then inherent
-// method on the value) produce the same result.
-assert_eq!(
-    U008I016.ceil(Extended::Finite(200_u8)),
-    U008I016.conn_l().ceil(Extended::Finite(200_u8)),
-);
+// `U008I016` is a one-sided `Conn<Extended<u8>, i16, L>` value (built by
+// `ext_int!`), so the L-side accessor `ceil` and the lifters are the
+// inherent methods on `Conn` — no marker projection is involved.
+assert_eq!(U008I016.ceil(Extended::Finite(200_u8)), 200_i16);
 
 // `upper1` lifts an endofunction over the target type back to the source:
 //   upper1(c, f, a) = upper(f(ceil(a)))
-let bumped = U008I016.conn_l().upper1(|n| n, Extended::Finite(200_u8));
+let bumped = U008I016.upper1(|n| n, Extended::Finite(200_u8));
 assert_eq!(
     bumped,
-    U008I016.conn_l().upper(U008I016.conn_l().ceil(Extended::Finite(200_u8))),
+    U008I016.upper(U008I016.ceil(Extended::Finite(200_u8))),
 );
 ```
 
@@ -240,19 +235,25 @@ integer-widening casts of this shape can't ship as a triple.)
 ## Example 7
 
 A sub-second `Duration` bracketed via the `time`-crate ladder (the same
-code block is mirrored verbatim into the `time` module-level
-rustdoc, so `cargo test --doc` keeps the two in sync):
+code block is mirrored verbatim into the `TDURSECS` rustdoc in the
+`time` module, so `cargo test --doc` keeps the two in sync):
 
 ```rust
-use connections::conn::{ConnL, ConnR};
+use connections::conn::{view_l, view_r};
 use connections::time::TDURSECS;
 use connections::extended::Extended;
 use time::Duration;
 
 let half = Duration::seconds(5) + Duration::nanoseconds(1);
-assert_eq!(TDURSECS.ceil(half),  Extended::Finite(6));
-assert_eq!(TDURSECS.floor(half), Extended::Finite(5));
-assert_eq!(TDURSECS.upper(Extended::Finite(42)), Duration::seconds(42));
+assert_eq!(view_l(&TDURSECS).ceil(half),  Extended::Finite(6));
+assert_eq!(view_r(&TDURSECS).floor(half), Extended::Finite(5));
+
+// Negative sub-second: ceil rounds toward zero, floor away.
+let neg = Duration::seconds(-5) - Duration::nanoseconds(1);
+assert_eq!(view_l(&TDURSECS).ceil(neg),  Extended::Finite(-5));
+assert_eq!(view_r(&TDURSECS).floor(neg), Extended::Finite(-6));
+
+assert_eq!(view_l(&TDURSECS).upper(Extended::Finite(42)), Duration::seconds(42));
 ```
 
 ## Example 8
