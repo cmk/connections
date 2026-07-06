@@ -54,3 +54,23 @@ templates). See `doc/plans/plan-2026-07-05-01.md` → Deferred / Review for the
 full list, including a flagged pre-existing doc drift in `src/kani.rs:47–52`
 (byte-encoding harness consts listed under stale `fixed::…` paths that now live
 in `core::…`).
+
+## Local review (2026-07-05)
+
+**Branch:** plan/2026-07-05-01
+**Commits:** 3 (origin/main..plan/2026-07-05-01)
+**Reviewer:** Codex (`codex review --base origin/main`)
+**Prompt fingerprint:** AGENTS.md=4563f590caa7dbba5ea9eae973fa59182f1a6470 calibration=missing
+
+---
+
+The implementation has target-dependent test coverage that fails on 16-bit pointer-width targets, and the new public docs likely break the documented `cargo doc` gate with default features. These are blocking issues for the stated portability and repository gates.
+
+Full review comments:
+
+- [P1] Avoid feature-gated macro links in public docs — src/core/size.rs:28-28
+  With the default `cargo doc` gate, the `macros` feature is disabled, so `crate::uint_uint_narrow` is not exported at the crate root (`macro_export` is feature-gated). Rustdoc treats this public intra-doc link, and the `crate::uint_uint` link in the `SIZEU064` docs, as unresolved; with `RUSTDOCFLAGS=-D warnings` this becomes a doc build failure. Use plain code text or avoid linking to feature-gated macros here.
+
+- [P2] Make SIZEU032 max check pointer-width aware — src/core/size.rs:85-85
+  On 16-bit pointer-width targets, `usize::MAX` is `65535`, so `SIZEU032.ceil(usize::MAX)` returns `65535` via `u32::try_from`, not `u32::MAX`. This makes `cargo test` fail on one of the target widths this Conn is documented to support; gate this assertion by `target_pointer_width` or compare against the TryFrom-saturating expected value.
+
