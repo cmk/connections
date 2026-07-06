@@ -21,8 +21,8 @@ mod i032;
 mod i064;
 #[path = "core/i128.rs"]
 mod i128;
-#[path = "core/size.rs"]
-mod size;
+#[path = "core/isize.rs"]
+mod isize;
 #[path = "core/surface.rs"]
 mod surface;
 #[path = "core/u008.rs"]
@@ -35,3 +35,5 @@ mod u032;
 mod u064;
 #[path = "core/u128.rs"]
 mod u128;
+#[path = "core/usize.rs"]
+mod usize;

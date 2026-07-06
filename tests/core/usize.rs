@@ -1,11 +1,11 @@
-//! Galois-law proptest battery for `core::size` (the `usize` family).
+//! Galois-law proptest battery for `core::usize` (the `usize` family).
 //! Integration test — see `tests/core/u008.rs` for rationale.
 //!
 //! `usize` is pointer-width, so `any::<usize>()` samples the host
 //! target's width (64-bit on CI); the saturating `TryFrom` bodies keep
 //! the laws true regardless of that width.
 
-use connections::core::size::{SIZEU008, SIZEU016, SIZEU032, SIZEU064, SIZEU128};
+use connections::core::usize::{USZEU008, USZEU016, USZEU032, USZEU064, USZEU128};
 use proptest::prelude::*;
 
 // `galois_lower` intentionally omitted (these are one-sided L-Conns);
@@ -83,8 +83,8 @@ fn arb_u128() -> impl Strategy<Value = u128> {
     ]
 }
 
-single_sided_props!(sizeu008, SIZEU008, arb_usize(), arb_u8());
-single_sided_props!(sizeu016, SIZEU016, arb_usize(), arb_u16());
-single_sided_props!(sizeu032, SIZEU032, arb_usize(), arb_u32());
-single_sided_props!(sizeu064, SIZEU064, arb_usize(), arb_u64());
-single_sided_props!(sizeu128, SIZEU128, arb_usize(), arb_u128());
+single_sided_props!(uszeu008, USZEU008, arb_usize(), arb_u8());
+single_sided_props!(uszeu016, USZEU016, arb_usize(), arb_u16());
+single_sided_props!(uszeu032, USZEU032, arb_usize(), arb_u32());
+single_sided_props!(uszeu064, USZEU064, arb_usize(), arb_u64());
+single_sided_props!(uszeu128, USZEU128, arb_usize(), arb_u128());
