@@ -336,3 +336,19 @@ pub mod macros {
         uint_uint_narrow,
     };
 }
+
+/// Compiles and runs every `rust` fence in `EXAMPLES.md` as a doctest,
+/// keeping the guide's worked examples in sync with the crate. This
+/// reuses the `include_str!` mechanism of the crate-root README include
+/// at the top of this file.
+///
+/// `cfg(doctest)` keeps the struct out of the rendered rustdoc — the
+/// guide is not duplicated onto the docs.rs front page and the item
+/// costs nothing in a normal build; it materializes only while rustdoc
+/// collects doctests. The `time` feature is required because Examples
+/// 7–9 reference [`crate::time`]; under default features those paths
+/// do not resolve, so the whole file is gated to the full-feature test
+/// run (`cargo test --features …,time,…`), which is the pre-push gate.
+#[cfg(all(doctest, feature = "time"))]
+#[doc = include_str!("../EXAMPLES.md")]
+struct ExamplesDoctests;
