@@ -364,9 +364,13 @@ and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
 ## SMT verification (Kani)
 
 Beyond the proptest law suite — which samples — every Galois law on
-every integer / Q-format / NonZero / iso connection is **SMT-proven**
-over the full bit-width domain via
-[Kani](https://model-checking.github.io/kani/). The proof tree lives at
+every fixed-width integer / Q-format / NonZero / iso connection is
+**SMT-proven** over the full bit-width domain via
+[Kani](https://model-checking.github.io/kani/). The pointer-width
+`usize` family (`core::size`) is the one exception: CBMC models a
+single concrete pointer width per run, so those Conns are covered by
+the proptest battery on the host target rather than a width-agnostic
+SMT proof. The proof tree lives at
 [`src/kani_proofs/`](https://github.com/cmk/connections/tree/main/src/kani_proofs)
 and is gated behind `#[cfg(kani)]` so it compiles only under
 `cargo kani` — release builds, `cargo test`, and downstream consumers
@@ -474,6 +478,7 @@ implement `ConnK`.
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` cargo feature |
 | `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
 | `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
+| Pointer-width `usize` saturating casts (`SIZEU032`, `SIZEU064`) | `core::size` |
 | Sortable byte encodings (`U008BE01`, `U008LE01`, `I008BE01`, `I008LE01`, `BOOLBE01`, `BOOLLE01`, through `U128BE16`, `U128LE16`, `I128BE16`, `I128LE16`) | `core::{bool, i008,…,i128, u008,…,u128}` |
 
 Constant-name prefixes are letter-disambiguated: `Q` for Q-format

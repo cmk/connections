@@ -12,6 +12,15 @@ cumulative in-development state.
 
 ## [Unreleased]
 
+### Added
+
+- **`core::size` — `usize` cast family.** `SIZEU032` (`usize → u32`,
+  saturating narrow) and `SIZEU064` (`usize → u64`, saturating embed),
+  both one-sided left-Galois. Implemented with `TryFrom` clamping rather
+  than the fixed-width `as`-based macros, so the Galois laws hold on
+  16/32/64-bit targets (an `as`-narrowing would truncate, not saturate,
+  a `u32 > usize::MAX` on a 16-bit target).
+
 ### Changed (swap-only capability traits)
 
 - **`ConnL` / `ConnR` redefined**: each trait now carries exactly one

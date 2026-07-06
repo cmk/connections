@@ -19,6 +19,7 @@
 //!   wrapper and float-only infrastructure live in [`crate::float`].
 //! - [`mod@char`] — `Extended<u32> → Extended<char>` codepoint projection.
 //! - [`mod@bool`] — bool ↔ `[u8;1]` / `LE<1>` projections.
+//! - [`mod@size`] — `usize → u32` / `u64` pointer-width saturating casts.
 //!
 //! ## Conn-name prefix conventions
 //!
@@ -31,6 +32,7 @@
 //! | `F`    | 1L+3D | IEEE binary float (`f16`/`f32`/`f64`). Digits = bit-width. |
 //! | `N`    | 1L+3D | `NonZero<iN>` / `NonZero<uN>`. Sign implicit by module path; digits = bit-width. |
 //! | `BE`/`LE` | 2L+2D | big-/little-endian byte array (`[u8; N]`, [`LE`], [`B2`], [`L2`]). Digits = byte count. |
+//! | `SIZE` | 4L+0D | pointer-width `usize` source ([`mod@size`]). Whole side is the mnemonic; no digits. |
 //!
 //! Cross-module name collisions are allowed and resolved by qualified import.
 //!
@@ -940,3 +942,4 @@ pub mod f064;
 
 pub mod bool;
 pub mod char;
+pub mod size;
