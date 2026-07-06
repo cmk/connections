@@ -24,8 +24,8 @@ use crate::conn::Conn;
 /// target, where every `usize > u32::MAX` collapses onto `u32::MAX` under
 /// `ceil`: taking `b = u32::MAX` makes the law's LHS `ceil(a) ≤ b`
 /// vacuously true, so `a ≤ inner(b)` must hold for *every* `a`, forcing
-/// `inner(u32::MAX) = usize::MAX`. Mirrors
-/// [`uint_uint_narrow!`](crate::uint_uint_narrow).
+/// `inner(u32::MAX) = usize::MAX`. Mirrors the fixed-width
+/// `uint_uint_narrow!` macro.
 ///
 /// On a 16-bit target `usize` is *narrower* than `u32`, so `ceil` is a
 /// lossless widen and `inner` saturates instead — the same two functions
@@ -54,7 +54,7 @@ pub const SIZEU032: Conn<usize, u32> = {
 /// `usize::MAX` down to `usize::MAX`.
 ///
 /// Unlike [`SIZEU032`] there is **no** FINE_MAX fixup: this is a widening
-/// (like [`uint_uint!`](crate::uint_uint)), so the saturation cap already
+/// (like the fixed-width `uint_uint!` macro), so the saturation cap already
 /// lands `inner(u64::MAX) = usize::MAX` on 16/32-bit targets, and on a
 /// 64-bit target `usize == u64` makes the whole Conn the identity iso.
 pub const SIZEU064: Conn<usize, u64> = {
@@ -81,13 +81,22 @@ mod tests {
 
     #[test]
     fn sizeu032_saturates_and_fixes_up() {
-        // On the 64-bit host: narrow saturates, inner applies the fixup.
-        assert_eq!(SIZEU032.ceil(usize::MAX), u32::MAX);
+        // Width-agnostic: the FINE_MAX fixup pins inner(u32::MAX) to
+        // usize::MAX on every target, and small values round-trip.
         assert_eq!(SIZEU032.upper(u32::MAX), usize::MAX);
         assert_eq!(SIZEU032.upper(0), 0);
-        // A mid-range value round-trips exactly.
         assert_eq!(SIZEU032.ceil(1_000), 1_000);
         assert_eq!(SIZEU032.upper(1_000), 1_000);
+
+        // Narrowing saturation only exists where usize is wider than u32
+        // (a 64-bit target): source values above u32::MAX clamp down under
+        // ceil. On 16/32-bit no usize exceeds u32::MAX, so there is nothing
+        // to saturate and `ceil(usize::MAX)` is the lossless `usize::MAX`.
+        #[cfg(target_pointer_width = "64")]
+        {
+            assert_eq!(SIZEU032.ceil(usize::MAX), u32::MAX);
+            assert_eq!(SIZEU032.ceil(u32::MAX as usize + 1), u32::MAX);
+        }
     }
 
     // ── SIZEU064 embed spot checks ────────────────────────────────────
