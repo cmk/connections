@@ -82,3 +82,20 @@ Full review comments:
 - [P2] Make SIZEU032 max check pointer-width aware — src/core/size.rs:85-85
   On 16-bit pointer-width targets, `usize::MAX` is `65535`, so `SIZEU032.ceil(usize::MAX)` returns `65535` via `u32::try_from`, not `u32::MAX`. This makes `cargo test` fail on one of the target widths this Conn is documented to support; gate this assertion by `target_pointer_width` or compare against the TryFrom-saturating expected value.
 
+
+## Local review (2026-07-05)
+
+**Branch:** plan/2026-07-05-01
+**Commits:** 7 (origin/main..plan/2026-07-05-01)
+**Reviewer:** Codex (`codex review --base origin/main`)
+**Prompt fingerprint:** AGENTS.md=4563f590caa7dbba5ea9eae973fa59182f1a6470 calibration=missing
+
+---
+
+The implementation logic appears sound, but the new public rustdoc contains a feature-gated intra-doc link that can break default documentation builds under warnings-as-errors.
+
+Review comment:
+
+- [P2] Avoid feature-gated macro links in public docs — src/core/size.rs:25-25
+  When `cargo doc` is run without `--features macros` (the default feature set), this public module doc links to `crate::uint_uint`, but that macro is exported at the crate root only when the `macros` feature is enabled. With `RUSTDOCFLAGS=-D warnings`, rustdoc treats the broken intra-doc link as a build failure; use plain code text or a non-feature-gated link target here.
+
