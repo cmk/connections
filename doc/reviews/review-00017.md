@@ -77,3 +77,23 @@ pointer-width families named), and `CHANGELOG.md` `[Unreleased]`.
 `ISZEI032` / `ISZEI064` (the direction-flipping rungs); kani harnesses for
 the pointer-width families. See `doc/plans/plan-2026-07-05-02.md` →
 Deferred / Review.
+
+## Local review (2026-07-05)
+
+**Branch:** plan/2026-07-05-02
+**Commits:** 4 (origin/main..plan/2026-07-05-02)
+**Reviewer:** Codex (`codex review --base origin/main`)
+**Prompt fingerprint:** AGENTS.md=4563f590caa7dbba5ea9eae973fa59182f1a6470 calibration=missing
+
+---
+
+The patch introduces a compile-blocking name shadowing issue in `src/core.rs`, and also adds public rustdoc links that will fail the documented doc gate. These need to be fixed before the patch can be considered correct.
+
+Full review comments:
+
+- [P1] Avoid shadowing the primitive `usize` in `core` — src/core.rs:950-950
+  Adding a child module named `usize` in `src/core.rs` puts that name in the parent module's type namespace, so the existing declarations like `LE<const N: usize>` in the same file resolve `usize` to this module rather than the primitive type. This makes the crate fail to compile; either avoid the module name or qualify those const-generic types as `::core::primitive::usize`.
+
+- [P1] Remove links to private macros from public docs — src/core/isize.rs:9-13
+  With the default `cargo doc` gate, the `macros` feature is disabled and these macro items are not public rustdoc targets, so the public `core::isize` docs introduce broken/private intra-doc links under `RUSTDOCFLAGS=-D warnings`. Keep these as plain code text, as the neighboring `int_int_narrow!` mention already does.
+
