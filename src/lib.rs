@@ -24,7 +24,8 @@
 //! | `U032`   | `u32`                        | unsigned 32-bit      |
 //! | `U064`   | `u64`                        | unsigned 64-bit      |
 //! | `U128`   | `u128`                       | unsigned 128-bit     |
-//! | `SIZE`   | [`usize`](crate::core::size) | pointer-width unsigned (all-letter side) |
+//! | `USZE`   | [`usize`](crate::core::usize) | pointer-width unsigned (all-letter side) |
+//! | `ISZE`   | [`isize`](crate::core::isize) | pointer-width signed (all-letter side) |
 //!
 //! For binary fixed-point, every Conn whose endpoints are Q-format
 //! wrappers from the [`fixed`] crate uses the **`Q`** prefix on those

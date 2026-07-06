@@ -14,13 +14,20 @@ cumulative in-development state.
 
 ### Added
 
-- **`core::size` — `usize` cast family.** The full `usize → u8`/`u16`/`u32`
-  /`u64`/`u128` ladder: `SIZEU008`/`SIZEU016`/`SIZEU032` (saturating narrows,
-  with a FINE_MAX `inner` fixup) and `SIZEU064`/`SIZEU128` (saturating
+- **`core::usize` — `usize` cast family.** The full `usize → u8`/`u16`/`u32`
+  /`u64`/`u128` ladder: `USZEU008`/`USZEU016`/`USZEU032` (saturating narrows,
+  with a FINE_MAX `inner` fixup) and `USZEU064`/`USZEU128` (saturating
   embeds), all one-sided left-Galois. Implemented with `TryFrom`/`From`
   clamping rather than the fixed-width `as`-based macros, so the Galois laws
   hold on 16/32/64-bit targets (an `as`-narrowing would truncate, not
-  saturate, a `u32 > usize::MAX` on a 16-bit target).
+  saturate, a `u32 > usize::MAX` on a 16-bit target). (Renamed from
+  `core::size` / `SIZEU###`.)
+- **`core::isize` — `isize` cast family.** `ISZEI008` / `ISZEI016`
+  (saturating narrows via `int_int_narrow!`) and `ISZEI128` (widening via
+  `ext_int!`, with an `Extended<isize>` source), all one-sided left-Galois
+  and lawful on every pointer width. `isize → i32` / `isize → i64` are
+  deferred: their cast direction flips with pointer width, so no single
+  stock-macro const covers them.
 
 ### Changed (swap-only capability traits)
 
