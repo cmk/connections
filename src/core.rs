@@ -610,14 +610,14 @@ macro_rules! nz_int_ext {
             #[allow(dead_code)]
             #[inline]
             #[must_use]
-            pub(crate) const fn view_l(self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::L> {
+            pub const fn view_l(self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::L> {
                 $crate::conn::Conn::new_l($NAME::_ceil, $NAME::_inner)
             }
             /// The R-view. `const`-projectable.
             #[allow(dead_code)]
             #[inline]
             #[must_use]
-            pub(crate) const fn view_r(self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::R> {
+            pub const fn view_r(self) -> $crate::conn::Conn<$A, $NZ, $crate::conn::R> {
                 $crate::conn::Conn::new_r($NAME::_inner, $NAME::_floor)
             }
             /// The swapped L-view. `const`-projectable.
@@ -640,7 +640,9 @@ macro_rules! nz_int_ext {
             type B = $NZ;
             #[inline]
             fn swap_l(&self) -> $crate::conn::Conn<$NZ, $A, $crate::conn::R> {
-                self.view_l().swap_l()
+                // Inherent `const fn swap_l` (path call), not the trait
+                // `view_l` default — the `&self` receiver would recurse.
+                $NAME::swap_l(*self)
             }
         }
         impl $crate::conn::ConnR for $NAME {
@@ -648,7 +650,7 @@ macro_rules! nz_int_ext {
             type B = $NZ;
             #[inline]
             fn swap_r(&self) -> $crate::conn::Conn<$NZ, $A, $crate::conn::L> {
-                self.view_r().swap_r()
+                $NAME::swap_r(*self)
             }
         }
     };

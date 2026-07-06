@@ -103,7 +103,7 @@ A small change to Example 1 — supplying both the upper and lower
 adjoints on the L side — packs the whole chain into a single value:
 
 ```rust
-use connections::conn::{view_l, view_r};
+use connections::conn::{ConnL, ConnR};
 use connections::conn_k;
 use std::cmp::Ordering;
 
@@ -120,10 +120,11 @@ fn floor(o: Ordering) -> bool {
 // Adjoint triples are unit-struct markers implementing ConnL + ConnR.
 conn_k! { pub ORDRBOOL : Ordering => bool { ceil: ceil, inner: inner, floor: floor } }
 
-// `view_l` reads the L-pair (ceil ⊣ inner); `view_r` reads the R-pair
-// (inner ⊣ floor). They differ on `Equal`, where the bracket is open:
-assert_eq!(view_l(&ORDRBOOL).ceil(Ordering::Equal),  true);
-assert_eq!(view_r(&ORDRBOOL).floor(Ordering::Equal), false);
+// The marker answers `.ceil` (the L-pair, ceil ⊣ inner) and `.floor`
+// (the R-pair, inner ⊣ floor) directly through its `ConnL` / `ConnR`
+// methods. They differ on `Equal`, where the bracket is open:
+assert_eq!(ORDRBOOL.ceil(Ordering::Equal),  true);
+assert_eq!(ORDRBOOL.floor(Ordering::Equal), false);
 ```
 
 Each cell is now a triple: `ceil(x) ⋈ y` / `x ⋈ inner(y)` /
@@ -137,11 +138,13 @@ verify the `g ⊣ h` pair (with the appropriate reversal):
 | `Greater`        | `>`/`>`/`>` | `=`/`=`/`=` |
 
 This is the shape an adjoint-triple **marker** carries: three free
-fns wired through `ConnL` and `ConnR` impls, with `view_l(&MARKER)` /
-`view_r(&MARKER)` projecting to the L-view and R-view `Conn`s respectively.
-Those views are ordinary `Conn` values, so `.ceil()` / `.floor()` are the
-inherent accessors on `Conn`; the marker itself carries only the
-`swap_l` / `swap_r` capability methods from `ConnL` / `ConnR`.
+fns wired through `ConnL` and `ConnR` impls. The marker answers
+`.ceil()` / `.floor()` — and `round`, `truncate`, `interval`, … — directly
+through those trait methods, with no projection step. When you need the
+underlying one-sided `Conn` value, `view_l(&MARKER)` / `view_r(&MARKER)`
+(or the `MARKER.view_l()` / `MARKER.view_r()` methods) still project to
+it; the marker's `swap_l` / `swap_r` are the single primitive each
+trait method defaults through.
 
 (`conn_k!` only ships a *true* adjoint triple — many natural cast
 families don't admit one. See [*Why one-sided?*](#why-one-sided) above
@@ -239,21 +242,21 @@ code block is mirrored verbatim into the `TDURSECS` rustdoc in the
 `time` module, so `cargo test --doc` keeps the two in sync):
 
 ```rust
-use connections::conn::{view_l, view_r};
+use connections::conn::{ConnL, ConnR};
 use connections::time::TDURSECS;
 use connections::extended::Extended;
 use time::Duration;
 
 let half = Duration::seconds(5) + Duration::nanoseconds(1);
-assert_eq!(view_l(&TDURSECS).ceil(half),  Extended::Finite(6));
-assert_eq!(view_r(&TDURSECS).floor(half), Extended::Finite(5));
+assert_eq!(TDURSECS.ceil(half),  Extended::Finite(6));
+assert_eq!(TDURSECS.floor(half), Extended::Finite(5));
 
 // Negative sub-second: ceil rounds toward zero, floor away.
 let neg = Duration::seconds(-5) - Duration::nanoseconds(1);
-assert_eq!(view_l(&TDURSECS).ceil(neg),  Extended::Finite(-5));
-assert_eq!(view_r(&TDURSECS).floor(neg), Extended::Finite(-6));
+assert_eq!(TDURSECS.ceil(neg),  Extended::Finite(-5));
+assert_eq!(TDURSECS.floor(neg), Extended::Finite(-6));
 
-assert_eq!(view_l(&TDURSECS).upper(Extended::Finite(42)), Duration::seconds(42));
+assert_eq!(TDURSECS.upper(Extended::Finite(42)), Duration::seconds(42));
 ```
 
 ## Example 8

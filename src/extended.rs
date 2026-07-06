@@ -370,7 +370,7 @@ macro_rules! lift_k {
             #[allow(dead_code)]
             #[inline]
             #[must_use]
-            pub(crate) const fn view_l(
+            pub const fn view_l(
                 self,
             ) -> $crate::conn::Conn<
                 $crate::extended::Extended<$A>,
@@ -388,7 +388,7 @@ macro_rules! lift_k {
             #[allow(dead_code)]
             #[inline]
             #[must_use]
-            pub(crate) const fn view_r(
+            pub const fn view_r(
                 self,
             ) -> $crate::conn::Conn<
                 $crate::extended::Extended<$A>,
@@ -440,7 +440,9 @@ macro_rules! lift_k {
                 $crate::extended::Extended<$A>,
                 $crate::conn::R,
             > {
-                self.view_l().swap_l()
+                // Inherent `const fn swap_l` (path call) — the trait
+                // `view_l` default would recurse on the `&self` receiver.
+                $name::swap_l(*self)
             }
         }
         impl $crate::conn::ConnR for $name {
@@ -454,7 +456,7 @@ macro_rules! lift_k {
                 $crate::extended::Extended<$A>,
                 $crate::conn::L,
             > {
-                self.view_r().swap_r()
+                $name::swap_r(*self)
             }
         }
     };
