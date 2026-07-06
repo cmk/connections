@@ -44,12 +44,12 @@
 //! | [`time_pure`]          | TIMENANO / TIMESECS / TDURSECS / SDURU064 / SDURU128 (Plan 43) |
 //! | [`hifi_walk`]          | float→hifi-Duration / TAI-Epoch walk-step ≤ 1 + solver-step ≤ 52 |
 //! | [`hifi_pure`]          | HDURNANO / HDURSECS / ETAINANO / ETAIHDUR (Plan 43)   |
-//! | [`fixed_be_one`]       | fixed::u008::U008BE01 / fixed::i008::I008BE01 / fixed::u008::BOOLBE01 |
-//! | [`fixed_be_two`]       | fixed::u016::U016BE02 / fixed::i016::I016BE02 |
-//! | [`fixed_be_four`]      | fixed::u032::U032BE04 / fixed::i032::I032BE04 |
-//! | [`fixed_le_one`]       | fixed::u008::U008LE01 / fixed::i008::I008LE01 / fixed::u008::BOOLLE01 |
-//! | [`fixed_le_two`]       | fixed::u016::U016LE02 / fixed::i016::I016LE02 |
-//! | [`fixed_le_four`]      | fixed::u032::U032LE04 / fixed::i032::I032LE04 |
+//! | [`fixed_be_one`]       | core::u008::U008BE01 / core::i008::I008BE01 / core::bool::BOOLBE01 |
+//! | [`fixed_be_two`]       | core::u016::U016BE02 / core::i016::I016BE02 |
+//! | [`fixed_be_four`]      | core::u032::U032BE04 / core::i032::I032BE04 |
+//! | [`fixed_le_one`]       | core::u008::U008LE01 / core::i008::I008LE01 / core::bool::BOOLLE01 |
+//! | [`fixed_le_two`]       | core::u016::U016LE02 / core::i016::I016LE02 |
+//! | [`fixed_le_four`]      | core::u032::U032LE04 / core::i032::I032LE04 |
 //! | [`hifi_calendar`]      | MONTU008 / MONTN008 / WKDYU008 (Plan 46)              |
 //!
 //! [Kani]: https://model-checking.github.io/kani/
