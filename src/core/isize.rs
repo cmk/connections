@@ -6,11 +6,11 @@
 //! all targets:
 //!
 //! - [`ISZEI008`] — `isize → i8`, always a narrowing (`isize ≥ 16 > 8`
-//!   bits) → [`int_int_narrow!`](crate::core::int_int_narrow).
+//!   bits) → the fixed-width `int_int_narrow!` macro.
 //! - [`ISZEI016`] — `isize → i16`, a narrowing on 32/64-bit and the identity
 //!   iso on a 16-bit target, never a widening → `int_int_narrow!`.
 //! - [`ISZEI128`] — `isize → i128`, always a widening (`i128` is the widest)
-//!   → [`ext_int!`](crate::core::ext_int), with an [`Extended<isize>`] source
+//!   → the `ext_int!` macro, with an [`Extended<isize>`] source
 //!   (like `I064I128`). Signed widening needs the `Extended` source:
 //!   `isize::MIN` embeds *above* `i128::MIN`, leaving unreachable negatives
 //!   that `NegInf` / `PosInf` absorb.
