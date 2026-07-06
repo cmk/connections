@@ -5,7 +5,7 @@
 //! target's width (64-bit on CI); the saturating `TryFrom` bodies keep
 //! the laws true regardless of that width.
 
-use connections::core::size::{SIZEU032, SIZEU064};
+use connections::core::size::{SIZEU008, SIZEU016, SIZEU032, SIZEU064, SIZEU128};
 use proptest::prelude::*;
 
 // `galois_lower` intentionally omitted (these are one-sided L-Conns);
@@ -51,9 +51,17 @@ fn arb_usize() -> impl Strategy<Value = usize> {
     prop_oneof![
         Just(0usize),
         Just(usize::MAX),
+        Just(u8::MAX as usize),
+        Just(u16::MAX as usize),
         Just(u32::MAX as usize),
         any::<usize>()
     ]
+}
+fn arb_u8() -> impl Strategy<Value = u8> {
+    prop_oneof![Just(0u8), Just(u8::MAX), any::<u8>()]
+}
+fn arb_u16() -> impl Strategy<Value = u16> {
+    prop_oneof![Just(0u16), Just(u16::MAX), any::<u16>()]
 }
 fn arb_u32() -> impl Strategy<Value = u32> {
     prop_oneof![Just(0u32), Just(u32::MAX), any::<u32>()]
@@ -66,6 +74,17 @@ fn arb_u64() -> impl Strategy<Value = u64> {
         any::<u64>()
     ]
 }
+fn arb_u128() -> impl Strategy<Value = u128> {
+    prop_oneof![
+        Just(0u128),
+        Just(u128::MAX),
+        Just(usize::MAX as u128),
+        any::<u128>()
+    ]
+}
 
+single_sided_props!(sizeu008, SIZEU008, arb_usize(), arb_u8());
+single_sided_props!(sizeu016, SIZEU016, arb_usize(), arb_u16());
 single_sided_props!(sizeu032, SIZEU032, arb_usize(), arb_u32());
 single_sided_props!(sizeu064, SIZEU064, arb_usize(), arb_u64());
+single_sided_props!(sizeu128, SIZEU128, arb_usize(), arb_u128());
