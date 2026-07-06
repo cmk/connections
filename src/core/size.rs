@@ -22,7 +22,7 @@
 //!
 //! The three narrowings (`u8`/`u16`/`u32`) carry a FINE_MAX fixup in `inner`
 //! so left-Galois holds at the target-max saturation plateau; the two embeds
-//! (`u64`/`u128`) do not (widenings, like [`uint_uint!`](crate::uint_uint)).
+//! (`u64`/`u128`) do not (widenings, like the fixed-width `uint_uint!` macro).
 //! All five are one-sided left-Galois ([`Conn::new_l`]): `ceil ⊣ inner`.
 
 use crate::conn::Conn;
