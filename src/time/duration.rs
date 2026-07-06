@@ -188,20 +188,21 @@ crate::conn_k! {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::{view_l, view_r};
     /// use connections::time::TDURSECS;
     /// use connections::extended::Extended;
     /// use time::Duration;
     ///
     /// let half = Duration::seconds(5) + Duration::nanoseconds(1);
-    /// assert_eq!(TDURSECS.swap_l().swap_r().ceil(half),  Extended::Finite(6));
-    /// assert_eq!(TDURSECS.swap_r().swap_l().floor(half), Extended::Finite(5));
+    /// assert_eq!(view_l(&TDURSECS).ceil(half),  Extended::Finite(6));
+    /// assert_eq!(view_r(&TDURSECS).floor(half), Extended::Finite(5));
     ///
     /// // Negative sub-second: ceil rounds toward zero, floor away.
     /// let neg = Duration::seconds(-5) - Duration::nanoseconds(1);
-    /// assert_eq!(TDURSECS.swap_l().swap_r().ceil(neg),  Extended::Finite(-5));
-    /// assert_eq!(TDURSECS.swap_r().swap_l().floor(neg), Extended::Finite(-6));
+    /// assert_eq!(view_l(&TDURSECS).ceil(neg),  Extended::Finite(-5));
+    /// assert_eq!(view_r(&TDURSECS).floor(neg), Extended::Finite(-6));
     ///
-    /// assert_eq!(TDURSECS.swap_l().swap_r().upper(Extended::Finite(42)), Duration::seconds(42));
+    /// assert_eq!(view_l(&TDURSECS).upper(Extended::Finite(42)), Duration::seconds(42));
     /// ```
     pub TDURSECS : Duration => Extended<i64> {
         ceil:  tdursecs_ceil,

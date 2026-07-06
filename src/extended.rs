@@ -39,11 +39,12 @@
 //! - `lift_k!(NAME : A => B = parent)` emits a unit-struct **marker**
 //!   that impls `ConnL`+`ConnR` (i.e. `ConnK`). Such a marker flows
 //!   into all three forms — [`compose_l!`](crate::compose_l) /
-//!   [`compose_r!`](crate::compose_r) via its views (`view_l` /
-//!   `view_r`, crate-local to wherever the marker is declared; from
-//!   another crate, spell the view as the double swap
-//!   `M.swap_l().swap_r()`), and [`compose_k!`](crate::compose_k)
-//!   directly as a path operand.
+//!   [`compose_r!`](crate::compose_r) via its views (the inherent
+//!   `view_l` / `view_r`, crate-local to wherever the marker is
+//!   declared; from another crate, the public
+//!   [`view_l`](crate::conn::view_l)`(&M)` /
+//!   [`view_r`](crate::conn::view_r)`(&M)` free functions), and
+//!   [`compose_k!`](crate::compose_k) directly as a path operand.
 //! - The output of [`compose_k!`](crate::compose_k) is itself a `ConnK`
 //!   marker, so chains can nest arbitrarily — `lift_k!` over the result
 //!   of a `compose_k!`, or vice versa.
@@ -343,6 +344,7 @@ macro_rules! lift_r {
 ///
 /// ```
 /// # use connections::{iso, lift_k};
+/// # use connections::conn::{view_l, view_r};
 /// # use connections::extended::Extended;
 /// # const fn id(x: i32) -> i32 { x }
 /// # iso! { pub Same : i32 => i32 { forward: id, back: id } }
@@ -352,10 +354,10 @@ macro_rules! lift_r {
 /// // the `Finite` arm through the parent.
 /// lift_k!(ExtSame : i32 => i32 = Same);
 ///
-/// // From outside the crate, spell a view as the public double swap.
-/// assert_eq!(ExtSame.swap_l().swap_r().ceil(Extended::NegInf), Extended::NegInf);
-/// assert_eq!(ExtSame.swap_r().swap_l().floor(Extended::PosInf), Extended::PosInf);
-/// assert_eq!(ExtSame.swap_l().swap_r().ceil(Extended::Finite(42)), Extended::Finite(42));
+/// // From outside the crate, name a marker's view with `view_l` / `view_r`.
+/// assert_eq!(view_l(&ExtSame).ceil(Extended::NegInf), Extended::NegInf);
+/// assert_eq!(view_r(&ExtSame).floor(Extended::PosInf), Extended::PosInf);
+/// assert_eq!(view_l(&ExtSame).ceil(Extended::Finite(42)), Extended::Finite(42));
 /// ```
 #[macro_export]
 macro_rules! lift_k {

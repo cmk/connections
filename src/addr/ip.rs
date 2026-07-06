@@ -54,11 +54,12 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::view_l;
     /// use connections::addr::U032IPV4;
     /// use std::net::Ipv4Addr;
     ///
-    /// assert_eq!(U032IPV4.swap_l().swap_r().ceil(0xC0A80101_u32), Ipv4Addr::new(192, 168, 1, 1));
-    /// assert_eq!(U032IPV4.swap_l().swap_r().upper(Ipv4Addr::new(192, 168, 1, 1)), 0xC0A80101_u32);
+    /// assert_eq!(view_l(&U032IPV4).ceil(0xC0A80101_u32), Ipv4Addr::new(192, 168, 1, 1));
+    /// assert_eq!(view_l(&U032IPV4).upper(Ipv4Addr::new(192, 168, 1, 1)), 0xC0A80101_u32);
     /// ```
     pub U032IPV4 : u32 => Ipv4Addr {
         forward: u32_to_v4,
@@ -82,11 +83,12 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::view_l;
     /// use connections::addr::U128IPV6;
     /// use std::net::Ipv6Addr;
     ///
-    /// assert_eq!(U128IPV6.swap_l().swap_r().ceil(1_u128), Ipv6Addr::LOCALHOST);
-    /// assert_eq!(U128IPV6.swap_l().swap_r().upper(Ipv6Addr::LOCALHOST), 1_u128);
+    /// assert_eq!(view_l(&U128IPV6).ceil(1_u128), Ipv6Addr::LOCALHOST);
+    /// assert_eq!(view_l(&U128IPV6).upper(Ipv6Addr::LOCALHOST), 1_u128);
     /// ```
     pub U128IPV6 : u128 => Ipv6Addr {
         forward: u128_to_v6,
@@ -177,6 +179,7 @@ crate::conn_k! {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::{view_l, view_r};
     /// use connections::addr::ip::IPV6IPV4;
     /// use connections::extended::Extended;
     /// use std::net::{Ipv4Addr, Ipv6Addr};
@@ -184,18 +187,18 @@ crate::conn_k! {
     /// // V4-mapped Ipv6 round-trips through the bridge.
     /// let v4_in_v6: Ipv6Addr = "::ffff:7f00:1".parse().unwrap();
     /// assert_eq!(
-    ///     IPV6IPV4.swap_l().swap_r().ceil(v4_in_v6),
+    ///     view_l(&IPV6IPV4).ceil(v4_in_v6),
     ///     Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))
     /// );
     /// assert_eq!(
-    ///     IPV6IPV4.swap_l().swap_r().upper(Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))),
+    ///     view_l(&IPV6IPV4).upper(Extended::Finite(Ipv4Addr::new(127, 0, 0, 1))),
     ///     v4_in_v6
     /// );
     ///
     /// // `::1` (loopback) sits below the v4-mapped block — ceil and
     /// // floor diverge.
-    /// assert_eq!(IPV6IPV4.swap_l().swap_r().ceil(Ipv6Addr::LOCALHOST),  Extended::Finite(Ipv4Addr::UNSPECIFIED));
-    /// assert_eq!(IPV6IPV4.swap_r().swap_l().floor(Ipv6Addr::LOCALHOST), Extended::NegInf);
+    /// assert_eq!(view_l(&IPV6IPV4).ceil(Ipv6Addr::LOCALHOST),  Extended::Finite(Ipv4Addr::UNSPECIFIED));
+    /// assert_eq!(view_r(&IPV6IPV4).floor(Ipv6Addr::LOCALHOST), Extended::NegInf);
     /// ```
     pub IPV6IPV4 : Ipv6Addr => Extended<Ipv4Addr> {
         ceil:  ipv6ipv4_ceil,

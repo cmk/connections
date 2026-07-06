@@ -52,10 +52,11 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
+    /// use connections::conn::view_l;
     /// use connections::core::u008::U008BE01;
     ///
-    /// assert_eq!(U008BE01.swap_l().swap_r().ceil(0x42_u8), [0x42]);
-    /// assert_eq!(U008BE01.swap_l().swap_r().upper([0x42]), 0x42_u8);
+    /// assert_eq!(view_l(&U008BE01).ceil(0x42_u8), [0x42]);
+    /// assert_eq!(view_l(&U008BE01).upper([0x42]), 0x42_u8);
     /// ```
     pub U008BE01 : u8 => [u8; 1] {
         forward: u8_to_be01,

@@ -109,14 +109,15 @@
 //! compiling.
 //!
 //! ```rust
+//! use connections::conn::{view_l, view_r};
 //! use connections::time::TDURSECS;
 //! use connections::extended::Extended;
 //! use time::Duration;
 //!
 //! let dur = Duration::seconds(5) + Duration::nanoseconds(1);
-//! assert_eq!(TDURSECS.swap_l().swap_r().ceil(dur),  Extended::Finite(6));   // round up
-//! assert_eq!(TDURSECS.swap_r().swap_l().floor(dur), Extended::Finite(5));   // round down
-//! assert_eq!(TDURSECS.swap_l().swap_r().upper(Extended::Finite(42)), Duration::seconds(42));
+//! assert_eq!(view_l(&TDURSECS).ceil(dur),  Extended::Finite(6));   // round up
+//! assert_eq!(view_r(&TDURSECS).floor(dur), Extended::Finite(5));   // round down
+//! assert_eq!(view_l(&TDURSECS).upper(Extended::Finite(42)), Duration::seconds(42));
 //! ```
 //!
 //! And the unsigned counterpoint via [`SDURU064`]:
