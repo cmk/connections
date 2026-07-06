@@ -14,12 +14,13 @@ cumulative in-development state.
 
 ### Added
 
-- **`core::size` — `usize` cast family.** `SIZEU032` (`usize → u32`,
-  saturating narrow) and `SIZEU064` (`usize → u64`, saturating embed),
-  both one-sided left-Galois. Implemented with `TryFrom` clamping rather
-  than the fixed-width `as`-based macros, so the Galois laws hold on
-  16/32/64-bit targets (an `as`-narrowing would truncate, not saturate,
-  a `u32 > usize::MAX` on a 16-bit target).
+- **`core::size` — `usize` cast family.** The full `usize → u8`/`u16`/`u32`
+  /`u64`/`u128` ladder: `SIZEU008`/`SIZEU016`/`SIZEU032` (saturating narrows,
+  with a FINE_MAX `inner` fixup) and `SIZEU064`/`SIZEU128` (saturating
+  embeds), all one-sided left-Galois. Implemented with `TryFrom`/`From`
+  clamping rather than the fixed-width `as`-based macros, so the Galois laws
+  hold on 16/32/64-bit targets (an `as`-narrowing would truncate, not
+  saturate, a `u32 > usize::MAX` on a 16-bit target).
 
 ### Changed (swap-only capability traits)
 

@@ -19,7 +19,8 @@
 //!   wrapper and float-only infrastructure live in [`crate::float`].
 //! - [`mod@char`] — `Extended<u32> → Extended<char>` codepoint projection.
 //! - [`mod@bool`] — bool ↔ `[u8;1]` / `LE<1>` projections.
-//! - [`mod@size`] — `usize → u32` / `u64` pointer-width saturating casts.
+//! - [`mod@size`] — `usize → u8`/`u16`/`u32`/`u64`/`u128` pointer-width
+//!   saturating casts.
 //!
 //! ## Conn-name prefix conventions
 //!

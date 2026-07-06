@@ -478,7 +478,7 @@ implement `ConnK`.
 | `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` cargo feature |
 | `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
 | `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
-| Pointer-width `usize` saturating casts (`SIZEU032`, `SIZEU064`) | `core::size` |
+| Pointer-width `usize` saturating casts (`SIZEU008`, `SIZEU016`, `SIZEU032`, `SIZEU064`, `SIZEU128`) | `core::size` |
 | Sortable byte encodings (`U008BE01`, `U008LE01`, `I008BE01`, `I008LE01`, `BOOLBE01`, `BOOLLE01`, through `U128BE16`, `U128LE16`, `I128BE16`, `I128LE16`) | `core::{bool, i008,…,i128, u008,…,u128}` |
 
 Constant-name prefixes are letter-disambiguated: `Q` for Q-format
