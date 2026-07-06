@@ -37,7 +37,7 @@
 //! analogue. Both share the constant name `Q008Q004`; resolution is
 //! by qualified import:
 //!
-//! ```ignore
+//! ```text
 //! use connections::fixed::i008 as fi008;
 //! use connections::fixed::i064 as fi064;
 //! let _ = fi008::Q008Q000;     // i8-backed  Q0.8 → Q8.0

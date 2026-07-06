@@ -5,7 +5,7 @@
 //! so downstream crates can drive them in their own `proptest!`
 //! blocks without depending on this crate's strategy module:
 //!
-//! ```ignore
+//! ```text
 //! use connections::prop::lattice::heyting_adjunction;
 //! use proptest::prelude::*;
 //!
