@@ -50,7 +50,7 @@
 //!
 //! Const-init combo (`lift_l!` value into `compose_l!`):
 //!
-//! ```ignore
+//! ```
 //! use connections::compose_l;
 //! use connections::conn::{Conn, L};
 //! use connections::extended::Extended;
@@ -72,7 +72,7 @@
 //! Marker combo (`lift_k!` marker into `compose_k!`, then back into
 //! `compose_l!`):
 //!
-//! ```ignore
+//! ```text
 //! use connections::compose_k;
 //! use connections::conn::{Conn, L};
 //! use connections::extended::Extended;
@@ -248,7 +248,7 @@ impl<T: Ord> Ord for Extended<T> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use connections::conn::{Conn, L};
 /// use connections::extended::Extended;
 /// use connections::lift_l;
@@ -294,7 +294,7 @@ macro_rules! lift_l {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use connections::conn::{Conn, L, R};
 /// use connections::extended::Extended;
 /// use connections::lift_r;
@@ -341,25 +341,21 @@ macro_rules! lift_r {
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use connections::extended::Extended;
-/// use connections::fixed::i016::Q000I016;
-/// use connections::lift_k;
-/// use fixed::FixedI16;
-/// use fixed::types::extra::U0;
+/// ```
+/// # use connections::{iso, lift_k};
+/// # use connections::extended::Extended;
+/// # const fn id(x: i32) -> i32 { x }
+/// # iso! { pub Same : i32 => i32 { forward: id, back: id } }
+/// // Lift a `ConnK` parent (here the identity iso `Same : i32 ↔ i32`)
+/// // through `Extended` on both sides. The lifted marker maps the
+/// // synthetic `NegInf` / `PosInf` sentinels identically and dispatches
+/// // the `Finite` arm through the parent.
+/// lift_k!(ExtSame : i32 => i32 = Same);
 ///
-/// // Lift `Q000I016 : FixedI16<U0> ↔ i16` so it splices into chains
-/// // whose adjacent endpoint is already `Extended<FixedI16<U0>>`.
-/// lift_k!(EXTQ000I016 : FixedI16<U0> => i16 = Q000I016);
-///
-/// // Synthetic markers map identically.
-/// assert_eq!(EXTQ000I016.ceil(Extended::NegInf), Extended::NegInf);
-/// assert_eq!(EXTQ000I016.floor(Extended::PosInf), Extended::PosInf);
-///
-/// // Finite arm dispatches through the parent (lossless on Q000I016).
-/// let q = FixedI16::<U0>::from_bits(42);
-/// assert_eq!(EXTQ000I016.ceil(Extended::Finite(q)), Extended::Finite(42_i16));
-/// assert_eq!(EXTQ000I016.upper(Extended::Finite(42_i16)), Extended::Finite(q));
+/// // From outside the crate, spell a view as the public double swap.
+/// assert_eq!(ExtSame.swap_l().swap_r().ceil(Extended::NegInf), Extended::NegInf);
+/// assert_eq!(ExtSame.swap_r().swap_l().floor(Extended::PosInf), Extended::PosInf);
+/// assert_eq!(ExtSame.swap_l().swap_r().ceil(Extended::Finite(42)), Extended::Finite(42));
 /// ```
 #[macro_export]
 macro_rules! lift_k {

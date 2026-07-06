@@ -504,7 +504,7 @@ where
 /// (default: 256, the proptest default; set to 64 for expensive
 /// generators like full-range `i128`).
 ///
-/// ```ignore
+/// ```text
 /// connections::law_battery! {
 ///     mod q008q000,
 ///     conn: Q008Q000,

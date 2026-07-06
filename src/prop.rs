@@ -34,7 +34,7 @@
 //! With the `proptest` feature enabled, downstream proptest blocks
 //! can drive the predicates over arbitrary inputs:
 //!
-//! ```ignore
+//! ```text
 //! use connections::prop::{arb, conn};
 //! use connections::core::f064::F064F032;
 //! use connections::float::ExtendedFloat;

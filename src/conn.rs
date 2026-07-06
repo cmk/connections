@@ -1004,8 +1004,16 @@ macro_rules! compose {
 /// methods build the projection via [`compose_l!`](crate::compose_l) / [`compose_r!`](crate::compose_r)
 /// over the parents' views.
 ///
-/// ```ignore
-/// compose_k!(F064F016 : F064 => F032 => F016 = F064F032, F032F016);
+/// ```
+/// # use connections::compose_k;
+/// # use connections::core::f032::F032U008;
+/// # use connections::core::f064::F064F032;
+/// # use connections::extended::Extended;
+/// # use connections::float::{F032, F064};
+/// // Compose `F064F032 : F064 ⇒ F032` with `F032U008 : F032 ⇒ Extended<u8>`
+/// // into one fresh triple marker for the whole `F064 ⇒ Extended<u8>` chain.
+/// compose_k!(Chain : F064 => F032 => Extended<u8> = F064F032, F032U008);
+/// # let _ = Chain;
 /// ```
 #[macro_export]
 macro_rules! compose_k {
@@ -1074,14 +1082,23 @@ macro_rules! compose_k {
 /// Declaration-form macro: ship a new adjoint-triple marker from
 /// three free-function paths `(ceil, inner, floor)`.
 ///
-/// ```ignore
+/// ```
+/// # use connections::conn_k;
+/// # use std::num::NonZeroI8;
+/// # fn ceil(v: i8)  -> NonZeroI8 { NonZeroI8::new(if v == 0 { 1 } else { v }).unwrap() }
+/// # fn floor(v: i8) -> NonZeroI8 { NonZeroI8::new(if v == 0 { -1 } else { v }).unwrap() }
+/// # fn inner(nz: NonZeroI8) -> i8 { nz.get() }
+/// // A lawful adjoint triple: `ceil` / `floor` sandwich 0 between
+/// // `NonZero(+1)` and `NonZero(-1)`, and `inner` is the total
+/// // embedding — exactly how `core::i008::I008N008` is built.
 /// conn_k! {
-///     pub F064F032 : F064 => F032 {
-///         ceil:  ceil_f64_to_f32,
-///         inner: inner_f32_to_f64,
-///         floor: floor_f64_to_f32,
+///     pub I008N008 : i8 => NonZeroI8 {
+///         ceil:  ceil,
+///         inner: inner,
+///         floor: floor,
 ///     }
 /// }
+/// # let _ = I008N008;
 /// ```
 #[macro_export]
 macro_rules! conn_k {
@@ -1158,13 +1175,18 @@ macro_rules! conn_k {
 /// (`galois_l`, `galois_r`, `floor_le_ceil`, `idempotent`, …) holds
 /// trivially.
 ///
-/// ```ignore
+/// ```
+/// # use connections::iso;
+/// # use std::net::Ipv4Addr;
+/// # fn u32_to_v4(x: u32) -> Ipv4Addr { Ipv4Addr::from(x) }
+/// # fn v4_to_u32(a: Ipv4Addr) -> u32 { u32::from(a) }
 /// iso! {
 ///     pub U032IPV4 : u32 => Ipv4Addr {
 ///         forward: u32_to_v4,
 ///         back:    v4_to_u32,
 ///     }
 /// }
+/// # let _ = U032IPV4;
 /// ```
 #[macro_export]
 macro_rules! iso {
@@ -1201,13 +1223,22 @@ macro_rules! iso {
 /// embedding is order-reflecting; use this macro when only the
 /// left half of the adjunction holds.
 ///
-/// ```ignore
+/// ```
+/// # use connections::conn_l;
+/// # fn ceil(x: i16) -> i8 {
+/// #     if x > i8::MAX as i16 { i8::MAX } else if x < i8::MIN as i16 { i8::MIN } else { x as i8 }
+/// # }
+/// # fn inner(x: i8) -> i16 { if x == i8::MAX { i16::MAX } else { x as i16 } }
+/// // A lawful left-Galois narrowing: `ceil` saturates `i16` into `i8`
+/// // and `inner` widens back with the source-side `MAX` fixup —
+/// // exactly how `core::i016::I016I008` is built.
 /// conn_l! {
-///     pub TIMENANO : Extended<Time> => i64 {
-///         ceil:  time_to_ns,
-///         inner: ns_to_time,
+///     pub I016I008 : i16 => i8 {
+///         ceil:  ceil,
+///         inner: inner,
 ///     }
 /// }
+/// # let _ = I016I008;
 /// ```
 #[macro_export]
 macro_rules! conn_l {
@@ -1233,13 +1264,20 @@ macro_rules! conn_l {
 /// reverse of [`Conn::new_l`]'s `(ceil, inner)`. Field labels make
 /// the order self-documenting.
 ///
-/// ```ignore
+/// ```
+/// # use connections::conn_r;
+/// # fn inner(x: i8) -> u8 { if x < 0 { 0 } else { x as u8 } }
+/// # fn floor(x: u8) -> i8 { if x > i8::MAX as u8 { i8::MAX } else { x as i8 } }
+/// // A lawful right-Galois cross-sign cast: `inner` clips `i8`'s
+/// // negative half to `0`, and `floor` saturates `u8` above `i8::MAX`
+/// // — exactly how `core::u008::U008I008` is built.
 /// conn_r! {
-///     pub UFOO : u8 => i8 {
-///         inner: u_to_i,
-///         floor: i_to_u,
+///     pub U008I008 : u8 => i8 {
+///         inner: inner,
+///         floor: floor,
 ///     }
 /// }
+/// # let _ = U008I008;
 /// ```
 #[macro_export]
 macro_rules! conn_r {
