@@ -111,7 +111,7 @@
 //! worked-example thread in their per-fn doctests:
 //!
 //! ```rust
-//! use connections::conn::view_l;
+//! use connections::conn::ConnL;
 //! use connections::float::ExtendedFloat::Extend;
 //! use connections::core::f064::F064F032;
 //!
@@ -122,7 +122,7 @@
 //! // Lossless ≠ precise: the value is still the f32 approximation.
 //! assert_ne!(pi64, pi32);
 //! // upper just widens; for F064F032 that's the f32 → f64 cast.
-//! assert_eq!(view_l(&F064F032).upper(Extend(std::f32::consts::PI)), pi32);
+//! assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
 //! ```
 //!
 //! - [`interval`](crate::conn::interval) — bracket of `x` as an
@@ -233,13 +233,12 @@ pub mod uhlc;
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::view_l;
 /// use connections::prelude::*;
 /// use connections::core::f064::F064F032;
 /// use connections::float::ExtendedFloat::Extend;
 ///
 /// // The two-sided helpers and capability traits arrive via the prelude.
-/// let pi32 = view_l(&F064F032).ceil(Extend(std::f64::consts::PI));
+/// let pi32 = F064F032.ceil(Extend(std::f64::consts::PI));
 /// assert_eq!(pi32, Extend(std::f32::consts::PI));
 /// ```
 pub mod prelude {

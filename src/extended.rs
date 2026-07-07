@@ -39,11 +39,11 @@
 //! - `lift_k!(NAME : A => B = parent)` emits a unit-struct **marker**
 //!   that impls `ConnL`+`ConnR` (i.e. `ConnK`). Such a marker flows
 //!   into all three forms — [`compose_l!`](crate::compose_l) /
-//!   [`compose_r!`](crate::compose_r) via its views (the inherent
-//!   `view_l` / `view_r`, crate-local to wherever the marker is
-//!   declared; from another crate, the public
+//!   [`compose_r!`](crate::compose_r) via its inherent `const fn`
+//!   `view_l` / `view_r` (public, so callable from any crate; the free
 //!   [`view_l`](crate::conn::view_l)`(&M)` /
-//!   [`view_r`](crate::conn::view_r)`(&M)` free functions), and
+//!   [`view_r`](crate::conn::view_r)`(&M)` fns are the non-`const`
+//!   runtime equivalents), and
 //!   [`compose_k!`](crate::compose_k) directly as a path operand.
 //! - The output of [`compose_k!`](crate::compose_k) is itself a `ConnK`
 //!   marker, so chains can nest arbitrarily — `lift_k!` over the result
@@ -94,7 +94,7 @@
 //!
 //! // Stand-in identity bridge to make the doctest self-contained.
 //! // Declared through conn_k! — compose_k! operands need the
-//! // macro-emitted crate-local views, so markers are declared with
+//! // macro-emitted `const` views, so markers are declared with
 //! // the declaration macros, never hand-rolled trait impls.
 //! const fn ext_id(x: Extended<FixedI16<U0>>) -> Extended<FixedI16<U0>> { x }
 //! connections::conn_k! {
@@ -344,7 +344,7 @@ macro_rules! lift_r {
 ///
 /// ```
 /// # use connections::{iso, lift_k};
-/// # use connections::conn::{view_l, view_r};
+/// # use connections::conn::{ConnL, ConnR};
 /// # use connections::extended::Extended;
 /// # const fn id(x: i32) -> i32 { x }
 /// # iso! { pub Same : i32 => i32 { forward: id, back: id } }
@@ -354,10 +354,11 @@ macro_rules! lift_r {
 /// // the `Finite` arm through the parent.
 /// lift_k!(ExtSame : i32 => i32 = Same);
 ///
-/// // From outside the crate, name a marker's view with `view_l` / `view_r`.
-/// assert_eq!(view_l(&ExtSame).ceil(Extended::NegInf), Extended::NegInf);
-/// assert_eq!(view_r(&ExtSame).floor(Extended::PosInf), Extended::PosInf);
-/// assert_eq!(view_l(&ExtSame).ceil(Extended::Finite(42)), Extended::Finite(42));
+/// // From outside the crate, call a marker's adjoints via the `ConnL` /
+/// // `ConnR` trait methods.
+/// assert_eq!(ExtSame.ceil(Extended::NegInf), Extended::NegInf);
+/// assert_eq!(ExtSame.floor(Extended::PosInf), Extended::PosInf);
+/// assert_eq!(ExtSame.ceil(Extended::Finite(42)), Extended::Finite(42));
 /// ```
 #[macro_export]
 macro_rules! lift_k {

@@ -38,10 +38,10 @@ use connections::core::B2;
 use connections::core::i016::I016BE02;
 
 let bytes = B2([0x01, 0x02]);
-assert_eq!(I016BE02.swap_l().swap_r().ceil(258_i16), bytes);
-assert_eq!(I016BE02.swap_r().swap_l().floor(258_i16), bytes);
-assert_eq!(I016BE02.swap_l().swap_r().upper(bytes), 258_i16);
-assert_eq!(I016BE02.swap_r().swap_l().lower(bytes), 258_i16);
+assert_eq!(I016BE02.ceil(258_i16), bytes);
+assert_eq!(I016BE02.floor(258_i16), bytes);
+assert_eq!(I016BE02.upper(bytes), 258_i16);
+assert_eq!(I016BE02.lower(bytes), 258_i16);
 ```
 
 See [EXAMPLES.md](https://github.com/cmk/connections/blob/main/EXAMPLES.md)
