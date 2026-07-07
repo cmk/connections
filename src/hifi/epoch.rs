@@ -163,14 +163,14 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::view_l;
+    /// use connections::conn::ConnL;
     /// use connections::hifi::ETAIHDUR;
     /// use hifitime::{Duration as HDuration, Epoch};
     ///
     /// // J1900 TAI — the storage zero.
     /// let j1900 = Epoch::from_tai_duration(HDuration::ZERO);
-    /// assert_eq!(view_l(&ETAIHDUR).ceil(j1900), HDuration::ZERO);
-    /// assert_eq!(view_l(&ETAIHDUR).upper(HDuration::ZERO), j1900);
+    /// assert_eq!(ETAIHDUR.ceil(j1900), HDuration::ZERO);
+    /// assert_eq!(ETAIHDUR.upper(HDuration::ZERO), j1900);
     /// ```
     pub ETAIHDUR : Epoch => HD {
         forward: etaihdur_forward,
@@ -426,13 +426,13 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::view_l;
+    /// use connections::conn::ConnL;
     /// use connections::hifi::EUTCHDUR;
     /// use hifitime::{Duration as HDuration, Epoch};
     ///
     /// // J1900 TAI = J1900 UTC (no leap seconds before 1972).
     /// let j1900 = Epoch::from_tai_duration(HDuration::ZERO);
-    /// assert_eq!(view_l(&EUTCHDUR).ceil(j1900), HDuration::ZERO);
+    /// assert_eq!(EUTCHDUR.ceil(j1900), HDuration::ZERO);
     /// ```
     pub EUTCHDUR : Epoch => HD {
         forward: eutchdur_forward,
@@ -780,12 +780,12 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::view_l;
+    /// use connections::conn::ConnL;
     /// use connections::hifi::EGPSHDUR;
     /// use hifitime::{Duration as HDuration, GPST_REF_EPOCH};
     ///
     /// // GPST reference is the GPST-scale zero.
-    /// assert_eq!(view_l(&EGPSHDUR).ceil(GPST_REF_EPOCH), HDuration::ZERO);
+    /// assert_eq!(EGPSHDUR.ceil(GPST_REF_EPOCH), HDuration::ZERO);
     /// ```
     pub EGPSHDUR : Epoch => HD {
         forward: egpshdur_forward,
@@ -974,11 +974,11 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::view_l;
+    /// use connections::conn::ConnL;
     /// use connections::hifi::EQZSHDUR;
     /// use hifitime::{Duration as HDuration, QZSST_REF_EPOCH};
     ///
-    /// assert_eq!(view_l(&EQZSHDUR).ceil(QZSST_REF_EPOCH), HDuration::ZERO);
+    /// assert_eq!(EQZSHDUR.ceil(QZSST_REF_EPOCH), HDuration::ZERO);
     /// ```
     pub EQZSHDUR : Epoch => HD {
         forward: eqzshdur_forward,
@@ -1126,10 +1126,10 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::view_l;
+    /// use connections::conn::ConnL;
     /// use connections::hifi::EGSTHDUR;
     /// use hifitime::{Duration as HDuration, GST_REF_EPOCH};
-    /// assert_eq!(view_l(&EGSTHDUR).ceil(GST_REF_EPOCH), HDuration::ZERO);
+    /// assert_eq!(EGSTHDUR.ceil(GST_REF_EPOCH), HDuration::ZERO);
     /// ```
     pub EGSTHDUR : Epoch => HD {
         forward: egsthdur_forward,
@@ -1285,10 +1285,10 @@ crate::iso! {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::view_l;
+    /// use connections::conn::ConnL;
     /// use connections::hifi::EBDTHDUR;
     /// use hifitime::{Duration as HDuration, BDT_REF_EPOCH};
-    /// assert_eq!(view_l(&EBDTHDUR).ceil(BDT_REF_EPOCH), HDuration::ZERO);
+    /// assert_eq!(EBDTHDUR.ceil(BDT_REF_EPOCH), HDuration::ZERO);
     /// ```
     pub EBDTHDUR : Epoch => HD {
         forward: ebdthdur_forward,

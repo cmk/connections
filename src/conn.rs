@@ -181,7 +181,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::view_l;
+    /// use connections::conn::ConnL;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -191,10 +191,10 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     ///
     /// // The f32 ceiling of π is std::f32::consts::PI itself —
     /// // π's nearest f32 representation rounds up.
-    /// assert_eq!(view_l(&F064F032).ceil(pi64), Extend(std::f32::consts::PI));
+    /// assert_eq!(F064F032.ceil(pi64), Extend(std::f32::consts::PI));
     /// // Widening the result back to f64 lands at pi32, which sits
     /// // exactly pi32_err above true π:
-    /// assert_eq!(view_l(&F064F032).upper(view_l(&F064F032).ceil(pi64)) - pi64, pi32_err);
+    /// assert_eq!(F064F032.upper(F064F032.ceil(pi64)) - pi64, pi32_err);
     /// ```
     #[inline]
     #[must_use]
@@ -207,7 +207,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::view_l;
+    /// use connections::conn::ConnL;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -220,9 +220,9 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// let pi32_err = pi32 - pi64;
     ///
     /// // upper just widens; for F064F032 that's the f32 → f64 cast.
-    /// assert_eq!(view_l(&F064F032).upper(Extend(std::f32::consts::PI)), pi32);
+    /// assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
     /// // Equivalently, "f64 π plus f32's rounding error":
-    /// assert_eq!(view_l(&F064F032).upper(Extend(std::f32::consts::PI)) - pi64, pi32_err);
+    /// assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)) - pi64, pi32_err);
     /// ```
     #[inline]
     #[must_use]
@@ -257,7 +257,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::view_l;
+    /// use connections::conn::ConnL;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -267,7 +267,7 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     /// let pi32 = Extend(std::f32::consts::PI);
     /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
     /// assert_eq!(
-    ///     view_l(&F064F032).ceil1(probe, pi32),
+    ///     F064F032.ceil1(probe, pi32),
     ///     Extend(std::f32::consts::PI),
     /// );
     /// ```
@@ -359,7 +359,7 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     /// # Examples
     ///
     /// ```rust
-    /// use connections::conn::view_r;
+    /// use connections::conn::ConnR;
     /// use connections::float::ExtendedFloat::Extend;
     /// use connections::core::f064::F064F032;
     ///
@@ -370,7 +370,7 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     /// let pi32 = Extend(std::f32::consts::PI);
     /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
     /// assert_eq!(
-    ///     view_r(&F064F032).floor1(probe, pi32),
+    ///     F064F032.floor1(probe, pi32),
     ///     Extend(3.1415925_f32),
     /// );
     /// ```
@@ -1015,7 +1015,7 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use connections::conn::view_l;
+/// use connections::conn::ConnL;
 /// use connections::conn::round;
 /// use connections::float::ExtendedFloat::Extend;
 /// use connections::core::f064::F064F032;
@@ -1028,7 +1028,7 @@ where
 /// // value `(pi as f32)` would also produce.
 /// assert_eq!(round(&F064F032, pi64), Extend(std::f32::consts::PI));
 /// // Widening the result back to f64 lands pi32_err above true π:
-/// assert_eq!(view_l(&F064F032).upper(round(&F064F032, pi64)) - pi64, pi32_err);
+/// assert_eq!(F064F032.upper(round(&F064F032, pi64)) - pi64, pi32_err);
 /// ```
 #[inline]
 #[must_use]
