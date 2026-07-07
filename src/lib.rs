@@ -196,6 +196,16 @@
 // because `#![feature(f16)]` is a nightly-only attribute. Default stable
 // builds skip the f16 path entirely.
 #![cfg_attr(feature = "f16", feature(f16))]
+// `Try` / `FromResidual` are still unstable (`try_trait_v2`, tracking
+// #84277). Opting into the `try_trait` cargo feature enables the `?`
+// impls on `Interval` / `Extended` / `ExtendedFloat`, but requires
+// building on nightly because `#![feature(try_trait_v2)]` is a
+// nightly-only attribute. Default stable builds skip those impls. The
+// `_residual` half is a separate gate: `Try::Residual` is bound by
+// `Residual<Self::Output>`, so each `…<Infallible>` residual type also
+// implements the unstable `core::ops::Residual` trait.
+#![cfg_attr(feature = "try_trait", feature(try_trait_v2))]
+#![cfg_attr(feature = "try_trait", feature(try_trait_v2_residual))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![forbid(unsafe_code)]
 
