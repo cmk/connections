@@ -181,6 +181,65 @@ impl<T> ExtendedFloat<T> {
     }
 }
 
+// ── `?`-support (nightly `try_trait` feature) ──────────────────────
+//
+// `Extend(t)` is the success payload; `Bot` / `Top` short-circuit. The
+// residual is `ExtendedFloat<Infallible>`, whose only inhabited variants
+// are the two bounds (the `Extend` arm is uninhabited), so `?` inside an
+// `ExtendedFloat`-returning fn propagates the *specific* bound it hit —
+// `Bot` stays `Bot`, `Top` stays `Top`.
+//
+// Note the deliberate asymmetry with the lattice: `Extend(NaN)` is a
+// *success*, not a short-circuit. Only the synthetic ±∞ endpoints break;
+// a wrapped NaN flows through `?` as an ordinary `Extend` payload,
+// matching the variant's role as the extension slot (which may hold NaN
+// or ±∞) rather than a finiteness claim.
+
+/// `?`-extracts the [`Extend`](ExtendedFloat::Extend) payload (including
+/// a wrapped `NaN`); `Bot` / `Top` short-circuit through
+/// `FromResidual`, each preserving which bound was hit. Requires the
+/// nightly `try_trait` feature.
+#[cfg(feature = "try_trait")]
+impl<T> core::ops::Try for ExtendedFloat<T> {
+    type Output = T;
+    type Residual = ExtendedFloat<core::convert::Infallible>;
+
+    #[inline]
+    fn from_output(output: Self::Output) -> Self {
+        ExtendedFloat::Extend(output)
+    }
+
+    #[inline]
+    fn branch(self) -> core::ops::ControlFlow<Self::Residual, Self::Output> {
+        match self {
+            ExtendedFloat::Extend(t) => core::ops::ControlFlow::Continue(t),
+            ExtendedFloat::Bot => core::ops::ControlFlow::Break(ExtendedFloat::Bot),
+            ExtendedFloat::Top => core::ops::ControlFlow::Break(ExtendedFloat::Top),
+        }
+    }
+}
+
+#[cfg(feature = "try_trait")]
+impl<T> core::ops::FromResidual for ExtendedFloat<T> {
+    #[inline]
+    fn from_residual(residual: ExtendedFloat<core::convert::Infallible>) -> Self {
+        match residual {
+            ExtendedFloat::Bot => ExtendedFloat::Bot,
+            ExtendedFloat::Top => ExtendedFloat::Top,
+            // `Extend(Infallible)` is uninhabited — no value can reach it.
+            ExtendedFloat::Extend(never) => match never {},
+        }
+    }
+}
+
+// The residual carries a bound back to a fresh `ExtendedFloat<O>`: `?`
+// in a fn returning `ExtendedFloat<O>` reconstitutes `Bot` / `Top` at
+// the new payload type.
+#[cfg(feature = "try_trait")]
+impl<O> core::ops::Residual<O> for ExtendedFloat<core::convert::Infallible> {
+    type TryType = ExtendedFloat<O>;
+}
+
 // ── Numeric impls for `ExtendedFloat<f32 | f64>`.
 //
 // `ExtendedFloat<T>` represents `Maybe R̄` — the extended real line

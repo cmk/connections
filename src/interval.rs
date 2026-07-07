@@ -222,6 +222,66 @@ impl<A> Interval<A> {
     }
 }
 
+// ── `?`-support (nightly `try_trait` feature) ──────────────────────
+//
+// A `Closed { lo, hi }` is the success payload — carried as the endpoint
+// pair `(A, A)`, matching `Interval::endpts` — and `Empty`
+// short-circuits. The residual is `Interval<Infallible>`, whose only
+// inhabited variant is `Empty` (the `Closed` variant needs two
+// `Infallible` fields), so `?` inside an `Interval`-returning fn
+// propagates `Empty`.
+//
+// Soundness note: `from_output((lo, hi))` reconstructs `Closed { lo, hi }`
+// **without** re-running the `Interval::new` preorder check, exactly like
+// direct `Closed { .. }` field construction. `?` only ever feeds it
+// endpoints previously extracted from a valid `Closed` (via `branch`), so
+// the "no `Closed` holds a non-reflexive value" invariant is preserved in
+// practice; a caller writing `Try::from_output((hi, lo))` by hand bypasses
+// the gate just as direct construction does (see the type-level docs).
+
+/// `?`-extracts a [`Closed`](Interval::Closed) interval's endpoints as
+/// `(lo, hi)`; [`Empty`](Interval::Empty) short-circuits through
+/// `FromResidual`. Requires the nightly `try_trait` feature.
+#[cfg(feature = "try_trait")]
+impl<A> core::ops::Try for Interval<A> {
+    type Output = (A, A);
+    type Residual = Interval<core::convert::Infallible>;
+
+    #[inline]
+    fn from_output((lo, hi): Self::Output) -> Self {
+        Interval::Closed { lo, hi }
+    }
+
+    #[inline]
+    fn branch(self) -> core::ops::ControlFlow<Self::Residual, Self::Output> {
+        match self {
+            Interval::Closed { lo, hi } => core::ops::ControlFlow::Continue((lo, hi)),
+            Interval::Empty => core::ops::ControlFlow::Break(Interval::Empty),
+        }
+    }
+}
+
+#[cfg(feature = "try_trait")]
+impl<A> core::ops::FromResidual for Interval<A> {
+    #[inline]
+    fn from_residual(residual: Interval<core::convert::Infallible>) -> Self {
+        match residual {
+            Interval::Empty => Interval::Empty,
+            // `Closed { lo: Infallible, .. }` is uninhabited.
+            Interval::Closed { lo, .. } => match lo {},
+        }
+    }
+}
+
+// The residual carries a bound back to a fresh `Interval<A>`: because the
+// success payload is the endpoint pair `(A, A)`, the `Residual` output
+// parameter is `(A, A)` and `A` is recovered from it. `?` in a fn
+// returning `Interval<A>` reconstitutes `Empty` at the new endpoint type.
+#[cfg(feature = "try_trait")]
+impl<A> core::ops::Residual<(A, A)> for Interval<core::convert::Infallible> {
+    type TryType = Interval<A>;
+}
+
 /// Containment preorder: `Empty ≤ everything`; `Closed i₁ ≤
 /// Closed i₂ ⟺ i₂ ⊇ i₁` (i.e. `lo₂ ≤ lo₁ && hi₁ ≤ hi₂`).
 ///

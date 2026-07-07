@@ -184,6 +184,106 @@ impl<T> Extended<T> {
             Extended::PosInf => pos_inf(),
         }
     }
+
+    /// Project to the wrapped value, discarding the synthetic bounds:
+    /// `Some(t)` for [`Finite`](Extended::Finite), `None` for
+    /// [`NegInf`](Extended::NegInf) / [`PosInf`](Extended::PosInf).
+    ///
+    /// This is the forgetful half of the `Extended<T> → Option<T>`
+    /// projection: it is **lossy on which bound was hit** — both
+    /// `NegInf` and `PosInf` collapse to `None`. When the endpoint
+    /// identity matters, use [`fold`](Extended::fold), or (with the
+    /// `try_trait` feature) the `?` operator, which propagates the
+    /// specific bound through `Extended`'s `FromResidual` impl.
+    ///
+    /// The `T: Copy` bound is what lets this be a `const fn` on stable:
+    /// a `const fn` that consumes a generic enum cannot evaluate its
+    /// destructor without the nightly `const_precise_live_drops`
+    /// feature, and `Copy` types have no destructor. The bound is free
+    /// for every `Extended<T>` used as a `Conn` endpoint (that machinery
+    /// already requires `A: Copy, B: Copy`), but it does exclude
+    /// non-`Copy` payloads such as `Extended<String>`. For those, the
+    /// equivalent stable — but non-`const` — projection is
+    /// `x.fold(None, None, Some)`, which moves the payload out with no
+    /// `Copy` bound.
+    ///
+    /// ```
+    /// use connections::extended::Extended;
+    /// assert_eq!(Extended::Finite(7_i32).finite(), Some(7));
+    /// assert_eq!(Extended::<i32>::NegInf.finite(), None);
+    /// assert_eq!(Extended::<i32>::PosInf.finite(), None);
+    ///
+    /// // Non-`Copy` payloads can't use `finite`; `fold` is the
+    /// // bound-free (non-`const`) equivalent:
+    /// let s: Option<String> =
+    ///     Extended::Finite(String::from("hi")).fold(None, None, Some);
+    /// assert_eq!(s, Some(String::from("hi")));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub const fn finite(self) -> Option<T>
+    where
+        T: Copy,
+    {
+        match self {
+            Extended::Finite(t) => Some(t),
+            Extended::NegInf | Extended::PosInf => None,
+        }
+    }
+}
+
+// ── `?`-support (nightly `try_trait` feature) ──────────────────────
+//
+// `Finite(t)` is the success payload; `NegInf` / `PosInf` short-circuit.
+// The residual is `Extended<Infallible>`, whose only inhabited variants
+// are the two bounds (the `Finite` arm is uninhabited), so `?` inside an
+// `Extended`-returning fn propagates the *specific* bound it hit — a
+// `NegInf` stays `NegInf`, a `PosInf` stays `PosInf`. Mirrors the std
+// `Option` / `ControlFlow` impls; see `Extended::finite` for the
+// bound-forgetting stable projection.
+
+/// `?`-extracts the [`Finite`](Extended::Finite) payload; `NegInf` /
+/// `PosInf` short-circuit through `FromResidual`, each preserving
+/// which bound was hit. Requires the nightly `try_trait` feature.
+#[cfg(feature = "try_trait")]
+impl<T> core::ops::Try for Extended<T> {
+    type Output = T;
+    type Residual = Extended<core::convert::Infallible>;
+
+    #[inline]
+    fn from_output(output: Self::Output) -> Self {
+        Extended::Finite(output)
+    }
+
+    #[inline]
+    fn branch(self) -> core::ops::ControlFlow<Self::Residual, Self::Output> {
+        match self {
+            Extended::Finite(t) => core::ops::ControlFlow::Continue(t),
+            Extended::NegInf => core::ops::ControlFlow::Break(Extended::NegInf),
+            Extended::PosInf => core::ops::ControlFlow::Break(Extended::PosInf),
+        }
+    }
+}
+
+#[cfg(feature = "try_trait")]
+impl<T> core::ops::FromResidual for Extended<T> {
+    #[inline]
+    fn from_residual(residual: Extended<core::convert::Infallible>) -> Self {
+        match residual {
+            Extended::NegInf => Extended::NegInf,
+            Extended::PosInf => Extended::PosInf,
+            // `Finite(Infallible)` is uninhabited — no value can reach it.
+            Extended::Finite(never) => match never {},
+        }
+    }
+}
+
+// The residual carries a bound back to a fresh `Extended<O>`: `?` in a
+// fn returning `Extended<O>` reconstitutes `NegInf` / `PosInf` at the
+// new payload type.
+#[cfg(feature = "try_trait")]
+impl<O> core::ops::Residual<O> for Extended<core::convert::Infallible> {
+    type TryType = Extended<O>;
 }
 
 impl<T: PartialOrd> PartialOrd for Extended<T> {

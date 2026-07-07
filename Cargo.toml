@@ -106,6 +106,17 @@ uhlc = ["dep:uhlc"]
 # `src/core.rs`, `src/float.rs`, and `src/fixed.rs`.
 macros = []
 
+# Implement `core::ops::Try` + `FromResidual` for `Interval`,
+# `Extended`, and `ExtendedFloat`, so the `?` operator extracts the
+# success payload (`Closed`'s endpoints; `Finite`; `Extend`) and
+# short-circuits on the boundary variants (`Empty`; `NegInf` / `PosInf`;
+# `Bot` / `Top`), propagating *which* boundary was hit. Requires nightly
+# Rust because `try_trait_v2` is currently unstable (tracking issue
+# #84277). Default stable builds skip these impls entirely; the inherent
+# extractors (`Interval::endpts`, `Extended::finite`, and the `fold`
+# family) expose the same information on stable.
+try_trait = []
+
 # docs.rs builds on stable rustc by default. We can't use
 # `all-features = true` because the `f16` feature activates
 # `#![cfg_attr(feature = "f16", feature(f16))]` — a nightly-only
