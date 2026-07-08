@@ -1282,6 +1282,8 @@ macro_rules! __float_ext_int_floor_body {
     ($float:ty, $int:ty, $v:ident) => {{
         if $v.is_nan() {
             $crate::extended::Extended::NegInf
+        } else if $v == <$float>::NEG_INFINITY {
+            $crate::extended::Extended::NegInf
         } else if $v == <$float>::INFINITY {
             $crate::extended::Extended::PosInf
         } else {
@@ -1454,6 +1456,25 @@ mod tests {
         assert_eq!(
             n.partial_cmp(&N5::new(f64::NAN)),
             Some(core::cmp::Ordering::Equal)
+        );
+    }
+
+    #[test]
+    fn float_ext_int_floor_helper_maps_neg_inf_to_neg_inf() {
+        let v = f32::NEG_INFINITY;
+        assert_eq!(
+            crate::__float_ext_int_floor_body!(f32, u8, v),
+            crate::extended::Extended::NegInf
+        );
+    }
+
+    #[cfg(feature = "f16")]
+    #[test]
+    fn float_ext_int_floor_helper_maps_f16_neg_inf_to_neg_inf() {
+        let v = f16::NEG_INFINITY;
+        assert_eq!(
+            crate::__float_ext_int_floor_body!(f16, i16, v),
+            crate::extended::Extended::NegInf
         );
     }
 

@@ -2027,7 +2027,6 @@ mod tests {
         assert_eq!(F064EUNX.ceil(N5::new(f64::NAN)), Extended::PosInf,);
         assert_eq!(F064EUNX.ceil(N5::new(f64::INFINITY)), Extended::PosInf,);
         assert_eq!(F064EUNX.ceil(N5::new(f64::NEG_INFINITY)), Extended::NegInf);
-        assert_eq!(F064EUNX.ceil(N5::new(f64::INFINITY)), Extended::PosInf);
     }
 
     // ── ETAIHDUR / EUTCHDUR iso law batteries ────────────────────
@@ -2199,7 +2198,6 @@ mod tests {
         assert_eq!(F064EGPS.ceil(N5::new(f64::NAN)), Extended::PosInf,);
         assert_eq!(F064EGPS.ceil(N5::new(f64::INFINITY)), Extended::PosInf,);
         assert_eq!(F064EGPS.ceil(N5::new(f64::NEG_INFINITY)), Extended::NegInf);
-        assert_eq!(F064EGPS.ceil(N5::new(f64::INFINITY)), Extended::PosInf);
     }
 
     #[test]
@@ -2569,7 +2567,6 @@ mod tests {
         assert_eq!(F064ETDT.ceil(N5::new(f64::NAN)), Extended::PosInf,);
         assert_eq!(F064ETDT.ceil(N5::new(f64::INFINITY)), Extended::PosInf,);
         assert_eq!(F064ETDT.ceil(N5::new(f64::NEG_INFINITY)), Extended::NegInf);
-        assert_eq!(F064ETDT.ceil(N5::new(f64::INFINITY)), Extended::PosInf);
     }
 
     #[test]

@@ -190,6 +190,8 @@ macro_rules! __float_fix_floor_body {
     ($float:ty, $Fixed:ident, $Frac:ty, $Bits:ty, $v:ident) => {{
         if $v.is_nan() {
             $crate::extended::Extended::NegInf
+        } else if $v == <$float>::NEG_INFINITY {
+            $crate::extended::Extended::NegInf
         } else if $v == <$float>::INFINITY {
             $crate::extended::Extended::PosInf
         } else {
@@ -318,6 +320,34 @@ macro_rules! float_fixed_l {
 
 pub(crate) use float_fixed;
 pub(crate) use float_fixed_l;
+
+#[cfg(test)]
+mod tests {
+    use crate::extended::Extended;
+    use fixed::FixedI8;
+    use fixed::types::extra::U0;
+
+    #[test]
+    fn float_fix_floor_helper_maps_neg_inf_to_neg_inf() {
+        let v = f32::NEG_INFINITY;
+        assert_eq!(
+            crate::__float_fix_floor_body!(f32, FixedI8, U0, i8, v),
+            Extended::NegInf
+        );
+    }
+
+    #[cfg(feature = "f16")]
+    #[test]
+    fn float_fix_floor_helper_maps_f16_neg_inf_to_neg_inf() {
+        use fixed::FixedI16;
+
+        let v = f16::NEG_INFINITY;
+        assert_eq!(
+            crate::__float_fix_floor_body!(f16, FixedI16, U0, i16, v),
+            Extended::NegInf
+        );
+    }
+}
 
 // ── Per-primitive submodules ───────────────────────────────────────
 
