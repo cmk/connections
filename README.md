@@ -7,16 +7,15 @@
 
 Read the docs [here](https://cmk.github.io/connections/).
 
+# Overview
+
 Galois connections as first-class Rust values. Use them to cast lawfully
 between numeric types, and compose ladders of conversions whose round-trip
 behavior is determined by simple inequalities rather than left to chance.
 Every operation derived from a `Conn` (rounding, saturation, median, ...)
 carries a property-tested invariant, so chains of conversions and round-
-trips behave predictably according to simple inequalities.
-
-The connection laws are not just sampled by proptest — every Galois law
-on every integer / Q-format / NonZero / iso connection is
-**SMT-proven** over the full bit-width domain via
+trips behave predictably according to simple inequalities that are both
+property tested and **SMT-proven** over the full bit-width domain via
 [Kani](https://model-checking.github.io/kani/) (see
 [Testing → SMT verification](#smt-verification-kani)).
 
@@ -24,30 +23,15 @@ on every integer / Q-format / NonZero / iso connection is
 changes — pin `connections = "0.1"` and an MSRV upgrade will surface as
 a 0.2 release rather than a silent break on a patch update.
 
-This crate is a Rust-native port of the Haskell library [`connections`](https://github.com/cmk/connections/).
+This crate is a Rust-native port of the Haskell library
+[`connections`](https://github.com/cmk/connections-haskell).
 
-# Quick start
+## Why this crate
 
-Most users only need `.ceil`, `.floor`, and the embedding (`.upper` for
-an L-side or triple Conn, `.lower` for an R-side Conn). The rest of
-this doc explains how those names get earned.
-
-```rust
-use connections::prelude::*;
-use connections::core::B2;
-use connections::core::i016::I016BE02;
-
-let bytes = B2([0x01, 0x02]);
-assert_eq!(I016BE02.ceil(258_i16), bytes);
-assert_eq!(I016BE02.floor(258_i16), bytes);
-assert_eq!(I016BE02.upper(bytes), 258_i16);
-assert_eq!(I016BE02.lower(bytes), 258_i16);
-```
-
-See [EXAMPLES.md](https://github.com/cmk/connections/blob/main/EXAMPLES.md)
-for a sequence of ten worked examples in various domains.
-
-# Why this crate
+Galois connections are the right shape for *static, lawful*
+conversions between partially ordered types (e.g. `f64 → f32`,
+`Duration → seconds`, `f32 → u32 → IpAddr`, etc) where each link in
+the chain is specifiable at compile time.
 
 The standard cast operators `as`, `From`, and `Into` give you exactly one
 direction at a time — and `as` in particular is silent on rounding,
@@ -79,7 +63,24 @@ you that the standard tools don't:
    specific ladders (decimal time rungs, audio sample rates) live
    in downstream crates; this crate ships the algebra.
 
-# What are connections?
+## Quick start
+
+```rust
+use connections::prelude::*;
+use connections::core::B2;
+use connections::core::i016::I016BE02;
+
+let bytes = B2([0x01, 0x02]);
+assert_eq!(I016BE02.ceil(258_i16), bytes);
+assert_eq!(I016BE02.floor(258_i16), bytes);
+assert_eq!(I016BE02.upper(bytes), 258_i16);
+assert_eq!(I016BE02.lower(bytes), 258_i16);
+```
+
+See [EXAMPLES.md](https://github.com/cmk/connections/blob/main/EXAMPLES.md)
+for a sequence of ten worked examples in various domains.
+
+## What are connections?
 
 A [Galois connection](https://en.wikipedia.org/wiki/Galois_connection)
 between preorders A and B is a pair of monotone maps `f: A → B` and
@@ -101,36 +102,44 @@ adjacent `↰ ↳` glyphs depict the *lens* `f(2) ↔ g(1)` — two
 non-crossing curves between rows 2 and 1, the geometric signature of
 adjointness.
 
-# When to use connections
+## How to use connections
 
-Galois connections are the right shape for *static, lawful* numeric
-conversions: `f64 → f32`, `Duration → seconds`, `f32 → u32 → IpAddr`,
-where each link in the chain is specifiable at compile. Use the
-`compose!` and related macros to define the connection you need
-statically at the use site. The discipline of pushing runtime 
-parameters and policy choices close to the static Conn call site
-tends to make conversion code clearer: the policy and the static cast
-are both visible inthe same body. A boundary helper that names what it
-does and visibly composes lawful Conns is a feature, not a workaround.
+Galois connections compose: (f₁ ⊣ g₁) ∘ (f₂ ⊣ g₂) is again an
+adjunction, and `compose!` builds that composite statically,
+law-checked as a whole. The moment you apply a destructor (e.g.
+`upper` , `lower`, `ceil`, `floor`, etc) you've left the Conn algebra
+and produced a concrete value that can no longer be composed. So early
+destructuring throws away the static guarantees that the full
+chain would have otherwise enjoyed. Therefore you will get the most
+bang for your buck if you follow two heuristics.
 
-Connections are **not** a good fit when:
+**Lift through the Conn.** A Conn is a little black box: the higher-
+arity helpers (e.g. `ceil*`, `floor*`, `round*`, `truncate*`, etc)
+take your arguments, do something with them in the Conn's other
+(usually higher-fidelity) domain, and return the result back in
+your original domain. `ceil2(t, h, b1, b2)` is `f(h(g(b1), g(b2)))`:
+embed `b1`/`b2` into the wider domain via `g`, run the closure `h`
+there, round back via `f`. Use this for domain arithmetic that would
+overflow or lose precision in your own type - do it in the wider
+domain and round back. Never hand-roll saturating math.
 
-1. **The conversion validates input.** FFI clamps, sentinel-checking
-   wrappers, and "domain restriction" guards belong as named helpers.
-   They're not adjunctions — they're partial functions that happen to
-   delegate to a Conn after a precondition check. Naming the precondition
-   in the helper signature is more useful than forcing it into a Conn.
-
-2. **The conversion needs a domain policy.** "Round to nearest sample,
-   ties toward zero, with a clamp at the audio max" is one specific
-   policy among several lawful ones; a Conn picks one. If your callers
-   need to inject the policy, expose the underlying ceil/floor/upper
-   primitives and let them assemble the policy at the call site.
-
-3. **The conversion takes a runtime parameter.** Keep the helper
-   as a normal named function whose body *visibly composes* the lawful
-   Conns it depends on.
+**Compose at the site.** Export Conns at the library level and use
+the `ConnL`/`ConnR`/`ConnK` API instead of get/set functions. When
+client code needs a multi-hop conversion, build the exact Conn with
+the compose macros (`compose`, `compose_l`, `compose_r`, `compose_k`)
+statically at the call site. Do not thread intermediates by hand.
+If the client code takes a runtime parameter then it's best to keep the
+helper as a normal named function whose body *visibly composes* with
+the lawful Conns it depends on.
    
+The discipline of pushing runtime parameters and conversion policy
+choices close to the static Conn call site means that the policy and
+the static cast are both visible in the same body. The results is code
+that is visibly correct, easy to test, and extensible to future use
+cases.
+
+# Library
+
 ## L & R kind connections
 
 The basic type in this library is:
@@ -151,36 +160,73 @@ satisfies `g(b) ≤ a ⟺ b ≤ f(a)`.
 The kind `K = {L, R}` determines the API. `L`/`ConnL` exposes `.ceil()`
 and `.upper()`, while `R`/`ConnR` exposes `.floor()` and `.lower()`.
 
-The crate keeps two distinct naming axes on purpose:
-
-- **Position names** — `upper` (the upper adjoint of the L-pair) and
-  `lower` (the lower adjoint of the R-pair) — match the math: a
-  generic `T: ConnK` bound exposes both because a triple has both
-  adjunctions, regardless of which way each one rounds in any concrete
-  instance.
 - **Direction names** — `ceil` (rounds up) and `floor` (rounds down) —
   match downstream intuition. "Give me a ceiling cast" doesn't require
   the caller to know which side of an adjunction they're on. However
   calling `.floor()` on an L-kind connection, or `ceil` on an R-kind
   connection results in a compiler error.
+- **Position names** — `upper` (the upper adjoint of the L-pair) and
+  `lower` (the lower adjoint of the R-pair) — match the math: a
+  generic `T: ConnK` bound exposes both because a triple has both
+  adjunctions, regardless of which way each one rounds in any concrete
+  instance.
+- **Consts vs markers** - Regular connections are `pub const`s of type
+  `Conn<A, B, L>` or `Conn<A, B, R>`. Two-sided `ConnK` connections
+  ship as `pub struct`s — zero-sized marker types implementing both
+  `ConnL` and `ConnR`. The const-vs-struct shape tells you which kind
+  a name refers to at a glance.
 
-> **Note.** One-sided connections ship as `pub const NAME: Conn<A, B, K>`
-> items; the two-sided (triple) form is a `pub struct NAME` marker
-> (see [2-kinded connections](#2-kinded-connections)).
+## API
 
-## 2-kinded connections
+- L-side methods on `Conn<_, _, L>` (and on any `ConnL` implementor
+  via default-method dispatch): `ceil`, `upper`, plus `ceil1`/`2`,
+  `upper1`/`2` lifters.
+- R-side methods on `Conn<_, _, R>` (and on any `ConnR` implementor):
+  `floor`, `lower`, plus `floor1`/`2`, `lower1`/`2` lifters.
+- Two-sided helpers (re-exported at the crate root): `interval`,
+  `round`/`round1`/`round2`,
+  `truncate`/`truncate1`/`truncate2`, `median`. All bind on
+  `T: ConnK` (super-trait of `ConnL + ConnR` over the same `(A, B)`),
+  so they're callable only on triple markers — not on one-sided Conns.
 
-When the same `inner` function determines **both** the L-side ceiling
-and the R-side floor, the pair packages as a single *adjoint triple* —
-`ceil ⊣ inner ⊣ floor` — rather than two unrelated one-sided values.
+Kind discipline is structural: calling `.floor(...)` on an L-kind
+Conn is a compile error (the method only exists on `Conn<_, _, R>`),
+and likewise `.ceil(...)` on R. Two-sided helpers similarly reject
+one-sided operands at compile time because a one-sided `Conn` doesn't
+implement `ConnK`.
 
-If additionally `inner` is order-reflecting (see [Sandwich
-inequality](#sandwich-inequality)), the triple gains a third group of
-'ambidextrous' helpers (`round`, `truncate`, …) that bind on both
-kinds at once.
+## Modules
 
-A triple ships as a **zero-sized marker struct** that implements
-two capability traits, hence the super-trait that ties them together:
+| Family | Module |
+|--------|--------|
+| IEEE-754 types | `float` | 
+| Q-format binary fixed-point (`Q###Q###`, i8/u8 … i128/u128 backing) | `fixed::{i008,…,i128, u008,…,u128}` (`fixed` cargo feature) |
+| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `core::{i008,…,i128, u008,…,u128}` |
+| `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `core::{i008,…,i128, u008,…,u128}` |
+| Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) and signed normalized bit isos (`Q007I008` … `Q127I128`) | `fixed::{i008,…,i128, u008,…,u128}` (`fixed` cargo feature) |
+| Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
+| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` cargo feature |
+| `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
+| `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
+| Pointer-width `usize` saturating casts (`USZEU008`, `USZEU016`, `USZEU032`, `USZEU064`, `USZEU128`) | `core::usize` |
+| Pointer-width `isize` casts (`ISZEI008`, `ISZEI016`, `ISZEI128`; `→ i32`/`→ i64` deferred) | `core::isize` |
+| Sortable byte encodings (`U008BE01`, `U008LE01`, `I008BE01`, `I008LE01`, `BOOLBE01`, `BOOLLE01`, through `U128BE16`, `U128LE16`, `I128BE16`, `I128LE16`) | `core::{bool, i008,…,i128, u008,…,u128}` |
+
+Constant-name prefixes are letter-disambiguated: `Q` for Q-format
+wrappers (sign and host bit-width come from the module path), `I`/`U`
+for std primitives (digits = bit-width), `N` for `NonZero<*>`, `F` for
+IEEE floats. Cross-module name collisions are allowed and resolved by
+qualified import (e.g. `fixed::i008::Q008Q000` and
+`fixed::i064::Q008Q000` co-exist).
+
+# `ConnK` connections
+
+When the same `inner` function can serve as both `upper` and `lower`
+*and* satisfies an additional order-reflecting property (see 
+[Sandwich inequality](#sandwich-inequality)), the library combines
+the two resulting connections into a zero-sized marker struct that
+gains a third group of 'ambidextrous' helpers via a super-trait that
+ties the `L` and `R` sides together:
 
 - **`ConnL`** — capability trait with associated types `type A: Copy;
   type B: Copy;` and a `conn_l()` projection to the L-view
@@ -195,24 +241,17 @@ two capability traits, hence the super-trait that ties them together:
 The trait names match the value-type spellings on purpose: a blanket
 `impl ConnL for Conn<A, B, L>` (and the R-side analogue) makes every
 one-sided value also satisfy the trait, so a generic `T: ConnL` bound
-accepts triple markers and raw `Conn<A, B, L>` values uniformly. To
-constrain `A`/`B` at the bound site, bind the associated types as
-`T: ConnL<A = A, B = B>`.
-
-> **Convention.** One-sided connections ship as `pub const`s of type
-> `Conn<A, B, L>` or `Conn<A, B, R>`. Two-sided (triple) connections
-> ship as `pub struct`s — zero-sized marker types implementing both
-> `ConnL` and `ConnR`. The const-vs-struct shape tells you which kind
-> a name refers to at a glance.
-
-The "third function" — the adjoint that distinguishes a triple from a
-one-sided Conn — lives as a free function in module scope, referenced
+accepts triple markers and raw `Conn<A, B, L>` values uniformly, and
+`inner` is defined as a free function in module scope, referenced
 from the marker's trait impls; no struct in the crate stores three
 function pointers.
 
+## Adjoint triples
+
 You construct a `ConnK` marker out of three functions: `ceil`, `inner`, 
-and `floor`. Both `ceil`/`inner` and `inner`/`floor` must satisfy the 
-connection property given above. In addition `ceil`/`floor` must satisfy
+and `floor` using one of the crate's provided macros. Note that both
+`ceil`/`inner` and `inner`/`floor` must satisfy the connection
+inequalities given above. In addition `ceil`/`floor` must satisfy
 the following 'sandwich' inequality: for every `a`, `floor(a) ≤ ceil(a)`
 
 Triples `ceil`/`inner`/`floor` that satisfy all three properties are known
@@ -220,14 +259,15 @@ as [adjoint triples](https://ncatlab.org/nlab/show/adjoint+triple) — the
 `ceil ⊣ inner ⊣ floor` shape outlined in
 [Example 3](https://github.com/cmk/connections/blob/main/EXAMPLES.md#example-3).
 
-The sandwich inequality is equivalent to the requirement that `inner` be
-[order-reflecting](https://en.wikipedia.org/wiki/Order_theory#Functions_between_orders).
+The sandwich inequality is equivalent to the earlier requirement that
+`inner` be [order-reflecting](https://en.wikipedia.org/wiki/Order_theory#Functions_between_orders).
 The `prop::conn::law_battery!` `full` subset enforces both [`floor_le_ceil`]
-as well as [`order_reflecting`]. Proof of equivalence is outlined in the 
-following section.
+as well as [`order_reflecting`]:
 
 [`floor_le_ceil`]: https://docs.rs/connections/latest/connections/prop/conn/fn.floor_le_ceil.html
 [`order_reflecting`]: https://docs.rs/connections/latest/connections/prop/conn/fn.order_reflecting.html
+
+Proof of equivalence is outlined in the following section.
 
 ## Sandwich inequality
 
@@ -378,7 +418,7 @@ and is gated behind `#[cfg(kani)]` so it compiles only under
 see no proof code. No new runtime dependency: Kani injects its own
 crate at proof time.
 
-The headline result is on the float side, where the IEEE bit space is
+The main result is on the float side, where the IEEE bit space is
 too large for full-Galois proofs to be tractable: the f64 → f32
 ULP-walk in `src/float/f064.rs` (`ceil_f64_f32` / `floor_f64_f32`) is
 proven to converge in **≤ 2 iterations for every finite non-NaN
@@ -386,51 +426,6 @@ f64**, not just the proptest sample. Three tiered harnesses
 (`float_walk::t0_*` for the full domain, `t1_*` for `|x| ≤ 1e6`,
 `t2_*` for the `[1, 2)` binade) each verify the bound under
 progressively tighter input restrictions.
-
-Coverage as of plan 39 (the introducing sprint): **1154 harnesses
-verified, 0 failures** across the integer-narrowing
-(`int_int_narrow!`, `uint_uint_narrow!`, `int_uint_narrow!`),
-integer-widening (`uint_uint!`, `int_uint!`, `ext_int!`),
-non-widening saturating (`uint_int_sat!`), NonZero-bridge
-(`nz_int_ext!`, `nz_uint_ext!`), Q-format ladder (`fix_fix_iN!` /
-`fix_fix_uN!`), cross-crate iso (`iso!`), and float-walking families.
-The `nz_int_ext!` harnesses additionally prove the closures'
-`<NonZero<_>>::new(_).unwrap()` calls cannot panic.
-
-Plan 43 extends the proof tree to the **time** and **hifi** domains.
-The float-bridging Conns there reuse the same `def_walk_helpers!`
-machinery as `F064F032`, walking on a 1 ns rung in
-`time::Duration` / `std::time::Duration` / `hifitime::Duration` /
-`hifitime::Epoch`; the `≤ 2 ULP iterations` claim is now a Kani
-theorem on **seven** walks (`f64`/`f32` over `time::Duration` and
-`std::time::Duration`, `f64`/`f32` over `hifitime::Duration`, and
-`f64` over `Epoch` in TAI scale) over the full non-fast-path
-finite-non-NaN domain. Pure-arithmetic Conns whose closures don't
-call into calendar / leap-second tables — `TIMENANO`, `TIMESECS`,
-`TDURSECS`, `SDURU064`, `SDURU128`, `HDURNANO`, `HDURSECS`,
-`ETAINANO`, and the `ETAIHDUR` iso — pick up the standard
-Galois-law battery.
-
-Plan 47's sortable byte encodings now live in the fixed-width modules
-instead of a separate `byte` feature. Big-endian 1-, 2-, and 4-byte
-hosts (`fixed::u008::U008BE01`, `fixed::i008::I008BE01`,
-`fixed::u016::U016BE02`, `fixed::i016::I016BE02`,
-`fixed::u032::U032BE04`, `fixed::i032::I032BE04`, plus the one-sided
-`fixed::u008::BOOLBE01`) are proven exhaustively under
-`src/kani_proofs/fixed_be_{one,two,four}.rs`; matching little-endian
-`LE<N>` encodings are proven in `fixed_le_{one,two,four}.rs`. The 8-
-and 16-byte hosts are proptest-only because 128/256-bit two-input
-symex stalls CBMC. Float byte encodings remain deferred: IEEE 754
-totalOrder-preserving byte encodings do not line up with the host
-endpoint's NaN-sensitive `PartialOrd`.
-
-Still out of scope: address Conns, full Galois laws on float Conns
-over the unrestricted IEEE bit space (intractable for CBMC's FP
-theory; `src/kani_proofs/float_weaker.rs` covers the productive
-finite-domain subset), `Date` / `OffsetDateTime` / UTC-scale
-hifi Conns whose closures consult leap-second / calendar tables
-(`DATEJDAY`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`, `EUNXNANO`,
-`EUTCHDUR`, `F064EUNX`), and composed-Conn lattice axioms.
 
 Run with:
 
@@ -444,48 +439,3 @@ cargo kani --harness 'int_narrow::'          # one family
 
 Per-harness wall times are in the milliseconds-to-seconds range; the
 full tree runs in well under two minutes.
-
-# Library
-
-## API
-
-- L-side methods on `Conn<_, _, L>` (and on any `ConnL` implementor
-  via default-method dispatch): `ceil`, `upper`, plus `ceil1`/`2`,
-  `upper1`/`2` lifters.
-- R-side methods on `Conn<_, _, R>` (and on any `ConnR` implementor):
-  `floor`, `lower`, plus `floor1`/`2`, `lower1`/`2` lifters.
-- Two-sided helpers (re-exported at the crate root): `interval`,
-  `round`/`round1`/`round2`,
-  `truncate`/`truncate1`/`truncate2`, `median`. All bind on
-  `T: ConnK` (super-trait of `ConnL + ConnR` over the same `(A, B)`),
-  so they're callable only on triple markers — not on one-sided Conns.
-
-Kind discipline is structural: calling `.floor(...)` on an L-kind
-Conn is a compile error (the method only exists on `Conn<_, _, R>`),
-and likewise `.ceil(...)` on R. Two-sided helpers similarly reject
-one-sided operands at compile time because a one-sided `Conn` doesn't
-implement `ConnK`.
-
-## Modules
-
-| Family | Module |
-|--------|--------|
-| IEEE-754 types | `float` | 
-| Q-format binary fixed-point (`Q###Q###`, i8/u8 … i128/u128 backing) | `fixed::{i008,…,i128, u008,…,u128}` (`fixed` cargo feature) |
-| Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `core::{i008,…,i128, u008,…,u128}` |
-| `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `core::{i008,…,i128, u008,…,u128}` |
-| Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) and signed normalized bit isos (`Q007I008` … `Q127I128`) | `fixed::{i008,…,i128, u008,…,u128}` (`fixed` cargo feature) |
-| Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
-| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` cargo feature |
-| `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
-| `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
-| Pointer-width `usize` saturating casts (`USZEU008`, `USZEU016`, `USZEU032`, `USZEU064`, `USZEU128`) | `core::usize` |
-| Pointer-width `isize` casts (`ISZEI008`, `ISZEI016`, `ISZEI128`; `→ i32`/`→ i64` deferred) | `core::isize` |
-| Sortable byte encodings (`U008BE01`, `U008LE01`, `I008BE01`, `I008LE01`, `BOOLBE01`, `BOOLLE01`, through `U128BE16`, `U128LE16`, `I128BE16`, `I128LE16`) | `core::{bool, i008,…,i128, u008,…,u128}` |
-
-Constant-name prefixes are letter-disambiguated: `Q` for Q-format
-wrappers (sign and host bit-width come from the module path), `I`/`U`
-for std primitives (digits = bit-width), `N` for `NonZero<*>`, `F` for
-IEEE floats. Cross-module name collisions are allowed and resolved by
-qualified import (e.g. `fixed::i008::Q008Q000` and
-`fixed::i064::Q008Q000` co-exist).
