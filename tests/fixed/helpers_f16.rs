@@ -7,13 +7,14 @@
 
 #![allow(dead_code)] // Each integration test imports a subset.
 
-use connections::float::ExtendedFloat;
+use connections::float::N5;
 use proptest::prelude::*;
 
-pub fn extended_float_f16() -> impl Strategy<Value = ExtendedFloat<f16>> {
+pub fn extended_float_f16() -> impl Strategy<Value = N5<f16>> {
     prop_oneof![
-        1 => Just(ExtendedFloat::Bot),
-        1 => Just(ExtendedFloat::Top),
+        1 => Just(N5::new(f16::NAN)),
+        1 => Just(N5::new(f16::NEG_INFINITY)),
+        1 => Just(N5::new(f16::INFINITY)),
         3 => prop_oneof![
             1 => (-10.0_f32..10.0_f32).prop_map(|v| v as f16),
             2 => prop_oneof![
@@ -43,6 +44,6 @@ pub fn extended_float_f16() -> impl Strategy<Value = ExtendedFloat<f16>> {
                 Just(255.0_f16),
                 Just(256.0_f16),
             ],
-        ].prop_map(ExtendedFloat::Extend),
+        ].prop_map(N5::new),
     ]
 }

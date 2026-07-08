@@ -44,18 +44,18 @@ fn conn_debug_non_empty() {
 #[test]
 fn prelude_glob_brings_traits() {
     use connections::core::f064::F064F032;
-    use connections::float::ExtendedFloat::Extend;
+    use connections::float::N5;
     use connections::prelude::*;
 
     // `ConnL::ceil` arrives via the prelude.
     let pi32 = F064F032
         .swap_l()
         .swap_r()
-        .ceil(Extend(std::f64::consts::PI));
-    assert_eq!(pi32, Extend(std::f32::consts::PI));
+        .ceil(N5::new(std::f64::consts::PI));
+    assert_eq!(pi32, N5::new(std::f32::consts::PI));
 
     // The bare two-sided helper `round` also arrives via the prelude.
     // 1.5 is exactly representable in f32, so the round-trip is lossless.
-    let r = round(&F064F032, Extend(1.5_f64));
-    assert_eq!(r, Extend(1.5_f32));
+    let r = round(&F064F032, N5::new(1.5_f64));
+    assert_eq!(r, N5::new(1.5_f32));
 }

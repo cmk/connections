@@ -76,7 +76,7 @@
 //! The float-to-Q-format bridge macros (`float_fixed!` /
 //! `float_fixed_l!`) and their `__float_fix_*_body!` helpers live in
 //! this parent module — they reach into both `crate::float`
-//! (`ExtendedFloat<T>`, `BitsToF64Rd`, `RoundDownFromF64`) and the
+//! (`N5<T>`, `BitsToF64Rd`, `RoundDownFromF64`) and the
 //! `fixed`-crate Q-format types, so they belong on this side of the
 //! `core`/`fixed` split.
 //!
@@ -101,18 +101,16 @@
 //
 // Saturation policy mirrors `__float_ext_int_*_body!`:
 //
-// - `ExtendedFloat::Bot`              → `Extended::NegInf`
-// - `ExtendedFloat::Top`              → `Extended::PosInf`
-// - `Extend(v)` with `v.is_nan()`     → `PosInf` (ceil) / `NegInf` (floor)
-// - `Extend(NEG_INFINITY)`            → `Finite(MIN)` (ceil) / `NegInf` (floor)
-// - `Extend(INFINITY)`                → `PosInf`
-// - `Extend(v)` with `v >  max_v_f64` → `PosInf` (ceil) / `Finite(MAX)` (floor)
-// - `Extend(v)` with `v <  min_v_f64` → `Finite(MIN)` (ceil) / `NegInf` (floor)
+// - `N5(NaN)`          → `PosInf` (ceil) / `NegInf` (floor)
+// - `N5(NEG_INFINITY)` → `NegInf`
+// - `N5(INFINITY)`     → `PosInf`
+// - `N5(v)` with `v >  max_v_f64` → `PosInf` (ceil) / `Finite(MAX)` (floor)
+// - `N5(v)` with `v <  min_v_f64` → `Finite(MIN)` (ceil) / `NegInf` (floor)
 // - in-range `v`                      → `Finite(<$Fixed<$Frac>>::from_bits((v * 2^F).ceil() as $Bits))`
 //                                      / same with `floor()`
 //
 // `inner` always materialises a finite float for `Finite(q)` and
-// emits `Bot`/`Top` for `NegInf`/`PosInf`. The
+// emits IEEE infinities for `NegInf`/`PosInf`. The
 // round-toward-negative-infinity semantics (via the
 // `RoundDownFromF64` dispatch) are L-Galois-correct — round-to-
 // nearest-even can over-round and break `ceil(inner(b)) ≤ b`.
@@ -133,10 +131,12 @@
 #[macro_export]
 macro_rules! __float_fix_ceil_body {
     ($float:ty, $Fixed:ident, $Frac:ty, $Bits:ty, $v:ident) => {{
-        // NaN: incomparable with finite Extend(_); ≤ Top in N5 →
-        // smallest b such that upper(b) ≥ NaN is PosInf.
+        // NaN is below +∞ and incomparable with finite values, so the
+        // smallest Extended<Q> whose upper image is >= NaN is PosInf.
         if $v.is_nan() {
             $crate::extended::Extended::PosInf
+        } else if $v == <$float>::NEG_INFINITY {
+            $crate::extended::Extended::NegInf
         } else if $v == <$float>::INFINITY {
             // Explicit +∞ guard — for f16 sources targeting
             // wide-host Q-formats (`<$Bits>::MAX as f16` saturates
@@ -190,6 +190,8 @@ macro_rules! __float_fix_floor_body {
     ($float:ty, $Fixed:ident, $Frac:ty, $Bits:ty, $v:ident) => {{
         if $v.is_nan() {
             $crate::extended::Extended::NegInf
+        } else if $v == <$float>::INFINITY {
+            $crate::extended::Extended::PosInf
         } else {
             let v_f64: f64 = $v as f64;
             let max_q: $Fixed<$Frac> = <$Fixed<$Frac>>::MAX;
@@ -215,12 +217,6 @@ macro_rules! __float_fix_floor_body {
 #[macro_export]
 macro_rules! __float_fix_inner_body {
     ($float:ty, $Fixed:ident, $Frac:ty, $Bits:ty, $b:ident) => {
-        // Map `Extended` sentinels to matching `ExtendedFloat`
-        // sentinels. Same N5-ordering reasoning as
-        // `__float_ext_int_inner_body!`: emitting `Extend(±INFINITY)`
-        // here would break Galois at `(Top, PosInf)` /
-        // `(Bot, NegInf)` boundaries.
-        //
         // Finite arm: round-toward-negative-infinity via f64
         // intermediate. The host-bits-to-f64 dispatch uses
         // [`BitsToF64Rd`](crate::float::BitsToF64Rd) so the u128
@@ -229,8 +225,8 @@ macro_rules! __float_fix_inner_body {
         // as i128` would wrap for `bits > i128::MAX` and break
         // L-Galois at the high plateau.
         match $b {
-            $crate::extended::Extended::NegInf => $crate::float::ExtendedFloat::Bot,
-            $crate::extended::Extended::PosInf => $crate::float::ExtendedFloat::Top,
+            $crate::extended::Extended::NegInf => $crate::float::N5::new(<$float>::NEG_INFINITY),
+            $crate::extended::Extended::PosInf => $crate::float::N5::new(<$float>::INFINITY),
             $crate::extended::Extended::Finite(q) => {
                 let approx_f64: f64 = <$Bits as $crate::float::BitsToF64Rd>::to_f64_rd(q.to_bits());
                 let scale_neg: f64 = $crate::float::scale_pow2_f64_neg(
@@ -239,13 +235,13 @@ macro_rules! __float_fix_inner_body {
                 let value_f64: f64 = approx_f64 * scale_neg;
                 let value: $float =
                     <$float as $crate::float::RoundDownFromF64>::from_f64_rd(value_f64);
-                $crate::float::ExtendedFloat::Extend(value)
+                $crate::float::N5::new(value)
             }
         }
     };
 }
 
-/// Emit a full adjoint-triple Conn `Conn<ExtendedFloat<$float>,
+/// Emit a full adjoint-triple Conn `Conn<N5<$float>,
 /// Extended<$Fixed<$Frac>>>` (impls `ConnL` + `ConnR`) via
 /// [`conn_k!`](crate::conn_k).
 ///
@@ -257,38 +253,30 @@ macro_rules! float_fixed {
     ($(#[$meta:meta])* $vis:vis $name:ident, $float:ty, $Fixed:ident, $Frac:ty, $Bits:ty) => {
         $crate::conn_k! {
             $(#[$meta])*
-            $vis $name : $crate::float::ExtendedFloat<$float> => $crate::extended::Extended<$Fixed<$Frac>> {
+            $vis $name : $crate::float::N5<$float> => $crate::extended::Extended<$Fixed<$Frac>> {
                 ceil:  {
-                    fn ceil(x: $crate::float::ExtendedFloat<$float>)
+                    fn ceil(x: $crate::float::N5<$float>)
                         -> $crate::extended::Extended<$Fixed<$Frac>>
                     {
-                        match x {
-                            $crate::float::ExtendedFloat::Bot => $crate::extended::Extended::NegInf,
-                            $crate::float::ExtendedFloat::Top => $crate::extended::Extended::PosInf,
-                            $crate::float::ExtendedFloat::Extend(v) =>
-                                $crate::__float_fix_ceil_body!($float, $Fixed, $Frac, $Bits, v),
-                        }
+                        let v = x.into_inner();
+                        $crate::__float_fix_ceil_body!($float, $Fixed, $Frac, $Bits, v)
                     }
                     ceil
                 },
                 inner: {
                     fn inner(b: $crate::extended::Extended<$Fixed<$Frac>>)
-                        -> $crate::float::ExtendedFloat<$float>
+                        -> $crate::float::N5<$float>
                     {
                         $crate::__float_fix_inner_body!($float, $Fixed, $Frac, $Bits, b)
                     }
                     inner
                 },
                 floor: {
-                    fn floor(x: $crate::float::ExtendedFloat<$float>)
+                    fn floor(x: $crate::float::N5<$float>)
                         -> $crate::extended::Extended<$Fixed<$Frac>>
                     {
-                        match x {
-                            $crate::float::ExtendedFloat::Bot => $crate::extended::Extended::NegInf,
-                            $crate::float::ExtendedFloat::Top => $crate::extended::Extended::PosInf,
-                            $crate::float::ExtendedFloat::Extend(v) =>
-                                $crate::__float_fix_floor_body!($float, $Fixed, $Frac, $Bits, v),
-                        }
+                        let v = x.into_inner();
+                        $crate::__float_fix_floor_body!($float, $Fixed, $Frac, $Bits, v)
                     }
                     floor
                 },
@@ -297,7 +285,7 @@ macro_rules! float_fixed {
     };
 }
 
-/// Emit an L-only Conn `Conn<ExtendedFloat<$float>,
+/// Emit an L-only Conn `Conn<N5<$float>,
 /// Extended<$Fixed<$Frac>>, L>`.
 ///
 /// Use when `<$Bits>::BITS > <$float>::MANTISSA_DIGITS` so that
@@ -309,21 +297,17 @@ macro_rules! float_fixed_l {
     ($(#[$meta:meta])* $vis:vis $name:ident, $float:ty, $Fixed:ident, $Frac:ty, $Bits:ty) => {
         $(#[$meta])*
         $vis const $name: $crate::conn::Conn<
-            $crate::float::ExtendedFloat<$float>,
+            $crate::float::N5<$float>,
             $crate::extended::Extended<$Fixed<$Frac>>,
         > = {
-            fn ceil(x: $crate::float::ExtendedFloat<$float>)
+            fn ceil(x: $crate::float::N5<$float>)
                 -> $crate::extended::Extended<$Fixed<$Frac>>
             {
-                match x {
-                    $crate::float::ExtendedFloat::Bot => $crate::extended::Extended::NegInf,
-                    $crate::float::ExtendedFloat::Top => $crate::extended::Extended::PosInf,
-                    $crate::float::ExtendedFloat::Extend(v) =>
-                        $crate::__float_fix_ceil_body!($float, $Fixed, $Frac, $Bits, v),
-                }
+                let v = x.into_inner();
+                $crate::__float_fix_ceil_body!($float, $Fixed, $Frac, $Bits, v)
             }
             fn inner(b: $crate::extended::Extended<$Fixed<$Frac>>)
-                -> $crate::float::ExtendedFloat<$float>
+                -> $crate::float::N5<$float>
             {
                 $crate::__float_fix_inner_body!($float, $Fixed, $Frac, $Bits, b)
             }

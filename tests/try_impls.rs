@@ -1,5 +1,5 @@
 //! `?`-operator (`Try` / `FromResidual`) behaviour for [`Interval`],
-//! [`Extended`], and [`ExtendedFloat`].
+//! [`Extended`], and [`N5`].
 //!
 //! Gated on the nightly `try_trait` feature — the whole file compiles to
 //! nothing on stable / without the feature, so it never enters the
@@ -19,7 +19,7 @@
 use std::ops::{ControlFlow, FromResidual, Try};
 
 use connections::extended::Extended;
-use connections::float::ExtendedFloat;
+use connections::float::N5;
 use connections::interval::Interval;
 use proptest::prelude::*;
 
@@ -103,60 +103,52 @@ proptest! {
     }
 }
 
-// ── ExtendedFloat<T> ────────────────────────────────────────────────
+// ── N5<T> ────────────────────────────────────────────────
 
-fn ef_sum(a: ExtendedFloat<f64>, b: ExtendedFloat<f64>) -> ExtendedFloat<f64> {
+fn ef_sum(a: N5<f64>, b: N5<f64>) -> N5<f64> {
     let x = a?;
     let y = b?;
-    ExtendedFloat::Extend(x + y)
+    N5::new(x + y)
 }
 
 #[test]
 fn extended_float_question_extracts_and_propagates() {
+    assert_eq!(ef_sum(N5::new(1.5), N5::new(2.0)), N5::new(3.5));
     assert_eq!(
-        ef_sum(ExtendedFloat::Extend(1.5), ExtendedFloat::Extend(2.0)),
-        ExtendedFloat::Extend(3.5)
+        ef_sum(N5::new(f64::NEG_INFINITY), N5::new(2.0)),
+        N5::new(f64::NEG_INFINITY)
     );
     assert_eq!(
-        ef_sum(ExtendedFloat::Bot, ExtendedFloat::Extend(2.0)),
-        ExtendedFloat::Bot
-    );
-    assert_eq!(
-        ef_sum(ExtendedFloat::Extend(1.5), ExtendedFloat::Top),
-        ExtendedFloat::Top
+        ef_sum(N5::new(1.5), N5::new(f64::INFINITY)),
+        N5::new(f64::INFINITY)
     );
 }
 
 #[test]
 fn extended_float_nan_is_a_payload_not_a_shortcircuit() {
-    // NaN lives in the `Extend` slot, so `?` extracts it as an ordinary
-    // payload — only the synthetic `Bot` / `Top` endpoints break. The
-    // sum stays NaN, and `Extend(NaN) == Extend(NaN)` by the reflexive
-    // `PartialEq`.
-    let out = ef_sum(ExtendedFloat::Extend(f64::NAN), ExtendedFloat::Extend(1.0));
-    assert_eq!(out, ExtendedFloat::Extend(f64::NAN));
+    // NaN is an ordinary payload for `?`. The sum stays NaN, and
+    // `N5::new(NaN) == N5::new(NaN)` by the reflexive `PartialEq`.
+    let out = ef_sum(N5::new(f64::NAN), N5::new(1.0));
+    assert_eq!(out, N5::new(f64::NAN));
 }
 
-fn arb_ef_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
+fn arb_ef_f64() -> impl Strategy<Value = N5<f64>> {
     prop_oneof![
-        1 => Just(ExtendedFloat::Bot),
-        1 => Just(ExtendedFloat::Top),
-        3 => any::<f64>().prop_map(ExtendedFloat::Extend),
+        1 => Just(N5::new(f64::NEG_INFINITY)),
+        1 => Just(N5::new(f64::NAN)),
+        1 => Just(N5::new(f64::INFINITY)),
+        3 => any::<f64>().prop_map(N5::new),
     ]
 }
 
 proptest! {
-    /// `Extend` continues; `Bot` / `Top` break and round-trip back to the
-    /// identical endpoint through `from_residual`.
+    /// `N5` is infallible under `Try`: every wrapped IEEE value continues
+    /// as the payload.
     #[test]
-    fn extended_float_branch_partitions_by_variant(x in arb_ef_f64()) {
+    fn extended_float_branch_always_continues(x in arb_ef_f64()) {
         match Try::branch(x) {
-            ControlFlow::Continue(_) => prop_assert!(matches!(x, ExtendedFloat::Extend(_))),
-            ControlFlow::Break(r) => {
-                prop_assert!(matches!(x, ExtendedFloat::Bot | ExtendedFloat::Top));
-                let back: ExtendedFloat<f64> = FromResidual::from_residual(r);
-                prop_assert_eq!(back, x);
-            }
+            ControlFlow::Continue(payload) => prop_assert_eq!(N5::new(payload), x),
+            ControlFlow::Break(r) => match r {},
         }
     }
 }

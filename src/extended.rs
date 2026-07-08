@@ -6,7 +6,7 @@
 //!
 //! `Extended` is a pure range-extension wrapper; it does not participate
 //! in float NaN handling — that lives in
-//! [`crate::float::ExtendedFloat`].
+//! [`crate::float::N5`].
 //!
 //! ## Functor-lift macros
 //!
@@ -127,8 +127,8 @@
 ///
 /// `Extended` is a *pure range-extension* wrapper; it does not encode
 /// float NaN. NaN-bearing types live in
-/// [`crate::float::ExtendedFloat`], which carries an `Extend(t)` arm
-/// instead and threads NaN through the N5 lattice.
+/// [`crate::float::N5`], which is a transparent float newtype that
+/// threads NaN through the N5 lattice.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Extended<T> {
     /// Synthetic bottom: less than every `Finite(t)` and less than `PosInf`.

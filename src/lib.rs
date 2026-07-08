@@ -112,17 +112,17 @@
 //!
 //! ```rust
 //! use connections::conn::ConnL;
-//! use connections::float::ExtendedFloat::Extend;
+//! use connections::float::N5;
 //! use connections::core::f064::F064F032;
 //!
-//! let pi64 = Extend(std::f64::consts::PI);
+//! let pi64 = N5::new(std::f64::consts::PI);
 //! // f32's nearest representation of π widened losslessly to f64.
-//! let pi32 = Extend(std::f32::consts::PI as f64);
+//! let pi32 = N5::new(std::f32::consts::PI as f64);
 //!
 //! // Lossless ≠ precise: the value is still the f32 approximation.
 //! assert_ne!(pi64, pi32);
 //! // upper just widens; for F064F032 that's the f32 → f64 cast.
-//! assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
+//! assert_eq!(F064F032.upper(N5::new(std::f32::consts::PI)), pi32);
 //! ```
 //!
 //! - [`interval`](crate::conn::interval) — bracket of `x` as an
@@ -198,7 +198,7 @@
 #![cfg_attr(feature = "f16", feature(f16))]
 // `Try` / `FromResidual` are still unstable (`try_trait_v2`, tracking
 // #84277). Opting into the `try_trait` cargo feature enables the `?`
-// impls on `Interval` / `Extended` / `ExtendedFloat`, but requires
+// impls on `Interval` / `Extended` / `N5`, but requires
 // building on nightly because `#![feature(try_trait_v2)]` is a
 // nightly-only attribute. Default stable builds skip those impls. The
 // `_residual` half is a separate gate: `Try::Residual` is bound by
@@ -245,11 +245,11 @@ pub mod uhlc;
 /// ```rust
 /// use connections::prelude::*;
 /// use connections::core::f064::F064F032;
-/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::N5;
 ///
 /// // The two-sided helpers and capability traits arrive via the prelude.
-/// let pi32 = F064F032.ceil(Extend(std::f64::consts::PI));
-/// assert_eq!(pi32, Extend(std::f32::consts::PI));
+/// let pi32 = F064F032.ceil(N5::new(std::f64::consts::PI));
+/// assert_eq!(pi32, N5::new(std::f32::consts::PI));
 /// ```
 pub mod prelude {
     pub use crate::conn::{ConnK, ConnL, ConnR};

@@ -176,28 +176,23 @@ pub fn arb_f16() -> impl Strategy<Value = f16> {
     ]
 }
 
-// ── ExtendedFloat<f??> / Extended<Rung> strategies ───────────────
+// ── N5<f??> / Extended<Rung> strategies ───────────────
 //
 // `any::<f64>()` shrinks bit-by-bit through the mantissa and
 // dominates runtime without finding structural bugs; bounded ranges
 // plus explicit boundaries give wide enough adjoint-law coverage.
 
-use crate::float::ExtendedFloat;
+use crate::float::N5;
 
 use crate::extended::Extended;
 
-/// `ExtendedFloat<f64>` over `Bot`, `Top`, and bounded `Finite`
-/// values.
-///
-/// 1:1:3 weighting (Bot:Top:Finite) — Bot and Top are each a single
-/// concrete value and the saturation-arm bugs they probe live at
-/// fixed code paths; bumping their share to 20% each (vs the prior
-/// 10%) ensures both arms hit reliably even at low case counts.
-pub fn extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
+/// `N5<f64>` over NaN, infinities, and bounded finite values.
+pub fn extended_float_f64() -> impl Strategy<Value = N5<f64>> {
     prop_oneof![
-        1 => Just(ExtendedFloat::Bot),
-        1 => Just(ExtendedFloat::Top),
-        3 => arb_f64_bounded().prop_map(ExtendedFloat::Extend),
+        1 => Just(N5::new(f64::NAN)),
+        1 => Just(N5::new(f64::NEG_INFINITY)),
+        1 => Just(N5::new(f64::INFINITY)),
+        3 => arb_f64_bounded().prop_map(N5::new),
     ]
 }
 
@@ -251,13 +246,13 @@ pub fn arb_f32_bounded() -> impl Strategy<Value = f32> {
     ]
 }
 
-/// `ExtendedFloat<f32>` over `Bot`, `Top`, and bounded `Finite`
-/// values. Mirrors [`extended_float_f64`]'s 1:1:3 weighting.
-pub fn extended_float_f32() -> impl Strategy<Value = ExtendedFloat<f32>> {
+/// `N5<f32>` over NaN, infinities, and bounded finite values.
+pub fn extended_float_f32() -> impl Strategy<Value = N5<f32>> {
     prop_oneof![
-        1 => Just(ExtendedFloat::Bot),
-        1 => Just(ExtendedFloat::Top),
-        3 => arb_f32_bounded().prop_map(ExtendedFloat::Extend),
+        1 => Just(N5::new(f32::NAN)),
+        1 => Just(N5::new(f32::NEG_INFINITY)),
+        1 => Just(N5::new(f32::INFINITY)),
+        3 => arb_f32_bounded().prop_map(N5::new),
     ]
 }
 
@@ -499,17 +494,16 @@ pub fn arb_extended_sdur_nanos_in_range() -> impl Strategy<Value = Extended<u128
     ]
 }
 
-/// `ExtendedFloat<f16>` over `Bot`, `Top`, and `Finite` from
-/// [`arb_f16`] — 1:1:3 weighting matching the f64/f32 extended-float
-/// strategies.
+/// `N5<f16>` over NaN, infinities, and values from [`arb_f16`].
 ///
 /// Gated on the `f16` cargo feature (nightly required).
 #[cfg(feature = "f16")]
-pub fn extended_float_f16() -> impl Strategy<Value = ExtendedFloat<f16>> {
+pub fn extended_float_f16() -> impl Strategy<Value = N5<f16>> {
     prop_oneof![
-        1 => Just(ExtendedFloat::Bot),
-        1 => Just(ExtendedFloat::Top),
-        3 => arb_f16().prop_map(ExtendedFloat::Extend),
+        1 => Just(N5::new(f16::NAN)),
+        1 => Just(N5::new(f16::NEG_INFINITY)),
+        1 => Just(N5::new(f16::INFINITY)),
+        3 => arb_f16().prop_map(N5::new),
     ]
 }
 

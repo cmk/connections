@@ -11,13 +11,14 @@
 
 #![allow(dead_code)] // Each integration test imports a subset.
 
-use connections::float::ExtendedFloat;
+use connections::float::N5;
 use proptest::prelude::*;
 
-pub fn extended_float_f32() -> impl Strategy<Value = ExtendedFloat<f32>> {
+pub fn extended_float_f32() -> impl Strategy<Value = N5<f32>> {
     prop_oneof![
-        1 => Just(ExtendedFloat::Bot),
-        1 => Just(ExtendedFloat::Top),
+        1 => Just(N5::new(f32::NAN)),
+        1 => Just(N5::new(f32::NEG_INFINITY)),
+        1 => Just(N5::new(f32::INFINITY)),
         3 => prop_oneof![
             1 => -10.0_f32..10.0_f32,
             2 => prop_oneof![
@@ -45,14 +46,15 @@ pub fn extended_float_f32() -> impl Strategy<Value = ExtendedFloat<f32>> {
                 Just(-2.0_f32.powi(127)),
                 Just(f32::from_bits(2.0_f32.powi(127).to_bits() + 1)),
             ],
-        ].prop_map(ExtendedFloat::Extend),
+        ].prop_map(N5::new),
     ]
 }
 
-pub fn extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
+pub fn extended_float_f64() -> impl Strategy<Value = N5<f64>> {
     prop_oneof![
-        1 => Just(ExtendedFloat::Bot),
-        1 => Just(ExtendedFloat::Top),
+        1 => Just(N5::new(f64::NAN)),
+        1 => Just(N5::new(f64::NEG_INFINITY)),
+        1 => Just(N5::new(f64::INFINITY)),
         3 => prop_oneof![
             1 => -1.0e9_f64..1.0e9_f64,
             2 => prop_oneof![
@@ -78,6 +80,6 @@ pub fn extended_float_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
                 Just(2.0_f64.powi(128)),
                 Just(f64::from_bits(2.0_f64.powi(128).to_bits() + 1)),
             ],
-        ].prop_map(ExtendedFloat::Extend),
+        ].prop_map(N5::new),
     ]
 }

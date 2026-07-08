@@ -15,26 +15,26 @@ use connections::conn::{
     Conn, ConnK, ConnL, ConnR, L, R, interval, median, round, round1, truncate, view_l, view_r,
 };
 use connections::core::f064::F064F032;
-use connections::float::ExtendedFloat::{self, Extend};
+use connections::float::N5;
 use proptest::prelude::*;
 
-/// `ExtendedFloat<f64>` strategy biased toward the `Bot` / `Top`
-/// boundary elements, with a finite interior band (no NaN, so
-/// `PartialEq` on the two computed sides is well-behaved).
-fn ext_f64() -> impl Strategy<Value = ExtendedFloat<f64>> {
+/// `N5<f64>` strategy biased toward infinity boundaries, with a finite
+/// interior band (no NaN, so `PartialEq` on the two computed sides is
+/// well-behaved).
+fn ext_f64() -> impl Strategy<Value = N5<f64>> {
     prop_oneof![
-        1 => Just(ExtendedFloat::Bot),
-        1 => Just(ExtendedFloat::Top),
-        8 => (-1.0e6_f64..1.0e6).prop_map(Extend),
+        1 => Just(N5::new(f64::NEG_INFINITY)),
+        1 => Just(N5::new(f64::INFINITY)),
+        8 => (-1.0e6_f64..1.0e6).prop_map(N5::new),
     ]
 }
 
-/// `ExtendedFloat<f32>` counterpart of [`ext_f64`].
-fn ext_f32() -> impl Strategy<Value = ExtendedFloat<f32>> {
+/// `N5<f32>` counterpart of [`ext_f64`].
+fn ext_f32() -> impl Strategy<Value = N5<f32>> {
     prop_oneof![
-        1 => Just(ExtendedFloat::Bot),
-        1 => Just(ExtendedFloat::Top),
-        8 => (-1.0e6_f32..1.0e6).prop_map(Extend),
+        1 => Just(N5::new(f32::NEG_INFINITY)),
+        1 => Just(N5::new(f32::INFINITY)),
+        8 => (-1.0e6_f32..1.0e6).prop_map(N5::new),
     ]
 }
 

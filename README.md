@@ -350,7 +350,7 @@ Optional cargo features:
 | `time` | Civil-calendar and time-span Conns backed by the `time` crate | stable |
 | `hifi` | Nanosecond-precision `hifitime::Duration` / `Epoch` Conns | stable |
 | `f16` | IEEE binary16 connections (`F016`, `F032F016`, `F064F016`) and their proptest strategies | nightly (uses `#![feature(f16)]` — tracking [#116909](https://github.com/rust-lang/rust/issues/116909)) |
-| `try_trait` | `?`-operator (`Try` / `FromResidual`) support on `Interval`, `Extended`, `ExtendedFloat` — extracts the success payload, short-circuits on the boundary variants | nightly (uses `#![feature(try_trait_v2)]` — tracking [#84277](https://github.com/rust-lang/rust/issues/84277)) |
+| `try_trait` | `?`-operator (`Try` / `FromResidual`) support on `Interval`, `Extended`, `N5` — extracts the success payload; `Interval` / `Extended` short-circuit on boundary variants, `N5` is infallible | nightly (uses `#![feature(try_trait_v2)]` — tracking [#84277](https://github.com/rust-lang/rust/issues/84277)) |
 
 The `connections::prop::conn` and `connections::prop::lattice`
 predicate modules are *always* public — they're pure `bool`-returning
@@ -398,9 +398,9 @@ A tenth law, `conn_floor_le_ceil` (`floor(a) ≤ ceil(a)`), is asserted
 only on `ConnK` connections whose `inner` is an injective embedding. See
 [above](#sandwich-inequality).
 
-For float-bearing types, the `≤` is a [N5 lattice](https://en.wikipedia.org/wiki/Distributive_lattice#Characteristic_properties). 
-In particular, NaN is reflexive, NaN sits between ±∞ in the synthetic lattice, 
-and finite values are strictly ordered. `ExtendedFloat` carries these semantics.
+For float-bearing types, the `≤` is an [N5 lattice](https://en.wikipedia.org/wiki/Modular_lattice#Examples).
+In particular, NaN is reflexive, NaN sits between ±∞, and finite values
+are strictly ordered. `N5` carries these semantics.
 
 ## SMT verification (Kani)
 

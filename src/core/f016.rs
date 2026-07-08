@@ -1,4 +1,4 @@
-//! [`F016`](crate::float::F016) (`ExtendedFloat<f16>`) plus the 16-bit
+//! [`F016`](crate::float::F016) (`N5<f16>`) plus the 16-bit
 //! ULP machinery used by the source-hosted half-precision Conns.
 //!
 //! [`crate::core::f032::F032F016`] and [`crate::core::f064::F064F016`]
@@ -12,9 +12,7 @@
 //! `#[cfg(feature = "f16")] pub mod f016;` in the parent), which
 //! requires nightly Rust.
 
-use crate::float::{
-    ExtendedFloat, def_walk_helpers, float_ext_int, float_ext_int_l, impl_float_ext,
-};
+use crate::float::{N5, def_walk_helpers, float_ext_int, float_ext_int_l, impl_float_ext};
 
 impl_float_ext!(f16);
 
@@ -134,35 +132,35 @@ pub(crate) fn floor_f64_f16(x: f64) -> f16 {
 // ── §2: f16 → Extended<intN> narrowing ───────────────────────────────
 
 float_ext_int!  (
-    /// `ExtendedFloat<f16> ↔ Extended<u8>` — full Galois triple.
+    /// `N5<f16> ↔ Extended<u8>` — full Galois triple.
     pub F016U008, f16, u8
 );
 float_ext_int_l!(
-    /// `ExtendedFloat<f16> → Extended<u16>` — L-only.
+    /// `N5<f16> → Extended<u16>` — L-only.
     pub F016U016, f16, u16
 );
 float_ext_int_l!(
-    /// `ExtendedFloat<f16> → Extended<u32>` — L-only.
+    /// `N5<f16> → Extended<u32>` — L-only.
     pub F016U032, f16, u32
 );
 float_ext_int_l!(
-    /// `ExtendedFloat<f16> → Extended<u64>` — L-only.
+    /// `N5<f16> → Extended<u64>` — L-only.
     pub F016U064, f16, u64
 );
 float_ext_int!  (
-    /// `ExtendedFloat<f16> ↔ Extended<i8>` — full Galois triple.
+    /// `N5<f16> ↔ Extended<i8>` — full Galois triple.
     pub F016I008, f16, i8
 );
 float_ext_int_l!(
-    /// `ExtendedFloat<f16> → Extended<i16>` — L-only.
+    /// `N5<f16> → Extended<i16>` — L-only.
     pub F016I016, f16, i16
 );
 float_ext_int_l!(
-    /// `ExtendedFloat<f16> → Extended<i32>` — L-only.
+    /// `N5<f16> → Extended<i32>` — L-only.
     pub F016I032, f16, i32
 );
 float_ext_int_l!(
-    /// `ExtendedFloat<f16> → Extended<i64>` — L-only.
+    /// `N5<f16> → Extended<i64>` — L-only.
     pub F016I064, f16, i64
 );
 
@@ -180,17 +178,19 @@ mod tests {
 
     fn ef32() -> impl Strategy<Value = F032> {
         prop_oneof![
-            1 => Just(ExtendedFloat::Bot),
-            1 => Just(ExtendedFloat::Top),
-            8 => arb_f32().prop_map(ExtendedFloat::Extend),
+            1 => Just(N5::new(f32::NAN)),
+            1 => Just(N5::new(f32::NEG_INFINITY)),
+            1 => Just(N5::new(f32::INFINITY)),
+            8 => arb_f32().prop_map(N5::new),
         ]
     }
 
     fn ef64() -> impl Strategy<Value = F064> {
         prop_oneof![
-            1 => Just(ExtendedFloat::Bot),
-            1 => Just(ExtendedFloat::Top),
-            8 => arb_f64().prop_map(ExtendedFloat::Extend),
+            1 => Just(N5::new(f64::NAN)),
+            1 => Just(N5::new(f64::NEG_INFINITY)),
+            1 => Just(N5::new(f64::INFINITY)),
+            8 => arb_f64().prop_map(N5::new),
         ]
     }
 
@@ -254,11 +254,11 @@ mod tests {
 
     #[test]
     fn f16_same_shape() {
-        let n: ExtendedFloat<f16> = ExtendedFloat::Extend(f16::NAN);
-        assert_eq!(n, ExtendedFloat::Extend(f16::NAN));
-        assert!(ExtendedFloat::<f16>::Bot < n);
-        assert!(n < ExtendedFloat::<f16>::Top);
-        assert!(n.partial_cmp(&ExtendedFloat::Extend(1.0_f16)).is_none());
+        let n: N5<f16> = N5::new(f16::NAN);
+        assert_eq!(n, N5::new(f16::NAN));
+        assert!(N5::new(f16::NEG_INFINITY) < n);
+        assert!(n < N5::new(f16::INFINITY));
+        assert!(n.partial_cmp(&N5::new(1.0_f16)).is_none());
     }
 
     proptest! {
@@ -307,23 +307,20 @@ mod tests {
 
     #[test]
     fn f016u008_exact() {
-        assert_eq!(
-            F016U008.ceil(ExtendedFloat::Extend(42.0_f16)),
-            Extended::Finite(42_u8),
-        );
+        assert_eq!(F016U008.ceil(N5::new(42.0_f16)), Extended::Finite(42_u8),);
     }
 
     #[test]
     fn f016u016_max_finite_f16_in_range() {
         assert_eq!(
-            F016U016.ceil(ExtendedFloat::Extend(f16::MAX)),
+            F016U016.ceil(N5::new(f16::MAX)),
             Extended::Finite(65504_u16),
         );
     }
 
     #[test]
     fn f016i008_saturate() {
-        let huge = ExtendedFloat::Extend(1000.0_f16);
+        let huge = N5::new(1000.0_f16);
         assert_eq!(F016I008.ceil(huge), Extended::PosInf);
     }
 
