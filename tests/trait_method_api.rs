@@ -18,11 +18,11 @@ use connections::core::f064::F064F032;
 use connections::float::N5;
 use proptest::prelude::*;
 
-/// `N5<f64>` strategy biased toward infinity boundaries, with a finite
-/// interior band (no NaN, so `PartialEq` on the two computed sides is
-/// well-behaved).
+/// `N5<f64>` strategy biased toward N5 boundaries, with a finite
+/// interior band. NaN is included because `N5` makes it reflexive.
 fn ext_f64() -> impl Strategy<Value = N5<f64>> {
     prop_oneof![
+        1 => Just(N5::new(f64::NAN)),
         1 => Just(N5::new(f64::NEG_INFINITY)),
         1 => Just(N5::new(f64::INFINITY)),
         8 => (-1.0e6_f64..1.0e6).prop_map(N5::new),
@@ -32,6 +32,7 @@ fn ext_f64() -> impl Strategy<Value = N5<f64>> {
 /// `N5<f32>` counterpart of [`ext_f64`].
 fn ext_f32() -> impl Strategy<Value = N5<f32>> {
     prop_oneof![
+        1 => Just(N5::new(f32::NAN)),
         1 => Just(N5::new(f32::NEG_INFINITY)),
         1 => Just(N5::new(f32::INFINITY)),
         8 => (-1.0e6_f32..1.0e6).prop_map(N5::new),
