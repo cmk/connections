@@ -13,11 +13,10 @@ Galois connections as first-class Rust values. Use them to cast lawfully
 between numeric types, and compose ladders of conversions whose round-trip
 behavior is determined by simple inequalities rather than left to chance.
 Every operation derived from a `Conn` (rounding, saturation, median, ...)
-carries a property-tested invariant, so chains of conversions and round-
-trips behave predictably according to simple inequalities that are both
-property tested and **SMT-proven** over the full bit-width domain via
-[Kani](https://model-checking.github.io/kani/) (see
-[Testing → SMT verification](#smt-verification-kani)).
+carries a property-tested invariant. The generated fixed-width
+integer, Q-format, NonZero, and iso families also have Kani harnesses
+for full bit-width SMT proofs; float SMT coverage is narrower and
+called out under [Testing → SMT verification](#smt-verification-kani).
 
 **MSRV: Rust 1.88.** Bumps to the MSRV will be treated as minor-version
 changes — pin `connections = "0.1"` and an MSRV upgrade will surface as
@@ -404,28 +403,32 @@ are strictly ordered. `N5` carries these semantics.
 
 ## SMT verification (Kani)
 
-Beyond the proptest law suite — which samples — every Galois law on
-every fixed-width integer / Q-format / NonZero / iso connection is
-**SMT-proven** over the full bit-width domain via
-[Kani](https://model-checking.github.io/kani/). The pointer-width
+Beyond the proptest law suite — which samples — the generated
+fixed-width integer / Q-format / NonZero / iso connection families
+listed in [`src/kani.rs`](https://github.com/cmk/connections/blob/main/src/kani.rs)
+have Kani harnesses for their Galois-law predicates over the full
+bit-width domain. The pointer-width
 `usize` / `isize` families (`core::usize` / `core::isize`) are the
 exception: CBMC models a single concrete pointer width per run, so
 those Conns are covered by the proptest battery on the host target
 rather than a width-agnostic SMT proof. The proof tree lives at
-[`src/kani_proofs/`](https://github.com/cmk/connections/tree/main/src/kani_proofs)
+[`src/kani/`](https://github.com/cmk/connections/tree/main/src/kani)
 and is gated behind `#[cfg(kani)]` so it compiles only under
 `cargo kani` — release builds, `cargo test`, and downstream consumers
 see no proof code. No new runtime dependency: Kani injects its own
 crate at proof time.
 
-The main result is on the float side, where the IEEE bit space is
-too large for full-Galois proofs to be tractable: the f64 → f32
-ULP-walk in `src/float/f064.rs` (`ceil_f64_f32` / `floor_f64_f32`) is
-proven to converge in **≤ 2 iterations for every finite non-NaN
-f64**, not just the proptest sample. Three tiered harnesses
+The float-specific SMT result is deliberately narrower: the IEEE bit
+space is too large for full-Galois proofs to be tractable, so the
+`f64 → f32` ULP-walk in `src/core/f064.rs` (`ceil_f64_f32` /
+`floor_f64_f32`) is proven to converge in **≤ 2 iterations for every
+finite non-NaN f64**, not just the proptest sample. Three tiered harnesses
 (`float_walk::t0_*` for the full domain, `t1_*` for `|x| ≤ 1e6`,
 `t2_*` for the `[1, 2)` binade) each verify the bound under
-progressively tighter input restrictions.
+progressively tighter input restrictions. These harnesses do not prove
+full float Galois laws over NaN/±∞, and they do not cover the
+float→integer or float→fixed macro helper bodies; those branches are
+covered by the proptest law batteries and explicit helper/unit tests.
 
 Run with:
 

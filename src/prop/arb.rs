@@ -26,10 +26,12 @@
 //!   boundaries give wider adjoint-law coverage. See
 //!   `doc/plans/plan-2026-04-23-05.md` for the original discussion.
 //!
-//! Extended-wrapped variants (`extended_float_f??`, `arb_extended_*`)
-//! use **1:1:2** weighting (or 1:1:3 for floats, 1:1:1 for finite-
-//! variant enums) to give NegInf/PosInf saturation arms enough
-//! sampling rate to hit reliably even at low case counts.
+//! Wrapped variants bias synthetic or IEEE special values explicitly:
+//! `Extended<T>` strategies use **1:1:2** weighting for
+//! `NegInf` / `PosInf` / finite values, while `N5` float strategies
+//! use **1:1:1:3** weighting for `NaN` / `-∞` / `+∞` / bounded values.
+//! The bounded float arm also contains its own boundary slot, so IEEE
+//! specials remain overrepresented even after the first-stage choice.
 //!
 //! Tier-specific strategies live here too: `fixed_*` for the
 //! decimal fixed-point ladder, and `extended_*` for `Extended`-

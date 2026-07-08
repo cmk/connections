@@ -328,23 +328,71 @@ mod tests {
     use fixed::types::extra::U0;
 
     #[test]
-    fn float_fix_floor_helper_maps_neg_inf_to_neg_inf() {
-        let v = f32::NEG_INFINITY;
+    fn float_fix_helper_boundary_policy() {
+        let v = f32::NAN;
+        assert_eq!(
+            crate::__float_fix_ceil_body!(f32, FixedI8, U0, i8, v),
+            Extended::PosInf
+        );
         assert_eq!(
             crate::__float_fix_floor_body!(f32, FixedI8, U0, i8, v),
             Extended::NegInf
+        );
+
+        let v = f32::NEG_INFINITY;
+        assert_eq!(
+            crate::__float_fix_ceil_body!(f32, FixedI8, U0, i8, v),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::__float_fix_floor_body!(f32, FixedI8, U0, i8, v),
+            Extended::NegInf
+        );
+
+        let v = f32::INFINITY;
+        assert_eq!(
+            crate::__float_fix_ceil_body!(f32, FixedI8, U0, i8, v),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::__float_fix_floor_body!(f32, FixedI8, U0, i8, v),
+            Extended::PosInf
         );
     }
 
     #[cfg(feature = "f16")]
     #[test]
-    fn float_fix_floor_helper_maps_f16_neg_inf_to_neg_inf() {
+    fn float_fix_helper_f16_wide_boundary_policy() {
         use fixed::FixedI16;
 
-        let v = f16::NEG_INFINITY;
+        let v = f16::NAN;
+        assert_eq!(
+            crate::__float_fix_ceil_body!(f16, FixedI16, U0, i16, v),
+            Extended::PosInf
+        );
         assert_eq!(
             crate::__float_fix_floor_body!(f16, FixedI16, U0, i16, v),
             Extended::NegInf
+        );
+
+        let v = f16::NEG_INFINITY;
+        assert_eq!(
+            crate::__float_fix_ceil_body!(f16, FixedI16, U0, i16, v),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::__float_fix_floor_body!(f16, FixedI16, U0, i16, v),
+            Extended::NegInf
+        );
+
+        let v = f16::INFINITY;
+        assert_eq!(
+            crate::__float_fix_ceil_body!(f16, FixedI16, U0, i16, v),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::__float_fix_floor_body!(f16, FixedI16, U0, i16, v),
+            Extended::PosInf
         );
     }
 }

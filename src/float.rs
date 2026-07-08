@@ -1402,6 +1402,7 @@ pub(crate) use float_ext_int_l;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::extended::Extended;
     use crate::prop::arb::extended_float_f64;
     use proptest::prelude::*;
 
@@ -1460,21 +1461,69 @@ mod tests {
     }
 
     #[test]
-    fn float_ext_int_floor_helper_maps_neg_inf_to_neg_inf() {
-        let v = f32::NEG_INFINITY;
+    fn float_ext_int_helper_boundary_policy() {
+        let v = f32::NAN;
+        assert_eq!(
+            crate::__float_ext_int_ceil_body!(f32, u8, v),
+            Extended::PosInf
+        );
         assert_eq!(
             crate::__float_ext_int_floor_body!(f32, u8, v),
-            crate::extended::Extended::NegInf
+            Extended::NegInf
+        );
+
+        let v = f32::NEG_INFINITY;
+        assert_eq!(
+            crate::__float_ext_int_ceil_body!(f32, u8, v),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::__float_ext_int_floor_body!(f32, u8, v),
+            Extended::NegInf
+        );
+
+        let v = f32::INFINITY;
+        assert_eq!(
+            crate::__float_ext_int_ceil_body!(f32, u8, v),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::__float_ext_int_floor_body!(f32, u8, v),
+            Extended::PosInf
         );
     }
 
     #[cfg(feature = "f16")]
     #[test]
-    fn float_ext_int_floor_helper_maps_f16_neg_inf_to_neg_inf() {
-        let v = f16::NEG_INFINITY;
+    fn float_ext_int_helper_f16_wide_boundary_policy() {
+        let v = f16::NAN;
+        assert_eq!(
+            crate::__float_ext_int_ceil_body!(f16, i16, v),
+            Extended::PosInf
+        );
         assert_eq!(
             crate::__float_ext_int_floor_body!(f16, i16, v),
-            crate::extended::Extended::NegInf
+            Extended::NegInf
+        );
+
+        let v = f16::NEG_INFINITY;
+        assert_eq!(
+            crate::__float_ext_int_ceil_body!(f16, i16, v),
+            Extended::NegInf
+        );
+        assert_eq!(
+            crate::__float_ext_int_floor_body!(f16, i16, v),
+            Extended::NegInf
+        );
+
+        let v = f16::INFINITY;
+        assert_eq!(
+            crate::__float_ext_int_ceil_body!(f16, i16, v),
+            Extended::PosInf
+        );
+        assert_eq!(
+            crate::__float_ext_int_floor_body!(f16, i16, v),
+            Extended::PosInf
         );
     }
 

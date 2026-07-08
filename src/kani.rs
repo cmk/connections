@@ -1,13 +1,20 @@
 //! SMT-verified Galois-connection laws via [Kani].
 //!
-//! This subtree mirrors the macro families in [`crate::fixed`] one
-//! file per family. Each `#[kani::proof]` harness is the SMT
+//! Most of this subtree mirrors generated non-float macro families one
+//! file per family. Each such `#[kani::proof]` harness is the SMT
 //! analogue of one of the proptest cases under `tests/*_galois.rs` —
 //! same predicate (from [`crate::prop::conn`]), but the input is a
 //! `kani::any::<_>()` symbolic value rather than a sampled
 //! `proptest::any!()`. CBMC then bit-blasts the predicate over the
 //! full input domain and either returns a proof or surfaces a
 //! counterexample.
+//!
+//! Float coverage is intentionally narrower. [`float_walk`] and
+//! [`float_weaker`] cover `crate::core::f064::F064F032` on finite,
+//! non-NaN slices; they do not prove full IEEE-space Galois laws and
+//! they do not cover the float→integer or float→fixed macro helper
+//! bodies. Those branches are covered by the proptest law batteries
+//! and explicit helper/unit tests.
 //!
 //! ## Running
 //!
