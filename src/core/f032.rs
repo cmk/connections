@@ -1,8 +1,8 @@
-//! Conns sourced from [`crate::float::F032`] (`ExtendedFloat<f32>`).
+//! Conns sourced from [`crate::float::F032`] (`N5<f32>`).
 //!
 //! Houses:
 //!
-//! - `F032F016` (`ExtendedFloat<f32> → ExtendedFloat<f16>`) — float
+//! - `F032F016` (`N5<f32> → N5<f16>`) — float
 //!   narrowing, behind the `f16` cargo feature.
 //! - `F032U008` / `F032U016` / `F032I008` / `F032I016` — full Galois
 //!   triples (target fits in the f32 mantissa).
@@ -11,34 +11,22 @@
 #[cfg(feature = "f16")]
 use super::f016::{ceil_f32_f16, floor_f32_f16};
 #[cfg(feature = "f16")]
-use crate::float::{ExtendedFloat, F016, F032};
+use crate::float::{F016, F032, N5};
 use crate::float::{float_ext_int, float_ext_int_l};
 
 #[cfg(feature = "f16")]
 fn f032f016_ceil(x: F032) -> F016 {
-    match x {
-        ExtendedFloat::Bot => ExtendedFloat::Bot,
-        ExtendedFloat::Top => ExtendedFloat::Top,
-        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(ceil_f32_f16(v)),
-    }
+    N5::new(ceil_f32_f16(x.into_inner()))
 }
 
 #[cfg(feature = "f16")]
 fn f032f016_inner(y: F016) -> F032 {
-    match y {
-        ExtendedFloat::Bot => ExtendedFloat::Bot,
-        ExtendedFloat::Top => ExtendedFloat::Top,
-        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(v as f32),
-    }
+    N5::new(y.into_inner() as f32)
 }
 
 #[cfg(feature = "f16")]
 fn f032f016_floor(x: F032) -> F016 {
-    match x {
-        ExtendedFloat::Bot => ExtendedFloat::Bot,
-        ExtendedFloat::Top => ExtendedFloat::Top,
-        ExtendedFloat::Extend(v) => ExtendedFloat::Extend(floor_f32_f16(v)),
-    }
+    N5::new(floor_f32_f16(x.into_inner()))
 }
 
 #[cfg(feature = "f16")]
@@ -49,18 +37,18 @@ crate::conn_k! {
     /// ```
     /// # #![feature(f16)]
     /// use connections::core::f032::F032F016;
-    /// use connections::float::ExtendedFloat::Extend;
+    /// use connections::float::N5;
     ///
     /// // PI's two nearest f16 grid points (spacing 2^-9 in [2, 4)).
-    /// let pi_f32 = Extend(std::f32::consts::PI);
-    /// let pi_f16_floor = Extend(3.140_625_f16);
-    /// let pi_f16_ceil  = Extend(3.142_578_125_f16);
+    /// let pi_f32 = N5::new(std::f32::consts::PI);
+    /// let pi_f16_floor = N5::new(3.140_625_f16);
+    /// let pi_f16_ceil  = N5::new(3.142_578_125_f16);
     ///
     /// assert_eq!(F032F016.floor(pi_f32), pi_f16_floor);
     /// assert_eq!(F032F016.ceil(pi_f32),  pi_f16_ceil);
     /// // Widening lifts each grid point to its f32 image exactly:
-    /// assert_eq!(F032F016.upper(pi_f16_floor), Extend(3.140_625_f32));
-    /// assert_eq!(F032F016.upper(pi_f16_ceil),  Extend(3.142_578_125_f32));
+    /// assert_eq!(F032F016.upper(pi_f16_floor), N5::new(3.140_625_f32));
+    /// assert_eq!(F032F016.upper(pi_f16_ceil),  N5::new(3.142_578_125_f32));
     /// ```
     pub F032F016 : F032 => F016 {
         ceil:  f032f016_ceil,
@@ -72,35 +60,35 @@ crate::conn_k! {
 // ── §2: Float → Extended<intN> narrowing ─────────────────────────────
 
 float_ext_int!  (
-    /// `ExtendedFloat<f32> ↔ Extended<u8>` — full Galois triple.
+    /// `N5<f32> ↔ Extended<u8>` — full Galois triple.
     pub F032U008, f32, u8
 );
 float_ext_int!  (
-    /// `ExtendedFloat<f32> ↔ Extended<u16>` — full Galois triple.
+    /// `N5<f32> ↔ Extended<u16>` — full Galois triple.
     pub F032U016, f32, u16
 );
 float_ext_int_l!(
-    /// `ExtendedFloat<f32> → Extended<u32>` — L-only.
+    /// `N5<f32> → Extended<u32>` — L-only.
     pub F032U032, f32, u32
 );
 float_ext_int_l!(
-    /// `ExtendedFloat<f32> → Extended<u64>` — L-only.
+    /// `N5<f32> → Extended<u64>` — L-only.
     pub F032U064, f32, u64
 );
 float_ext_int!  (
-    /// `ExtendedFloat<f32> ↔ Extended<i8>` — full Galois triple.
+    /// `N5<f32> ↔ Extended<i8>` — full Galois triple.
     pub F032I008, f32, i8
 );
 float_ext_int!  (
-    /// `ExtendedFloat<f32> ↔ Extended<i16>` — full Galois triple.
+    /// `N5<f32> ↔ Extended<i16>` — full Galois triple.
     pub F032I016, f32, i16
 );
 float_ext_int_l!(
-    /// `ExtendedFloat<f32> → Extended<i32>` — L-only.
+    /// `N5<f32> → Extended<i32>` — L-only.
     pub F032I032, f32, i32
 );
 float_ext_int_l!(
-    /// `ExtendedFloat<f32> → Extended<i64>` — L-only.
+    /// `N5<f32> → Extended<i64>` — L-only.
     pub F032I064, f32, i64
 );
 
@@ -108,7 +96,7 @@ float_ext_int_l!(
 mod tests {
     use super::*;
     use crate::extended::Extended;
-    use crate::float::ExtendedFloat;
+    use crate::float::N5;
     use crate::prop::arb::{
         arb_extended_i8, arb_extended_i16, arb_extended_i32, arb_extended_i64, arb_extended_u8,
         arb_extended_u16, arb_extended_u32, arb_extended_u64, extended_float_f32,
@@ -116,98 +104,76 @@ mod tests {
 
     #[test]
     fn nan_ceil_pos_inf() {
-        assert_eq!(
-            F032U008.view_l().ceil(ExtendedFloat::Extend(f32::NAN)),
-            Extended::PosInf
-        );
-        assert_eq!(
-            F032I008.view_l().ceil(ExtendedFloat::Extend(f32::NAN)),
-            Extended::PosInf
-        );
-        assert_eq!(
-            F032U064.ceil(ExtendedFloat::Extend(f32::NAN)),
-            Extended::PosInf
-        );
+        assert_eq!(F032U008.view_l().ceil(N5::new(f32::NAN)), Extended::PosInf);
+        assert_eq!(F032I008.view_l().ceil(N5::new(f32::NAN)), Extended::PosInf);
+        assert_eq!(F032U064.ceil(N5::new(f32::NAN)), Extended::PosInf);
     }
 
     #[test]
     fn nan_floor_neg_inf() {
-        assert_eq!(
-            F032U008.view_r().floor(ExtendedFloat::Extend(f32::NAN)),
-            Extended::NegInf
-        );
-        assert_eq!(
-            F032I016.view_r().floor(ExtendedFloat::Extend(f32::NAN)),
-            Extended::NegInf
-        );
+        assert_eq!(F032U008.view_r().floor(N5::new(f32::NAN)), Extended::NegInf);
+        assert_eq!(F032I016.view_r().floor(N5::new(f32::NAN)), Extended::NegInf);
     }
 
     #[test]
     fn pos_inf_saturates_via_high_branch() {
         assert_eq!(
-            F032U008.view_l().ceil(ExtendedFloat::Extend(f32::INFINITY)),
+            F032U008.view_l().ceil(N5::new(f32::INFINITY)),
             Extended::PosInf
         );
         assert_eq!(
-            F032I008
-                .view_r()
-                .floor(ExtendedFloat::Extend(f32::INFINITY)),
-            Extended::Finite(i8::MAX)
+            F032I008.view_r().floor(N5::new(f32::INFINITY)),
+            Extended::PosInf
         );
     }
 
     #[test]
     fn neg_inf_saturates_via_low_branch() {
         assert_eq!(
-            F032U008
-                .view_l()
-                .ceil(ExtendedFloat::Extend(f32::NEG_INFINITY)),
-            Extended::Finite(0)
-        );
-        assert_eq!(
-            F032I008
-                .view_l()
-                .ceil(ExtendedFloat::Extend(f32::NEG_INFINITY)),
-            Extended::Finite(i8::MIN)
-        );
-        assert_eq!(
-            F032U008
-                .view_r()
-                .floor(ExtendedFloat::Extend(f32::NEG_INFINITY)),
+            F032U008.view_l().ceil(N5::new(f32::NEG_INFINITY)),
             Extended::NegInf
         );
         assert_eq!(
-            F032I008
-                .view_r()
-                .floor(ExtendedFloat::Extend(f32::NEG_INFINITY)),
+            F032I008.view_l().ceil(N5::new(f32::NEG_INFINITY)),
+            Extended::NegInf
+        );
+        assert_eq!(
+            F032U008.view_r().floor(N5::new(f32::NEG_INFINITY)),
+            Extended::NegInf
+        );
+        assert_eq!(
+            F032I008.view_r().floor(N5::new(f32::NEG_INFINITY)),
             Extended::NegInf
         );
     }
 
     #[test]
-    fn bot_top_pass_through() {
-        assert_eq!(F032U008.view_l().ceil(ExtendedFloat::Bot), Extended::NegInf);
+    fn infinities_pass_through() {
         assert_eq!(
-            F032U008.view_r().floor(ExtendedFloat::Bot),
+            F032U008.view_l().ceil(N5::new(f32::NEG_INFINITY)),
             Extended::NegInf
         );
-        assert_eq!(F032U008.view_l().ceil(ExtendedFloat::Top), Extended::PosInf);
         assert_eq!(
-            F032U008.view_r().floor(ExtendedFloat::Top),
+            F032U008.view_r().floor(N5::new(f32::NEG_INFINITY)),
+            Extended::NegInf
+        );
+        assert_eq!(
+            F032U008.view_l().ceil(N5::new(f32::INFINITY)),
             Extended::PosInf
         );
-        assert_eq!(F032I064.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F032I064.ceil(ExtendedFloat::Top), Extended::PosInf);
+        assert_eq!(
+            F032U008.view_r().floor(N5::new(f32::INFINITY)),
+            Extended::PosInf
+        );
+        assert_eq!(F032I064.ceil(N5::new(f32::NEG_INFINITY)), Extended::NegInf);
+        assert_eq!(F032I064.ceil(N5::new(f32::INFINITY)), Extended::PosInf);
     }
 
     #[test]
     fn saturate_high_unsigned() {
+        assert_eq!(F032U008.view_l().ceil(N5::new(300.0_f32)), Extended::PosInf);
         assert_eq!(
-            F032U008.view_l().ceil(ExtendedFloat::Extend(300.0_f32)),
-            Extended::PosInf
-        );
-        assert_eq!(
-            F032U008.view_r().floor(ExtendedFloat::Extend(300.0_f32)),
+            F032U008.view_r().floor(N5::new(300.0_f32)),
             Extended::Finite(u8::MAX)
         );
     }
@@ -215,11 +181,11 @@ mod tests {
     #[test]
     fn saturate_low_signed() {
         assert_eq!(
-            F032I008.view_l().ceil(ExtendedFloat::Extend(-200.0_f32)),
+            F032I008.view_l().ceil(N5::new(-200.0_f32)),
             Extended::Finite(i8::MIN)
         );
         assert_eq!(
-            F032I008.view_r().floor(ExtendedFloat::Extend(-200.0_f32)),
+            F032I008.view_r().floor(N5::new(-200.0_f32)),
             Extended::NegInf
         );
     }
@@ -227,27 +193,24 @@ mod tests {
     #[test]
     fn saturate_low_unsigned() {
         assert_eq!(
-            F032U008.view_l().ceil(ExtendedFloat::Extend(-1.0_f32)),
+            F032U008.view_l().ceil(N5::new(-1.0_f32)),
             Extended::Finite(0)
         );
-        assert_eq!(
-            F032U008.view_r().floor(ExtendedFloat::Extend(-1.0_f32)),
-            Extended::NegInf
-        );
+        assert_eq!(F032U008.view_r().floor(N5::new(-1.0_f32)), Extended::NegInf);
     }
 
     #[test]
     fn exact_integer_round_trip() {
         assert_eq!(
-            F032U008.view_l().ceil(ExtendedFloat::Extend(42.0_f32)),
+            F032U008.view_l().ceil(N5::new(42.0_f32)),
             Extended::Finite(42)
         );
         assert_eq!(
-            F032U008.view_r().floor(ExtendedFloat::Extend(42.0_f32)),
+            F032U008.view_r().floor(N5::new(42.0_f32)),
             Extended::Finite(42)
         );
         assert_eq!(
-            F032I016.view_l().ceil(ExtendedFloat::Extend(-1234.0_f32)),
+            F032I016.view_l().ceil(N5::new(-1234.0_f32)),
             Extended::Finite(-1234)
         );
     }
@@ -255,11 +218,11 @@ mod tests {
     #[test]
     fn fraction_brackets_integer() {
         assert_eq!(
-            F032I008.view_l().ceil(ExtendedFloat::Extend(2.5_f32)),
+            F032I008.view_l().ceil(N5::new(2.5_f32)),
             Extended::Finite(3)
         );
         assert_eq!(
-            F032I008.view_r().floor(ExtendedFloat::Extend(2.5_f32)),
+            F032I008.view_r().floor(N5::new(2.5_f32)),
             Extended::Finite(2)
         );
     }
@@ -268,39 +231,39 @@ mod tests {
     fn inner_round_trip_finite() {
         assert_eq!(
             F032U008.view_l().upper(Extended::Finite(42_u8)),
-            ExtendedFloat::Extend(42.0_f32)
+            N5::new(42.0_f32)
         );
         assert_eq!(
             F032U008.view_l().upper(Extended::NegInf),
-            ExtendedFloat::Bot
+            N5::new(f32::NEG_INFINITY)
         );
         assert_eq!(
             F032U008.view_l().upper(Extended::PosInf),
-            ExtendedFloat::Top
+            N5::new(f32::INFINITY)
         );
     }
 
     #[test]
     fn f032u032_at_plateau_to_posinf() {
-        let plateau = ExtendedFloat::Extend(2.0_f32.powi(32));
+        let plateau = N5::new(2.0_f32.powi(32));
         assert_eq!(F032U032.ceil(plateau), Extended::PosInf);
     }
 
     #[test]
     fn f032i032_at_plateau_to_posinf() {
-        let plateau = ExtendedFloat::Extend(2.0_f32.powi(31));
+        let plateau = N5::new(2.0_f32.powi(31));
         assert_eq!(F032I032.ceil(plateau), Extended::PosInf);
     }
 
     #[test]
     fn f032u064_at_plateau_to_posinf() {
-        let plateau = ExtendedFloat::Extend(2.0_f32.powi(64));
+        let plateau = N5::new(2.0_f32.powi(64));
         assert_eq!(F032U064.ceil(plateau), Extended::PosInf);
     }
 
     #[test]
     fn f032i064_at_plateau_to_posinf() {
-        let plateau = ExtendedFloat::Extend(2.0_f32.powi(63));
+        let plateau = N5::new(2.0_f32.powi(63));
         assert_eq!(F032I064.ceil(plateau), Extended::PosInf);
     }
 

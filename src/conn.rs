@@ -182,16 +182,16 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     ///
     /// ```rust
     /// use connections::conn::ConnL;
-    /// use connections::float::ExtendedFloat::Extend;
+    /// use connections::float::N5;
     /// use connections::core::f064::F064F032;
     ///
-    /// let pi64 = Extend(std::f64::consts::PI);
-    /// let pi32 = Extend(std::f32::consts::PI as f64);
+    /// let pi64 = N5::new(std::f64::consts::PI);
+    /// let pi32 = N5::new(std::f32::consts::PI as f64);
     /// let pi32_err = pi32 - pi64;
     ///
     /// // The f32 ceiling of π is std::f32::consts::PI itself —
     /// // π's nearest f32 representation rounds up.
-    /// assert_eq!(F064F032.ceil(pi64), Extend(std::f32::consts::PI));
+    /// assert_eq!(F064F032.ceil(pi64), N5::new(std::f32::consts::PI));
     /// // Widening the result back to f64 lands at pi32, which sits
     /// // exactly pi32_err above true π:
     /// assert_eq!(F064F032.upper(F064F032.ceil(pi64)) - pi64, pi32_err);
@@ -208,21 +208,21 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     ///
     /// ```rust
     /// use connections::conn::ConnL;
-    /// use connections::float::ExtendedFloat::Extend;
+    /// use connections::float::N5;
     /// use connections::core::f064::F064F032;
     ///
-    /// let pi64 = Extend(std::f64::consts::PI);
+    /// let pi64 = N5::new(std::f64::consts::PI);
     /// // f32's nearest representation of π widened losslessly to f64.
     /// // Lossless ≠ precise: the value is still the f32 approximation.
-    /// let pi32 = Extend(std::f32::consts::PI as f64);
+    /// let pi32 = N5::new(std::f32::consts::PI as f64);
     /// // f32's rounding error for π — about +8.74e-8 (f32 rounds π up).
     /// // The same constant carries through every π-widening doctest below.
     /// let pi32_err = pi32 - pi64;
     ///
     /// // upper just widens; for F064F032 that's the f32 → f64 cast.
-    /// assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)), pi32);
+    /// assert_eq!(F064F032.upper(N5::new(std::f32::consts::PI)), pi32);
     /// // Equivalently, "f64 π plus f32's rounding error":
-    /// assert_eq!(F064F032.upper(Extend(std::f32::consts::PI)) - pi64, pi32_err);
+    /// assert_eq!(F064F032.upper(N5::new(std::f32::consts::PI)) - pi64, pi32_err);
     /// ```
     #[inline]
     #[must_use]
@@ -258,17 +258,17 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     ///
     /// ```rust
     /// use connections::conn::ConnL;
-    /// use connections::float::ExtendedFloat::Extend;
+    /// use connections::float::N5;
     /// use connections::core::f064::F064F032;
     ///
     /// // ceil1 / floor1 / truncate1 share this closure shape: `2π − x`
     /// // in f64-precision lands strictly between two f32 grid points.
     /// // ceil1 unconditionally narrows up — to std::f32::consts::PI.
-    /// let pi32 = Extend(std::f32::consts::PI);
-    /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
+    /// let pi32 = N5::new(std::f32::consts::PI);
+    /// let probe = |a| N5::new(2.0_f64) * N5::new(std::f64::consts::PI) - a;
     /// assert_eq!(
     ///     F064F032.ceil1(probe, pi32),
-    ///     Extend(std::f32::consts::PI),
+    ///     N5::new(std::f32::consts::PI),
     /// );
     /// ```
     #[inline]
@@ -360,18 +360,18 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     ///
     /// ```rust
     /// use connections::conn::ConnR;
-    /// use connections::float::ExtendedFloat::Extend;
+    /// use connections::float::N5;
     /// use connections::core::f064::F064F032;
     ///
     /// // Same shared probe as ceil1 / truncate1: `2π − x` in f64
     /// // lands strictly between two f32 grid points. floor1
     /// // unconditionally narrows down — to one f32 ULP below
     /// // std::f32::consts::PI.
-    /// let pi32 = Extend(std::f32::consts::PI);
-    /// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
+    /// let pi32 = N5::new(std::f32::consts::PI);
+    /// let probe = |a| N5::new(2.0_f64) * N5::new(std::f64::consts::PI) - a;
     /// assert_eq!(
     ///     F064F032.floor1(probe, pi32),
-    ///     Extend(3.1415925_f32),
+    ///     N5::new(3.1415925_f32),
     /// );
     /// ```
     #[inline]
@@ -410,19 +410,19 @@ impl<A: Copy, B: Copy> Conn<A, B, L> {
     ///
     /// ```rust
     /// use connections::conn::view_l;
-    /// use connections::float::ExtendedFloat::Extend;
+    /// use connections::float::N5;
     /// use connections::core::f064::F064F032;
     ///
     /// let l = view_l(&F064F032);
-    /// let pi64 = Extend(std::f64::consts::PI);
+    /// let pi64 = N5::new(std::f64::consts::PI);
     /// // The f32 ceiling of pi64 is std::f32::consts::PI; equality
     /// // witnesses the lower edge of the filter.
-    /// assert!(l.filter_l(pi64, Extend(std::f32::consts::PI)));
+    /// assert!(l.filter_l(pi64, N5::new(std::f32::consts::PI)));
     /// // Anything strictly larger is also in the filter
     /// // (upward-closed):
-    /// assert!(l.filter_l(pi64, Extend(4.0_f32)));
+    /// assert!(l.filter_l(pi64, N5::new(4.0_f32)));
     /// // Strictly smaller f32s are not.
-    /// assert!(!l.filter_l(pi64, Extend(3.0_f32)));
+    /// assert!(!l.filter_l(pi64, N5::new(3.0_f32)));
     /// ```
     #[inline]
     #[must_use]
@@ -446,18 +446,18 @@ impl<A: Copy, B: Copy> Conn<A, B, R> {
     ///
     /// ```rust
     /// use connections::conn::view_r;
-    /// use connections::float::ExtendedFloat::Extend;
+    /// use connections::float::N5;
     /// use connections::core::f064::F064F032;
     ///
     /// let r = view_r(&F064F032);
-    /// let pi64 = Extend(std::f64::consts::PI);
+    /// let pi64 = N5::new(std::f64::consts::PI);
     /// // The f32 floor of pi64 is 3.1415925; that's the upper edge
     /// // of the ideal.
-    /// assert!(r.filter_r(pi64, Extend(3.1415925_f32)));
+    /// assert!(r.filter_r(pi64, N5::new(3.1415925_f32)));
     /// // Anything smaller is also in the ideal (downward-closed):
-    /// assert!(r.filter_r(pi64, Extend(3.0_f32)));
+    /// assert!(r.filter_r(pi64, N5::new(3.0_f32)));
     /// // The f32 ceiling (next f32 above) is not.
-    /// assert!(!r.filter_r(pi64, Extend(std::f32::consts::PI)));
+    /// assert!(!r.filter_r(pi64, N5::new(std::f32::consts::PI)));
     /// ```
     #[inline]
     #[must_use]
@@ -870,17 +870,17 @@ where
 /// ```rust
 /// use connections::interval::Interval;
 /// use connections::conn::interval;
-/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::N5;
 /// use connections::core::f064::F064F032;
 ///
 /// // True π_f64 is bracketed by two adjacent f64 grid values that
 /// // share an f32 cell; the bracket contains pi64.
-/// let pi64 = Extend(std::f64::consts::PI);
+/// let pi64 = N5::new(std::f64::consts::PI);
 /// assert!(interval(&F064F032, pi64).contains(&pi64));
 ///
 /// // An exact f32 grid value (pi32 widened back to f64) has a
 /// // degenerate (singleton) bracket.
-/// let pi32 = Extend(std::f32::consts::PI as f64);
+/// let pi32 = N5::new(std::f32::consts::PI as f64);
 /// assert_eq!(
 ///     interval(&F064F032, pi32),
 ///     Interval::Closed { lo: pi32, hi: pi32 }
@@ -916,13 +916,13 @@ where
 ///
 /// ```rust
 /// use connections::conn::truncate;
-/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::N5;
 /// use connections::core::f064::F064F032;
 ///
 /// // π > 0 → truncate-toward-zero takes the f32 floor; one f32 ULP
 /// // below std::f32::consts::PI.
-/// let pi = Extend(std::f64::consts::PI);
-/// assert_eq!(truncate(&F064F032, pi), Extend(3.1415925_f32));
+/// let pi = N5::new(std::f64::consts::PI);
+/// assert_eq!(truncate(&F064F032, pi), N5::new(3.1415925_f32));
 /// ```
 #[inline]
 #[must_use]
@@ -954,7 +954,7 @@ where
 ///
 /// ```rust
 /// use connections::conn::truncate1;
-/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::N5;
 /// use connections::core::f064::F064F032;
 ///
 /// // truncate1 / floor1 / ceil1 share this closure shape: `2π − x`
@@ -962,9 +962,9 @@ where
 /// // (3.1415925_f32) and the f32 ceiling (std::f32::consts::PI), so
 /// // the three lifters narrow it to two distinct f32 values.
 /// // truncate-toward-zero of a positive result == floor:
-/// let pi32 = Extend(std::f32::consts::PI);
-/// let probe = |a| Extend(2.0_f64) * Extend(std::f64::consts::PI) - a;
-/// assert_eq!(truncate1(&F064F032, probe, pi32), Extend(3.1415925_f32));
+/// let pi32 = N5::new(std::f32::consts::PI);
+/// let probe = |a| N5::new(2.0_f64) * N5::new(std::f64::consts::PI) - a;
+/// assert_eq!(truncate1(&F064F032, probe, pi32), N5::new(3.1415925_f32));
 /// ```
 #[inline]
 #[must_use]
@@ -985,15 +985,15 @@ where
 ///
 /// ```rust
 /// use connections::conn::truncate2;
-/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::N5;
 /// use connections::core::f064::F064F032;
 ///
 /// // 2 · std::f32::consts::PI in f64 space, narrowed back to f32.
 /// // 2π32 > 0, so truncate-toward-zero takes the f32 floor.
-/// let pi32 = Extend(std::f32::consts::PI);
+/// let pi32 = N5::new(std::f32::consts::PI);
 /// assert_eq!(
 ///     truncate2(&F064F032, |a, b| a + b, pi32, pi32),
-///     Extend(6.2831855_f32),
+///     N5::new(6.2831855_f32),
 /// );
 /// ```
 #[inline]
@@ -1017,16 +1017,16 @@ where
 /// ```rust
 /// use connections::conn::ConnL;
 /// use connections::conn::round;
-/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::N5;
 /// use connections::core::f064::F064F032;
 ///
-/// let pi64 = Extend(std::f64::consts::PI);
-/// let pi32 = Extend(std::f32::consts::PI as f64);
+/// let pi64 = N5::new(std::f64::consts::PI);
+/// let pi32 = N5::new(std::f32::consts::PI as f64);
 /// let pi32_err = pi32 - pi64;
 ///
 /// // Round-to-nearest f32 of π is std::f32::consts::PI — the f32
 /// // value `(pi as f32)` would also produce.
-/// assert_eq!(round(&F064F032, pi64), Extend(std::f32::consts::PI));
+/// assert_eq!(round(&F064F032, pi64), N5::new(std::f32::consts::PI));
 /// // Widening the result back to f64 lands pi32_err above true π:
 /// assert_eq!(F064F032.upper(round(&F064F032, pi64)) - pi64, pi32_err);
 /// ```
@@ -1059,17 +1059,17 @@ where
 ///
 /// ```rust
 /// use connections::conn::round1;
-/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::N5;
 /// use connections::core::f064::F064F032;
 ///
 /// // One Newton step on sin's zero near π. std::f32::consts::PI is
 /// // ~8.7e-8 above true π; a Newton step `x − tan(x)` in
 /// // f64-precision converges to true π_f64. round1 then picks the
 /// // closer f32 endpoint — std::f32::consts::PI itself.
-/// let pi32 = Extend(std::f32::consts::PI);
+/// let pi32 = N5::new(std::f32::consts::PI);
 /// assert_eq!(
 ///     round1(&F064F032, |a| a - a.tan(), pi32),
-///     Extend(std::f32::consts::PI),
+///     N5::new(std::f32::consts::PI),
 /// );
 /// ```
 #[inline]
@@ -1091,19 +1091,19 @@ where
 ///
 /// ```rust
 /// use connections::conn::round2;
-/// use connections::float::ExtendedFloat::Extend;
+/// use connections::float::N5;
 /// use connections::core::f064::F064F032;
 ///
 /// // Catastrophic cancellation example: `(x + y) − x` should be y, but
 /// // at the largest odd-integer f32 (2^24 - 1) the sum already rounds
 /// // away the small operand, and the answer collapses to 1.0 instead
 /// // of 2.0. round2 lifts to f64, computes exactly, narrows once.
-/// let max_odd = Extend(16777215.0_f32);   // = 2^24 - 1
-/// let two = Extend(2.0_f32);
+/// let max_odd = N5::new(16777215.0_f32);   // = 2^24 - 1
+/// let two = N5::new(2.0_f32);
 /// assert_eq!((16777215.0_f32 + 2.0_f32) - 16777215.0_f32, 1.0); // raw f32
 /// assert_eq!(
 ///     round2(&F064F032, |a, b| (a + b) - a, max_odd, two),
-///     Extend(2.0_f32),
+///     N5::new(2.0_f32),
 /// );
 /// ```
 #[inline]
@@ -1147,35 +1147,35 @@ where
 /// }
 /// ```
 ///
-/// On the partially-ordered N5 lattice over `ExtendedFloat<f32>`, an
-/// incomparable pair (NaN vs finite) escalates `lub` to `Top` and
-/// `glb` to `Bot`; the formula then collapses to the median of the
-/// two finite values:
+/// On the partially-ordered N5 lattice over `N5<f32>`, an
+/// incomparable pair (NaN vs finite) escalates `lub` to `+∞` and
+/// `glb` to `-∞`; the formula then collapses to the median of the two
+/// finite values:
 ///
 /// ```rust
 /// use connections::{conn_k, conn::median};
-/// use connections::float::ExtendedFloat::{self, Bot, Extend, Top};
+/// use connections::float::N5;
 /// use core::cmp::Ordering;
 ///
-/// fn lub(p: (ExtendedFloat<f32>, ExtendedFloat<f32>)) -> ExtendedFloat<f32> {
+/// fn lub(p: (N5<f32>, N5<f32>)) -> N5<f32> {
 ///     match p.0.partial_cmp(&p.1) {
 ///         Some(Ordering::Less | Ordering::Equal) => p.1,
 ///         Some(Ordering::Greater) => p.0,
-///         None => Top,
+///         None => N5::new(f32::INFINITY),
 ///     }
 /// }
-/// fn glb(p: (ExtendedFloat<f32>, ExtendedFloat<f32>)) -> ExtendedFloat<f32> {
+/// fn glb(p: (N5<f32>, N5<f32>)) -> N5<f32> {
 ///     match p.0.partial_cmp(&p.1) {
 ///         Some(Ordering::Less | Ordering::Equal) => p.0,
 ///         Some(Ordering::Greater) => p.1,
-///         None => Bot,
+///         None => N5::new(f32::NEG_INFINITY),
 ///     }
 /// }
-/// fn diag(x: ExtendedFloat<f32>) -> (ExtendedFloat<f32>, ExtendedFloat<f32>) {
+/// fn diag(x: N5<f32>) -> (N5<f32>, N5<f32>) {
 ///     (x, x)
 /// }
 /// conn_k! {
-///     N5Float : (ExtendedFloat<f32>, ExtendedFloat<f32>) => ExtendedFloat<f32> {
+///     N5Float : (N5<f32>, N5<f32>) => N5<f32> {
 ///         ceil:  lub,
 ///         inner: diag,
 ///         floor: glb,
@@ -1183,19 +1183,19 @@ where
 /// }
 ///
 /// fn main() {
-///     let nan = Extend(0.0_f32 / 0.0_f32);
+///     let nan = N5::new(0.0_f32 / 0.0_f32);
 ///
 ///     // All finite — matches the standard numeric median.
 ///     assert_eq!(
-///         median(&N5Float, Extend(1.0_f32), Extend(9.0_f32), Extend(7.0_f32)),
-///         Extend(7.0_f32),
+///         median(&N5Float, N5::new(1.0_f32), N5::new(9.0_f32), N5::new(7.0_f32)),
+///         N5::new(7.0_f32),
 ///     );
 ///
 ///     // NaN argument: incomparable, so the formula collapses to the
 ///     // median of the two finite values.
 ///     assert_eq!(
-///         median(&N5Float, Extend(1.0_f32), Extend(9.0_f32), nan),
-///         Extend(9.0_f32),
+///         median(&N5Float, N5::new(1.0_f32), N5::new(9.0_f32), nan),
+///         N5::new(9.0_f32),
 ///     );
 /// }
 /// ```

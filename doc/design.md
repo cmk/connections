@@ -12,7 +12,7 @@ This crate is a port of the Haskell library
 - The `Conn` API
 - The connection families (decimal/binary fixed-point, sample rates,
   integer widening, float pairs).
-- The N5 ordering on float-bearing types via `ExtendedFloat<T>`.
+- The N5 ordering on float-bearing types via `N5<T>`.
 - The lattice trait hierarchy (`Join`, `Meet`, `Heyting`, `Coheyting`,
   `Symmetric`, `Boolean`).
 
@@ -23,7 +23,7 @@ The deliberate divergences:
 - Composition is a `compose!` macro over module-scope `const`s, not a
   generic `Category` instance. The trade-off is documented in
   [`doc/design.md`](doc/design.md) §"Composition".
-- No `Preorder` class; `PartialOrd` + `ExtendedFloat` cover the cases
+- No `Preorder` class; `PartialOrd` + `N5` cover the cases
   that matter.
 
 ## Mathematical background
@@ -238,7 +238,7 @@ coproduct, and functor structures. The following translate directly:
 | `ordered`    | `Conn::ordered()`     | Future                                |
 | `mapped`     | *(omitted)*           | Requires HKT; specialize per container |
 
-## Float lattice: `ExtendedFloat<T>`
+## Float lattice: `N5<T>`
 
 IEEE 754 floats under Rust's `PartialOrd` form a partial order where NaN is
 incomparable with all values including itself. This is almost the right
@@ -258,51 +258,43 @@ ordering where NaN sits between ±∞:
 ```
 
 Rather than fighting Rust's float `PartialOrd`, this library introduces
-`ExtendedFloat<T>` — an extension that adds synthetic top and bottom elements
-outside the float range:
+`N5<T>` — a transparent newtype over the IEEE value:
 
 ```rust
-pub enum ExtendedFloat<T> {
-    Bot,        // synthetic bottom, below -∞
-    Extend(T),  // the float value (including NaN, ±∞)
-    Top,        // synthetic top, above +∞
-}
+#[repr(transparent)]
+pub struct N5<T>(pub T);
 ```
 
-The wrapped variant is named `Extend` rather than `Finite` because
-the wrapped value can be `NaN` or `±∞`, neither of which is finite.
-The variant name reflects the lattice-theoretic role (the *extension*
-slot between `Bot` and `Top`) instead of a numeric property of the
-inhabitant. Sister type `Extended<T>` keeps `Finite` since its
-wrapped values really are finite.
+`N5` does not add symbolic endpoints outside the float range. The IEEE
+values `-∞` and `+∞` are the bottom and top of the float side. This is
+why `N5<T>` can stay a newtype rather than an enum: the only comparison
+rule missing from raw floats is the N5 placement of NaN.
 
 With `PartialOrd` defined as:
 
-- `Bot ≤ x` and `x ≤ Top` for all `x` (by construction)
-- `Extend(a).partial_cmp(Extend(b))` delegates to `T::partial_cmp`
-  **except** when both values are NaN, where it returns `Some(Equal)`
+- `N5::new(a).partial_cmp(N5::new(b))` delegates to `T::partial_cmp`
+  for ordinary finite and infinite values
+- `N5::new(NaN) == N5::new(NaN)` and compares equal to itself
+- `N5::new(-∞) < N5::new(NaN) < N5::new(+∞)`
+- `N5::new(NaN)` remains incomparable with finite values
 
 This recovers the N5 lattice shape:
 
 ```
-        Top
-       / | \
-    +∞  NaN  finites
-    |        
-  finites    
-    |        
-    -∞  NaN
-       \ | /
-        Bot
+     +∞
+    /  \
+  NaN  finite chain
+    \  /
+     -∞
 ```
 
 The key properties:
 
-- **Bounded**: `Bot` is bottom, `Top` is top
-- **NaN is comparable** to `Bot` and `Top` (via the synthetic bounds)
-- **NaN is incomparable** with all finite values and ±∞ (via float `PartialOrd`)
+- **Bounded**: IEEE `-∞` is bottom, IEEE `+∞` is top
+- **NaN is comparable** to `-∞` and `+∞`
+- **NaN is incomparable** with all finite values
 - **NaN is reflexive**: `NaN ≤ NaN` (patched in the `PartialOrd` impl)
-- **No wrapper on bare floats**: `ExtendedFloat` is only used at the boundary
+- **No wrapper on bare floats**: `N5` is only used at the boundary
   of connections involving floats; internal arithmetic uses bare `f32`/`f64`
 
 ### Why `Eq + PartialOrd` suffices
@@ -320,11 +312,10 @@ The IEEE-float "broken" comparison story sits at the `PartialEq`
 level, not `PartialOrd`: raw `f64::PartialEq` says `NaN ≠ NaN`, which
 prevents `f64` from impl'ing `Eq`, which is exactly why raw floats
 cannot be used as Conn endpoints. The fix lives at the wrapper
-boundary: `ExtendedFloat<T>` patches `PartialEq` so `Extend(NaN) ==
-Extend(NaN)` (synthetic `Bot` / `Top` are also reflexive), and
-therefore impls `Eq`. `ExtendedFloat<f32>` / `ExtendedFloat<f64>` are
-genuine partial orders and flow through every law predicate that
-demands `T: Eq + PartialOrd`.
+boundary: `N5<T>` patches `PartialEq` so `N5::new(NaN) ==
+N5::new(NaN)`, and therefore impls `Eq`. `N5<f32>` / `N5<f64>` are
+genuine partial orders and flow through every law predicate that demands
+`T: Eq + PartialOrd`.
 
 The Haskell upstream `connections` library defines its own `Preorder`
 class because Haskell `base` has no partial-order class. Rust does —
@@ -333,13 +324,13 @@ crate-local trait surface for ordering.
 
 ### Connections involving floats
 
-Connections between float types are typed over `ExtendedFloat`:
+Connections between float types are typed over `N5`:
 
-- `F064F032: Conn<ExtendedFloat<f64>, ExtendedFloat<f32>>` — not `Conn<f64, f32>`
+- `F064F032: Conn<N5<f64>, N5<f32>>` — not `Conn<f64, f32>`
 - `F064F016`, `F064B016` — direct narrows from f64 to half-precision
 - `F032F016`, `F032B016` — narrows from f32
 
-`F016 = ExtendedFloat<half::f16>` and `B016 = ExtendedFloat<half::bf16>`
+`F016 = N5<half::f16>` and `B016 = N5<half::bf16>`
 are software-emulated via the [`half`](https://docs.rs/half) crate, a
 pragmatic workaround for Rust 1.85's unstable native `f16` and unstable
 `f128`. half-rs gives both IEEE binary16 and Google bfloat16 with const
@@ -348,18 +339,18 @@ toolchain pin advances past native-f16 stabilization, the `F016` /
 `B016` aliases swap their inner type without changing public Conn names
 (`F064F016`, `F032B016`, etc. all stay).
 
-The `inner` function embeds the narrower `ExtendedFloat` into the wider
-preserving `Bot`/`Top`/`NaN`/finite structure. The `ceil` and `floor`
+The `inner` function embeds the narrower `N5` into the wider preserving
+IEEE infinities, NaN, and finite structure. The `ceil` and `floor`
 functions convert in the other direction with appropriate rounding,
 walking ≤ 2 ULPs on the narrower side after RNE narrowing places the
-estimate within 1 ULP. Both endpoints satisfy `Eq + PartialOrd` and
-flow through the law machinery directly.
+estimate within 1 ULP. Both endpoints satisfy `Eq + PartialOrd` and flow
+through the law machinery directly.
 
-Connections between integer types do not need `ExtendedFloat` — integer `Ord` is
+Connections between integer types do not need `N5` — integer `Ord` is
 total and well-behaved. The `Extended<T>` enum (with `NegInf`, `Finite(T)`,
 `PosInf`) from the Haskell library is only needed for connections where the
 target type cannot represent the full range of the source (e.g. `f32 →
-Extended<u8>`). This is a separate type from `ExtendedFloat`.
+Extended<u8>`). This is a separate type from `N5`.
 
 ## Float conversion performance
 
@@ -398,7 +389,7 @@ src/
 ├── lattice.rs          — Join/Meet/Heyting/Coheyting/Symmetric/Boolean lattice traits
 ├── property.rs         — shared proptest strategies and property helpers (Sprint C)
 └── conn/
-    ├── float.rs        — ExtendedFloat type + PartialOrd impl + float ↔ float connections
+    ├── float.rs        — N5 type + PartialOrd impl + float ↔ float connections
     ├── fixed.rs        — decimal fixed-point ladder (FD00..FD12) with tier-pair connections
     ├── sample.rs       — rate-typed sample-indexed time; rate ↔ rate and rate ↔ FD12 connections
     ├── std.rs          — std-int connection ladders + per-primitive submodule decls
@@ -427,7 +418,7 @@ src/
         └── u128.rs     — Conns landing on u128 (existing widening only — u128 is widest)
 ```
 
-Why no `float_ext.rs` at the crate root: the `ExtendedFloat` wrapper
+Why no `float_ext.rs` at the crate root: the `N5` wrapper
 is only useful *in combination with* the float connections, so
 keeping its definition alongside those connections in
 `src/conn/float.rs` keeps related code together.

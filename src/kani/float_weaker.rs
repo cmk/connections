@@ -4,36 +4,36 @@
 //!
 //! Every harness restricts inputs to **finite, non-NaN** values, since
 //! NaN handling is a separate question (handled by the `*_nan` unit
-//! tests in `src/float/f064.rs`).
+//! tests in `src/core/f064.rs`).
 
 use crate::conn::{ConnL, ConnR};
-use crate::float::ExtendedFloat;
-use crate::float::f064::F064F032;
+use crate::core::f064::F064F032;
+use crate::float::N5;
 use crate::prop::conn as conn_laws;
 
-// Helper — symbolic finite-non-NaN ExtendedFloat<f64>.
-fn arb_finite_ef64() -> ExtendedFloat<f64> {
+// Helper — symbolic finite-non-NaN N5<f64>.
+fn arb_finite_ef64() -> N5<f64> {
     let v: f64 = kani::any();
     kani::assume(v.is_finite() && !v.is_nan());
-    ExtendedFloat::Extend(v)
+    N5::new(v)
 }
 
-// Helper — symbolic finite-non-NaN ExtendedFloat<f32>.
-fn arb_finite_ef32() -> ExtendedFloat<f32> {
+// Helper — symbolic finite-non-NaN N5<f32>.
+fn arb_finite_ef32() -> N5<f32> {
     let v: f32 = kani::any();
     kani::assume(v.is_finite() && !v.is_nan());
-    ExtendedFloat::Extend(v)
+    N5::new(v)
 }
 
-// Helper — symbolic Extend(f64) within f32's representable range.
+// Helper — symbolic N5::new(f64) within f32's representable range.
 // Inputs whose magnitude exceeds `f32::MAX as f64` saturate to ±∞ in
 // f32, so the round-trip embedding is no longer finite. The
 // finite-in-finite-out claim only applies on this in-range slice.
-fn arb_in_f32_range_ef64() -> ExtendedFloat<f64> {
+fn arb_in_f32_range_ef64() -> N5<f64> {
     let v: f64 = kani::any();
     kani::assume(v.is_finite() && !v.is_nan());
     kani::assume(v.abs() <= f32::MAX as f64);
-    ExtendedFloat::Extend(v)
+    N5::new(v)
 }
 
 /// `inner(ceil(x))` is finite when `x` is finite **and within f32's
@@ -44,11 +44,7 @@ fn arb_in_f32_range_ef64() -> ExtendedFloat<f64> {
 fn finite_in_finite_out_ceil_in_range() {
     let x = arb_in_f32_range_ef64();
     let y = F064F032.upper(F064F032.ceil(x));
-    if let ExtendedFloat::Extend(yy) = y {
-        assert!(yy.is_finite());
-    } else {
-        panic!("finite Extend(_) round-trip lost the Extend variant");
-    }
+    assert!(y.into_inner().is_finite());
 }
 
 /// Same property, floor side.
@@ -57,11 +53,7 @@ fn finite_in_finite_out_ceil_in_range() {
 fn finite_in_finite_out_floor_in_range() {
     let x = arb_in_f32_range_ef64();
     let y = F064F032.lower(F064F032.floor(x));
-    if let ExtendedFloat::Extend(yy) = y {
-        assert!(yy.is_finite());
-    } else {
-        panic!("finite Extend(_) round-trip lost the Extend variant");
-    }
+    assert!(y.into_inner().is_finite());
 }
 
 /// Closure law (left): `x ≤ inner(ceil(x))` for finite, non-NaN `x`.

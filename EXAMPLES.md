@@ -279,16 +279,16 @@ Rounding an IEEE-float number of seconds up to a `Duration`:
 
 ```rust
 use connections::conn::ConnL;
-use connections::float::ExtendedFloat;
+use connections::float::N5;
 use connections::time::F064TDUR;
 use connections::extended::Extended;
 use time::Duration;
 
-let half_sec = ExtendedFloat::Extend(0.5_f64);
+let half_sec = N5::new(0.5_f64);
 assert_eq!(F064TDUR.ceil(half_sec), Extended::Finite(Duration::milliseconds(500)));
 
-// f64 NaN: ceil → +∞ (forced by `Top > Extend(NaN) > Bot`).
-let nan = ExtendedFloat::Extend(f64::NAN);
+// f64 NaN: ceil → +∞ (forced by `-∞ < NaN < +∞`).
+let nan = N5::new(f64::NAN);
 assert_eq!(F064TDUR.ceil(nan), Extended::PosInf);
 ```
 
@@ -298,7 +298,7 @@ order-reflecting and no true triple exists. See *Why one-sided?* below.
 
 ## Example 10
 
-A direct `f64 → f16` narrowing — wrapped with `ExtendedFloat` so it
+A direct `f64 → f16` narrowing — wrapped with `N5` so it
 satisfies `Eq + PartialOrd` and flows through the law machinery.
 **Requires the `f16` cargo feature** (and a nightly toolchain, since
 `f16` is currently a nightly-only primitive — tracking
@@ -308,27 +308,27 @@ stable builds skip the f16 path entirely:
 ```rust,ignore
 // Build with `--features f16` on nightly to enable F064F016.
 use connections::core::f064::F064F016;
-use connections::float::ExtendedFloat::Extend;
+use connections::float::N5;
 
 // π narrows to f16. The two-sided round-trip brackets π.
-let pi = Extend(std::f64::consts::PI);
+let pi = N5::new(std::f64::consts::PI);
 let pi_up   = F064F016.ceil(pi);
 let pi_down = F064F016.floor(pi);
 assert!(F064F016.upper(pi_down) <= pi);
 assert!(pi <= F064F016.upper(pi_up));
 
 // f64::MAX saturates to f16::INFINITY.
-let huge = Extend(f64::MAX);
-assert_eq!(F064F016.ceil(huge), Extend(f16::INFINITY));
+let huge = N5::new(f64::MAX);
+assert_eq!(F064F016.ceil(huge), N5::new(f16::INFINITY));
 ```
 
 The set of float-narrowing Conns ships as three named constants:
 
 | Constant | Source | Target | Module | Feature |
 |----------|--------|--------|--------|---------|
-| `F064F032` | `ExtendedFloat<f64>` | `ExtendedFloat<f32>` | [`float::f064`] | always |
-| `F064F016` | `ExtendedFloat<f64>` | `ExtendedFloat<f16>` | `float::f064` | `f16` |
-| `F032F016` | `ExtendedFloat<f32>` | `ExtendedFloat<f16>` | `float::f032` | `f16` |
+| `F064F032` | `N5<f64>` | `N5<f32>` | `core::f064` | always |
+| `F064F016` | `N5<f64>` | `N5<f16>` | `core::f064` | `f16` |
+| `F032F016` | `N5<f32>` | `N5<f16>` | `core::f032` | `f16` |
 
 Each goes f64/f32 → narrower with RNE rounding, walks ≤ 2 ULPs on the
 target side to find the exact ceiling/floor, and saturates extreme

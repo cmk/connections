@@ -32,7 +32,7 @@
 #[allow(unused_imports)]
 use crate::conn::Conn;
 use crate::extended::Extended;
-use crate::float::{ExtendedFloat, F032, F064, def_walk_helpers};
+use crate::float::{F032, F064, N5, def_walk_helpers};
 use std::time::Duration as StdDuration;
 use time::Duration;
 
@@ -332,11 +332,7 @@ mod tests {
     }
 }
 fn f064tdur_ceil(x: F064) -> Extended<Duration> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -344,7 +340,7 @@ fn f064tdur_ceil(x: F064) -> Extended<Duration> {
         return Extended::PosInf;
     }
     if v == f64::NEG_INFINITY {
-        return Extended::Finite(Duration::MIN);
+        return Extended::NegInf;
     }
     let max_secs = Duration::MAX.as_seconds_f64();
     let min_secs = Duration::MIN.as_seconds_f64();
@@ -367,9 +363,9 @@ fn f064tdur_ceil(x: F064) -> Extended<Duration> {
 
 fn f064tdur_inner(d: Extended<Duration>) -> F064 {
     match d {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_seconds_f64()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(dur) => N5::new(dur.as_seconds_f64()),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
@@ -385,29 +381,26 @@ crate::conn_l! {
     /// so shipped as `ConnL`. (Plan 32.)
     ///
     /// Saturation arms:
-    /// - `ceil(Bot)` = `NegInf` (Bot is synthetic-below-everything).
-    /// - `ceil(Top)` = `PosInf`.
-    /// - `ceil(Extend(NaN))` = `PosInf` (under N5: NaN ≤ Top, Bot ≤ NaN,
-    ///   NaN incomparable with finite).
-    /// - `ceil(Extend(+∞))` = `PosInf`. Symmetric for `-∞` →
-    ///   `Finite(Duration::MIN)`.
+    /// - `ceil(N5::new(NaN))` = `PosInf`.
+    /// - `ceil(N5::new(+∞))` = `PosInf`.
+    /// - `ceil(N5::new(-∞))` = `NegInf`.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::time::F064TDUR;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use connections::extended::Extended;
     /// use time::Duration;
     ///
     /// // 0.5 seconds round-trips exactly.
-    /// let half = ExtendedFloat::Extend(0.5_f64);
+    /// let half = N5::new(0.5_f64);
     /// assert_eq!(F064TDUR.ceil(half), Extended::Finite(Duration::milliseconds(500)));
     /// assert_eq!(F064TDUR.upper(Extended::Finite(Duration::milliseconds(500))),
-    ///            ExtendedFloat::Extend(0.5));
+    ///            N5::new(0.5));
     ///
     /// // NaN saturates ceil to PosInf.
-    /// assert_eq!(F064TDUR.ceil(ExtendedFloat::Extend(f64::NAN)), Extended::PosInf);
+    /// assert_eq!(F064TDUR.ceil(N5::new(f64::NAN)), Extended::PosInf);
     /// ```
     pub F064TDUR : F064 => Extended<Duration> {
         ceil:  f064tdur_ceil,
@@ -416,11 +409,7 @@ crate::conn_l! {
 }
 
 fn f032tdur_ceil(x: F032) -> Extended<Duration> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -428,7 +417,7 @@ fn f032tdur_ceil(x: F032) -> Extended<Duration> {
         return Extended::PosInf;
     }
     if v == f32::NEG_INFINITY {
-        return Extended::Finite(Duration::MIN);
+        return Extended::NegInf;
     }
     let max_secs = Duration::MAX.as_seconds_f32();
     let min_secs = Duration::MIN.as_seconds_f32();
@@ -450,9 +439,9 @@ fn f032tdur_ceil(x: F032) -> Extended<Duration> {
 
 fn f032tdur_inner(d: Extended<Duration>) -> F032 {
     match d {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_seconds_f32()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f32::NEG_INFINITY),
+        Extended::Finite(dur) => N5::new(dur.as_seconds_f32()),
+        Extended::PosInf => N5::new(f32::INFINITY),
     }
 }
 
@@ -470,12 +459,12 @@ crate::conn_l! {
     ///
     /// ```rust
     /// use connections::time::F032TDUR;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use connections::extended::Extended;
     /// use time::Duration;
     ///
     /// // 1.0 s in f32 ceils to the bottom of the f32 plateau covering 1.0.
-    /// let one = ExtendedFloat::Extend(1.0_f32);
+    /// let one = N5::new(1.0_f32);
     /// if let Extended::Finite(c) = F032TDUR.ceil(one) {
     ///     assert_eq!(c.as_seconds_f32(), 1.0_f32);
     /// }
@@ -673,7 +662,7 @@ crate::conn_l! {
     ///
     /// Inputs `Finite(n)` with `n > StdDuration::MAX.as_nanos()` clamp to
     /// `Finite(StdDuration::MAX)` on `inner` (Galois pins this to the
-    /// largest representative ≤ the synthetic top).
+    /// largest finite representative).
     ///
     /// **One-sided.** Shipped as `ConnL` rather than a `conn_k!` marker
     /// because `inner` collapses the entire above-max plateau
@@ -710,20 +699,18 @@ crate::conn_l! {
 }
 
 fn f064sdur_ceil(x: F064) -> Extended<StdDuration> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
     if v == f64::INFINITY {
         return Extended::PosInf;
     }
-    // Negative finites and -∞ — no representative ≤ them on the
-    // unsigned rung (other than the synthetic NegInf, which `inner`
-    // sends to Bot, not Extend(neg)). Galois pins ceil to ZERO.
+    if v == f64::NEG_INFINITY {
+        return Extended::NegInf;
+    }
+    // Negative finites have no representative on the unsigned rung.
+    // Galois pins their ceil to ZERO.
     if v <= 0.0 {
         return Extended::Finite(StdDuration::ZERO);
     }
@@ -742,9 +729,9 @@ fn f064sdur_ceil(x: F064) -> Extended<StdDuration> {
 
 fn f064sdur_inner(d: Extended<StdDuration>) -> F064 {
     match d {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_secs_f64()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(dur) => N5::new(dur.as_secs_f64()),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
@@ -761,17 +748,17 @@ crate::conn_l! {
     ///
     /// ```rust
     /// use connections::time::F064SDUR;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use connections::extended::Extended;
     /// use std::time::Duration as StdDuration;
     ///
     /// // 0.5 s round-trips exactly.
-    /// let half = ExtendedFloat::Extend(0.5_f64);
+    /// let half = N5::new(0.5_f64);
     /// assert_eq!(F064SDUR.ceil(half), Extended::Finite(StdDuration::from_millis(500)));
     ///
     /// // Negative float: ceil saturates up to ZERO (unsigned rung has
     /// // no negative representative).
-    /// let neg = ExtendedFloat::Extend(-0.5_f64);
+    /// let neg = N5::new(-0.5_f64);
     /// assert_eq!(F064SDUR.ceil(neg), Extended::Finite(StdDuration::ZERO));
     /// ```
     pub F064SDUR : F064 => Extended<StdDuration> {
@@ -781,16 +768,15 @@ crate::conn_l! {
 }
 
 fn f032sdur_ceil(x: F032) -> Extended<StdDuration> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
     if v == f32::INFINITY {
         return Extended::PosInf;
+    }
+    if v == f32::NEG_INFINITY {
+        return Extended::NegInf;
     }
     if v <= 0.0 {
         return Extended::Finite(StdDuration::ZERO);
@@ -810,9 +796,9 @@ fn f032sdur_ceil(x: F032) -> Extended<StdDuration> {
 
 fn f032sdur_inner(d: Extended<StdDuration>) -> F032 {
     match d {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(dur) => ExtendedFloat::Extend(dur.as_secs_f32()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f32::NEG_INFINITY),
+        Extended::Finite(dur) => N5::new(dur.as_secs_f32()),
+        Extended::PosInf => N5::new(f32::INFINITY),
     }
 }
 
@@ -828,12 +814,12 @@ crate::conn_l! {
     ///
     /// ```rust
     /// use connections::time::F032SDUR;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use connections::extended::Extended;
     /// use std::time::Duration as StdDuration;
     ///
     /// // 1.0 s in f32 ceils to the bottom of the f32 plateau covering 1.0.
-    /// let one = ExtendedFloat::Extend(1.0_f32);
+    /// let one = N5::new(1.0_f32);
     /// if let Extended::Finite(c) = F032SDUR.ceil(one) {
     ///     assert_eq!(c.as_secs_f32(), 1.0_f32);
     /// }
@@ -965,7 +951,7 @@ mod float_tdur_tests {
 
     #[test]
     fn f64_zero() {
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         assert_eq!(F064TDUR.ceil(zero), Extended::Finite(Duration::ZERO));
         assert_eq!(F064TDUR.upper(Extended::Finite(Duration::ZERO)), zero);
     }
@@ -973,7 +959,7 @@ mod float_tdur_tests {
     #[test]
     fn f64_half_second() {
         // 0.5 s is exactly representable in f64 and Duration.
-        let half = ExtendedFloat::Extend(0.5_f64);
+        let half = N5::new(0.5_f64);
         let half_d = Duration::milliseconds(500);
         assert_eq!(F064TDUR.ceil(half), Extended::Finite(half_d));
         assert_eq!(F064TDUR.upper(Extended::Finite(half_d)), half);
@@ -981,25 +967,23 @@ mod float_tdur_tests {
 
     #[test]
     fn f64_nan_arms() {
-        let nan = ExtendedFloat::Extend(f64::NAN);
+        let nan = N5::new(f64::NAN);
         assert_eq!(F064TDUR.ceil(nan), Extended::PosInf);
     }
 
     #[test]
     fn f64_infinity_arms() {
-        let pos_inf = ExtendedFloat::Extend(f64::INFINITY);
+        let pos_inf = N5::new(f64::INFINITY);
         assert_eq!(F064TDUR.ceil(pos_inf), Extended::PosInf);
 
-        let neg_inf = ExtendedFloat::Extend(f64::NEG_INFINITY);
-        assert_eq!(F064TDUR.ceil(neg_inf), Extended::Finite(Duration::MIN));
+        let neg_inf = N5::new(f64::NEG_INFINITY);
+        assert_eq!(F064TDUR.ceil(neg_inf), Extended::NegInf);
     }
 
     #[test]
-    fn f64_bot_top_arms() {
-        assert_eq!(F064TDUR.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F064TDUR.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F064TDUR.upper(Extended::NegInf), ExtendedFloat::Bot);
-        assert_eq!(F064TDUR.upper(Extended::PosInf), ExtendedFloat::Top);
+    fn f64_extended_bounds_upper_to_infinities() {
+        assert_eq!(F064TDUR.upper(Extended::NegInf), N5::new(f64::NEG_INFINITY));
+        assert_eq!(F064TDUR.upper(Extended::PosInf), N5::new(f64::INFINITY));
     }
 
     // Regression guard for the v == min_secs fast-path in ceil. The
@@ -1011,7 +995,7 @@ mod float_tdur_tests {
     // fix this finishes in nanoseconds.
     #[test]
     fn f64_ceil_min_secs_fast_path() {
-        let v_min = ExtendedFloat::Extend(Duration::MIN.as_seconds_f64());
+        let v_min = N5::new(Duration::MIN.as_seconds_f64());
         assert_eq!(F064TDUR.ceil(v_min), Extended::Finite(Duration::MIN));
     }
 
@@ -1021,7 +1005,7 @@ mod float_tdur_tests {
 
     #[test]
     fn f32_zero() {
-        let zero = ExtendedFloat::Extend(0.0_f32);
+        let zero = N5::new(0.0_f32);
         assert_eq!(F032TDUR.ceil(zero), Extended::Finite(Duration::ZERO));
         assert_eq!(F032TDUR.upper(Extended::Finite(Duration::ZERO)), zero);
     }
@@ -1030,7 +1014,7 @@ mod float_tdur_tests {
     fn f32_one_second_in_plateau() {
         // f32 ULP at 1.0 ≈ 1.19e-7 s. ceil returns the bottom of the
         // plateau covering 1.0; widen back yields 1.0_f32 exactly.
-        let one = ExtendedFloat::Extend(1.0_f32);
+        let one = N5::new(1.0_f32);
         if let Extended::Finite(cd) = F032TDUR.ceil(one) {
             assert_eq!(cd.as_seconds_f32(), 1.0_f32);
         } else {
@@ -1040,31 +1024,29 @@ mod float_tdur_tests {
 
     #[test]
     fn f32_nan_arms() {
-        let nan = ExtendedFloat::Extend(f32::NAN);
+        let nan = N5::new(f32::NAN);
         assert_eq!(F032TDUR.ceil(nan), Extended::PosInf);
     }
 
     #[test]
     fn f32_infinity_arms() {
-        let pos_inf = ExtendedFloat::Extend(f32::INFINITY);
+        let pos_inf = N5::new(f32::INFINITY);
         assert_eq!(F032TDUR.ceil(pos_inf), Extended::PosInf);
 
-        let neg_inf = ExtendedFloat::Extend(f32::NEG_INFINITY);
-        assert_eq!(F032TDUR.ceil(neg_inf), Extended::Finite(Duration::MIN));
+        let neg_inf = N5::new(f32::NEG_INFINITY);
+        assert_eq!(F032TDUR.ceil(neg_inf), Extended::NegInf);
     }
 
     #[test]
     fn f32_ceil_min_secs_fast_path() {
-        let v_min = ExtendedFloat::Extend(Duration::MIN.as_seconds_f32());
+        let v_min = N5::new(Duration::MIN.as_seconds_f32());
         assert_eq!(F032TDUR.ceil(v_min), Extended::Finite(Duration::MIN));
     }
 
     #[test]
-    fn f32_bot_top_arms() {
-        assert_eq!(F032TDUR.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F032TDUR.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F032TDUR.upper(Extended::NegInf), ExtendedFloat::Bot);
-        assert_eq!(F032TDUR.upper(Extended::PosInf), ExtendedFloat::Top);
+    fn f32_extended_bounds_upper_to_infinities() {
+        assert_eq!(F032TDUR.upper(Extended::NegInf), N5::new(f32::NEG_INFINITY));
+        assert_eq!(F032TDUR.upper(Extended::PosInf), N5::new(f32::INFINITY));
     }
 
     // ── Galois L-side battery — F064TDUR / F032TDUR ────────────
@@ -1072,7 +1054,7 @@ mod float_tdur_tests {
     // F064TDUR/F032TDUR are ConnL (Plan 32 demoted them — `inner` is
     // non-injective on the f64/f32 plateau, so no true triple). Hand-
     // rolled proptest because law_battery! is marker-only and these
-    // are bare ConnL consts. Float-side strategies bound `Extend(_)`
+    // are bare ConnL consts. Float-side strategies bound `N5::new(_)`
     // to |x| ≤ 1e9 (f64) / 10 (f32) so per-call walk budget stays
     // small.
 
@@ -1142,13 +1124,13 @@ mod float_tdur_tests {
         // falls through to the solver. Pre-solver this walked
         // ~10¹² ns of plateau; solver finishes in ≤ 52 iterations.
         let max_secs = Duration::MAX.as_seconds_f64();
-        let _ = F064TDUR.ceil(ExtendedFloat::Extend(max_secs));
+        let _ = F064TDUR.ceil(N5::new(max_secs));
     }
 
     #[test]
     fn f32_tdur_solve_terminates_at_max_rim() {
         let max_secs = Duration::MAX.as_seconds_f32();
-        let _ = F032TDUR.ceil(ExtendedFloat::Extend(max_secs));
+        let _ = F032TDUR.ceil(N5::new(max_secs));
     }
 
     proptest! {
@@ -1349,14 +1331,14 @@ mod sdur_tests {
 
     #[test]
     fn f64_sdur_zero() {
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         assert_eq!(F064SDUR.ceil(zero), Extended::Finite(StdDuration::ZERO));
         assert_eq!(F064SDUR.upper(Extended::Finite(StdDuration::ZERO)), zero);
     }
 
     #[test]
     fn f64_sdur_half_second() {
-        let half = ExtendedFloat::Extend(0.5_f64);
+        let half = N5::new(0.5_f64);
         let half_d = StdDuration::from_millis(500);
         assert_eq!(F064SDUR.ceil(half), Extended::Finite(half_d));
         assert_eq!(F064SDUR.upper(Extended::Finite(half_d)), half);
@@ -1365,42 +1347,40 @@ mod sdur_tests {
     #[test]
     fn f64_sdur_inner_one_second() {
         let one_d = Extended::Finite(StdDuration::from_secs(1));
-        assert_eq!(F064SDUR.upper(one_d), ExtendedFloat::Extend(1.0_f64));
+        assert_eq!(F064SDUR.upper(one_d), N5::new(1.0_f64));
     }
 
     #[test]
     fn f64_sdur_negative_input() {
-        let neg = ExtendedFloat::Extend(-0.5_f64);
+        let neg = N5::new(-0.5_f64);
         assert_eq!(F064SDUR.ceil(neg), Extended::Finite(StdDuration::ZERO));
     }
 
     #[test]
     fn f64_sdur_nan_arms() {
-        let nan = ExtendedFloat::Extend(f64::NAN);
+        let nan = N5::new(f64::NAN);
         assert_eq!(F064SDUR.ceil(nan), Extended::PosInf);
     }
 
     #[test]
     fn f64_sdur_infinity_arms() {
-        let pos_inf = ExtendedFloat::Extend(f64::INFINITY);
+        let pos_inf = N5::new(f64::INFINITY);
         assert_eq!(F064SDUR.ceil(pos_inf), Extended::PosInf);
 
-        let neg_inf = ExtendedFloat::Extend(f64::NEG_INFINITY);
-        assert_eq!(F064SDUR.ceil(neg_inf), Extended::Finite(StdDuration::ZERO));
+        let neg_inf = N5::new(f64::NEG_INFINITY);
+        assert_eq!(F064SDUR.ceil(neg_inf), Extended::NegInf);
     }
 
     #[test]
-    fn f64_sdur_bot_top_arms() {
-        assert_eq!(F064SDUR.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F064SDUR.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F064SDUR.upper(Extended::NegInf), ExtendedFloat::Bot);
-        assert_eq!(F064SDUR.upper(Extended::PosInf), ExtendedFloat::Top);
+    fn f64_sdur_extended_bounds_upper_to_infinities() {
+        assert_eq!(F064SDUR.upper(Extended::NegInf), N5::new(f64::NEG_INFINITY));
+        assert_eq!(F064SDUR.upper(Extended::PosInf), N5::new(f64::INFINITY));
     }
 
     #[test]
     fn f64_sdur_max_sentinel_is_total() {
         let max = Extended::Finite(StdDuration::MAX);
-        let sentinel = ExtendedFloat::Extend(StdDuration::MAX.as_secs_f64());
+        let sentinel = N5::new(StdDuration::MAX.as_secs_f64());
 
         assert_eq!(F064SDUR.upper(max), sentinel);
         assert_eq!(F064SDUR.ceil(sentinel), max);
@@ -1409,7 +1389,7 @@ mod sdur_tests {
 
     #[test]
     fn f64_sdur_max_float_sentinel_is_total() {
-        let sentinel = ExtendedFloat::Extend(StdDuration::MAX.as_secs_f64());
+        let sentinel = N5::new(StdDuration::MAX.as_secs_f64());
 
         assert_eq!(F064SDUR.ceil(sentinel), Extended::Finite(StdDuration::MAX));
         assert!(conn_laws::kernel_l(
@@ -1420,35 +1400,35 @@ mod sdur_tests {
 
     #[test]
     fn f32_sdur_zero() {
-        let zero = ExtendedFloat::Extend(0.0_f32);
+        let zero = N5::new(0.0_f32);
         assert_eq!(F032SDUR.ceil(zero), Extended::Finite(StdDuration::ZERO));
     }
 
     #[test]
     fn f32_sdur_negative_input() {
-        let neg = ExtendedFloat::Extend(-0.5_f32);
+        let neg = N5::new(-0.5_f32);
         assert_eq!(F032SDUR.ceil(neg), Extended::Finite(StdDuration::ZERO));
     }
 
     #[test]
     fn f32_sdur_nan_arms() {
-        let nan = ExtendedFloat::Extend(f32::NAN);
+        let nan = N5::new(f32::NAN);
         assert_eq!(F032SDUR.ceil(nan), Extended::PosInf);
     }
 
     #[test]
     fn f32_sdur_infinity_arms() {
-        let pos_inf = ExtendedFloat::Extend(f32::INFINITY);
+        let pos_inf = N5::new(f32::INFINITY);
         assert_eq!(F032SDUR.ceil(pos_inf), Extended::PosInf);
 
-        let neg_inf = ExtendedFloat::Extend(f32::NEG_INFINITY);
-        assert_eq!(F032SDUR.ceil(neg_inf), Extended::Finite(StdDuration::ZERO));
+        let neg_inf = N5::new(f32::NEG_INFINITY);
+        assert_eq!(F032SDUR.ceil(neg_inf), Extended::NegInf);
     }
 
     #[test]
     fn f32_sdur_max_sentinel_is_total() {
         let max = Extended::Finite(StdDuration::MAX);
-        let sentinel = ExtendedFloat::Extend(StdDuration::MAX.as_secs_f32());
+        let sentinel = N5::new(StdDuration::MAX.as_secs_f32());
 
         assert_eq!(F032SDUR.upper(max), sentinel);
         assert_eq!(F032SDUR.ceil(sentinel), max);
@@ -1457,7 +1437,7 @@ mod sdur_tests {
 
     #[test]
     fn f32_sdur_max_float_sentinel_is_total() {
-        let sentinel = ExtendedFloat::Extend(StdDuration::MAX.as_secs_f32());
+        let sentinel = N5::new(StdDuration::MAX.as_secs_f32());
 
         assert_eq!(F032SDUR.ceil(sentinel), Extended::Finite(StdDuration::MAX));
         assert!(conn_laws::kernel_l(
@@ -1521,12 +1501,12 @@ mod sdur_tests {
             .. ProptestConfig::default()
         })]
 
-        // Negative finite inputs project to ZERO under ceil — Galois-
-        // forced because the unsigned rung has no representative below
-        // ZERO and `inner(NegInf) = Bot` (synthetic source bottom).
+        // Negative finite inputs project to ZERO under ceil because the
+        // unsigned rung has no representative below ZERO. The exact
+        // source bottom, -∞, projects to `NegInf`.
         #[test]
         fn f64_sdur_negative_input_ceil_to_zero(v in -1.0e9_f64..0.0_f64) {
-            let a = ExtendedFloat::Extend(v);
+            let a = N5::new(v);
             prop_assert_eq!(F064SDUR.ceil(a), Extended::Finite(StdDuration::ZERO));
         }
 
@@ -1541,7 +1521,7 @@ mod sdur_tests {
         fn f64_sdur_plateau(s in 0_u64..=1_000_000_000_u64) {
             let d = StdDuration::from_secs(s);
             let v = d.as_secs_f64();
-            let a = ExtendedFloat::Extend(v);
+            let a = N5::new(v);
             if let Extended::Finite(c) = F064SDUR.ceil(a) {
                 prop_assert!(c <= d, "ceil={c:?} d={d:?}");
                 prop_assert_eq!(c.as_secs_f64(), v);
@@ -1592,13 +1572,13 @@ mod sdur_tests {
 
     #[test]
     fn f64_sdur_solve_terminates_walk_pathological_magnitude() {
-        let _ = F064SDUR.ceil(ExtendedFloat::Extend(1.0e10_f64));
+        let _ = F064SDUR.ceil(N5::new(1.0e10_f64));
     }
 
     #[test]
     fn f32_sdur_solve_terminates_walk_pathological_magnitude() {
         // f32 ULP at 1e6 s is ~1e-1 s ≈ 10⁸ ns — already well into the
         // walk-pathological band.
-        let _ = F032SDUR.ceil(ExtendedFloat::Extend(1.0e6_f32));
+        let _ = F032SDUR.ceil(N5::new(1.0e6_f32));
     }
 }

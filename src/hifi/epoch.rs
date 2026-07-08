@@ -47,7 +47,7 @@
 //! values.
 
 use crate::extended::Extended;
-use crate::float::{ExtendedFloat, F064, def_walk_helpers};
+use crate::float::{F064, N5, def_walk_helpers};
 use crate::hifi::duration::shift_hd;
 use hifitime::{Duration as HD, Epoch, TimeScale, UNIX_REF_EPOCH};
 
@@ -283,11 +283,7 @@ def_walk_helpers!(
 );
 
 fn f064etai_ceil(x: F064) -> Extended<Epoch> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -295,7 +291,7 @@ fn f064etai_ceil(x: F064) -> Extended<Epoch> {
         return Extended::PosInf;
     }
     if v == f64::NEG_INFINITY {
-        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+        return Extended::NegInf;
     }
     // Bounds via integer arithmetic (`hd_{min,max}_secs_f64` —
     // see helpers); going through `HD::MAX.to_seconds()` directly
@@ -320,9 +316,9 @@ fn f064etai_ceil(x: F064) -> Extended<Epoch> {
 
 fn f064etai_inner(e: Extended<Epoch>) -> F064 {
     match e {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(e) => ExtendedFloat::Extend(e.to_tai_seconds()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(e) => N5::new(e.to_tai_seconds()),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
@@ -337,20 +333,19 @@ crate::conn_l! {
     /// magnitude). Not order-reflecting → no true triple, shipped
     /// as `ConnL` (matches `F064TDUR` rationale, Plan 32).
     ///
-    /// Saturation arms mirror `F064TDUR`: NaN → PosInf, ±∞ → PosInf
-    /// / `Finite(Epoch::from_tai_duration(HD::MIN))`, Bot → NegInf,
-    /// Top → PosInf.
+    /// Saturation arms mirror `F064TDUR`: NaN and +∞ → PosInf,
+    /// -∞ → NegInf.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::hifi::F064ETAI;
     /// use connections::extended::Extended;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use hifitime::{Duration as HDuration, Epoch};
     ///
     /// // 0.5 TAI seconds past J1900.
-    /// let half = ExtendedFloat::Extend(0.5_f64);
+    /// let half = N5::new(0.5_f64);
     /// let half_e = Epoch::from_tai_duration(HDuration::from_seconds(0.5));
     /// assert_eq!(F064ETAI.ceil(half), Extended::Finite(half_e));
     /// ```
@@ -558,11 +553,7 @@ def_walk_helpers!(
 );
 
 fn f064eunx_ceil(x: F064) -> Extended<Epoch> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -570,7 +561,7 @@ fn f064eunx_ceil(x: F064) -> Extended<Epoch> {
         return Extended::PosInf;
     }
     if v == f64::NEG_INFINITY {
-        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+        return Extended::NegInf;
     }
     // UNIX-anchored bounds via integer arithmetic
     // (`unix_{min,max}_secs_f64`); going through
@@ -592,9 +583,9 @@ fn f064eunx_ceil(x: F064) -> Extended<Epoch> {
 
 fn f064eunx_inner(e: Extended<Epoch>) -> F064 {
     match e {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(e) => ExtendedFloat::Extend(e.to_unix_seconds()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(e) => N5::new(e.to_unix_seconds()),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
@@ -621,11 +612,11 @@ crate::conn_l! {
     /// ```rust
     /// use connections::hifi::F064EUNX;
     /// use connections::extended::Extended;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use hifitime::Epoch;
     ///
     /// // 0.0 unix seconds ↔ UNIX EPOCH.
-    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// let zero = N5::new(0.0_f64);
     /// let unix_epoch = Epoch::from_unix_seconds(0.0);
     /// assert_eq!(F064EUNX.ceil(zero), Extended::Finite(unix_epoch));
     /// ```
@@ -865,11 +856,7 @@ def_walk_helpers!(
 );
 
 fn f064egps_ceil(x: F064) -> Extended<Epoch> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -877,7 +864,7 @@ fn f064egps_ceil(x: F064) -> Extended<Epoch> {
         return Extended::PosInf;
     }
     if v == f64::NEG_INFINITY {
-        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+        return Extended::NegInf;
     }
     let max_secs = gpst_max_secs_f64();
     let min_secs = gpst_min_secs_f64();
@@ -898,9 +885,9 @@ fn f064egps_ceil(x: F064) -> Extended<Epoch> {
 
 fn f064egps_inner(e: Extended<Epoch>) -> F064 {
     match e {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(e) => ExtendedFloat::Extend(e.to_gpst_seconds()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(e) => N5::new(e.to_gpst_seconds()),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
@@ -915,25 +902,27 @@ crate::conn_l! {
     /// value), so this is `ConnL` not `ConnK` (matches `F064TDUR` /
     /// `F064ETAI` rationale).
     ///
-    /// **NEG_INFINITY arm tag.** `ceil(Extend(f64::NEG_INFINITY))`
-    /// returns `Finite(Epoch::from_tai_duration(HD::MIN))` — a
-    /// **TAI**-tagged Epoch, not a GPST-tagged one. Inherited from
-    /// the §1 `F064ETAI` design. The ConnL idempotent law still
-    /// holds (`Epoch::Eq` is instant-based; the saturated subtraction
-    /// in `to_gpst_seconds` makes successive `ceil ∘ inner` round-
-    /// trips collapse to the same instant), but readers should not
-    /// assume the result carries the GPST scale tag throughout.
+    /// **Lower-bound fast-path tag.** Raw
+    /// `N5::new(f64::NEG_INFINITY)` maps to `Extended::NegInf`.
+    /// Finite inputs at or below `gpst_min_secs_f64()` fast-path to
+    /// `Finite(Epoch::from_tai_duration(HD::MIN))` — a **TAI**-
+    /// tagged Epoch, not a GPST-tagged one. Inherited from the §1
+    /// `F064ETAI` design. The ConnL idempotent law still holds
+    /// (`Epoch::Eq` is instant-based; the saturated subtraction in
+    /// `to_gpst_seconds` makes successive `ceil ∘ inner` round-trips
+    /// collapse to the same instant), but readers should not assume
+    /// the result carries the GPST scale tag throughout.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::hifi::F064EGPS;
     /// use connections::extended::Extended;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use hifitime::GPST_REF_EPOCH;
     ///
     /// // GPST seconds zero ↔ GPST_REF_EPOCH.
-    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// let zero = N5::new(0.0_f64);
     /// assert_eq!(F064EGPS.ceil(zero), Extended::Finite(GPST_REF_EPOCH));
     /// ```
     pub F064EGPS : F064 => Extended<Epoch> {
@@ -1046,11 +1035,7 @@ def_walk_helpers!(
 );
 
 fn f064eqzs_ceil(x: F064) -> Extended<Epoch> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -1058,7 +1043,7 @@ fn f064eqzs_ceil(x: F064) -> Extended<Epoch> {
         return Extended::PosInf;
     }
     if v == f64::NEG_INFINITY {
-        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+        return Extended::NegInf;
     }
     let max_secs = qzsst_max_secs_f64();
     let min_secs = qzsst_min_secs_f64();
@@ -1075,29 +1060,28 @@ fn f064eqzs_ceil(x: F064) -> Extended<Epoch> {
 
 fn f064eqzs_inner(e: Extended<Epoch>) -> F064 {
     match e {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(e) => ExtendedFloat::Extend(e.to_qzsst_seconds()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(e) => N5::new(e.to_qzsst_seconds()),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
 crate::conn_l! {
     /// `F064 → Extended<hifitime::Epoch>` — QZSS Time seconds (since
     /// [`hifitime::QZSST_REF_EPOCH`]) ↔ Epoch. Mirrors [`F064EGPS`],
-    /// including the [NEG_INFINITY arm tag](F064EGPS) caveat
-    /// (the `f64::NEG_INFINITY` arm yields a **TAI**-tagged Epoch,
-    /// not a QZSST-tagged one — laws still hold under instant-based
-    /// `Epoch::Eq`).
+    /// including its lower-bound fast-path caveat (finite lower-bound
+    /// inputs yield a **TAI**-tagged Epoch, not a QZSST-tagged one —
+    /// laws still hold under instant-based `Epoch::Eq`).
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::hifi::F064EQZS;
     /// use connections::extended::Extended;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use hifitime::QZSST_REF_EPOCH;
     ///
-    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// let zero = N5::new(0.0_f64);
     /// assert_eq!(F064EQZS.ceil(zero), Extended::Finite(QZSST_REF_EPOCH));
     /// ```
     pub F064EQZS : F064 => Extended<Epoch> {
@@ -1193,11 +1177,7 @@ def_walk_helpers!(
 );
 
 fn f064egst_ceil(x: F064) -> Extended<Epoch> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -1205,7 +1185,7 @@ fn f064egst_ceil(x: F064) -> Extended<Epoch> {
         return Extended::PosInf;
     }
     if v == f64::NEG_INFINITY {
-        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+        return Extended::NegInf;
     }
     let max_secs = gst_max_secs_f64();
     let min_secs = gst_min_secs_f64();
@@ -1222,9 +1202,9 @@ fn f064egst_ceil(x: F064) -> Extended<Epoch> {
 
 fn f064egst_inner(e: Extended<Epoch>) -> F064 {
     match e {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(e) => ExtendedFloat::Extend(e.to_gst_seconds()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(e) => N5::new(e.to_gst_seconds()),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
@@ -1232,19 +1212,20 @@ crate::conn_l! {
     /// `F064 → Extended<hifitime::Epoch>` — GST seconds (since
     /// [`hifitime::GST_REF_EPOCH`]) ↔ Epoch. Same shape as
     /// [`F064EGPS`] with `to_gst_seconds` as the comparison frame.
-    /// Same NEG_INFINITY tag caveat as [`F064EGPS`] (the arm yields
-    /// a **TAI**-tagged Epoch, not a GST-tagged one — laws still
-    /// hold under instant-based `Epoch::Eq`).
+    /// Same lower-bound fast-path caveat as [`F064EGPS`] (finite
+    /// lower-bound inputs yield a **TAI**-tagged Epoch, not a
+    /// GST-tagged one — laws still hold under instant-based
+    /// `Epoch::Eq`).
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::hifi::F064EGST;
     /// use connections::extended::Extended;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use hifitime::GST_REF_EPOCH;
     ///
-    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// let zero = N5::new(0.0_f64);
     /// assert_eq!(F064EGST.ceil(zero), Extended::Finite(GST_REF_EPOCH));
     /// ```
     pub F064EGST : F064 => Extended<Epoch> {
@@ -1360,11 +1341,7 @@ def_walk_helpers!(
 );
 
 fn f064ebdt_ceil(x: F064) -> Extended<Epoch> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -1372,7 +1349,7 @@ fn f064ebdt_ceil(x: F064) -> Extended<Epoch> {
         return Extended::PosInf;
     }
     if v == f64::NEG_INFINITY {
-        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+        return Extended::NegInf;
     }
     let max_secs = bdt_max_secs_f64();
     let min_secs = bdt_min_secs_f64();
@@ -1389,9 +1366,9 @@ fn f064ebdt_ceil(x: F064) -> Extended<Epoch> {
 
 fn f064ebdt_inner(e: Extended<Epoch>) -> F064 {
     match e {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(e) => ExtendedFloat::Extend(epoch_to_bdt_f64(e)),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(e) => N5::new(epoch_to_bdt_f64(e)),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
@@ -1401,19 +1378,20 @@ crate::conn_l! {
     /// [`F064EGPS`] with the comparison frame routed through
     /// `epoch_to_bdt_f64` — i.e. `to_duration_in_time_scale(BDT).to_seconds()`,
     /// **not** `to_bdt_seconds()` — to avoid the upper-bound HD
-    /// saturation documented in the §3.4 banner. Same NEG_INFINITY
-    /// tag caveat as [`F064EGPS`] (the arm yields a **TAI**-tagged
-    /// Epoch — laws hold under instant-based `Epoch::Eq`).
+    /// saturation documented in the §3.4 banner. Same lower-bound
+    /// fast-path caveat as [`F064EGPS`] (finite lower-bound inputs
+    /// yield a **TAI**-tagged Epoch — laws hold under instant-based
+    /// `Epoch::Eq`).
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::hifi::F064EBDT;
     /// use connections::extended::Extended;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use hifitime::BDT_REF_EPOCH;
     ///
-    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// let zero = N5::new(0.0_f64);
     /// assert_eq!(F064EBDT.ceil(zero), Extended::Finite(BDT_REF_EPOCH));
     /// ```
     pub F064EBDT : F064 => Extended<Epoch> {
@@ -1534,11 +1512,7 @@ def_walk_helpers!(
 );
 
 fn f064etdt_ceil(x: F064) -> Extended<Epoch> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -1546,7 +1520,7 @@ fn f064etdt_ceil(x: F064) -> Extended<Epoch> {
         return Extended::PosInf;
     }
     if v == f64::NEG_INFINITY {
-        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+        return Extended::NegInf;
     }
     let max_secs = tt_max_secs_f64();
     let min_secs = tt_min_secs_f64();
@@ -1563,9 +1537,9 @@ fn f064etdt_ceil(x: F064) -> Extended<Epoch> {
 
 fn f064etdt_inner(e: Extended<Epoch>) -> F064 {
     match e {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(e) => ExtendedFloat::Extend(e.to_tt_seconds()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(e) => N5::new(e.to_tt_seconds()),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
@@ -1582,21 +1556,21 @@ crate::conn_l! {
     /// `tt_max_secs_f64()` before the walk hits the saturated region,
     /// so this Conn is well-defined over the full f64 input domain.
     ///
-    /// Same NEG_INFINITY tag caveat as [`F064EGPS`] (the saturated arm
-    /// yields a **TAI**-tagged Epoch — laws hold under instant-based
-    /// `Epoch::Eq`).
+    /// Same lower-bound fast-path caveat as [`F064EGPS`] (finite
+    /// lower-bound inputs yield a **TAI**-tagged Epoch — laws hold
+    /// under instant-based `Epoch::Eq`).
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::hifi::F064ETDT;
     /// use connections::extended::Extended;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use hifitime::{Duration as HDuration, Epoch};
     ///
     /// // 0.0 TT seconds since J1900 TT = the instant whose TT-stored
     /// // duration is HD::ZERO.
-    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// let zero = N5::new(0.0_f64);
     /// let j1900_tt = Epoch::from_tt_duration(HDuration::ZERO);
     /// assert_eq!(F064ETDT.ceil(zero), Extended::Finite(j1900_tt));
     /// ```
@@ -1642,11 +1616,7 @@ def_walk_helpers!(
 );
 
 fn f064etde_ceil(x: F064) -> Extended<Epoch> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -1654,7 +1624,7 @@ fn f064etde_ceil(x: F064) -> Extended<Epoch> {
         return Extended::PosInf;
     }
     if v == f64::NEG_INFINITY {
-        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+        return Extended::NegInf;
     }
     let max_secs = et_max_secs_f64();
     let min_secs = et_min_secs_f64();
@@ -1671,9 +1641,9 @@ fn f064etde_ceil(x: F064) -> Extended<Epoch> {
 
 fn f064etde_inner(e: Extended<Epoch>) -> F064 {
     match e {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(e) => ExtendedFloat::Extend(e.to_et_seconds()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(e) => N5::new(e.to_et_seconds()),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
@@ -1688,18 +1658,18 @@ crate::conn_l! {
     /// `hifitime/tests/epoch.rs:2420`. For sub-ns precision the
     /// scale itself is undefined; F064 is the natural frame.
     ///
-    /// Same NEG_INFINITY tag caveat as [`F064EGPS`].
+    /// Same lower-bound fast-path caveat as [`F064EGPS`].
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::hifi::F064ETDE;
     /// use connections::extended::Extended;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use hifitime::Epoch;
     ///
     /// // 0.0 ET seconds since J2000 ET = J2000 instant.
-    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// let zero = N5::new(0.0_f64);
     /// let j2000_et = Epoch::from_et_seconds(0.0);
     /// // Round-trip is precise to ≤ 1 ns under instant Eq.
     /// match F064ETDE.ceil(zero) {
@@ -1733,11 +1703,7 @@ def_walk_helpers!(
 );
 
 fn f064etdb_ceil(x: F064) -> Extended<Epoch> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -1745,7 +1711,7 @@ fn f064etdb_ceil(x: F064) -> Extended<Epoch> {
         return Extended::PosInf;
     }
     if v == f64::NEG_INFINITY {
-        return Extended::Finite(Epoch::from_tai_duration(HD::MIN));
+        return Extended::NegInf;
     }
     let max_secs = tdb_max_secs_f64();
     let min_secs = tdb_min_secs_f64();
@@ -1762,9 +1728,9 @@ fn f064etdb_ceil(x: F064) -> Extended<Epoch> {
 
 fn f064etdb_inner(e: Extended<Epoch>) -> F064 {
     match e {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(e) => ExtendedFloat::Extend(e.to_tdb_seconds()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(e) => N5::new(e.to_tdb_seconds()),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
@@ -1782,18 +1748,18 @@ crate::conn_l! {
     /// ET and TDB is ≤ 30 µs, well above this Conn's f64 ULP at most
     /// real magnitudes.
     ///
-    /// Same NEG_INFINITY tag caveat as [`F064EGPS`].
+    /// Same lower-bound fast-path caveat as [`F064EGPS`].
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::hifi::F064ETDB;
     /// use connections::extended::Extended;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use hifitime::Epoch;
     ///
     /// // 0.0 TDB seconds since J2000 TDB = J2000 instant.
-    /// let zero = ExtendedFloat::Extend(0.0_f64);
+    /// let zero = N5::new(0.0_f64);
     /// let j2000_tdb = Epoch::from_tdb_seconds(0.0);
     /// match F064ETDB.ceil(zero) {
     ///     Extended::Finite(got) => {
@@ -1969,7 +1935,7 @@ mod tests {
 
     #[test]
     fn f064etai_zero_is_j1900() {
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         let j1900 = Epoch::from_tai_duration(HD::ZERO);
         assert_eq!(F064ETAI.ceil(zero), Extended::Finite(j1900));
         assert_eq!(F064ETAI.upper(Extended::Finite(j1900)), zero);
@@ -1977,37 +1943,28 @@ mod tests {
 
     #[test]
     fn f064etai_half_second() {
-        let half = ExtendedFloat::Extend(0.5_f64);
+        let half = N5::new(0.5_f64);
         let half_e = Epoch::from_tai_duration(HD::from_seconds(0.5));
         assert_eq!(F064ETAI.ceil(half), Extended::Finite(half_e));
     }
 
     #[test]
     fn f064etai_nan_arms() {
-        assert_eq!(
-            F064ETAI.ceil(ExtendedFloat::Extend(f64::NAN)),
-            Extended::PosInf,
-        );
+        assert_eq!(F064ETAI.ceil(N5::new(f64::NAN)), Extended::PosInf,);
     }
 
     #[test]
     fn f064etai_inf_arms() {
-        assert_eq!(
-            F064ETAI.ceil(ExtendedFloat::Extend(f64::INFINITY)),
-            Extended::PosInf,
-        );
-        assert_eq!(
-            F064ETAI.ceil(ExtendedFloat::Extend(f64::NEG_INFINITY)),
-            Extended::Finite(Epoch::from_tai_duration(HD::MIN)),
-        );
+        assert_eq!(F064ETAI.ceil(N5::new(f64::INFINITY)), Extended::PosInf,);
+        assert_eq!(F064ETAI.ceil(N5::new(f64::NEG_INFINITY)), Extended::NegInf,);
     }
 
     #[test]
-    fn f064etai_bot_top_arms() {
-        assert_eq!(F064ETAI.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F064ETAI.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F064ETAI.upper(Extended::NegInf), ExtendedFloat::Bot);
-        assert_eq!(F064ETAI.upper(Extended::PosInf), ExtendedFloat::Top);
+    fn f064etai_extended_bounds_upper_to_infinities() {
+        assert_eq!(F064ETAI.ceil(N5::new(f64::NEG_INFINITY)), Extended::NegInf);
+        assert_eq!(F064ETAI.ceil(N5::new(f64::INFINITY)), Extended::PosInf);
+        assert_eq!(F064ETAI.upper(Extended::NegInf), N5::new(f64::NEG_INFINITY));
+        assert_eq!(F064ETAI.upper(Extended::PosInf), N5::new(f64::INFINITY));
     }
 
     #[test]
@@ -2018,7 +1975,7 @@ mod tests {
         // to MIN. Uses `hd_min_secs_f64()` (matches the implementation's
         // threshold) rather than `HD::MIN.to_seconds()` whose `±10²³`-
         // magnitude f64 cast could disagree by ULPs.
-        let v_min = ExtendedFloat::Extend(hd_min_secs_f64());
+        let v_min = N5::new(hd_min_secs_f64());
         assert_eq!(
             F064ETAI.ceil(v_min),
             Extended::Finite(Epoch::from_tai_duration(HD::MIN)),
@@ -2043,7 +2000,7 @@ mod tests {
     // against regressions of the round-3/4 fast-path discussion.
     #[test]
     fn f064eunx_below_hd_min_secs_collapses_to_hd_min() {
-        let v = ExtendedFloat::Extend(hd_min_secs_f64() - 1.0);
+        let v = N5::new(hd_min_secs_f64() - 1.0);
         assert_eq!(
             F064EUNX.ceil(v),
             Extended::Finite(Epoch::from_tai_duration(HD::MIN)),
@@ -2052,7 +2009,7 @@ mod tests {
 
     #[test]
     fn f064eunx_zero_is_unix_epoch() {
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         let unix_epoch = Epoch::from_unix_seconds(0.0);
         assert_eq!(F064EUNX.ceil(zero), Extended::Finite(unix_epoch));
         assert_eq!(F064EUNX.upper(Extended::Finite(unix_epoch)), zero);
@@ -2060,23 +2017,16 @@ mod tests {
 
     #[test]
     fn f064eunx_one_second() {
-        let one = ExtendedFloat::Extend(1.0_f64);
+        let one = N5::new(1.0_f64);
         let one_e = Epoch::from_unix_seconds(1.0);
         assert_eq!(F064EUNX.ceil(one), Extended::Finite(one_e));
     }
 
     #[test]
-    fn f064eunx_nan_inf_bot_top() {
-        assert_eq!(
-            F064EUNX.ceil(ExtendedFloat::Extend(f64::NAN)),
-            Extended::PosInf,
-        );
-        assert_eq!(
-            F064EUNX.ceil(ExtendedFloat::Extend(f64::INFINITY)),
-            Extended::PosInf,
-        );
-        assert_eq!(F064EUNX.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F064EUNX.ceil(ExtendedFloat::Top), Extended::PosInf);
+    fn f064eunx_nan_inf_bounds() {
+        assert_eq!(F064EUNX.ceil(N5::new(f64::NAN)), Extended::PosInf,);
+        assert_eq!(F064EUNX.ceil(N5::new(f64::INFINITY)), Extended::PosInf,);
+        assert_eq!(F064EUNX.ceil(N5::new(f64::NEG_INFINITY)), Extended::NegInf);
     }
 
     // ── ETAIHDUR / EUTCHDUR iso law batteries ────────────────────
@@ -2239,22 +2189,15 @@ mod tests {
 
     #[test]
     fn f064egps_zero_is_ref() {
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         assert_eq!(F064EGPS.ceil(zero), Extended::Finite(GPST_REF_EPOCH));
     }
 
     #[test]
-    fn f064egps_nan_inf_bot_top() {
-        assert_eq!(
-            F064EGPS.ceil(ExtendedFloat::Extend(f64::NAN)),
-            Extended::PosInf,
-        );
-        assert_eq!(
-            F064EGPS.ceil(ExtendedFloat::Extend(f64::INFINITY)),
-            Extended::PosInf,
-        );
-        assert_eq!(F064EGPS.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F064EGPS.ceil(ExtendedFloat::Top), Extended::PosInf);
+    fn f064egps_nan_inf_bounds() {
+        assert_eq!(F064EGPS.ceil(N5::new(f64::NAN)), Extended::PosInf,);
+        assert_eq!(F064EGPS.ceil(N5::new(f64::INFINITY)), Extended::PosInf,);
+        assert_eq!(F064EGPS.ceil(N5::new(f64::NEG_INFINITY)), Extended::NegInf);
     }
 
     #[test]
@@ -2279,7 +2222,7 @@ mod tests {
 
     #[test]
     fn f064eqzs_zero_is_ref() {
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         // QZSST_REF_EPOCH and GPST_REF_EPOCH are instant-equal but
         // the inner-side answer is constructed via from_qzsst_seconds,
         // which produces a QZSST-tagged Epoch. Compare on instant via
@@ -2309,7 +2252,7 @@ mod tests {
 
     #[test]
     fn f064egst_zero_is_ref() {
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         assert_eq!(F064EGST.ceil(zero), Extended::Finite(GST_REF_EPOCH));
     }
 
@@ -2335,7 +2278,7 @@ mod tests {
 
     #[test]
     fn f064ebdt_zero_is_ref() {
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         assert_eq!(F064EBDT.ceil(zero), Extended::Finite(BDT_REF_EPOCH));
     }
 
@@ -2614,30 +2557,23 @@ mod tests {
     fn f064etdt_zero_is_j1900_tt() {
         // 0.0 TT seconds since J1900 TT = the instant whose
         // TT-stored Duration is HD::ZERO.
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         let j1900_tt = Epoch::from_tt_duration(HD::ZERO);
         assert_eq!(F064ETDT.ceil(zero), Extended::Finite(j1900_tt));
     }
 
     #[test]
-    fn f064etdt_nan_inf_bot_top() {
-        assert_eq!(
-            F064ETDT.ceil(ExtendedFloat::Extend(f64::NAN)),
-            Extended::PosInf,
-        );
-        assert_eq!(
-            F064ETDT.ceil(ExtendedFloat::Extend(f64::INFINITY)),
-            Extended::PosInf,
-        );
-        assert_eq!(F064ETDT.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F064ETDT.ceil(ExtendedFloat::Top), Extended::PosInf);
+    fn f064etdt_nan_inf_bounds() {
+        assert_eq!(F064ETDT.ceil(N5::new(f64::NAN)), Extended::PosInf,);
+        assert_eq!(F064ETDT.ceil(N5::new(f64::INFINITY)), Extended::PosInf,);
+        assert_eq!(F064ETDT.ceil(N5::new(f64::NEG_INFINITY)), Extended::NegInf);
     }
 
     #[test]
     fn f064etde_zero_is_near_j2000() {
         // 0.0 ET seconds since J2000 ET = J2000 instant (within 1 ns
         // due to the Newton-Raphson lossy round-trip).
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         let j2000_et = Epoch::from_et_seconds(0.0);
         let result = F064ETDE.ceil(zero);
         match result {
@@ -2652,20 +2588,17 @@ mod tests {
     }
 
     #[test]
-    fn f064etde_nan_inf_bot_top() {
-        assert_eq!(
-            F064ETDE.ceil(ExtendedFloat::Extend(f64::NAN)),
-            Extended::PosInf,
-        );
-        assert_eq!(F064ETDE.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F064ETDE.ceil(ExtendedFloat::Top), Extended::PosInf);
+    fn f064etde_nan_inf_bounds() {
+        assert_eq!(F064ETDE.ceil(N5::new(f64::NAN)), Extended::PosInf,);
+        assert_eq!(F064ETDE.ceil(N5::new(f64::NEG_INFINITY)), Extended::NegInf);
+        assert_eq!(F064ETDE.ceil(N5::new(f64::INFINITY)), Extended::PosInf);
     }
 
     #[test]
     fn f064etdb_zero_is_near_j2000() {
         // 0.0 TDB seconds since J2000 TDB = J2000 instant (within 1 ns
         // due to the ESA polynomial lossy round-trip).
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         let j2000_tdb = Epoch::from_tdb_seconds(0.0);
         let result = F064ETDB.ceil(zero);
         match result {
@@ -2680,13 +2613,10 @@ mod tests {
     }
 
     #[test]
-    fn f064etdb_nan_inf_bot_top() {
-        assert_eq!(
-            F064ETDB.ceil(ExtendedFloat::Extend(f64::NAN)),
-            Extended::PosInf,
-        );
-        assert_eq!(F064ETDB.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F064ETDB.ceil(ExtendedFloat::Top), Extended::PosInf);
+    fn f064etdb_nan_inf_bounds() {
+        assert_eq!(F064ETDB.ceil(N5::new(f64::NAN)), Extended::PosInf,);
+        assert_eq!(F064ETDB.ceil(N5::new(f64::NEG_INFINITY)), Extended::NegInf);
+        assert_eq!(F064ETDB.ceil(N5::new(f64::INFINITY)), Extended::PosInf);
     }
 
     #[test]
@@ -2837,7 +2767,7 @@ mod tests {
         // 1e13 TAI seconds is well past the 2⁵³-ns regime where the
         // f64 plateau widens past 1 ULP — pre-solver this would walk
         // ~10⁶ ns. With the solver it returns within ≤ 52 iterations.
-        let v = ExtendedFloat::Extend(1.0e13_f64);
+        let v = N5::new(1.0e13_f64);
         let _ = F064ETAI.ceil(v);
     }
 

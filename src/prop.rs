@@ -21,14 +21,14 @@
 //! ```rust,no_run
 //! use connections::conn::view_l;
 //! use connections::core::f064::F064F032;
-//! use connections::float::ExtendedFloat;
+//! use connections::float::N5;
 //! use connections::prop::conn;
 //!
 //! // Spot check: F064F032 satisfies the Galois adjoint law over a
 //! // representative pair. F064F032 is now a triple-marker unit
 //! // struct; `view_l(&F064F032)` is its L-view.
-//! let a = ExtendedFloat::Extend(1.5_f64);
-//! let b = ExtendedFloat::Extend(1.5_f32);
+//! let a = N5::new(1.5_f64);
+//! let b = N5::new(1.5_f32);
 //! assert!(conn::galois_l(&view_l(&F064F032), a, b));
 //! ```
 //!
@@ -39,7 +39,7 @@
 //! use connections::conn::view_l;
 //! use connections::prop::{arb, conn};
 //! use connections::core::f064::F064F032;
-//! use connections::float::ExtendedFloat;
+//! use connections::float::N5;
 //! use proptest::prelude::*;
 //!
 //! proptest! {
@@ -50,8 +50,8 @@
 //!     ) {
 //!         prop_assert!(conn::galois_l(
 //!             &view_l(&F064F032),
-//!             ExtendedFloat::Extend(a),
-//!             ExtendedFloat::Extend(b),
+//!             N5::new(a),
+//!             N5::new(b),
 //!         ));
 //!     }
 //! }

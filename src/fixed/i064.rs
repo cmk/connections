@@ -222,14 +222,14 @@ mod tests {
     #[test]
     fn f064q000_above_max_to_posinf() {
         let above_max = (i64::MAX as f64) * 2.0_f64.powi(0); // = 2^63
-        let v = crate::float::ExtendedFloat::Extend(above_max);
+        let v = crate::float::N5::new(above_max);
         assert_eq!(F064Q000.ceil(v), crate::extended::Extended::PosInf);
     }
 
     #[test]
     fn f064q008_above_max_to_posinf() {
         let above_max = (i64::MAX as f64) / 256.0_f64; // = 2^55
-        let v = crate::float::ExtendedFloat::Extend(above_max);
+        let v = crate::float::N5::new(above_max);
         assert_eq!(F064Q008.ceil(v), crate::extended::Extended::PosInf);
     }
 }

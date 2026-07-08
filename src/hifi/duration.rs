@@ -35,11 +35,11 @@
 //! `Duration` range with a one-step saturation marker, so the
 //! source side hosts the synthetic `NegInf` / `PosInf` arms. The
 //! float bridges follow the existing `F???TDUR` shape: float on
-//! the left (already extended via `ExtendedFloat`), `Extended<HD>`
+//! the left (already extended via `N5`), `Extended<HD>`
 //! on the right.
 
 use crate::extended::Extended;
-use crate::float::{ExtendedFloat, F032, F064, def_walk_helpers};
+use crate::float::{F032, F064, N5, def_walk_helpers};
 use hifitime::Duration as HD;
 
 // ── Range bounds, computed once at runtime ─────────────────────
@@ -328,11 +328,7 @@ def_walk_helpers!(
 );
 
 fn f064hdur_ceil(x: F064) -> Extended<HD> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -340,7 +336,7 @@ fn f064hdur_ceil(x: F064) -> Extended<HD> {
         return Extended::PosInf;
     }
     if v == f64::NEG_INFINITY {
-        return Extended::Finite(HD::MIN);
+        return Extended::NegInf;
     }
     // Bounds via integer arithmetic — `HD::MAX.to_seconds()` directly
     // would f64-cast a `±10²³`-magnitude value past the exact-integer
@@ -369,9 +365,9 @@ fn f064hdur_ceil(x: F064) -> Extended<HD> {
 
 fn f064hdur_inner(d: Extended<HD>) -> F064 {
     match d {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(d) => ExtendedFloat::Extend(d.to_seconds()),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f64::NEG_INFINITY),
+        Extended::Finite(d) => N5::new(d.to_seconds()),
+        Extended::PosInf => N5::new(f64::INFINITY),
     }
 }
 
@@ -388,29 +384,27 @@ crate::conn_l! {
     /// `F064TDUR`, Plan 32).
     ///
     /// Saturation arms:
-    /// - `ceil(Bot)` = `NegInf`.
-    /// - `ceil(Top)` = `PosInf`.
-    /// - `ceil(Extend(NaN))` = `PosInf`.
-    /// - `ceil(Extend(+∞))` = `PosInf`. Symmetric for `−∞` →
-    ///   `Finite(HD::MIN)`.
+    /// - `ceil(N5::new(NaN))` = `PosInf`.
+    /// - `ceil(N5::new(+∞))` = `PosInf`.
+    /// - `ceil(N5::new(-∞))` = `NegInf`.
     ///
     /// # Examples
     ///
     /// ```rust
     /// use connections::hifi::F064HDUR;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use connections::extended::Extended;
     /// use hifitime::Duration as HDuration;
     ///
     /// // 0.5 s round-trips exactly.
-    /// let half = ExtendedFloat::Extend(0.5_f64);
+    /// let half = N5::new(0.5_f64);
     /// assert_eq!(
     ///     F064HDUR.ceil(half),
     ///     Extended::Finite(HDuration::from_seconds(0.5)),
     /// );
     ///
     /// // NaN saturates ceil to PosInf.
-    /// assert_eq!(F064HDUR.ceil(ExtendedFloat::Extend(f64::NAN)), Extended::PosInf);
+    /// assert_eq!(F064HDUR.ceil(N5::new(f64::NAN)), Extended::PosInf);
     /// ```
     pub F064HDUR : F064 => Extended<HD> {
         ceil:  f064hdur_ceil,
@@ -419,11 +413,7 @@ crate::conn_l! {
 }
 
 fn f032hdur_ceil(x: F032) -> Extended<HD> {
-    let v = match x {
-        ExtendedFloat::Bot => return Extended::NegInf,
-        ExtendedFloat::Top => return Extended::PosInf,
-        ExtendedFloat::Extend(v) => v,
-    };
+    let v = x.into_inner();
     if v.is_nan() {
         return Extended::PosInf;
     }
@@ -431,7 +421,7 @@ fn f032hdur_ceil(x: F032) -> Extended<HD> {
         return Extended::PosInf;
     }
     if v == f32::NEG_INFINITY {
-        return Extended::Finite(HD::MIN);
+        return Extended::NegInf;
     }
     // Same integer-derived bounds as `f064hdur_ceil` — see its
     // commentary. The trailing `as f32` cast is lossy on its own (f32
@@ -453,9 +443,9 @@ fn f032hdur_ceil(x: F032) -> Extended<HD> {
 
 fn f032hdur_inner(d: Extended<HD>) -> F032 {
     match d {
-        Extended::NegInf => ExtendedFloat::Bot,
-        Extended::Finite(d) => ExtendedFloat::Extend(d.to_seconds() as f32),
-        Extended::PosInf => ExtendedFloat::Top,
+        Extended::NegInf => N5::new(f32::NEG_INFINITY),
+        Extended::Finite(d) => N5::new(d.to_seconds() as f32),
+        Extended::PosInf => N5::new(f32::INFINITY),
     }
 }
 
@@ -474,13 +464,13 @@ crate::conn_l! {
     ///
     /// ```rust
     /// use connections::hifi::F032HDUR;
-    /// use connections::float::ExtendedFloat;
+    /// use connections::float::N5;
     /// use connections::extended::Extended;
     /// use hifitime::Duration as HDuration;
     ///
     /// // 1.0 s in f32 ceils to a Duration whose `to_seconds() as f32`
     /// // round-trips back to 1.0_f32.
-    /// let one = ExtendedFloat::Extend(1.0_f32);
+    /// let one = N5::new(1.0_f32);
     /// if let Extended::Finite(c) = F032HDUR.ceil(one) {
     ///     assert_eq!(c.to_seconds() as f32, 1.0_f32);
     /// } else {
@@ -776,14 +766,14 @@ mod tests {
 
     #[test]
     fn f64_hdur_zero() {
-        let zero = ExtendedFloat::Extend(0.0_f64);
+        let zero = N5::new(0.0_f64);
         assert_eq!(F064HDUR.ceil(zero), Extended::Finite(HD::ZERO));
         assert_eq!(F064HDUR.upper(Extended::Finite(HD::ZERO)), zero);
     }
 
     #[test]
     fn f64_hdur_half_second() {
-        let half = ExtendedFloat::Extend(0.5_f64);
+        let half = N5::new(0.5_f64);
         let half_d = HD::from_seconds(0.5);
         assert_eq!(F064HDUR.ceil(half), Extended::Finite(half_d));
         assert_eq!(F064HDUR.upper(Extended::Finite(half_d)), half);
@@ -791,25 +781,23 @@ mod tests {
 
     #[test]
     fn f64_hdur_nan_arms() {
-        let nan = ExtendedFloat::Extend(f64::NAN);
+        let nan = N5::new(f64::NAN);
         assert_eq!(F064HDUR.ceil(nan), Extended::PosInf);
     }
 
     #[test]
     fn f64_hdur_infinity_arms() {
-        let pos_inf = ExtendedFloat::Extend(f64::INFINITY);
+        let pos_inf = N5::new(f64::INFINITY);
         assert_eq!(F064HDUR.ceil(pos_inf), Extended::PosInf);
 
-        let neg_inf = ExtendedFloat::Extend(f64::NEG_INFINITY);
-        assert_eq!(F064HDUR.ceil(neg_inf), Extended::Finite(HD::MIN));
+        let neg_inf = N5::new(f64::NEG_INFINITY);
+        assert_eq!(F064HDUR.ceil(neg_inf), Extended::NegInf);
     }
 
     #[test]
-    fn f64_hdur_bot_top_arms() {
-        assert_eq!(F064HDUR.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F064HDUR.ceil(ExtendedFloat::Top), Extended::PosInf);
-        assert_eq!(F064HDUR.upper(Extended::NegInf), ExtendedFloat::Bot);
-        assert_eq!(F064HDUR.upper(Extended::PosInf), ExtendedFloat::Top);
+    fn f64_hdur_extended_bounds_upper_to_infinities() {
+        assert_eq!(F064HDUR.upper(Extended::NegInf), N5::new(f64::NEG_INFINITY));
+        assert_eq!(F064HDUR.upper(Extended::PosInf), N5::new(f64::INFINITY));
     }
 
     // Regression guard mirroring F064TDUR's `f64_ceil_min_secs_fast_path`.
@@ -819,13 +807,13 @@ mod tests {
     // disagree with the implementation's threshold.
     #[test]
     fn f64_hdur_ceil_min_secs_fast_path() {
-        let v_min = ExtendedFloat::Extend(hd_min_secs() as f64);
+        let v_min = N5::new(hd_min_secs() as f64);
         assert_eq!(F064HDUR.ceil(v_min), Extended::Finite(HD::MIN));
     }
 
     #[test]
     fn f32_hdur_zero() {
-        let zero = ExtendedFloat::Extend(0.0_f32);
+        let zero = N5::new(0.0_f32);
         assert_eq!(F032HDUR.ceil(zero), Extended::Finite(HD::ZERO));
     }
 
@@ -833,7 +821,7 @@ mod tests {
     fn f32_hdur_one_second_in_plateau() {
         // f32 ULP at 1.0 ≈ 1.19e-7 s. ceil returns the bottom of
         // the plateau covering 1.0; widen back yields 1.0_f32.
-        let one = ExtendedFloat::Extend(1.0_f32);
+        let one = N5::new(1.0_f32);
         if let Extended::Finite(c) = F032HDUR.ceil(one) {
             assert_eq!(c.to_seconds() as f32, 1.0_f32);
         } else {
@@ -843,23 +831,23 @@ mod tests {
 
     #[test]
     fn f32_hdur_nan_arms() {
-        let nan = ExtendedFloat::Extend(f32::NAN);
+        let nan = N5::new(f32::NAN);
         assert_eq!(F032HDUR.ceil(nan), Extended::PosInf);
     }
 
     #[test]
     fn f32_hdur_infinity_arms() {
-        let pos_inf = ExtendedFloat::Extend(f32::INFINITY);
+        let pos_inf = N5::new(f32::INFINITY);
         assert_eq!(F032HDUR.ceil(pos_inf), Extended::PosInf);
 
-        let neg_inf = ExtendedFloat::Extend(f32::NEG_INFINITY);
-        assert_eq!(F032HDUR.ceil(neg_inf), Extended::Finite(HD::MIN));
+        let neg_inf = N5::new(f32::NEG_INFINITY);
+        assert_eq!(F032HDUR.ceil(neg_inf), Extended::NegInf);
     }
 
     #[test]
-    fn f32_hdur_bot_top_arms() {
-        assert_eq!(F032HDUR.ceil(ExtendedFloat::Bot), Extended::NegInf);
-        assert_eq!(F032HDUR.ceil(ExtendedFloat::Top), Extended::PosInf);
+    fn f32_hdur_extended_bounds_upper_to_infinities() {
+        assert_eq!(F032HDUR.upper(Extended::NegInf), N5::new(f32::NEG_INFINITY));
+        assert_eq!(F032HDUR.upper(Extended::PosInf), N5::new(f32::INFINITY));
     }
 
     // ── F064HDUR / F032HDUR L-side battery (bounded float strats) ──
@@ -930,7 +918,7 @@ mod tests {
     fn f064_hdur_solve_terminates_at_max_rim() {
         // Mid-magnitude (1e13 s, well past 2⁵³ ns ≈ 104 days where the
         // f64 plateau widens). Pre-solver this would walk ~10⁶ ns.
-        let v = ExtendedFloat::Extend(1.0e13_f64);
+        let v = N5::new(1.0e13_f64);
         let _ = F064HDUR.ceil(v);
     }
 
@@ -938,6 +926,6 @@ mod tests {
     fn f064_hdur_solve_terminates_at_unsigned_min_rim() {
         // Just past the negative rim (still inside hd_min_secs).
         let min_secs = hd_min_secs() as f64;
-        let _ = F064HDUR.ceil(ExtendedFloat::Extend(min_secs * 0.9_f64));
+        let _ = F064HDUR.ceil(N5::new(min_secs * 0.9_f64));
     }
 }

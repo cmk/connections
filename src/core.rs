@@ -15,7 +15,7 @@
 //! - [`mod@u008`] / [`mod@u016`] / [`mod@u032`] / [`mod@u064`] / [`mod@u128`] —
 //!   unsigned-source std-int Conns plus `NonZeroU<N>` host surfaces.
 //! - `f016` (gated on `f16`) / [`mod@f032`] / [`mod@f064`] —
-//!   IEEE-float Conns; the [`ExtendedFloat<T>`](crate::float::ExtendedFloat)
+//!   IEEE-float Conns; the [`N5<T>`](crate::float::N5)
 //!   wrapper and float-only infrastructure live in [`crate::float`].
 //! - [`mod@char`] — `Extended<u32> → Extended<char>` codepoint projection.
 //! - [`mod@bool`] — bool ↔ `[u8;1]` / `LE<1>` projections.
