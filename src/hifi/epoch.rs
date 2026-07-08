@@ -902,14 +902,16 @@ crate::conn_l! {
     /// value), so this is `ConnL` not `ConnK` (matches `F064TDUR` /
     /// `F064ETAI` rationale).
     ///
-    /// **NEG_INFINITY arm tag.** `ceil(N5::new(f64::NEG_INFINITY))`
-    /// returns `Finite(Epoch::from_tai_duration(HD::MIN))` — a
-    /// **TAI**-tagged Epoch, not a GPST-tagged one. Inherited from
-    /// the §1 `F064ETAI` design. The ConnL idempotent law still
-    /// holds (`Epoch::Eq` is instant-based; the saturated subtraction
-    /// in `to_gpst_seconds` makes successive `ceil ∘ inner` round-
-    /// trips collapse to the same instant), but readers should not
-    /// assume the result carries the GPST scale tag throughout.
+    /// **Lower-bound fast-path tag.** Raw
+    /// `N5::new(f64::NEG_INFINITY)` maps to `Extended::NegInf`.
+    /// Finite inputs at or below `gpst_min_secs_f64()` fast-path to
+    /// `Finite(Epoch::from_tai_duration(HD::MIN))` — a **TAI**-
+    /// tagged Epoch, not a GPST-tagged one. Inherited from the §1
+    /// `F064ETAI` design. The ConnL idempotent law still holds
+    /// (`Epoch::Eq` is instant-based; the saturated subtraction in
+    /// `to_gpst_seconds` makes successive `ceil ∘ inner` round-trips
+    /// collapse to the same instant), but readers should not assume
+    /// the result carries the GPST scale tag throughout.
     ///
     /// # Examples
     ///
@@ -1067,10 +1069,9 @@ fn f064eqzs_inner(e: Extended<Epoch>) -> F064 {
 crate::conn_l! {
     /// `F064 → Extended<hifitime::Epoch>` — QZSS Time seconds (since
     /// [`hifitime::QZSST_REF_EPOCH`]) ↔ Epoch. Mirrors [`F064EGPS`],
-    /// including the [NEG_INFINITY arm tag](F064EGPS) caveat
-    /// (the `f64::NEG_INFINITY` arm yields a **TAI**-tagged Epoch,
-    /// not a QZSST-tagged one — laws still hold under instant-based
-    /// `Epoch::Eq`).
+    /// including its lower-bound fast-path caveat (finite lower-bound
+    /// inputs yield a **TAI**-tagged Epoch, not a QZSST-tagged one —
+    /// laws still hold under instant-based `Epoch::Eq`).
     ///
     /// # Examples
     ///
@@ -1211,9 +1212,10 @@ crate::conn_l! {
     /// `F064 → Extended<hifitime::Epoch>` — GST seconds (since
     /// [`hifitime::GST_REF_EPOCH`]) ↔ Epoch. Same shape as
     /// [`F064EGPS`] with `to_gst_seconds` as the comparison frame.
-    /// Same NEG_INFINITY tag caveat as [`F064EGPS`] (the arm yields
-    /// a **TAI**-tagged Epoch, not a GST-tagged one — laws still
-    /// hold under instant-based `Epoch::Eq`).
+    /// Same lower-bound fast-path caveat as [`F064EGPS`] (finite
+    /// lower-bound inputs yield a **TAI**-tagged Epoch, not a
+    /// GST-tagged one — laws still hold under instant-based
+    /// `Epoch::Eq`).
     ///
     /// # Examples
     ///
@@ -1376,9 +1378,10 @@ crate::conn_l! {
     /// [`F064EGPS`] with the comparison frame routed through
     /// `epoch_to_bdt_f64` — i.e. `to_duration_in_time_scale(BDT).to_seconds()`,
     /// **not** `to_bdt_seconds()` — to avoid the upper-bound HD
-    /// saturation documented in the §3.4 banner. Same NEG_INFINITY
-    /// tag caveat as [`F064EGPS`] (the arm yields a **TAI**-tagged
-    /// Epoch — laws hold under instant-based `Epoch::Eq`).
+    /// saturation documented in the §3.4 banner. Same lower-bound
+    /// fast-path caveat as [`F064EGPS`] (finite lower-bound inputs
+    /// yield a **TAI**-tagged Epoch — laws hold under instant-based
+    /// `Epoch::Eq`).
     ///
     /// # Examples
     ///
@@ -1553,9 +1556,9 @@ crate::conn_l! {
     /// `tt_max_secs_f64()` before the walk hits the saturated region,
     /// so this Conn is well-defined over the full f64 input domain.
     ///
-    /// Same NEG_INFINITY tag caveat as [`F064EGPS`] (the saturated arm
-    /// yields a **TAI**-tagged Epoch — laws hold under instant-based
-    /// `Epoch::Eq`).
+    /// Same lower-bound fast-path caveat as [`F064EGPS`] (finite
+    /// lower-bound inputs yield a **TAI**-tagged Epoch — laws hold
+    /// under instant-based `Epoch::Eq`).
     ///
     /// # Examples
     ///
@@ -1655,7 +1658,7 @@ crate::conn_l! {
     /// `hifitime/tests/epoch.rs:2420`. For sub-ns precision the
     /// scale itself is undefined; F064 is the natural frame.
     ///
-    /// Same NEG_INFINITY tag caveat as [`F064EGPS`].
+    /// Same lower-bound fast-path caveat as [`F064EGPS`].
     ///
     /// # Examples
     ///
@@ -1745,7 +1748,7 @@ crate::conn_l! {
     /// ET and TDB is ≤ 30 µs, well above this Conn's f64 ULP at most
     /// real magnitudes.
     ///
-    /// Same NEG_INFINITY tag caveat as [`F064EGPS`].
+    /// Same lower-bound fast-path caveat as [`F064EGPS`].
     ///
     /// # Examples
     ///

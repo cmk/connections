@@ -1237,21 +1237,12 @@ macro_rules! __float_ext_int_ceil_body {
         } else {
             let lo = <$int>::MIN as $float;
             let hi = <$int>::MAX as $float;
-            // For `N5::new(-∞)` the routing splits by source mantissa
-            // vs target width. With a finite `lo` (f32/f64 sources, or
-            // f16 sources with `i8`/`u8` targets) the `v < lo` arm
-            // fires and returns `Finite(MIN)`. With a saturated `lo`
-            // (f16 sources with `i16+`/`u16+` targets, where
-            // `<$int>::MIN as f16 = -∞`) the comparison `-∞ < -∞`
-            // is `false`, so execution falls through to the `else`
-            // arm; Rust's saturating float-to-int cast then resolves
-            // `(-∞).ceil() as $int` to `<$int>::MIN`. Both paths
-            // produce the same value, but the routing differs — keep
-            // both arms in mind before introducing an explicit
-            // `v == NEG_INFINITY` short-circuit symmetric to the
-            // `+∞` guard above (it would be a no-op for the finite-`lo`
-            // case and a redundant double-classify for the saturated-
-            // `lo` case).
+            // With NaN and infinities handled above, this branch sees
+            // finite payloads only. For finite `lo`, values below the
+            // target range ceil to `Finite(MIN)`. If `lo` itself
+            // saturated to `-∞` (f16 sources with wide integer
+            // targets), no finite source can fall below it, so the
+            // cast path remains the in-range case.
             if $v > hi {
                 $crate::extended::Extended::PosInf
             } else if $v < lo {
