@@ -55,6 +55,13 @@ proptest = "1"
 trybuild = "1"
 
 [features]
+# `macros` ships in the default set at 0.1.0: the codegen macros
+# (`conn_l!` / `conn_k!` / `compose!` / `iso!` / `lift_*!` / …) land in
+# the `connections::` root namespace for every consumer, and the
+# `macros` module plus the prelude macro re-exports become
+# unconditional. Can be narrowed in 0.2 without breaking a 1.0 promise.
+default = ["macros"]
+
 fixed = ["dep:fixed"]
 
 # Expose `connections::prop::arb` (proptest strategies) to

@@ -158,6 +158,7 @@ impl<T> Extended<T> {
     /// assert_eq!(classify(Extended::Finite(7)), "in range");
     /// assert_eq!(classify(Extended::PosInf), "above");
     /// ```
+    #[inline]
     pub fn fold<U>(self, neg_inf: U, pos_inf: U, f: impl FnOnce(T) -> U) -> U {
         match self {
             Extended::NegInf => neg_inf,
@@ -169,6 +170,7 @@ impl<T> Extended<T> {
     /// Lazy variant of [`Extended::fold`]: all three arms are wrapped
     /// in [`FnOnce`] closures and only the matched arm is called.
     /// Use when any endpoint default is expensive to compute.
+    #[inline]
     pub fn fold_with<U>(
         self,
         neg_inf: impl FnOnce() -> U,
@@ -284,6 +286,7 @@ impl<O> core::ops::Residual<O> for Extended<core::convert::Infallible> {
 }
 
 impl<T: PartialOrd> PartialOrd for Extended<T> {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         use Extended::*;
         use std::cmp::Ordering::*;
@@ -300,6 +303,7 @@ impl<T: PartialOrd> PartialOrd for Extended<T> {
 }
 
 impl<T: Ord> Ord for Extended<T> {
+    #[inline]
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // Safe: PartialOrd on Extended returns Some for any Ord T.
         self.partial_cmp(other).unwrap()
