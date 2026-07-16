@@ -37,30 +37,23 @@ direction at a time — and `as` in particular is silent on rounding,
 saturation, and lossy conversion. Three concrete things this crate gives
 you that the standard tools don't:
 
-1. **Both arms of a cast on one value.** An adjoint-triple marker
-   exposes `ceil: A → B`, `floor: A → B`, *and* the embedding (`upper`
-   / `lower`) as a unit struct implementing both `ConnL` and `ConnR`
-   — you don't pick "ceiling cast" vs "floor cast" up front, you carry
-   the marker and call whichever you need per-call. (One-sided
-   connections — where only one law holds — ship as kind-tagged
-   `Conn<A, B>` (L) / `Conn<A, B, R>` values, exposing only the
-   methods of their kind.)
+1. **Clear semantics.**
 
-2. **Round-trip identities that hold.** `(x as f32) as f64 != x` for many
-   `x: f64`. With a `Conn`, the closure law `a ≤ inner(ceil(a))` and
-   kernel law `ceil(inner(b)) ≤ b` are property-tested for *every*
-   shipped connection. If you compose two connections with `compose!`,
-   the result is property-tested too.
+   `(x as f32) as f64 != x` for many `x: f64`. With a `Conn`, at least
+   one of the following pairs of inequalities is property-tested for
+   every connection in this crate:
+
+   - left-Galois: `ceil(a) ≤ b iff a ≤ upper(b)`
+   - right-Galois: `lower(b) ≤ a iff b ≤ floor(a)`
 
    A `Conn` is `Copy`, `const`-constructible, heap-free, and the crate 
    is `#![forbid(unsafe_code)]`.
 
-3. **Conversions composed by `compose!` are property-tested too.**
+2. **Safely composable.**
+
    The `compose!` macro folds a chain of pairwise Conns into one
-   fresh `Conn<Src, Dst>` at compile time — type-flow comes from
-   the binding annotation, intermediates are inferred. Domain-
-   specific ladders (decimal time rungs, audio sample rates) live
-   in downstream crates; this crate ships the algebra.
+   fresh `Conn<Src, Dst>` at compile time. A composed `Conn` obeys
+   the same properties as its component connections by construction.
 
 ## Quick start
 
@@ -203,10 +196,12 @@ implement `ConnK`.
 | Std-int widening + narrowing + cross-sign (`I###I###`, `U###I###`, `U###U###`, `I###U###`) | `core::{i008,…,i128, u008,…,u128}` |
 | `iN`/`uN` ↔ `NonZero<{i,u}N>` (`I###N###`, `U###N###`) | `core::{i008,…,i128, u008,…,u128}` |
 | Cross-crate iso `Fixed{I,U}<U0> ↔ {i,u}{N}` (`Q000I###`, `Q000U###`) and signed normalized bit isos (`Q007I008` … `Q127I128`) | `fixed::{i008,…,i128, u008,…,u128}` (`fixed` cargo feature) |
-| Float `f64 ↔ f32 ↔ f16` under N5 | `float` (`f16` cargo feature for f16) |
-| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time` cargo feature |
+| Float narrowing `f64 ↔ f32 ↔ f16` under N5 (`F064F032`, `F032F016`, `F064F016`) | `core::{f032,f064}` (`f16` cargo feature for f16) |
+| `time` crate types (`DATEJDAY`, `TIMENANO`, `TIMESECS`, `TDURSECS`, `F032TDUR`, `F064TDUR`, `PDTMDATE`, `ODTMNANO`, `ODTMSECS`) and the `std::time::Duration` family (`SDURU064`, `SDURU128`, `F064SDUR`, `F032SDUR`) for users on `std::time` | `time::{clock,date,datetime,duration,offset}` (`time` cargo feature) |
+| hifitime nanosecond `Duration` + `Epoch` Conns — calendar (`MONTU008`, `WKDYU008`), duration (`HDURNANO`, `HDURSECS`, `F064HDUR`), and per-timescale epoch bridges (`EUNXNANO`, `ETAINANO`, `F064ETAI`, `EGPSNANO`, …) | `hifi::{calendar,duration,epoch}` (`hifi` cargo feature) |
+| `uhlc` hybrid-logical-clock Conns — `NTP64 ↔ u64` (`NDURU064`) and the HLC `ID` bridge (`HLIDLX16`) | `uhlc::{ntp64,id}` (`uhlc` cargo feature) |
 | `std::net` addresses (`U032IPV4`, `U128IPV6`, `IPV6IPV4`, `IPVXIPV4`, `IPVXIPV6`, `SOVXSOV4`, `SOVXSOV6`) | `addr` |
-| `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `char` |
+| `char` codepoint projection (`U032CHAR`, surrogate-gap-aware) | `core::char` |
 | Pointer-width `usize` saturating casts (`USZEU008`, `USZEU016`, `USZEU032`, `USZEU064`, `USZEU128`) | `core::usize` |
 | Pointer-width `isize` casts (`ISZEI008`, `ISZEI016`, `ISZEI128`; `→ i32`/`→ i64` deferred) | `core::isize` |
 | Sortable byte encodings (`U008BE01`, `U008LE01`, `I008BE01`, `I008LE01`, `BOOLBE01`, `BOOLLE01`, through `U128BE16`, `U128LE16`, `I128BE16`, `I128LE16`) | `core::{bool, i008,…,i128, u008,…,u128}` |
