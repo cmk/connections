@@ -72,13 +72,22 @@ declaration-form macros — they bottom out at `Conn::new_l` /
 `iso!` and removes the `(ceil, inner)` vs. `(inner, floor)`
 positional-argument footgun. The const above can be written:
 
-```rust,ignore
+```rust
+# use std::cmp::Ordering;
+# use connections::conn_l;
+# fn ceil(b: bool) -> Ordering {
+#     if b { Ordering::Greater } else { Ordering::Less }
+# }
+# fn inner(o: Ordering) -> bool {
+#     matches!(o, Ordering::Greater)
+# }
 conn_l! {
     pub BOOLORDR : bool => Ordering {
         ceil:  ceil,
         inner: inner,
     }
 }
+# fn main() {}
 ```
 
 The verification table is consistent again:
