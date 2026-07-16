@@ -1,11 +1,11 @@
-<!-- TODO: on first crates.io publish, swap badges back to dynamic
-     shields.io/crates/v/connections.svg + shields.io/docsrs/connections -->
-[![crates.io](https://img.shields.io/badge/crates.io-unreleased-lightgrey.svg)](https://crates.io/crates/connections)
+[![crates.io](https://img.shields.io/crates/v/connections.svg)](https://crates.io/crates/connections)
+[![docs.rs](https://img.shields.io/docsrs/connections)](https://docs.rs/connections)
 [![docs](https://img.shields.io/badge/docs-github.io-blue.svg)](https://cmk.github.io/connections/)
 [![MSRV](https://img.shields.io/badge/MSRV-1.88-blue.svg)](https://github.com/cmk/connections)
 [![CI](https://github.com/cmk/connections/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/connections/actions/workflows/ci.yml)
 
-Read the docs [here](https://cmk.github.io/connections/).
+
+Read the docs [here](https://cmk.github.io/connections/) or on [docs.rs](https://docs.rs/connections).
 
 # Overview
 
@@ -34,7 +34,7 @@ the chain is specifiable at compile time.
 
 The standard cast operators `as`, `From`, and `Into` give you exactly one
 direction at a time — and `as` in particular is silent on rounding,
-saturation, and lossy conversion. Three concrete things this crate gives
+saturation, and lossy conversion. Two concrete things this crate gives
 you that the standard tools don't:
 
 1. **Clear semantics.**
@@ -46,7 +46,7 @@ you that the standard tools don't:
    - left-Galois: `ceil(a) ≤ b iff a ≤ upper(b)`
    - right-Galois: `lower(b) ≤ a iff b ≤ floor(a)`
 
-   A `Conn` is `Copy`, `const`-constructible, heap-free, and the crate 
+   A `Conn` is `Copy`, `const`-constructible, heap-free, and the crate
    is `#![forbid(unsafe_code)]`.
 
 2. **Safely composable.**
@@ -58,15 +58,15 @@ you that the standard tools don't:
 ## Quick start
 
 ```rust
-use connections::prelude::*;
-use connections::core::B2;
-use connections::core::i016::I016BE02;
+use connections::conn::ConnR;
+use connections::core::u032::U032I032;
 
-let bytes = B2([0x01, 0x02]);
-assert_eq!(I016BE02.ceil(258_i16), bytes);
-assert_eq!(I016BE02.floor(258_i16), bytes);
-assert_eq!(I016BE02.upper(bytes), 258_i16);
-assert_eq!(I016BE02.lower(bytes), 258_i16);
+// Rust's `as` keeps the low bits; this Conn makes saturation explicit.
+assert_eq!(u32::MAX as i32, -1);
+assert_eq!(U032I032.floor(u32::MAX), i32::MAX);
+
+// The reverse arm is paired with `floor` by the right-Galois law.
+assert_eq!(U032I032.lower(-1), 0_u32);
 ```
 
 See [EXAMPLES.md](https://github.com/cmk/connections/blob/main/EXAMPLES.md)
@@ -123,10 +123,10 @@ statically at the call site. Do not thread intermediates by hand.
 If the client code takes a runtime parameter then it's best to keep the
 helper as a normal named function whose body *visibly composes* with
 the lawful Conns it depends on.
-   
+
 The discipline of pushing runtime parameters and conversion policy
 choices close to the static Conn call site means that the policy and
-the static cast are both visible in the same body. The results is code
+the static cast are both visible in the same body. The result is code
 that is visibly correct, easy to test, and extensible to future use
 cases.
 
@@ -349,7 +349,7 @@ Optional cargo features:
 The `connections::prop::conn` and `connections::prop::lattice`
 predicate modules are *always* public — they're pure `bool`-returning
 functions over this crate's own types and don't depend on `proptest`.
-The `testing` feature only adds `prop::arb`, the strategy module that
+The `proptest` feature only adds `prop::arb`, the strategy module that
 does pull `proptest` in as a regular dependency.
 
 # Testing
@@ -358,8 +358,8 @@ does pull `proptest` in as a regular dependency.
 cargo test --workspace
 ```
 
-Every connection runs its `proptest` law suite on every commit (the
-pre-commit hook in `.claude/settings.json` enforces this). Float
+Every connection runs its `proptest` law suite in CI and in the
+repository's pre-push gate. Float
 generators are biased toward NaN, ±∞, ±0, denormals, and ULP-boundary
 values. Fixed-point generators are biased toward `0`, `±PREC`, and
 `±i64::MAX/PREC` so saturation boundaries are exercised on every run.
@@ -370,7 +370,7 @@ binary fixed-point ladder, [`time`](https://crates.io/crates/time)
 backs the optional civil-calendar / clock surface, and
 [`hifitime`](https://crates.io/crates/hifitime) backs the optional
 high-precision time surface. Proptest is a dev-dependency, exposed
-publicly behind the `testing` feature for downstream test suites.
+publicly behind the `proptest` feature for downstream test suites.
 
 Every connection ships with proptest coverage of the following laws — the
 predicates live in `prop::conn` and are re-runnable by downstream

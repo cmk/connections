@@ -326,7 +326,7 @@ pub mod prelude {
 // strategies (`prop::arb`) for downstream crates that want to drive
 // their own tests against this crate's algebras. The predicate
 // modules are always public — they're pure `bool`-returning fns
-// over this crate's types. `arb` is gated on the `testing` feature,
+// over this crate's types. `arb` is gated on the `proptest` feature,
 // which flips `proptest` from a dev-dep to an optional regular dep.
 pub mod prop;
 

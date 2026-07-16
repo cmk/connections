@@ -67,7 +67,7 @@ fixed = ["dep:fixed"]
 # Expose `connections::prop::arb` (proptest strategies) to
 # downstream crates. The `connections::prop::conn` and
 # `connections::prop::lattice` predicates are always public — they
-# only depend on this crate's own types (Conn, Ple, Heyting, …) and
+# only depend on this crate's own types (Conn, Interval, Heyting, …) and
 # don't need proptest at all.
 proptest = ["dep:proptest"]
 
