@@ -56,6 +56,6 @@ fn prelude_glob_brings_traits() {
 
     // The bare two-sided helper `round` also arrives via the prelude.
     // 1.5 is exactly representable in f32, so the round-trip is lossless.
-    let r = round(&F064F032, N5::new(1.5_f64));
+    let r = F064F032.round(N5::new(1.5_f64));
     assert_eq!(r, N5::new(1.5_f32));
 }

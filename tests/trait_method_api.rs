@@ -12,7 +12,7 @@
 //! `round(&M, x)`.
 
 use connections::conn::{
-    Conn, ConnK, ConnL, ConnR, L, R, interval, median, round, round1, truncate, view_l, view_r,
+    Conn, ConnK, ConnL, ConnR, L, R, interval, median, round, round1, truncate,
 };
 use connections::core::f064::F064F032;
 use connections::float::N5;
@@ -42,14 +42,14 @@ fn ext_f32() -> impl Strategy<Value = N5<f32>> {
 proptest! {
     /// L-side accessors: `M.ceil(a)` (trait default) equals both the
     /// inherent-view form `M.view_l().ceil(a)` and the free-fn form
-    /// `view_l(&M).ceil(a)`; same for `upper` / `ceil1` / `upper1`.
+    /// `M.view_l().ceil(a)`; same for `upper` / `ceil1` / `upper1`.
     #[test]
     fn marker_direct_eq_view_l(a in ext_f64(), b in ext_f32()) {
         prop_assert_eq!(F064F032.ceil(a), F064F032.view_l().ceil(a));
-        prop_assert_eq!(F064F032.ceil(a), view_l(&F064F032).ceil(a));
+        prop_assert_eq!(F064F032.ceil(a), F064F032.view_l().ceil(a));
         prop_assert_eq!(F064F032.upper(b), F064F032.view_l().upper(b));
-        prop_assert_eq!(F064F032.upper1(|x| x, a), view_l(&F064F032).upper1(|x| x, a));
-        prop_assert_eq!(F064F032.ceil1(|x| x, b), view_l(&F064F032).ceil1(|x| x, b));
+        prop_assert_eq!(F064F032.upper1(|x| x, a), F064F032.view_l().upper1(|x| x, a));
+        prop_assert_eq!(F064F032.ceil1(|x| x, b), F064F032.view_l().ceil1(|x| x, b));
     }
 
     /// R-side accessors: dual of [`marker_direct_eq_view_l`] over
@@ -57,10 +57,10 @@ proptest! {
     #[test]
     fn marker_direct_eq_view_r(a in ext_f64(), b in ext_f32()) {
         prop_assert_eq!(F064F032.floor(a), F064F032.view_r().floor(a));
-        prop_assert_eq!(F064F032.floor(a), view_r(&F064F032).floor(a));
+        prop_assert_eq!(F064F032.floor(a), F064F032.view_r().floor(a));
         prop_assert_eq!(F064F032.lower(b), F064F032.view_r().lower(b));
-        prop_assert_eq!(F064F032.lower1(|x| x, a), view_r(&F064F032).lower1(|x| x, a));
-        prop_assert_eq!(F064F032.floor1(|x| x, b), view_r(&F064F032).floor1(|x| x, b));
+        prop_assert_eq!(F064F032.lower1(|x| x, a), F064F032.view_r().lower1(|x| x, a));
+        prop_assert_eq!(F064F032.floor1(|x| x, b), F064F032.view_r().floor1(|x| x, b));
     }
 
     /// Two-sided helpers: the `ConnK` method equals the retained free

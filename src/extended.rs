@@ -40,10 +40,7 @@
 //!   that impls `ConnL`+`ConnR` (i.e. `ConnK`). Such a marker flows
 //!   into all three forms — [`compose_l!`](crate::compose_l) /
 //!   [`compose_r!`](crate::compose_r) via its inherent `const fn`
-//!   `view_l` / `view_r` (public, so callable from any crate; the free
-//!   [`view_l`](crate::conn::view_l)`(&M)` /
-//!   [`view_r`](crate::conn::view_r)`(&M)` fns are the non-`const`
-//!   runtime equivalents), and
+//!   `view_l` / `view_r` (public, so callable from any crate), and
 //!   [`compose_k!`](crate::compose_k) directly as a path operand.
 //! - The output of [`compose_k!`](crate::compose_k) is itself a `ConnK`
 //!   marker, so chains can nest arbitrarily — `lift_k!` over the result

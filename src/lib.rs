@@ -228,35 +228,98 @@ pub mod time;
 #[cfg(feature = "uhlc")]
 pub mod uhlc;
 
-/// Idiomatic batch import of the trait family, two-sided helpers, and
-/// the [`Interval`](crate::interval::Interval) bracket type.
+/// Idiomatic batch import of the full `Conn` API, grouped into three
+/// analogous polarity surfaces brought into scope together.
 ///
-/// Two-sided ops (`round`, `truncate`, `median`, `interval` and the
-/// `1` / `2` lifters) are bare-named functions; routing them through
-/// the prelude keeps them inside an opt-in namespace and out of the
-/// crate-root glob's collision surface (`std::iter::Iterator::round`
-/// once it lands, `num_traits::ToPrimitive`, etc.). One-sided ops
-/// (`ceil` / `upper` / `floor` / `lower` and their `1` / `2` lifters)
-/// are kind-gated inherent methods on `Conn<_, _, L>` / `Conn<_, _, R>`;
-/// the capability traits re-exported here carry the polarity swaps.
+/// Each surface has the same shape — a capability trait (whose default
+/// methods are the operations), the `view` / helper free fns, and the
+/// `conn_*!` / `compose_*!` / `lift_*!` macros:
+///
+/// | surface | trait | marker | free fns | macros |
+/// |---------|-------|--------|----------|--------|
+/// | [`bilateral`](crate::prelude::bilateral) | [`ConnK`](crate::conn::ConnK) | — | `interval` `median` `round*` `truncate*` | `compose_k!` `lift_k!` `conn_k!` `iso!` |
+/// | [`left`](crate::prelude::left) | [`ConnL`](crate::conn::ConnL) | `L` | — | `compose_l!` `lift_l!` `conn_l!` |
+/// | [`right`](crate::prelude::right) | [`ConnR`](crate::conn::ConnR) | `R` | — | `compose_r!` `lift_r!` `conn_r!` |
+///
+/// `use connections::prelude::*` pulls in all three plus the shared,
+/// polarity-agnostic core ([`Conn`](crate::conn::Conn),
+/// [`Extended`](crate::extended::Extended), `compose!`, `iso!`). To work
+/// in a single polarity, glob one surface:
+/// `use connections::prelude::left::*`.
+///
+/// One-sided ops (`ceil` / `upper` / `floor` / `lower` and their `1` /
+/// `2` lifters) are kind-gated inherent methods on `Conn<_, _, L>` /
+/// `Conn<_, _, R>`; the capability traits carry the polarity swaps and the
+/// method surface. Two-sided ops (`round`, `truncate`, `median`,
+/// `interval` and the `1` / `2` lifters) are also bare free fns, so they
+/// can be named without the trait in scope.
 ///
 /// # Examples
+///
+/// All three surfaces at once:
 ///
 /// ```rust
 /// use connections::prelude::*;
 /// use connections::core::f064::F064F032;
 /// use connections::float::N5;
 ///
-/// // The two-sided helpers and capability traits arrive via the prelude.
-/// let pi32 = F064F032.ceil(N5::new(std::f64::consts::PI));
-/// assert_eq!(pi32, N5::new(std::f32::consts::PI));
+/// // Left surface: `ConnL::ceil` (round up).
+/// assert_eq!(F064F032.ceil(N5::new(std::f64::consts::PI)), N5::new(std::f32::consts::PI));
+/// // Bilateral surface: `ConnK::round` (nearest) uses both adjoints.
+/// assert_eq!(F064F032.round(N5::new(1.5_f64)), N5::new(1.5_f32));
+/// ```
+///
+/// A single polarity:
+///
+/// ```rust
+/// use connections::prelude::right::*;
+/// use connections::core::f064::F064F032;
+/// use connections::float::N5;
+///
+/// // Only the right surface is in scope, so `.floor` resolves.
+/// assert_eq!(F064F032.floor(N5::new(1.5_f64)), N5::new(1.5_f32));
 /// ```
 pub mod prelude {
-    pub use crate::conn::{ConnK, ConnL, ConnR};
-    pub use crate::conn::{
-        interval, median, round, round1, round2, truncate, truncate1, truncate2,
-    };
-    pub use crate::interval::Interval;
+    /// Bilateral surface: the [`ConnK`] super-trait,
+    /// the `interval` / `median` / `round*` / `truncate*` accessors
+    /// and the `compose_k!` / `lift_k!` / `conn_k!` / `iso!` macros.
+    pub mod bilateral {
+        pub use crate::conn::{
+            ConnK, interval, median, round, round1, round2, truncate, truncate1, truncate2,
+        };
+        pub use crate::interval::Interval;
+        #[cfg(feature = "macros")]
+        pub use crate::{compose_k, conn_k, iso, lift_k};
+    }
+
+    /// Left-adjoint (ceiling) surface: the [`ConnL`]
+    /// capability trait, the `L` kind marker, and the `conn_l!` /
+    /// `compose_l!` / `lift_l!` macros.
+    pub mod left {
+        pub use crate::conn::{ConnL, L};
+        #[cfg(feature = "macros")]
+        pub use crate::{compose_l, conn_l, lift_l};
+    }
+
+    /// Right-adjoint (floor) surface: the [`ConnR`]
+    /// capability trait, the `R` kind marker, and the `conn_r!` /
+    /// `compose_r!` / `lift_r!` macros.
+    pub mod right {
+        pub use crate::conn::{ConnR, R};
+        #[cfg(feature = "macros")]
+        pub use crate::{compose_r, conn_r, lift_r};
+    }
+
+    // Polarity-agnostic core shared by all three surfaces.
+    #[cfg(feature = "macros")]
+    pub use crate::compose;
+    pub use crate::conn::Conn;
+    pub use crate::extended::Extended;
+
+    // Bring all three surfaces into scope together.
+    pub use bilateral::*;
+    pub use left::*;
+    pub use right::*;
 }
 
 // Property predicates (`prop::conn`, `prop::lattice`) and proptest
