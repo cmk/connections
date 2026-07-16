@@ -19,4 +19,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.88.0
       - uses: model-checking/kani-github-action@v1.1
         with:
-          args: '--features fixed,hifi,uhlc'
+          # `hifi` excluded: Kani sets `--cfg kani` globally, so it also
+          # compiles hifitime's own `src/epoch/kani_verif.rs`, which uses
+          # `Epoch::now()` / `system_time` — both `#[cfg(feature = "std")]`.
+          # We pull hifitime `default-features = false` (its `std` pulls
+          # serde + web-time + snafu), so those items are configured out and
+          # hifitime's harness fails to compile, taking the whole run with
+          # it. Re-add `hifi` once hifitime gates that module behind `std`.
+          args: '--features fixed,uhlc'
