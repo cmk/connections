@@ -20,7 +20,6 @@ use ::core::num::{
     NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroU16, NonZeroU32, NonZeroU64,
     NonZeroU128,
 };
-use connections::conn::{view_l, view_r};
 use connections::prop::conn as conn_laws;
 use connections::{core, fixed};
 use proptest::prelude::*;
@@ -40,16 +39,16 @@ macro_rules! signed_nz_props {
             proptest! {
                 #[test]
                 fn galois_l(a in any::<$A>(), b in arb_nz()) {
-                    prop_assert!(conn_laws::galois_l(&view_l(&$CONN), a, b));
+                    prop_assert!(conn_laws::galois_l(&$CONN.view_l(), a, b));
                 }
                 #[test]
                 fn galois_r(a in any::<$A>(), b in arb_nz()) {
-                    prop_assert!(conn_laws::galois_r(&view_r(&$CONN), a, b));
+                    prop_assert!(conn_laws::galois_r(&$CONN.view_r(), a, b));
                 }
                 #[test]
                 fn inner_then_ceil_recovers(nz in arb_nz()) {
-                    prop_assert_eq!(view_l(&$CONN).ceil(view_l(&$CONN).upper(nz)), nz);
-                    prop_assert_eq!(view_r(&$CONN).floor(view_l(&$CONN).upper(nz)), nz);
+                    prop_assert_eq!($CONN.view_l().ceil($CONN.view_l().upper(nz)), nz);
+                    prop_assert_eq!($CONN.view_r().floor($CONN.view_l().upper(nz)), nz);
                 }
             }
         }
@@ -103,20 +102,20 @@ macro_rules! iso_props {
                 #[test]
                 fn galois_l(a_bits in any::<$A>(), b in any::<$A>()) {
                     let a = $FIXED::<$FRAC>::from_bits(a_bits);
-                    prop_assert!(conn_laws::galois_l(&view_l(&$CONN), a, b));
+                    prop_assert!(conn_laws::galois_l(&$CONN.view_l(), a, b));
                 }
                 #[test]
                 fn galois_r(a_bits in any::<$A>(), b in any::<$A>()) {
                     let a = $FIXED::<$FRAC>::from_bits(a_bits);
-                    prop_assert!(conn_laws::galois_r(&view_r(&$CONN), a, b));
+                    prop_assert!(conn_laws::galois_r(&$CONN.view_r(), a, b));
                 }
                 #[test]
                 fn round_trip_both_directions(v in any::<$A>()) {
                     let q = $FIXED::<$FRAC>::from_bits(v);
-                    prop_assert_eq!(view_l(&$CONN).upper(view_l(&$CONN).ceil(q)), q);
-                    prop_assert_eq!(view_l(&$CONN).ceil(view_l(&$CONN).upper(v)), v);
-                    prop_assert_eq!(view_r(&$CONN).lower(view_r(&$CONN).floor(q)), q);
-                    prop_assert_eq!(view_r(&$CONN).floor(view_r(&$CONN).lower(v)), v);
+                    prop_assert_eq!($CONN.view_l().upper($CONN.view_l().ceil(q)), q);
+                    prop_assert_eq!($CONN.view_l().ceil($CONN.view_l().upper(v)), v);
+                    prop_assert_eq!($CONN.view_r().lower($CONN.view_r().floor(q)), q);
+                    prop_assert_eq!($CONN.view_r().floor($CONN.view_r().lower(v)), v);
                 }
             }
         }

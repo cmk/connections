@@ -19,24 +19,22 @@
 //! ## Downstream usage
 //!
 //! ```rust,no_run
-//! use connections::conn::view_l;
 //! use connections::core::f064::F064F032;
 //! use connections::float::N5;
 //! use connections::prop::conn;
 //!
 //! // Spot check: F064F032 satisfies the Galois adjoint law over a
 //! // representative pair. F064F032 is now a triple-marker unit
-//! // struct; `view_l(&F064F032)` is its L-view.
+//! // struct; `F064F032.view_l()` is its L-view.
 //! let a = N5::new(1.5_f64);
 //! let b = N5::new(1.5_f32);
-//! assert!(conn::galois_l(&view_l(&F064F032), a, b));
+//! assert!(conn::galois_l(&F064F032.view_l(), a, b));
 //! ```
 //!
 //! With the `proptest` feature enabled, downstream proptest blocks
 //! can drive the predicates over arbitrary inputs:
 //!
 //! ```text
-//! use connections::conn::view_l;
 //! use connections::prop::{arb, conn};
 //! use connections::core::f064::F064F032;
 //! use connections::float::N5;
@@ -49,7 +47,7 @@
 //!         b in arb::arb_f32(),
 //!     ) {
 //!         prop_assert!(conn::galois_l(
-//!             &view_l(&F064F032),
+//!             &F064F032.view_l(),
 //!             N5::new(a),
 //!             N5::new(b),
 //!         ));

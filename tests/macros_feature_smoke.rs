@@ -62,7 +62,7 @@ mod triple_smoke {
     #[test]
     fn triple_both_views() {
         assert_eq!(IDI032.view_l().ceil(7), 7);
-        assert_eq!(connections::conn::view_r(&IDI032).floor(7), 7);
+        assert_eq!(IDI032.view_r().floor(7), 7);
     }
 }
 

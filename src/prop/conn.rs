@@ -5,7 +5,7 @@
 //! both views). Inputs are passed by value (Conn is `Copy`).
 //! Returns `bool`.
 
-use crate::conn::{Conn, ConnL, ConnR, L, R, view_l, view_r};
+use crate::conn::{Conn, ConnL, ConnR, L, R};
 
 // (back-compat re-exports removed under the prefix-strip rename —
 // `floor_le_ceil`, `ulp_bound`, `idempotent` are the canonical names.)
@@ -247,7 +247,7 @@ pub fn floor_le_ceil<T, A: Copy, B: Copy + PartialOrd>(t: &T, a: A) -> bool
 where
     T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
 {
-    view_r(t).floor(a) <= view_l(t).ceil(a)
+    t.view_r().floor(a) <= t.view_l().ceil(a)
 }
 
 /// Swap involution on L-values: `c.swap_l().swap_r() == c`, exact by
@@ -273,7 +273,7 @@ where
     A: Copy + PartialEq,
     B: Copy,
 {
-    view_l(t).upper(b) == view_r(t).lower(b)
+    t.view_l().upper(b) == t.view_r().lower(b)
 }
 
 /// `inner(b1) ≤ inner(b2) ⟹ b1 ≤ b2` — `inner` is order-reflecting.
@@ -289,7 +289,7 @@ where
 /// source-side strategy under-samples extremes — the failure mode that
 /// hid the Haskell `f09sys` bug for years.
 ///
-/// `inner` is taken from the L view (`view_l(t).upper`); for a true
+/// `inner` is taken from the L view (`t.view_l().upper`); for a true
 /// triple the L-view's `upper` and the R-view's `lower` are the same
 /// function pointer by construction, so the choice of view is
 /// arbitrary.
@@ -299,7 +299,7 @@ where
     A: Copy + PartialOrd,
     B: Copy + PartialOrd,
 {
-    let l = view_l(t);
+    let l = t.view_l();
     let a1 = l.upper(b1);
     let a2 = l.upper(b2);
     if a1 <= a2 { b1 <= b2 } else { true }
@@ -314,8 +314,8 @@ where
     B: Copy,
     F: Fn(B) -> i64,
 {
-    let c_val = rung(view_l(t).ceil(a));
-    let f_val = rung(view_r(t).floor(a));
+    let c_val = rung(t.view_l().ceil(a));
+    let f_val = rung(t.view_r().floor(a));
     c_val
         .checked_sub(f_val)
         .is_some_and(|d| (0..=1).contains(&d))
@@ -370,12 +370,12 @@ where
     match crate::conn::interval(t, x) {
         crate::interval::Interval::Empty => true,
         crate::interval::Interval::Closed { lo, hi } => {
-            view_r(t).floor(lo) == view_r(t).floor(x) && view_l(t).ceil(hi) == view_l(t).ceil(x)
+            t.view_r().floor(lo) == t.view_r().floor(x) && t.view_l().ceil(hi) == t.view_l().ceil(x)
         }
     }
 }
 
-/// `round(t, x)` is always one of `view_l(t).ceil(x)` / `view_r(t).floor(x)`.
+/// `round(t, x)` is always one of `t.view_l().ceil(x)` / `t.view_r().floor(x)`.
 pub fn round_picks_endpoint<T, A, B>(t: &T, x: A) -> bool
 where
     T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
@@ -383,10 +383,10 @@ where
     B: Copy + Eq,
 {
     let r = crate::conn::round(t, x);
-    r == view_l(t).ceil(x) || r == view_r(t).floor(x)
+    r == t.view_l().ceil(x) || r == t.view_r().floor(x)
 }
 
-/// `truncate(t, x)` is always one of `view_l(t).ceil(x)` / `view_r(t).floor(x)`.
+/// `truncate(t, x)` is always one of `t.view_l().ceil(x)` / `t.view_r().floor(x)`.
 pub fn truncate_picks_endpoint<T, A, B>(t: &T, x: A) -> bool
 where
     T: ConnL<A = A, B = B> + ConnR<A = A, B = B>,
@@ -394,7 +394,7 @@ where
     B: Copy + Eq,
 {
     let v = crate::conn::truncate(t, x);
-    v == view_l(t).ceil(x) || v == view_r(t).floor(x)
+    v == t.view_l().ceil(x) || v == t.view_r().floor(x)
 }
 
 /// Toward-zero contract: `x ≥ 0 ⟹ truncate = floor`, otherwise `= ceil`.
@@ -407,9 +407,9 @@ where
     let zero = A::from(0);
     let v = crate::conn::truncate(t, x);
     if x >= zero {
-        v == view_r(t).floor(x)
+        v == t.view_r().floor(x)
     } else {
-        v == view_l(t).ceil(x)
+        v == t.view_l().ceil(x)
     }
 }
 
