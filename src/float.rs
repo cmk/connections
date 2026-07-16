@@ -93,6 +93,7 @@ impl<T> N5<T> {
 macro_rules! impl_float_ext {
     ($T:ty) => {
         impl PartialEq for $crate::float::N5<$T> {
+            #[inline]
             fn eq(&self, other: &Self) -> bool {
                 let a = self.0;
                 let b = other.0;
@@ -105,6 +106,7 @@ macro_rules! impl_float_ext {
         }
 
         impl PartialOrd for $crate::float::N5<$T> {
+            #[inline]
             fn partial_cmp(&self, other: &Self) -> Option<::core::cmp::Ordering> {
                 let a = self.0;
                 let b = other.0;
@@ -193,6 +195,7 @@ macro_rules! impl_float_arith {
     ($T:ident) => {
         impl Add for N5<$T> {
             type Output = Self;
+            #[inline]
             fn add(self, other: Self) -> Self {
                 N5(self.0 + other.0)
             }
@@ -200,6 +203,7 @@ macro_rules! impl_float_arith {
 
         impl Sub for N5<$T> {
             type Output = Self;
+            #[inline]
             fn sub(self, other: Self) -> Self {
                 N5(self.0 - other.0)
             }
@@ -207,6 +211,7 @@ macro_rules! impl_float_arith {
 
         impl Mul for N5<$T> {
             type Output = Self;
+            #[inline]
             fn mul(self, other: Self) -> Self {
                 N5(self.0 * other.0)
             }
@@ -214,6 +219,7 @@ macro_rules! impl_float_arith {
 
         impl Div for N5<$T> {
             type Output = Self;
+            #[inline]
             fn div(self, other: Self) -> Self {
                 N5(self.0 / other.0)
             }
@@ -221,6 +227,7 @@ macro_rules! impl_float_arith {
 
         impl Rem for N5<$T> {
             type Output = Self;
+            #[inline]
             fn rem(self, other: Self) -> Self {
                 N5(self.0 % other.0)
             }
@@ -228,62 +235,73 @@ macro_rules! impl_float_arith {
 
         impl Neg for N5<$T> {
             type Output = Self;
+            #[inline]
             fn neg(self) -> Self {
                 N5(-self.0)
             }
         }
 
         impl AddAssign for N5<$T> {
+            #[inline]
             fn add_assign(&mut self, other: Self) {
                 *self = *self + other;
             }
         }
         impl SubAssign for N5<$T> {
+            #[inline]
             fn sub_assign(&mut self, other: Self) {
                 *self = *self - other;
             }
         }
         impl MulAssign for N5<$T> {
+            #[inline]
             fn mul_assign(&mut self, other: Self) {
                 *self = *self * other;
             }
         }
         impl DivAssign for N5<$T> {
+            #[inline]
             fn div_assign(&mut self, other: Self) {
                 *self = *self / other;
             }
         }
         impl RemAssign for N5<$T> {
+            #[inline]
             fn rem_assign(&mut self, other: Self) {
                 *self = *self % other;
             }
         }
 
         impl From<u8> for N5<$T> {
+            #[inline]
             fn from(n: u8) -> Self {
                 N5(<$T>::from(n))
             }
         }
 
         impl From<i8> for N5<$T> {
+            #[inline]
             fn from(n: i8) -> Self {
                 N5(<$T>::from(n))
             }
         }
 
         impl From<i16> for N5<$T> {
+            #[inline]
             fn from(n: i16) -> Self {
                 N5(<$T>::from(n))
             }
         }
 
         impl From<u16> for N5<$T> {
+            #[inline]
             fn from(n: u16) -> Self {
                 N5(<$T>::from(n))
             }
         }
 
         impl From<$T> for N5<$T> {
+            #[inline]
             fn from(v: $T) -> Self {
                 N5(v)
             }
@@ -301,102 +319,125 @@ macro_rules! impl_float_arith {
             pub const ONE: Self = N5(1.0);
 
             /// `true` iff the wrapped IEEE value is NaN.
+            #[inline]
             pub fn is_nan(self) -> bool {
                 self.0.is_nan()
             }
 
             /// `true` iff the wrapped IEEE value is finite.
+            #[inline]
             pub fn is_finite(self) -> bool {
                 self.0.is_finite()
             }
 
             /// `true` iff the wrapped IEEE value is infinite.
+            #[inline]
             pub fn is_infinite(self) -> bool {
                 self.0.is_infinite()
             }
 
             // ── Transcendentals + utilities ───────────────────────────
 
+            #[inline]
             pub fn abs(self) -> Self {
                 N5(self.0.abs())
             }
 
+            #[inline]
             pub fn signum(self) -> Self {
                 N5(self.0.signum())
             }
 
+            #[inline]
             pub fn recip(self) -> Self {
                 N5(self.0.recip())
             }
 
+            #[inline]
             pub fn sqrt(self) -> Self {
                 N5(self.0.sqrt())
             }
 
+            #[inline]
             pub fn cbrt(self) -> Self {
                 N5(self.0.cbrt())
             }
 
+            #[inline]
             pub fn sin(self) -> Self {
                 N5(self.0.sin())
             }
 
+            #[inline]
             pub fn cos(self) -> Self {
                 N5(self.0.cos())
             }
 
+            #[inline]
             pub fn tan(self) -> Self {
                 N5(self.0.tan())
             }
 
+            #[inline]
             pub fn asin(self) -> Self {
                 N5(self.0.asin())
             }
 
+            #[inline]
             pub fn acos(self) -> Self {
                 N5(self.0.acos())
             }
 
+            #[inline]
             pub fn atan(self) -> Self {
                 N5(self.0.atan())
             }
 
             /// `atan2(y, x)`.
+            #[inline]
             pub fn atan2(self, other: Self) -> Self {
                 N5(self.0.atan2(other.0))
             }
 
+            #[inline]
             pub fn exp(self) -> Self {
                 N5(self.0.exp())
             }
 
+            #[inline]
             pub fn exp2(self) -> Self {
                 N5(self.0.exp2())
             }
 
+            #[inline]
             pub fn ln(self) -> Self {
                 N5(self.0.ln())
             }
 
+            #[inline]
             pub fn log2(self) -> Self {
                 N5(self.0.log2())
             }
 
+            #[inline]
             pub fn log10(self) -> Self {
                 N5(self.0.log10())
             }
 
             /// Integer power.
+            #[inline]
             pub fn powi(self, n: i32) -> Self {
                 N5(self.0.powi(n))
             }
 
             /// Float power.
+            #[inline]
             pub fn powf(self, p: Self) -> Self {
                 N5(self.0.powf(p.0))
             }
 
             /// Fused multiply-add.
+            #[inline]
             pub fn mul_add(self, a: Self, b: Self) -> Self {
                 N5(self.0.mul_add(a.0, b.0))
             }
@@ -410,11 +451,13 @@ impl_float_arith!(f64);
 // f64-only `From<i32>` / `From<u32>` (lossless casts; i32/u32 don't
 // fit in f32's 24-bit mantissa).
 impl From<i32> for N5<f64> {
+    #[inline]
     fn from(n: i32) -> Self {
         N5(f64::from(n))
     }
 }
 impl From<u32> for N5<f64> {
+    #[inline]
     fn from(n: u32) -> Self {
         N5(f64::from(n))
     }

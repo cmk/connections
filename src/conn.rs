@@ -122,6 +122,7 @@ pub struct Conn<A, B, K: Kind = L> {
 
 impl<A, B, K: Kind> Copy for Conn<A, B, K> {}
 impl<A, B, K: Kind> Clone for Conn<A, B, K> {
+    #[inline]
     fn clone(&self) -> Self {
         *self
     }
@@ -132,6 +133,7 @@ impl<A, B, K: Kind> Clone for Conn<A, B, K> {
 // `(f, g)` fn-pointer pair. Fn-pointer equality is reference-identity
 // on the same monomorphisation.
 impl<A, B, K: Kind> PartialEq for Conn<A, B, K> {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         core::ptr::fn_addr_eq(self.f, other.f) && core::ptr::fn_addr_eq(self.g, other.g)
     }
@@ -154,6 +156,7 @@ impl<A, B, K: Kind> core::fmt::Debug for Conn<A, B, K> {
 
 impl<A, B> Conn<A, B, L> {
     /// Construct a left-Galois connection `ceil ⊣ inner`.
+    #[inline]
     pub const fn new_l(ceil: fn(A) -> B, inner: fn(B) -> A) -> Self {
         Conn {
             f: ceil,
@@ -166,6 +169,7 @@ impl<A, B> Conn<A, B, L> {
     ///
     /// The same `(f, g)` pair satisfies the R-Galois law over the
     /// swapped pair `(B, A)`. Zero-cost type-level relabel.
+    #[inline]
     pub const fn swap_l(self) -> Conn<B, A, R> {
         Conn {
             f: self.g,
@@ -334,6 +338,7 @@ impl<A, B> Conn<A, B, R> {
     /// Argument order mirrors Haskell's `CastR`: `inner` (the lower
     /// adjoint `g: B → A`) first, `floor` (the upper adjoint
     /// `f: A → B`) second.
+    #[inline]
     pub const fn new_r(inner: fn(B) -> A, floor: fn(A) -> B) -> Self {
         Conn {
             f: floor,
@@ -343,6 +348,7 @@ impl<A, B> Conn<A, B, R> {
     }
 
     /// Slot-swap: `Conn<A, B, R> → Conn<B, A, L>`.
+    #[inline]
     pub const fn swap_r(self) -> Conn<B, A, L> {
         Conn {
             f: self.g,
@@ -468,6 +474,7 @@ impl<X, K: Kind> Conn<X, X, K> {
     /// body satisfies both Galois laws, so the identity exists directly
     /// at either polarity (`Conn::<X, X, R>::identity()` needs no swap
     /// workaround). `Conn<X, X>` infers `K = L` by the type default.
+    #[inline]
     pub const fn identity() -> Self {
         const fn id_<X>(x: X) -> X {
             x
