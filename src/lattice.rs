@@ -402,29 +402,104 @@ where
     crate::conn::Conn::new_l(ceil::<A>, inner::<A>)
 }
 
-// ── `Join + Meet` impls for primitive lattices ──────────────────
+// ── The full hierarchy for finite chains ────────────────────────
+
+/// Implement the whole lattice hierarchy for a finite, totally-ordered,
+/// `Copy` bounded type — a *chain* — from its elements listed in ascending
+/// order.
+///
+/// A finite chain is a distributive bounded lattice, hence bi-Heyting and De
+/// Morgan ([`Symmetric`]); the one- and two-element chains are additionally
+/// [`Boolean`]. The operations are fixed by the order:
+///
+/// ```text
+/// bot = first element        top = last element
+/// join = max                 meet = min
+/// imp(a, b)   = if a <= b { top } else { b }     // Heyting implication
+/// coimp(a, b) = if a <= b { bot } else { a }     // co-Heyting subtraction
+/// not(a)      = order-reversal involution (i-th from bottom <-> i-th from top)
+/// ```
+///
+/// `not` is the De Morgan complement — it reverses the chain, so it needs the
+/// element list (the order alone does not pick an involution). Chains of three
+/// or more elements are *not* Boolean (excluded middle fails at an interior
+/// element), so pass the trailing `; Boolean` only for the one- and two-element
+/// chains.
+///
+/// ```
+/// use connections::lattice::{Heyting, Join, Meet, Symmetric};
+/// use core::cmp::Ordering;
+/// assert_eq!(<Ordering as Join>::bot(), Ordering::Less);
+/// assert_eq!(<Ordering as Meet>::top(), Ordering::Greater);
+/// assert_eq!(Ordering::Less.imp(&Ordering::Greater), Ordering::Greater);
+/// assert_eq!(Ordering::Less.not(), Ordering::Greater);
+/// assert_eq!(Ordering::Equal.not(), Ordering::Equal);
+/// ```
+macro_rules! chain_lattice {
+    // The elements are listed bottom-to-top; `bot`, `top`, and the `not`
+    // reversal read from the resulting `const` array, so join/meet/imp/coimp
+    // stay order-driven and one arm covers chains of any length (including the
+    // one-point terminal case).
+    ($ty:ty; [$($elem:expr),+ $(,)?] $(; $boolean:ident)?) => {
+        impl $crate::lattice::Join for $ty {
+            fn bot() -> Self {
+                const ELEMS: &[$ty] = &[$($elem),+];
+                ELEMS[0]
+            }
+            fn join(&self, other: &Self) -> Self {
+                if self >= other { *self } else { *other }
+            }
+        }
+        impl $crate::lattice::Meet for $ty {
+            fn top() -> Self {
+                const ELEMS: &[$ty] = &[$($elem),+];
+                ELEMS[ELEMS.len() - 1]
+            }
+            fn meet(&self, other: &Self) -> Self {
+                if self <= other { *self } else { *other }
+            }
+        }
+        impl $crate::lattice::Heyting for $ty {
+            fn imp(&self, other: &Self) -> Self {
+                const ELEMS: &[$ty] = &[$($elem),+];
+                if self <= other { ELEMS[ELEMS.len() - 1] } else { *other }
+            }
+        }
+        impl $crate::lattice::Coheyting for $ty {
+            fn coimp(&self, other: &Self) -> Self {
+                const ELEMS: &[$ty] = &[$($elem),+];
+                if self <= other { ELEMS[0] } else { *self }
+            }
+        }
+        impl $crate::lattice::Symmetric for $ty {
+            fn not(&self) -> Self {
+                const ELEMS: &[$ty] = &[$($elem),+];
+                let i = ELEMS
+                    .iter()
+                    .position(|e| e == self)
+                    .expect("chain_lattice: value is a declared chain element");
+                ELEMS[ELEMS.len() - 1 - i]
+            }
+        }
+        $( impl $crate::lattice::$boolean for $ty {} )?
+    };
+}
+
+// The unit type is the terminal (one-point) Boolean algebra: `bot == top == ()`.
+chain_lattice!((); [()]; Boolean);
+
+// `bool` is the two-element Boolean chain `false < true`: join is `||`, meet is
+// `&&`, `not` is `!`.
+chain_lattice!(bool; [false, true]; Boolean);
 
 // `core::cmp::Ordering` is the canonical 3-element bounded chain
-// (`Less < Equal < Greater`). Implementing `Join + Meet` makes it
-// the smallest non-trivial test surface for the generic
-// [`LATTBOOL`] helper.
-impl Join for core::cmp::Ordering {
-    fn bot() -> Self {
-        core::cmp::Ordering::Less
-    }
-    fn join(&self, other: &Self) -> Self {
-        core::cmp::max(*self, *other)
-    }
-}
-
-impl Meet for core::cmp::Ordering {
-    fn top() -> Self {
-        core::cmp::Ordering::Greater
-    }
-    fn meet(&self, other: &Self) -> Self {
-        core::cmp::min(*self, *other)
-    }
-}
+// (`Less < Equal < Greater`) — the smallest non-Boolean member of the family
+// and the test surface for the generic [`LATTBOOL`] helper.
+chain_lattice!(core::cmp::Ordering; [
+    core::cmp::Ordering::Less,
+    core::cmp::Ordering::Equal,
+    core::cmp::Ordering::Greater
+]);
 
 #[cfg(test)]
 mod tests {
@@ -588,5 +663,186 @@ mod tests {
             let c = LATTBOOL::<Ordering>();
             prop_assert!(conn_laws::idempotent(&c, o));
         }
+    }
+
+    // ── `chain_lattice!` battery: `Ordering` (3-chain, non-Boolean) ─────
+    //
+    // The macro emits the full bi-Heyting / De Morgan hierarchy for the
+    // 3-element chain. It is *not* Boolean: excluded middle and double-negation
+    // identity fail at the interior element `Equal`, exactly as they do for a
+    // three-valued truth chain.
+
+    fn arb_ord() -> impl Strategy<Value = Ordering> {
+        crate::prop::arb::arb_ordering()
+    }
+
+    proptest! {
+        #[test]
+        fn ordering_partial_order_laws(a in arb_ord(), b in arb_ord(), c in arb_ord()) {
+            prop_assert!(lattice_laws::lattice_reflexive(&a));
+            prop_assert!(lattice_laws::lattice_antisymmetric(&a, &b));
+            prop_assert!(lattice_laws::lattice_transitive(&a, &b, &c));
+            prop_assert!(lattice_laws::lattice_bot(&<Ordering as Join>::bot(), &a));
+            prop_assert!(lattice_laws::lattice_top(&<Ordering as Meet>::top(), &a));
+        }
+
+        #[test]
+        fn ordering_heyting_laws(a in arb_ord(), b in arb_ord(), c in arb_ord()) {
+            prop_assert!(lattice_laws::heyting_adjunction(&a, &b, &c));
+            prop_assert!(lattice_laws::heyting_currying(&a, &b, &c));
+            prop_assert!(lattice_laws::heyting_imp_anti_join_1st(&a, &b, &c));
+            prop_assert!(lattice_laws::heyting_imp_mono_join_2nd(&a, &b, &c));
+            prop_assert!(lattice_laws::heyting_imp_mono_ple_2nd(&a, &b, &c));
+            prop_assert!(lattice_laws::heyting_imp_top_iff_ple(&a, &b));
+            prop_assert!(lattice_laws::heyting_imp_dist_meet(&a, &b, &c));
+            prop_assert!(lattice_laws::heyting_modus_ponens(&a, &b));
+            prop_assert!(lattice_laws::heyting_weakening(&a, &b));
+            prop_assert!(lattice_laws::heyting_neg_boundary(&a));
+            prop_assert!(lattice_laws::heyting_neg_anti_join(&a, &b));
+            prop_assert!(lattice_laws::heyting_neg_imp_de_morgan(&a, &b));
+            prop_assert!(lattice_laws::heyting_neg_join_de_morgan(&a, &b));
+            prop_assert!(lattice_laws::heyting_neg_join_le_imp(&a, &b));
+            prop_assert!(lattice_laws::heyting_non_contradiction(&a));
+            prop_assert!(lattice_laws::heyting_double_neg_monad(&a));
+            prop_assert!(lattice_laws::heyting_double_neg_mid(&a));
+            prop_assert!(lattice_laws::heyting_triple_neg(&a));
+        }
+
+        #[test]
+        fn ordering_coheyting_laws(a in arb_ord(), b in arb_ord(), c in arb_ord()) {
+            prop_assert!(lattice_laws::coheyting_adjunction(&a, &b, &c));
+            prop_assert!(lattice_laws::coheyting_co_currying(&a, &b, &c));
+            prop_assert!(lattice_laws::coheyting_coimp_anti_meet_2nd(&a, &b, &c));
+            prop_assert!(lattice_laws::coheyting_coimp_bot_iff_ple(&a, &b));
+            prop_assert!(lattice_laws::coheyting_coimp_dist_join(&a, &b, &c));
+            prop_assert!(lattice_laws::coheyting_coimp_le_self(&a, &b));
+            prop_assert!(lattice_laws::coheyting_coimp_mono_meet_1st(&a, &b, &c));
+            prop_assert!(lattice_laws::coheyting_coimp_mono_ple_1st(&a, &b, &c));
+            prop_assert!(lattice_laws::coheyting_join_absorption(&a, &b));
+            prop_assert!(lattice_laws::coheyting_leibniz(&a, &b));
+            prop_assert!(lattice_laws::coheyting_meet_coneg_ge_coimp(&a, &b));
+            prop_assert!(lattice_laws::coheyting_coneg_anti_meet(&a, &b));
+            prop_assert!(lattice_laws::coheyting_coneg_boundary(&a));
+            prop_assert!(lattice_laws::coheyting_coneg_coimp_de_morgan(&a, &b));
+            prop_assert!(lattice_laws::coheyting_coneg_meet_de_morgan(&a, &b));
+            prop_assert!(lattice_laws::coheyting_excluded_middle(&a));
+            prop_assert!(lattice_laws::coheyting_double_coneg_comid(&a));
+            prop_assert!(lattice_laws::coheyting_double_coneg_comonad(&a));
+            prop_assert!(lattice_laws::coheyting_triple_coneg(&a));
+            prop_assert!(lattice_laws::coheyting_comid_additive(&a, &b));
+            prop_assert!(lattice_laws::coheyting_comid_decomp(&a));
+        }
+
+        #[test]
+        fn ordering_biheyting_laws(a in arb_ord(), b in arb_ord()) {
+            prop_assert!(lattice_laws::biheyting_involution(&a));
+            prop_assert!(lattice_laws::biheyting_not_de_morgan_join(&a, &b));
+            prop_assert!(lattice_laws::biheyting_not_de_morgan_meet(&a, &b));
+            prop_assert!(lattice_laws::biheyting_double_not_join(&a, &b));
+            prop_assert!(lattice_laws::biheyting_neg_le_coneg(&a));
+            prop_assert!(lattice_laws::biheyting_neg_excluded_middle(&a));
+            prop_assert!(lattice_laws::biheyting_coneg_neg_conv_l(&a));
+            prop_assert!(lattice_laws::biheyting_coneg_neg_conv_r(&a));
+            prop_assert!(lattice_laws::biheyting_conv_l_join(&a, &b));
+            prop_assert!(lattice_laws::biheyting_conv_l_meet(&a, &b));
+            prop_assert!(lattice_laws::biheyting_conv_r_join(&a, &b));
+            prop_assert!(lattice_laws::biheyting_conv_r_meet(&a, &b));
+            prop_assert!(lattice_laws::biheyting_double_coneg_eq_conv_lr(&a));
+            prop_assert!(lattice_laws::biheyting_double_neg_eq_conv_rl(&a));
+        }
+    }
+
+    /// The 3-chain is deliberately not Boolean: the interior element `Equal`
+    /// refutes excluded middle and double-negation identity.
+    #[test]
+    fn ordering_is_not_boolean() {
+        assert!(!lattice_laws::boolean_excluded_middle(&Ordering::Equal));
+        assert!(!lattice_laws::boolean_double_neg_id(&Ordering::Equal));
+    }
+
+    // ── `chain_lattice!` battery: `bool` (2-chain, Boolean) ─────────────
+    //
+    // The two-element chain is a genuine Boolean algebra, so it runs the same
+    // bi-Heyting suites plus the `boolean_*` laws the 3-chain refutes.
+
+    proptest! {
+        #[test]
+        fn bool_partial_order_laws(a in any::<bool>(), b in any::<bool>(), c in any::<bool>()) {
+            prop_assert!(lattice_laws::lattice_reflexive(&a));
+            prop_assert!(lattice_laws::lattice_antisymmetric(&a, &b));
+            prop_assert!(lattice_laws::lattice_transitive(&a, &b, &c));
+            prop_assert!(lattice_laws::lattice_bot(&<bool as Join>::bot(), &a));
+            prop_assert!(lattice_laws::lattice_top(&<bool as Meet>::top(), &a));
+        }
+
+        #[test]
+        fn bool_heyting_laws(a in any::<bool>(), b in any::<bool>(), c in any::<bool>()) {
+            prop_assert!(lattice_laws::heyting_adjunction(&a, &b, &c));
+            prop_assert!(lattice_laws::heyting_currying(&a, &b, &c));
+            prop_assert!(lattice_laws::heyting_imp_dist_meet(&a, &b, &c));
+            prop_assert!(lattice_laws::heyting_modus_ponens(&a, &b));
+            prop_assert!(lattice_laws::heyting_weakening(&a, &b));
+            prop_assert!(lattice_laws::heyting_neg_boundary(&a));
+            prop_assert!(lattice_laws::heyting_non_contradiction(&a));
+            prop_assert!(lattice_laws::heyting_triple_neg(&a));
+            prop_assert!(lattice_laws::heyting_imp_top_iff_ple(&a, &b));
+        }
+
+        #[test]
+        fn bool_coheyting_laws(a in any::<bool>(), b in any::<bool>(), c in any::<bool>()) {
+            prop_assert!(lattice_laws::coheyting_adjunction(&a, &b, &c));
+            prop_assert!(lattice_laws::coheyting_co_currying(&a, &b, &c));
+            prop_assert!(lattice_laws::coheyting_coimp_dist_join(&a, &b, &c));
+            prop_assert!(lattice_laws::coheyting_coimp_bot_iff_ple(&a, &b));
+            prop_assert!(lattice_laws::coheyting_join_absorption(&a, &b));
+            prop_assert!(lattice_laws::coheyting_coneg_boundary(&a));
+            prop_assert!(lattice_laws::coheyting_excluded_middle(&a));
+            prop_assert!(lattice_laws::coheyting_triple_coneg(&a));
+        }
+
+        #[test]
+        fn bool_biheyting_laws(a in any::<bool>(), b in any::<bool>()) {
+            prop_assert!(lattice_laws::biheyting_involution(&a));
+            prop_assert!(lattice_laws::biheyting_not_de_morgan_join(&a, &b));
+            prop_assert!(lattice_laws::biheyting_not_de_morgan_meet(&a, &b));
+            prop_assert!(lattice_laws::biheyting_neg_le_coneg(&a));
+        }
+
+        #[test]
+        fn bool_boolean_laws(a in any::<bool>(), b in any::<bool>()) {
+            prop_assert!(lattice_laws::boolean_excluded_middle(&a));
+            prop_assert!(lattice_laws::boolean_non_contradiction(&a));
+            prop_assert!(lattice_laws::boolean_double_neg_id(&a));
+            prop_assert!(lattice_laws::boolean_neg_eq_coneg(&a));
+            prop_assert!(lattice_laws::boolean_coimp_from_imp(&a, &b));
+            prop_assert!(lattice_laws::boolean_imp_from_coimp(&a, &b));
+            prop_assert!(lattice_laws::boolean_contrapositive(&a, &b));
+        }
+    }
+
+    #[test]
+    fn bool_ops_are_the_expected_connectives() {
+        assert!(!<bool as Join>::bot()); // bot = false
+        assert!(<bool as Meet>::top()); // top = true
+        assert!(true.join(&false)); // join = ||
+        assert!(!true.meet(&false)); // meet = &&
+        assert!(!Symmetric::not(&true)); // not = !
+        assert!(Symmetric::not(&false));
+    }
+
+    // ── `chain_lattice!` terminal case: `()` (one point, Boolean) ───────
+
+    #[test]
+    fn unit_is_the_terminal_boolean_algebra() {
+        // Every op on the one-point lattice collapses to `()`, so there is
+        // nothing to compare; the law predicates exercise bot/top/join/meet/
+        // imp(neg)/coimp(coneg)/not, and every Boolean law holds trivially.
+        assert!(lattice_laws::boolean_excluded_middle(&()));
+        assert!(lattice_laws::boolean_non_contradiction(&()));
+        assert!(lattice_laws::boolean_double_neg_id(&()));
+        assert!(lattice_laws::boolean_neg_eq_coneg(&()));
+        assert!(lattice_laws::biheyting_involution(&()));
+        assert!(lattice_laws::heyting_imp_top_iff_ple(&(), &()));
+        assert!(lattice_laws::coheyting_coimp_bot_iff_ple(&(), &()));
     }
 }
